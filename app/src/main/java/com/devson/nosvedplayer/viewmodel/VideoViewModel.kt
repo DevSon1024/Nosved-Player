@@ -25,9 +25,17 @@ class VideoViewModel : ViewModel() {
     val currentPosition get() = playerManager?.currentPosition
     val duration get() = playerManager?.duration
     val bufferedPosition get() = playerManager?.bufferedPosition
+    val playerError get() = playerManager?.playerError
 
-    private val _controlsVisible = MutableStateFlow(true)
+    // null = not yet known, true = portrait, false = landscape
+    val isPortraitVideo get() = playerManager?.isPortraitVideo
+    val videoFps get() = playerManager?.videoFps
+
+    private val _controlsVisible = MutableStateFlow(false)  // hidden until first tap
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
+
+    private val _showStats = MutableStateFlow(false)
+    val showStats: StateFlow<Boolean> = _showStats.asStateFlow()
 
     private val _currentVideo = MutableStateFlow<Video?>(null)
     val currentVideo: StateFlow<Video?> = _currentVideo.asStateFlow()
@@ -47,7 +55,7 @@ class VideoViewModel : ViewModel() {
             // Play the video the user selected (stored before the player was ready)
             pendingVideo?.let { video ->
                 playerManager?.playVideo(video)
-                hideControlsWithDelay()
+                _controlsVisible.value = false
                 pendingVideo = null
             }
         }
@@ -59,9 +67,8 @@ class VideoViewModel : ViewModel() {
         _currentVideo.value = video
         if (playerManager != null) {
             playerManager?.playVideo(video)
-            hideControlsWithDelay()
+            _controlsVisible.value = false
         } else {
-            // Player not ready yet — queue the video to be played in initializePlayer()
             pendingVideo = video
         }
     }
@@ -94,23 +101,37 @@ class VideoViewModel : ViewModel() {
         playerManager?.seekBackward()
     }
 
+    fun toggleStats() {
+        _showStats.value = !_showStats.value
+    }
+
+    fun clearError() {
+        playerManager?.clearError()
+    }
+
+    private var hideJob: kotlinx.coroutines.Job? = null
+
     fun toggleControlsVisibility() {
-        _controlsVisible.value = !_controlsVisible.value
-        if (_controlsVisible.value && playerManager?.isPlaying?.value == true) {
-            hideControlsWithDelay()
+        if (_controlsVisible.value) {
+            // Already visible — hide immediately
+            hideJob?.cancel()
+            _controlsVisible.value = false
+        } else {
+            // Show and schedule auto-hide
+            _controlsVisible.value = true
+            scheduleHide()
         }
     }
 
     fun showControlsAndDelayHide() {
         _controlsVisible.value = true
-        if (playerManager?.isPlaying?.value == true) {
-            hideControlsWithDelay()
-        }
+        scheduleHide()
     }
 
-    private fun hideControlsWithDelay() {
-        viewModelScope.launch {
-            delay(3000) // Hide after 3 seconds
+    private fun scheduleHide() {
+        hideJob?.cancel()
+        hideJob = viewModelScope.launch {
+            delay(3000)
             _controlsVisible.value = false
         }
     }

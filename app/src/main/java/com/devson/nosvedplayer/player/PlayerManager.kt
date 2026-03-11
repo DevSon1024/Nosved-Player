@@ -3,8 +3,10 @@ package com.devson.nosvedplayer.player
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import com.devson.nosvedplayer.model.Video
+import androidx.media3.common.PlaybackException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,15 +31,22 @@ class PlayerManager(private val context: Context) {
     private val _bufferedPosition = MutableStateFlow(0L)
     val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
 
+    // null = not yet determined, true = portrait, false = landscape
+    private val _isPortraitVideo = MutableStateFlow<Boolean?>(null)
+    val isPortraitVideo: StateFlow<Boolean?> = _isPortraitVideo.asStateFlow()
+
+    private val _videoFps = MutableStateFlow(0f)
+    val videoFps: StateFlow<Float> = _videoFps.asStateFlow()
+
+    private val _playerError = MutableStateFlow<String?>(null)
+    val playerError: StateFlow<String?> = _playerError.asStateFlow()
+
     fun initializePlayer() {
         if (exoPlayer == null) {
             exoPlayer = ExoPlayer.Builder(context).build().apply {
                 addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _isPlaying.value = isPlaying
-                        if (isPlaying) {
-                            // The periodic update will be handled by the ViewModel
-                        }
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -46,6 +55,29 @@ class PlayerManager(private val context: Context) {
                             _duration.value = duration.coerceAtLeast(0L)
                         }
                     }
+
+                    override fun onVideoSizeChanged(videoSize: VideoSize) {
+                        if (videoSize.width > 0 && videoSize.height > 0) {
+                            _isPortraitVideo.value = videoSize.height > videoSize.width
+                        }
+                    }
+
+                    override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                        super.onTracksChanged(tracks)
+                        for (group in tracks.groups) {
+                            if (group.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && group.isSelected) {
+                                val format = group.getTrackFormat(0) // Usually 1 track per selected video group
+                                if (format.frameRate > 0f) {
+                                    _videoFps.value = format.frameRate
+                                }
+                            }
+                        }
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        super.onPlayerError(error)
+                        _playerError.value = error.message ?: "Unknown playback error"
+                    }
                 })
             }
         }
@@ -53,10 +85,15 @@ class PlayerManager(private val context: Context) {
 
     fun playVideo(video: Video) {
         val player = exoPlayer ?: return
+        _playerError.value = null // Clear previous errors
         val mediaItem = MediaItem.fromUri(video.uri)
         player.setMediaItem(mediaItem)
         player.prepare()
         player.playWhenReady = true
+    }
+
+    fun clearError() {
+        _playerError.value = null
     }
 
     fun playPause() {
