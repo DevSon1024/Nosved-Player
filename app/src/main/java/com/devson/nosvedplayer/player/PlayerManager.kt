@@ -68,6 +68,14 @@ class PlayerManager(private val context: Context) {
         }
     }
 
+    fun pause() {
+        exoPlayer?.pause()
+    }
+
+    fun resume() {
+        exoPlayer?.play()
+    }
+
     fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
     }

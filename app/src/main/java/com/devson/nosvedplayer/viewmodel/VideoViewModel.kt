@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.player.PlayerManager
+import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,11 @@ import kotlinx.coroutines.launch
 class VideoViewModel : ViewModel() {
 
     private var playerManager: PlayerManager? = null
+    private var pendingVideo: Video? = null
+
+    // Exposed so that VideoScreen recomposes when the player becomes ready
+    private val _playerInstance = MutableStateFlow<ExoPlayer?>(null)
+    val playerInstance: StateFlow<ExoPlayer?> = _playerInstance.asStateFlow()
 
     val isPlaying get() = playerManager?.isPlaying
     val currentPosition get() = playerManager?.currentPosition
@@ -34,28 +40,46 @@ class VideoViewModel : ViewModel() {
         if (playerManager == null) {
             playerManager = PlayerManager(context)
             playerManager?.initializePlayer()
-            
-            // Load a sample video if not already playing
-            if (_currentVideo.value == null) {
-                val sampleVideo = Video(
-                    uri = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4",
-                    title = "Big Buck Bunny"
-                )
-                playVideo(sampleVideo)
+
+            // Publish the player instance so VideoScreen recomposes and attaches the surface
+            _playerInstance.value = playerManager?.exoPlayer
+
+            // Play the video the user selected (stored before the player was ready)
+            pendingVideo?.let { video ->
+                playerManager?.playVideo(video)
+                hideControlsWithDelay()
+                pendingVideo = null
             }
         }
     }
 
-    fun getPlayer() = playerManager?.exoPlayer
+    fun getPlayer() = _playerInstance.value
 
     fun playVideo(video: Video) {
         _currentVideo.value = video
-        playerManager?.playVideo(video)
-        hideControlsWithDelay()
+        if (playerManager != null) {
+            playerManager?.playVideo(video)
+            hideControlsWithDelay()
+        } else {
+            // Player not ready yet — queue the video to be played in initializePlayer()
+            pendingVideo = video
+        }
     }
 
     fun togglePlayPause() {
         playerManager?.playPause()
+    }
+
+    /** Always pauses — used when leaving the screen or app goes to background. */
+    fun pauseVideo() {
+        playerManager?.pause()
+    }
+
+    /** Resumes only if there is an active video (prevents auto-play on cold start). */
+    fun resumeVideo() {
+        if (_currentVideo.value != null) {
+            playerManager?.resume()
+        }
     }
 
     fun seekTo(positionMs: Long) {

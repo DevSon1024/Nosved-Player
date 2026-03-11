@@ -12,6 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,7 @@ fun VideoScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     
+    val player by viewModel.playerInstance.collectAsState()
     val isPlaying by viewModel.isPlaying?.collectAsState(initial = false) ?: remember { androidx.compose.runtime.mutableStateOf(false) }
     val currentPosition by viewModel.currentPosition?.collectAsState(initial = 0L) ?: remember { androidx.compose.runtime.mutableStateOf(0L) }
     val duration by viewModel.duration?.collectAsState(initial = 0L) ?: remember { androidx.compose.runtime.mutableStateOf(0L) }
@@ -57,18 +59,26 @@ fun VideoScreen(
             .background(Color.Black)
     ) {
         // 1. Video Player Surface
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false // We provide custom controls
-                    player = viewModel.getPlayer()
-                }
-            },
-            update = { view ->
-                view.player = viewModel.getPlayer()
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        // key(player) forces AndroidView to recreate when the ExoPlayer instance
+        // becomes available, ensuring the surface is attached before playback starts.
+        key(player) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false // We provide custom controls
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        this.player = player
+                    }
+                },
+                update = { view ->
+                    if (view.player != player) view.player = player
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         // 2. Gesture Overlay
         GestureOverlay(
