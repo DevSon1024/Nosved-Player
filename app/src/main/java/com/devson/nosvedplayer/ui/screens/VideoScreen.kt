@@ -5,9 +5,6 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.os.Build
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -56,6 +53,8 @@ fun VideoScreen(
         ?: remember { androidx.compose.runtime.mutableStateOf(0f) }
     val playerError by viewModel.playerError?.collectAsState(initial = null)
         ?: remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    
+    val resizeMode by viewModel.resizeMode.collectAsState()
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
@@ -63,12 +62,12 @@ fun VideoScreen(
         activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 
-    // ── Player initialisation ─────────────────────────────────────────────
+    //  Player initialisation 
     LaunchedEffect(Unit) {
         viewModel.initializePlayer(context)
     }
 
-    // ── Error handling ────────────────────────────────────────────────────
+    //  Error handling 
     LaunchedEffect(playerError) {
         if (playerError != null) {
             Toast.makeText(context, "Playback Error: $playerError", Toast.LENGTH_LONG).show()
@@ -76,7 +75,7 @@ fun VideoScreen(
         }
     }
 
-    // ── Orientation lock based on video dimensions ────────────────────────
+    //  Orientation lock based on video dimensions 
     LaunchedEffect(isPortrait) {
         activity ?: return@LaunchedEffect
         val portrait = isPortrait ?: return@LaunchedEffect   // wait until known
@@ -86,7 +85,7 @@ fun VideoScreen(
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
     }
 
-    // ── System UI (status bar / nav bar) based on controls visibility ─────
+    //  System UI (status bar / nav bar) based on controls visibility 
     LaunchedEffect(controlsVisible) {
         if (activity == null) return@LaunchedEffect
         if (controlsVisible) {
@@ -96,11 +95,23 @@ fun VideoScreen(
         }
     }
 
-    // ── Lifecycle cleanup ─────────────────────────────────────────────────
+    //  Lifecycle cleanup 
     DisposableEffect(Unit) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        activity?.window?.let { window ->
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.isNavigationBarContrastEnforced = false
+                window.isStatusBarContrastEnforced = false
+            }
+        }
         onDispose {
-            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            activity?.window?.let { window ->
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+            }
             activity?.requestedOrientation = originalOrientation
             if (activity != null) showSystemUI(activity)  // always restore system UI on exit
         }
@@ -121,10 +132,14 @@ fun VideoScreen(
                             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                             android.view.ViewGroup.LayoutParams.MATCH_PARENT
                         )
+                        this.resizeMode = resizeMode
                         this.player = player
                     }
                 },
-                update = { view -> if (view.player != player) view.player = player },
+                update = { view -> 
+                    if (view.player != player) view.player = player 
+                    if (view.resizeMode != resizeMode) view.resizeMode = resizeMode
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -182,6 +197,10 @@ fun VideoScreen(
                 viewModel.showControlsAndDelayHide()
             },
             onControlsStateChange = {
+                viewModel.toggleControlsVisibility()
+            },
+            onToggleResizeMode = {
+                viewModel.toggleResizeMode()
                 viewModel.showControlsAndDelayHide()
             }
         )
@@ -192,22 +211,10 @@ fun VideoScreen(
  * Hides status bar and navigation bar (immersive fullscreen).
  */
 private fun hideSystemUI(activity: Activity) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        activity.window.insetsController?.let { ctrl ->
-            ctrl.hide(WindowInsets.Type.systemBars())
-            ctrl.systemBarsBehavior =
-                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    } else {
-        @Suppress("DEPRECATION")
-        activity.window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            )
+    val window = activity.window
+    androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+        systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
     }
 }
 
@@ -215,10 +222,8 @@ private fun hideSystemUI(activity: Activity) {
  * Restores status bar and navigation bar.
  */
 private fun showSystemUI(activity: Activity) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        activity.window.insetsController?.show(WindowInsets.Type.systemBars())
-    } else {
-        @Suppress("DEPRECATION")
-        activity.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
-    }
+    val window = activity.window
+    androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).show(
+        androidx.core.view.WindowInsetsCompat.Type.systemBars()
+    )
 }

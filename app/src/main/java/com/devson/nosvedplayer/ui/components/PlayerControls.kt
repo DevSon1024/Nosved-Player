@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
@@ -57,7 +58,8 @@ fun PlayerControls(
     onSeekBackward: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     showStats: Boolean = false,
-    onToggleStats: (() -> Unit)? = null
+    onToggleStats: (() -> Unit)? = null,
+    onToggleResizeMode: (() -> Unit)? = null
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -74,7 +76,7 @@ fun PlayerControls(
                     onClick = onControlsStateChange
                 )
         ) {
-            // ── Top gradient + title + stats button ────────────────────────
+            //  Top gradient + title + stats button 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -101,6 +103,16 @@ fun PlayerControls(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
+                    // Resize mode toggle button
+                    if (onToggleResizeMode != null) {
+                        IconButton(onClick = onToggleResizeMode) {
+                            Icon(
+                                imageVector = Icons.Filled.Crop,
+                                contentDescription = "Toggle Resize Mode",
+                                tint = Color.White
+                            )
+                        }
+                    }
                     // Stats toggle button
                     IconButton(onClick = { onToggleStats?.invoke() }) {
                         Icon(
@@ -113,7 +125,7 @@ fun PlayerControls(
                 }
             }
 
-            // ── Centre playback controls ───────────────────────────────────
+            //  Centre playback controls 
             Row(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -135,7 +147,7 @@ fun PlayerControls(
                 }
             }
 
-            // ── Bottom gradient + seekbar ──────────────────────────────────
+            //  Bottom gradient + seekbar 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

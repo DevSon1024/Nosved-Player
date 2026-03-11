@@ -3,23 +3,18 @@ package com.devson.nosvedplayer.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrightnessHigh
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -55,6 +53,7 @@ fun GestureOverlay(
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapRight: () -> Unit,
+    onSeekSwipe: (Float) -> Unit = {},
     onVolumeSwipe: (Float) -> Unit,
     onBrightnessSwipe: (Float) -> Unit
 ) {
@@ -64,16 +63,27 @@ fun GestureOverlay(
     var showVolumeFeedback by remember { mutableStateOf(false) }
     var volumeLevel by remember { mutableFloatStateOf(0.5f) }
 
-    LaunchedEffect(brightnessLevel) {
-        if (showBrightnessFeedback) { delay(1500); showBrightnessFeedback = false }
+    var showLeftRipple by remember { mutableStateOf(false) }
+    var showRightRipple by remember { mutableStateOf(false) }
+
+    LaunchedEffect(brightnessLevel, showBrightnessFeedback) {
+        if (showBrightnessFeedback) { delay(500); showBrightnessFeedback = false }
     }
-    LaunchedEffect(volumeLevel) {
-        if (showVolumeFeedback) { delay(1500); showVolumeFeedback = false }
+    LaunchedEffect(volumeLevel, showVolumeFeedback) {
+        if (showVolumeFeedback) { delay(500); showVolumeFeedback = false }
+    }
+    LaunchedEffect(showLeftRipple) {
+        if (showLeftRipple) { delay(500); showLeftRipple = false }
+    }
+    LaunchedEffect(showRightRipple) {
+        if (showRightRipple) { delay(500); showRightRipple = false }
     }
 
     var lastTapTime by remember { mutableStateOf(0L) }
     var lastTapX by remember { mutableStateOf(0f) }
     var lastTapY by remember { mutableStateOf(0f) }
+
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = modifier
@@ -88,8 +98,10 @@ fun GestureOverlay(
                     val startX = down.position.x
                     val startY = down.position.y
                     val isRightSide = startX > size.width / 2f
+                    var totalDx = 0f
                     var totalDy = 0f
                     var isSwiping = false
+                    var swipeAxis = "" // "VERTICAL" or "HORIZONTAL"
 
                     // Track until release
                     while (true) {
@@ -108,7 +120,15 @@ fun GestureOverlay(
                                 if (dt < 300 && dist < 80f) {
                                     // Double tap
                                     lastTapTime = 0L
-                                    if (isRightSide) onDoubleTapRight() else onDoubleTapLeft()
+                                    val isTapRight = change.position.x > size.width * 0.66f
+                                    val isTapLeft = change.position.x < size.width * 0.33f
+                                    if (isTapRight) {
+                                        showRightRipple = true
+                                        onDoubleTapRight()
+                                    } else if (isTapLeft) {
+                                        showLeftRipple = true
+                                        onDoubleTapLeft()
+                                    }
                                 } else {
                                     // Single tap
                                     lastTapTime = now
@@ -120,78 +140,123 @@ fun GestureOverlay(
                             break
                         }
 
+                        val dx = change.position.x - change.previousPosition.x
                         val dy = change.position.y - change.previousPosition.y
+                        totalDx += dx
                         totalDy += dy
 
-                        if (!isSwiping && abs(totalDy) > slopPx) {
+                        if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                             isSwiping = true
+                            swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
                         }
 
                         if (isSwiping) {
                             change.consume()
-                            val delta = -dy / size.height.toFloat()
-                            if (isRightSide) {
-                                onVolumeSwipe(delta)
-                                volumeLevel = (volumeLevel + delta).coerceIn(0f, 1f)
-                                showVolumeFeedback = true
-                            } else {
-                                onBrightnessSwipe(delta)
-                                brightnessLevel = (brightnessLevel + delta).coerceIn(0f, 1f)
-                                showBrightnessFeedback = true
+                            
+                            if (swipeAxis == "VERTICAL") {
+                                val sensitivity = 1.2f
+                                val delta = (-dy / size.height.toFloat()) * sensitivity
+                                if (isRightSide) {
+                                    onVolumeSwipe(delta)
+                                    val newVolume = (volumeLevel + delta).coerceIn(0f, 1f)
+                                    if ((newVolume == 0f || newVolume == 1f) && newVolume != volumeLevel) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    volumeLevel = newVolume
+                                    showVolumeFeedback = true
+                                } else {
+                                    onBrightnessSwipe(delta)
+                                    val newBrightness = (brightnessLevel + delta).coerceIn(0f, 1f)
+                                    if ((newBrightness == 0f || newBrightness == 1f) && newBrightness != brightnessLevel) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    brightnessLevel = newBrightness
+                                    showBrightnessFeedback = true
+                                }
+                            } else if (swipeAxis == "HORIZONTAL") {
+                                onSeekSwipe(dx)
                             }
                         }
                     }
                 }
             }
     ) {
-        // Brightness pill — left centre
+        // Brightness slider — left edge
         AnimatedVisibility(
             visible = showBrightnessFeedback,
             enter = fadeIn(), exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterStart).padding(start = 20.dp)
+            modifier = Modifier.align(Alignment.CenterStart)
         ) {
-            FeedbackPill(
-                icon = { Icon(Icons.Filled.BrightnessHigh, null, tint = Color.White, modifier = Modifier.size(22.dp)) },
-                level = brightnessLevel,
-                label = "${(brightnessLevel * 100).toInt()}%"
-            )
+            EdgeSlider(level = brightnessLevel)
         }
 
-        // Volume pill — right centre
+        // Volume slider — right edge
         AnimatedVisibility(
             visible = showVolumeFeedback,
             enter = fadeIn(), exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 20.dp)
+            modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            FeedbackPill(
-                icon = { Icon(Icons.Filled.VolumeUp, null, tint = Color.White, modifier = Modifier.size(22.dp)) },
-                level = volumeLevel,
-                label = "${(volumeLevel * 100).toInt()}%"
-            )
+            EdgeSlider(level = volumeLevel)
+        }
+
+        // Left Double Tap Ripple
+        AnimatedVisibility(
+            visible = showLeftRipple,
+            enter = fadeIn(), exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            DoubleTapRipple(isRightSide = false, text = "-10s")
+        }
+
+        // Right Double Tap Ripple
+        AnimatedVisibility(
+            visible = showRightRipple,
+            enter = fadeIn(), exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            DoubleTapRipple(isRightSide = true, text = "+10s")
         }
     }
 }
 
 @Composable
-private fun FeedbackPill(
-    icon: @Composable () -> Unit,
-    level: Float,
-    label: String
+private fun EdgeSlider(
+    level: Float
 ) {
-    Surface(color = Color.Black.copy(alpha = 0.7f), shape = RoundedCornerShape(14.dp)) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            icon()
-            LinearProgressIndicator(
-                progress = { level },
-                modifier = Modifier.width(56.dp),
-                color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.25f)
-            )
-            Text(text = label, color = Color.White, fontSize = 11.sp, style = MaterialTheme.typography.labelSmall)
-        }
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .height(140.dp)
+            .width(6.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.2f))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxHeight(level)
+                .width(6.dp)
+                .background(Color.White)
+        )
+    }
+}
+
+@Composable
+private fun DoubleTapRipple(
+    isRightSide: Boolean,
+    text: String
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(100.dp)
+            .background(
+                color = Color.White.copy(alpha = 0.15f),
+                shape = if (isRightSide) RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100)
+                else RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, color = Color.White, fontSize = 16.sp, style = MaterialTheme.typography.titleMedium)
     }
 }

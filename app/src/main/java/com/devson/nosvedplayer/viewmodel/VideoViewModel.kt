@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.player.PlayerManager
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +40,9 @@ class VideoViewModel : ViewModel() {
 
     private val _currentVideo = MutableStateFlow<Video?>(null)
     val currentVideo: StateFlow<Video?> = _currentVideo.asStateFlow()
+
+    private val _resizeMode = MutableStateFlow(AspectRatioFrameLayout.RESIZE_MODE_FIT)
+    val resizeMode: StateFlow<Int> = _resizeMode.asStateFlow()
 
     init {
         startProgressUpdate()
@@ -107,6 +111,14 @@ class VideoViewModel : ViewModel() {
 
     fun clearError() {
         playerManager?.clearError()
+    }
+
+    fun toggleResizeMode() {
+        _resizeMode.value = when (_resizeMode.value) {
+            AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            AspectRatioFrameLayout.RESIZE_MODE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
     }
 
     private var hideJob: kotlinx.coroutines.Job? = null
