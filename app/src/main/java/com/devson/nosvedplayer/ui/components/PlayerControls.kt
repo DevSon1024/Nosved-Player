@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +15,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Crop
@@ -28,25 +32,77 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.devson.nosvedplayer.viewmodel.ControlIconSize
+import com.devson.nosvedplayer.viewmodel.SeekBarStyle
+import kotlinx.coroutines.launch
 
+// 
+// Icon size helpers
+// 
+
+private val ControlIconSize.buttonSize: Dp
+    get() = when (this) {
+        ControlIconSize.SMALL  -> 40.dp
+        ControlIconSize.MEDIUM -> 52.dp
+        ControlIconSize.LARGE  -> 64.dp
+    }
+
+private val ControlIconSize.iconSize: Dp
+    get() = when (this) {
+        ControlIconSize.SMALL  -> 24.dp
+        ControlIconSize.MEDIUM -> 36.dp
+        ControlIconSize.LARGE  -> 48.dp
+    }
+
+private val ControlIconSize.playButtonSize: Dp
+    get() = when (this) {
+        ControlIconSize.SMALL  -> 52.dp
+        ControlIconSize.MEDIUM -> 68.dp
+        ControlIconSize.LARGE  -> 84.dp
+    }
+
+private val ControlIconSize.playIconSize: Dp
+    get() = when (this) {
+        ControlIconSize.SMALL  -> 36.dp
+        ControlIconSize.MEDIUM -> 52.dp
+        ControlIconSize.LARGE  -> 64.dp
+    }
+
+// 
+// Main composable
+// 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerControls(
     modifier: Modifier = Modifier,
@@ -63,8 +119,19 @@ fun PlayerControls(
     onBack: (() -> Unit)? = null,
     showStats: Boolean = false,
     onToggleStats: (() -> Unit)? = null,
-    onToggleResizeMode: (() -> Unit)? = null
+    onToggleResizeMode: (() -> Unit)? = null,
+    // Playback settings
+    seekDurationSeconds: Int = 10,
+    seekBarStyle: SeekBarStyle = SeekBarStyle.DEFAULT,
+    controlIconSize: ControlIconSize = ControlIconSize.MEDIUM,
+    onSeekDurationChange: ((Int) -> Unit)? = null,
+    onSeekBarStyleChange: ((SeekBarStyle) -> Unit)? = null,
+    onControlIconSizeChange: ((ControlIconSize) -> Unit)? = null
 ) {
+    var showSettingsSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(),
@@ -72,15 +139,9 @@ fun PlayerControls(
         modifier = modifier.fillMaxSize()
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onControlsStateChange
-                )
+            modifier = Modifier.fillMaxSize()
         ) {
-            //  Top gradient + title + stats button 
+            //  Top gradient 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -88,7 +149,10 @@ fun PlayerControls(
                     .align(Alignment.TopCenter)
             ) {
                 Row(
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).fillMaxWidth().padding(horizontal = 4.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onBack != null) {
@@ -106,8 +170,7 @@ fun PlayerControls(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    // Removed Resize mode toggle button from Top Bar
-                    // Stats toggle button
+                    // Stats toggle
                     IconButton(onClick = { onToggleStats?.invoke() }) {
                         Icon(
                             imageVector = Icons.Filled.Speed,
@@ -115,11 +178,22 @@ fun PlayerControls(
                             tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
                         )
                     }
+                    // Playback Settings button
+                    IconButton(onClick = {
+                        scope.launch { sheetState.show() }
+                        showSettingsSheet = true
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Playback Settings",
+                            tint = Color.White
+                        )
+                    }
                     Spacer(Modifier.width(4.dp))
                 }
             }
 
-            //  Bottom gradient + seekbar and playback controls 
+            //  Bottom gradient + seekbar + controls 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,67 +201,115 @@ fun PlayerControls(
                     .align(Alignment.BottomCenter)
             ) {
                 Column(
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
 
-                    // Row 1: Time, Slider, Time
+                    // Row 1: Time + Seekbar + Time
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().offset(y = (-6).dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(formatTime(currentPosition), color = Color.White, style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.width(8.dp))
-                        Slider(
-                            value = sliderPosition,
-                            onValueChange = { sliderPosition = it },
-                            onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
-                            valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
-                            modifier = Modifier.weight(1f),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.4f)
-                            )
+                        Text(
+                            formatTime(currentPosition),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium
                         )
                         Spacer(Modifier.width(8.dp))
+
+                        if (seekBarStyle == SeekBarStyle.FLAT) {
+                            //  Flat seek bar 
+                            FlatSeekBar(
+                                value = sliderPosition,
+                                valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                                onValueChange = { sliderPosition = it },
+                                onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            //  Default Material3 Slider 
+                            Slider(
+                                value = sliderPosition,
+                                onValueChange = { sliderPosition = it },
+                                onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
+                                valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.4f)
+                                )
+                            )
+                        }
+
+                        Spacer(Modifier.width(8.dp))
                         val remaining = if (duration > currentPosition) duration - currentPosition else 0L
-                        Text("-" + formatTime(remaining), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            "-" + formatTime(remaining),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
 
-                    // Row 2: Secondary controls and main playback
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Left: Lock icon (placeholder for future implementation)
-                        IconButton(onClick = { /* TODO: Lock controls */ }, modifier = Modifier.align(Alignment.CenterStart)) {
+                    // Row 2: Lock | Rewind + Play + Forward | Resize
+                    Box(modifier = Modifier.fillMaxWidth().offset(y = (-12).dp)) {
+                        IconButton(
+                            onClick = { /* TODO: Lock controls */ },
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
                             Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
                         }
-                        
-                        // Center: Rewind, Play/Pause, Forward
+
                         Row(
                             modifier = Modifier.align(Alignment.Center),
                             horizontalArrangement = Arrangement.spacedBy(24.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { onSeekBackward?.invoke() }, modifier = Modifier.size(52.dp)) {
-                                Icon(Icons.Filled.FastRewind, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            IconButton(
+                                onClick = { onSeekBackward?.invoke() },
+                                modifier = Modifier.size(controlIconSize.buttonSize)
+                            ) {
+                                Icon(
+                                    Icons.Filled.FastRewind,
+                                    contentDescription = "Rewind ${seekDurationSeconds}s",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(controlIconSize.iconSize)
+                                )
                             }
-                            IconButton(onClick = onPlayPauseToggle, modifier = Modifier.size(68.dp)) {
+                            IconButton(
+                                onClick = onPlayPauseToggle,
+                                modifier = Modifier.size(controlIconSize.playButtonSize)
+                            ) {
                                 Icon(
                                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                     contentDescription = if (isPlaying) "Pause" else "Play",
                                     tint = Color.White,
-                                    modifier = Modifier.size(52.dp)
+                                    modifier = Modifier.size(controlIconSize.playIconSize)
                                 )
                             }
-                            IconButton(onClick = { onSeekForward?.invoke() }, modifier = Modifier.size(52.dp)) {
-                                Icon(Icons.Filled.FastForward, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            IconButton(
+                                onClick = { onSeekForward?.invoke() },
+                                modifier = Modifier.size(controlIconSize.buttonSize)
+                            ) {
+                                Icon(
+                                    Icons.Filled.FastForward,
+                                    contentDescription = "Forward ${seekDurationSeconds}s",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(controlIconSize.iconSize)
+                                )
                             }
                         }
-                        
-                        // Right: Resize Toggle
+
                         if (onToggleResizeMode != null) {
-                            IconButton(onClick = onToggleResizeMode, modifier = Modifier.align(Alignment.CenterEnd)) {
+                            IconButton(
+                                onClick = onToggleResizeMode,
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            ) {
                                 Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
                             }
                         }
@@ -196,7 +318,207 @@ fun PlayerControls(
             }
         }
     }
+
+    //  Playback Settings Bottom Sheet 
+    if (showSettingsSheet) {
+        val dismissSheet: () -> Unit = {
+            scope.launch { sheetState.hide() }.invokeOnCompletion { showSettingsSheet = false }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showSettingsSheet = false },
+            sheetState = sheetState,
+            containerColor = Color(0xFF12121F),
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = "Playback Settings",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 20.dp)
+                )
+
+                //  Setting 1: Seek Duration 
+                SettingsSection(title = "Seek Duration") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        listOf(5, 10, 15, 20).forEach { secs ->
+                            val selected = seekDurationSeconds == secs
+                            ChipButton(
+                                label = "${secs}s",
+                                selected = selected,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onSeekDurationChange?.invoke(secs)
+                                    dismissSheet()
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                //  Setting 2: Seek Bar Style 
+                SettingsSection(title = "Seek Bar Style") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ChipButton(
+                            label = "Default",
+                            selected = seekBarStyle == SeekBarStyle.DEFAULT,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onSeekBarStyleChange?.invoke(SeekBarStyle.DEFAULT)
+                                dismissSheet()
+                            }
+                        )
+                        ChipButton(
+                            label = "Flat",
+                            selected = seekBarStyle == SeekBarStyle.FLAT,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onSeekBarStyleChange?.invoke(SeekBarStyle.FLAT)
+                                dismissSheet()
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                //  Setting 3: Control Icon Size 
+                SettingsSection(title = "Control Icon Size") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        listOf(
+                            "Small"  to ControlIconSize.SMALL,
+                            "Medium" to ControlIconSize.MEDIUM,
+                            "Large"  to ControlIconSize.LARGE
+                        ).forEach { (label, size) ->
+                            ChipButton(
+                                label = label,
+                                selected = controlIconSize == size,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    onControlIconSizeChange?.invoke(size)
+                                    dismissSheet()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
+
+// Flat seek bar (no thumb, thin track)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlatSeekBar(
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        onValueChangeFinished = onValueChangeFinished,
+        valueRange = valueRange,
+        modifier = modifier.height(16.dp),
+        thumb = { /* no thumb */ },
+        track = { sliderState ->
+            val fraction = (sliderState.value - valueRange.start) /
+                    (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.3f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                        .height(3.dp)
+                        .background(Color.White)
+                )
+            }
+        }
+    )
+}
+
+// Settings section with title
+
+@Composable
+private fun SettingsSection(title: String, content: @Composable () -> Unit) {
+    Text(
+        text = title,
+        color = Color.White.copy(alpha = 0.55f),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(bottom = 10.dp)
+    )
+    content()
+}
+
+// 
+// Chip-style toggle button
+// 
+
+@Composable
+private fun ChipButton(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val bgColor   = if (selected) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f)
+    val textColor = if (selected) Color.White else Color.White.copy(alpha = 0.55f)
+    val border    = if (selected) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.12f)
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(42.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .border(1.dp, border, RoundedCornerShape(10.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+// 
+// Time formatter
+// 
 
 private fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000

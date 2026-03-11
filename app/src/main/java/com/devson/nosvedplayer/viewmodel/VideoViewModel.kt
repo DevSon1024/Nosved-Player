@@ -13,6 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+//  Playback Settings Enums 
+
+/** Seek bar visual style: Material3 thumb slider or a flat thin line. */
+enum class SeekBarStyle { DEFAULT, FLAT }
+
+/** Control icon size preset applied to play/pause and seek icons. */
+enum class ControlIconSize { SMALL, MEDIUM, LARGE }
+
 class VideoViewModel : ViewModel() {
 
     private var playerManager: PlayerManager? = null
@@ -43,6 +51,20 @@ class VideoViewModel : ViewModel() {
 
     private val _resizeMode = MutableStateFlow(AspectRatioFrameLayout.RESIZE_MODE_FIT)
     val resizeMode: StateFlow<Int> = _resizeMode.asStateFlow()
+
+    //  Playback Settings State 
+
+    /** Seconds to jump on seek forward/backward gestures or button taps. */
+    private val _seekDurationSeconds = MutableStateFlow(10)
+    val seekDurationSeconds: StateFlow<Int> = _seekDurationSeconds.asStateFlow()
+
+    /** Visual style of the seek bar. */
+    private val _seekBarStyle = MutableStateFlow(SeekBarStyle.DEFAULT)
+    val seekBarStyle: StateFlow<SeekBarStyle> = _seekBarStyle.asStateFlow()
+
+    /** Size preset for the playback control icons. */
+    private val _controlIconSize = MutableStateFlow(ControlIconSize.MEDIUM)
+    val controlIconSize: StateFlow<ControlIconSize> = _controlIconSize.asStateFlow()
 
     init {
         startProgressUpdate()
@@ -98,11 +120,11 @@ class VideoViewModel : ViewModel() {
     }
 
     fun seekForward() {
-        playerManager?.seekForward()
+        playerManager?.seekForward(_seekDurationSeconds.value * 1000L)
     }
 
     fun seekBackward() {
-        playerManager?.seekBackward()
+        playerManager?.seekBackward(_seekDurationSeconds.value * 1000L)
     }
 
     fun toggleStats() {
@@ -127,6 +149,12 @@ class VideoViewModel : ViewModel() {
             else -> "Original"
         }
     }
+
+    //  Playback Settings Setters 
+
+    fun setSeekDuration(seconds: Int) { _seekDurationSeconds.value = seconds }
+    fun setSeekBarStyle(style: SeekBarStyle) { _seekBarStyle.value = style }
+    fun setControlIconSize(size: ControlIconSize) { _controlIconSize.value = size }
 
     private var hideJob: kotlinx.coroutines.Job? = null
 

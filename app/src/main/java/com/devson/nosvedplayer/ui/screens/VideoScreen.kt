@@ -28,6 +28,7 @@ import com.devson.nosvedplayer.ui.components.GestureOverlay
 import com.devson.nosvedplayer.ui.components.PlayerControls
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoScreen(
     modifier: Modifier = Modifier,
@@ -55,6 +56,9 @@ fun VideoScreen(
         ?: remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     
     val resizeMode by viewModel.resizeMode.collectAsState()
+    val seekDurationSeconds by viewModel.seekDurationSeconds.collectAsState()
+    val seekBarStyle by viewModel.seekBarStyle.collectAsState()
+    val controlIconSize by viewModel.controlIconSize.collectAsState()
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
@@ -147,9 +151,12 @@ fun VideoScreen(
         // 2. Gesture overlay
         GestureOverlay(
             modifier = Modifier.fillMaxSize(),
+            seekDurationSeconds = seekDurationSeconds,
+            isPlaying = isPlaying,
             onSingleTap = { viewModel.toggleControlsVisibility() },
-            onDoubleTapLeft = { viewModel.seekBackward(); viewModel.showControlsAndDelayHide() },
-            onDoubleTapRight = { viewModel.seekForward(); viewModel.showControlsAndDelayHide() },
+            onDoubleTapLeft = { viewModel.seekBackward() },
+            onDoubleTapCenter = { viewModel.togglePlayPause() },
+            onDoubleTapRight = { viewModel.seekForward() },
             onVolumeSwipe = { delta ->
                 val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val newVol = (current + (delta * maxVolume)).toInt().coerceIn(0, maxVolume)
@@ -203,7 +210,14 @@ fun VideoScreen(
                 val modeLabel = viewModel.toggleResizeMode()
                 Toast.makeText(context, modeLabel, Toast.LENGTH_SHORT).show()
                 viewModel.showControlsAndDelayHide()
-            }
+            },
+            // Playback settings
+            seekDurationSeconds = seekDurationSeconds,
+            seekBarStyle = seekBarStyle,
+            controlIconSize = controlIconSize,
+            onSeekDurationChange = { viewModel.setSeekDuration(it) },
+            onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
+            onControlIconSizeChange = { viewModel.setControlIconSize(it) }
         )
     }
 }
