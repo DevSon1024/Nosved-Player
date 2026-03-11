@@ -127,6 +127,14 @@ class VideoViewModel : ViewModel() {
         playerManager?.seekBackward(_seekDurationSeconds.value * 1000L)
     }
 
+    fun seekByOffset(offsetMs: Long) {
+        val player = playerManager ?: return
+        val current = player.currentPosition.value
+        val total = player.duration.value
+        val newPos = (current + offsetMs).coerceIn(0L, total)
+        player.seekTo(newPos)
+    }
+
     fun toggleStats() {
         _showStats.value = !_showStats.value
     }

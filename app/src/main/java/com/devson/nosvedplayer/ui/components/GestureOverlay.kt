@@ -41,19 +41,6 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-/**
- * Unified gesture surface — three tap zones + swipe gestures.
- *
- * Zones (by X position):
- *   Left   (0 – 33%)  → double-tap backward seek
- *   Center (33 – 66%) → double-tap play/pause toggle
- *   Right  (66 – 100%)→ double-tap forward seek
- *
- * Swipes:
- *   Vertical left  → brightness
- *   Vertical right → volume
- *   Horizontal     → seekSwipe (optional)
- */
 @Composable
 fun GestureOverlay(
     modifier: Modifier = Modifier,
@@ -65,7 +52,8 @@ fun GestureOverlay(
     onDoubleTapRight: () -> Unit,
     onSeekSwipe: (Float) -> Unit = {},
     onVolumeSwipe: (Float) -> Unit,
-    onBrightnessSwipe: (Float) -> Unit
+    onBrightnessSwipe: (Float) -> Unit,
+    onSeekCommit: (Long) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -102,6 +90,9 @@ fun GestureOverlay(
     var lastTapX    by remember { mutableStateOf(0f) }
     var lastTapY    by remember { mutableStateOf(0f) }
 
+    // Invisible Seek Bar tracking
+    var scrubDeltaMs by remember { mutableStateOf<Long?>(null) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -122,6 +113,16 @@ fun GestureOverlay(
                         val change = event.changes.firstOrNull() ?: break
 
                         if (!change.pressed) {
+                            if (isSwiping && swipeAxis == "HORIZONTAL") {
+                                // Commit the seek
+                                scrubDeltaMs?.let { delta ->
+                                    if (delta != 0L) {
+                                        onSeekCommit(delta)
+                                    }
+                                }
+                                scrubDeltaMs = null
+                            }
+
                             //  Tap detection 
                             if (!isSwiping) {
                                 val now  = System.currentTimeMillis()
@@ -200,7 +201,11 @@ fun GestureOverlay(
                                         showBrightnessFeedback = true
                                     }
                                 }
-                                "HORIZONTAL" -> onSeekSwipe(dx)
+                                "HORIZONTAL" -> {
+                                    val deltaMs = (totalDx / size.width.toFloat()) * 100_000L
+                                    scrubDeltaMs = deltaMs.toLong()
+                                    onSeekSwipe(dx)
+                                }
                             }
                         }
                     }
@@ -220,6 +225,30 @@ fun GestureOverlay(
             enter = fadeIn(), exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterEnd)
         ) { EdgeSlider(level = volumeLevel) }
+
+        // Precise scrub overlay (Horizontal seek)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = scrubDeltaMs != null,
+            enter = androidx.compose.animation.fadeIn(), 
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            scrubDeltaMs?.let { deltaMs ->
+                Box(
+                    modifier = Modifier
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    val sign = if (deltaMs >= 0) "+" else ""
+                    androidx.compose.material3.Text(
+                        text = "$sign${deltaMs / 1000}s",
+                        color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                }
+            }
+        }
 
         //  Left double-tap ripple 
         AnimatedVisibility(

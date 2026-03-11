@@ -157,6 +157,10 @@ fun VideoScreen(
             onDoubleTapLeft = { viewModel.seekBackward() },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
             onDoubleTapRight = { viewModel.seekForward() },
+            onSeekCommit = { deltaMs -> 
+                viewModel.seekByOffset(deltaMs)
+                viewModel.showControlsAndDelayHide()
+            },
             onVolumeSwipe = { delta ->
                 val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val newVol = (current + (delta * maxVolume)).toInt().coerceIn(0, maxVolume)
