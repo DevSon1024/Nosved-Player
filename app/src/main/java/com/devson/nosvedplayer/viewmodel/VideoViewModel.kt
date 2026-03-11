@@ -113,11 +113,18 @@ class VideoViewModel : ViewModel() {
         playerManager?.clearError()
     }
 
-    fun toggleResizeMode() {
-        _resizeMode.value = when (_resizeMode.value) {
+    fun toggleResizeMode(): String {
+        val newMode = when (_resizeMode.value) {
             AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             AspectRatioFrameLayout.RESIZE_MODE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+        _resizeMode.value = newMode
+        return when (newMode) {
+            AspectRatioFrameLayout.RESIZE_MODE_FIT -> "Fit (100%)"
+            AspectRatioFrameLayout.RESIZE_MODE_FILL -> "Wide (Stretch)"
+            AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "Zoom (Cropped)"
+            else -> "Original"
         }
     }
 

@@ -200,7 +200,8 @@ fun VideoScreen(
                 viewModel.toggleControlsVisibility()
             },
             onToggleResizeMode = {
-                viewModel.toggleResizeMode()
+                val modeLabel = viewModel.toggleResizeMode()
+                Toast.makeText(context, modeLabel, Toast.LENGTH_SHORT).show()
                 viewModel.showControlsAndDelayHide()
             }
         )

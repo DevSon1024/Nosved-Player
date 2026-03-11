@@ -17,11 +17,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Speed
@@ -80,12 +84,11 @@ fun PlayerControls(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)))
                     .align(Alignment.TopCenter)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).fillMaxWidth().padding(horizontal = 4.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onBack != null) {
@@ -103,16 +106,7 @@ fun PlayerControls(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    // Resize mode toggle button
-                    if (onToggleResizeMode != null) {
-                        IconButton(onClick = onToggleResizeMode) {
-                            Icon(
-                                imageVector = Icons.Filled.Crop,
-                                contentDescription = "Toggle Resize Mode",
-                                tint = Color.White
-                            )
-                        }
-                    }
+                    // Removed Resize mode toggle button from Top Bar
                     // Stats toggle button
                     IconButton(onClick = { onToggleStats?.invoke() }) {
                         Icon(
@@ -125,57 +119,78 @@ fun PlayerControls(
                 }
             }
 
-            //  Centre playback controls 
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { onSeekBackward?.invoke() }, modifier = Modifier.size(52.dp)) {
-                    Icon(Icons.Filled.FastRewind, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(36.dp))
-                }
-                IconButton(onClick = onPlayPauseToggle, modifier = Modifier.size(68.dp)) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(52.dp)
-                    )
-                }
-                IconButton(onClick = { onSeekForward?.invoke() }, modifier = Modifier.size(52.dp)) {
-                    Icon(Icons.Filled.FastForward, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(36.dp))
-                }
-            }
-
-            //  Bottom gradient + seekbar 
+            //  Bottom gradient + seekbar and playback controls 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))))
                     .align(Alignment.BottomCenter)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
 
-                    Slider(
-                        value = sliderPosition,
-                        onValueChange = { sliderPosition = it },
-                        onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
-                        valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                    // Row 1: Time, Slider, Time
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.4f)
-                        )
-                    )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(formatTime(currentPosition), color = Color.White, style = MaterialTheme.typography.labelMedium)
-                        Text(formatTime(duration), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.width(8.dp))
+                        Slider(
+                            value = sliderPosition,
+                            onValueChange = { sliderPosition = it },
+                            onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
+                            valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.4f)
+                            )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        val remaining = if (duration > currentPosition) duration - currentPosition else 0L
+                        Text("-" + formatTime(remaining), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    // Row 2: Secondary controls and main playback
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Left: Lock icon (placeholder for future implementation)
+                        IconButton(onClick = { /* TODO: Lock controls */ }, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                        }
+                        
+                        // Center: Rewind, Play/Pause, Forward
+                        Row(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { onSeekBackward?.invoke() }, modifier = Modifier.size(52.dp)) {
+                                Icon(Icons.Filled.FastRewind, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            }
+                            IconButton(onClick = onPlayPauseToggle, modifier = Modifier.size(68.dp)) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            }
+                            IconButton(onClick = { onSeekForward?.invoke() }, modifier = Modifier.size(52.dp)) {
+                                Icon(Icons.Filled.FastForward, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(36.dp))
+                            }
+                        }
+                        
+                        // Right: Resize Toggle
+                        if (onToggleResizeMode != null) {
+                            IconButton(onClick = onToggleResizeMode, modifier = Modifier.align(Alignment.CenterEnd)) {
+                                Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
+                            }
+                        }
                     }
                 }
             }
