@@ -53,6 +53,8 @@ class VideoViewModel : ViewModel() {
     val resizeMode: StateFlow<Int> = _resizeMode.asStateFlow()
 
     //  Playback Settings State 
+    
+    private var settingsRepository: com.devson.nosvedplayer.repository.PlaybackSettingsRepository? = null
 
     /** Seconds to jump on seek forward/backward gestures or button taps. */
     private val _seekDurationSeconds = MutableStateFlow(10)
@@ -71,6 +73,17 @@ class VideoViewModel : ViewModel() {
     }
 
     fun initializePlayer(context: Context) {
+        if (settingsRepository == null) {
+            settingsRepository = com.devson.nosvedplayer.repository.PlaybackSettingsRepository(context.applicationContext)
+            viewModelScope.launch {
+                settingsRepository?.playbackSettingsFlow?.collect { settings ->
+                    _seekDurationSeconds.value = settings.seekDurationSeconds
+                    _seekBarStyle.value = try { SeekBarStyle.valueOf(settings.seekBarStyle) } catch (e: Exception) { SeekBarStyle.DEFAULT }
+                    _controlIconSize.value = try { ControlIconSize.valueOf(settings.controlIconSize) } catch (e: Exception) { ControlIconSize.MEDIUM }
+                }
+            }
+        }
+        
         if (playerManager == null) {
             playerManager = PlayerManager(context)
             playerManager?.initializePlayer()
@@ -160,9 +173,15 @@ class VideoViewModel : ViewModel() {
 
     //  Playback Settings Setters 
 
-    fun setSeekDuration(seconds: Int) { _seekDurationSeconds.value = seconds }
-    fun setSeekBarStyle(style: SeekBarStyle) { _seekBarStyle.value = style }
-    fun setControlIconSize(size: ControlIconSize) { _controlIconSize.value = size }
+    fun setSeekDuration(seconds: Int) { 
+        viewModelScope.launch { settingsRepository?.updateSeekDuration(seconds) }
+    }
+    fun setSeekBarStyle(style: SeekBarStyle) { 
+        viewModelScope.launch { settingsRepository?.updateSeekBarStyle(style.name) }
+    }
+    fun setControlIconSize(size: ControlIconSize) { 
+        viewModelScope.launch { settingsRepository?.updateControlIconSize(size.name) }
+    }
 
     private var hideJob: kotlinx.coroutines.Job? = null
 

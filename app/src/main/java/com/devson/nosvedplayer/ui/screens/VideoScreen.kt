@@ -10,13 +10,16 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -39,21 +42,21 @@ fun VideoScreen(
 
     val player by viewModel.playerInstance.collectAsState()
     val isPlaying by viewModel.isPlaying?.collectAsState(initial = false)
-        ?: remember { androidx.compose.runtime.mutableStateOf(false) }
+        ?: remember { mutableStateOf(false) }
     val currentPosition by viewModel.currentPosition?.collectAsState(initial = 0L)
-        ?: remember { androidx.compose.runtime.mutableStateOf(0L) }
+        ?: remember { mutableStateOf(0L) }
     val duration by viewModel.duration?.collectAsState(initial = 0L)
-        ?: remember { androidx.compose.runtime.mutableStateOf(0L) }
+        ?: remember { mutableStateOf(0L) }
     val controlsVisible by viewModel.controlsVisible.collectAsState()
     val currentVideo by viewModel.currentVideo.collectAsState()
     val isPortrait by viewModel.isPortraitVideo?.collectAsState(initial = null)
-        ?: remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+        ?: remember { mutableStateOf<Boolean?>(null) }
 
     val showStats by viewModel.showStats.collectAsState()
     val videoFps by viewModel.videoFps?.collectAsState(initial = 0f)
-        ?: remember { androidx.compose.runtime.mutableStateOf(0f) }
+        ?: remember { mutableStateOf(0f) }
     val playerError by viewModel.playerError?.collectAsState(initial = null)
-        ?: remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+        ?: remember { mutableStateOf<String?>(null) }
     
     val resizeMode by viewModel.resizeMode.collectAsState()
     val seekDurationSeconds by viewModel.seekDurationSeconds.collectAsState()
@@ -62,6 +65,31 @@ fun VideoScreen(
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+
+    // Track Volume state
+    var volumeLevel by remember { 
+        mutableStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume)
+    }
+    var accumulatedVolume by remember { mutableStateOf(volumeLevel) }
+    var showVolumeFeedback by remember { mutableStateOf(false) }
+    var volumeFeedbackTrigger by remember { mutableStateOf(0) }
+    
+    // Track Brightness state
+    var brightnessLevel by remember { 
+        mutableStateOf(
+            activity?.window?.attributes?.screenBrightness?.takeIf { it >= 0f } ?: 0.5f
+        )
+    }
+    var showBrightnessFeedback by remember { mutableStateOf(false) }
+    var brightnessFeedbackTrigger by remember { mutableStateOf(0) }
+
+    // Auto-hide feedback
+    LaunchedEffect(volumeFeedbackTrigger) {
+        if (volumeFeedbackTrigger > 0) { delay(1000); showVolumeFeedback = false }
+    }
+    LaunchedEffect(brightnessFeedbackTrigger) {
+        if (brightnessFeedbackTrigger > 0) { delay(1000); showBrightnessFeedback = false }
+    }
     val originalOrientation = remember {
         activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
@@ -159,20 +187,41 @@ fun VideoScreen(
             onDoubleTapRight = { viewModel.seekForward() },
             onSeekCommit = { deltaMs -> 
                 viewModel.seekByOffset(deltaMs)
-                viewModel.showControlsAndDelayHide()
             },
             onVolumeSwipe = { delta ->
-                val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val newVol = (current + (delta * maxVolume)).toInt().coerceIn(0, maxVolume)
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                accumulatedVolume = (accumulatedVolume + delta).coerceIn(0f, 1f)
+                val newVol = (accumulatedVolume * maxVolume).toInt()
+                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                
+                if (newVol != currentVol) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                    // Read back to respect Safe Volume limits
+                    val actualVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    if (actualVol < newVol) {
+                        accumulatedVolume = actualVol.toFloat() / maxVolume
+                    }
+                    volumeLevel = actualVol.toFloat() / maxVolume
+                }
+                showVolumeFeedback = true
+                volumeFeedbackTrigger++
             },
             onBrightnessSwipe = { delta ->
-                val window = activity?.window ?: return@GestureOverlay
-                val lp = window.attributes
-                val current = if (lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
-                lp.screenBrightness = (current + delta).coerceIn(0.01f, 1f)
-                window.attributes = lp
-            }
+                val window = activity?.window
+                if (window != null) {
+                    val lp = window.attributes
+                    val currentBrightness = if (lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
+                    val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1f)
+                    lp.screenBrightness = newBrightness
+                    window.attributes = lp
+                    brightnessLevel = newBrightness
+                    showBrightnessFeedback = true
+                    brightnessFeedbackTrigger++
+                }
+            },
+            volumeLevel = volumeLevel,
+            brightnessLevel = brightnessLevel,
+            showVolumeFeedback = showVolumeFeedback,
+            showBrightnessFeedback = showBrightnessFeedback
         )
 
         // 3. Device stats overlay — anchored to right edge, independent of controls

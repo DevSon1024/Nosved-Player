@@ -4,6 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -24,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,15 +55,13 @@ fun GestureOverlay(
     onSeekSwipe: (Float) -> Unit = {},
     onVolumeSwipe: (Float) -> Unit,
     onBrightnessSwipe: (Float) -> Unit,
-    onSeekCommit: (Long) -> Unit = {}
+    onSeekCommit: (Long) -> Unit = {},
+    volumeLevel: Float,
+    brightnessLevel: Float,
+    showVolumeFeedback: Boolean,
+    showBrightnessFeedback: Boolean
 ) {
     val haptic = LocalHapticFeedback.current
-
-    //  Feedback visibility states 
-    var showBrightnessFeedback by remember { mutableStateOf(false) }
-    var brightnessLevel        by remember { mutableFloatStateOf(0.5f) }
-    var showVolumeFeedback     by remember { mutableStateOf(false) }
-    var volumeLevel            by remember { mutableFloatStateOf(0.5f) }
 
     var showLeftRipple   by remember { mutableStateOf(false) }
     var showCenterRipple by remember { mutableStateOf(false) }
@@ -69,12 +69,6 @@ fun GestureOverlay(
     // Snapshot of isPlaying at the moment of the center tap (before toggle)
     var centerWasPlaying by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showBrightnessFeedback) {
-        if (showBrightnessFeedback) { delay(600); showBrightnessFeedback = false }
-    }
-    LaunchedEffect(showVolumeFeedback) {
-        if (showVolumeFeedback) { delay(600); showVolumeFeedback = false }
-    }
     LaunchedEffect(showLeftRipple) {
         if (showLeftRipple)   { delay(600); showLeftRipple = false }
     }
@@ -89,6 +83,8 @@ fun GestureOverlay(
     var lastTapTime by remember { mutableStateOf(0L) }
     var lastTapX    by remember { mutableStateOf(0f) }
     var lastTapY    by remember { mutableStateOf(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    var singleTapJob by remember { mutableStateOf<Job?>(null) }
 
     // Invisible Seek Bar tracking
     var scrubDeltaMs by remember { mutableStateOf<Long?>(null) }
@@ -132,7 +128,8 @@ fun GestureOverlay(
                                 val dist = sqrt(dx * dx + dy * dy)
 
                                 if (dt < 300 && dist < 80f) {
-                                    //  Double tap 
+                                    //  Double tap: cancel pending single tap
+                                    singleTapJob?.cancel()
                                     lastTapTime = 0L
                                     val tapX = change.position.x
                                     when {
@@ -157,11 +154,14 @@ fun GestureOverlay(
                                         }
                                     }
                                 } else {
-                                    //  Single tap 
+                                    //  Single tap: delay for potential second tap
                                     lastTapTime = now
                                     lastTapX    = change.position.x
                                     lastTapY    = change.position.y
-                                    onSingleTap()
+                                    singleTapJob = coroutineScope.launch {
+                                        delay(300)
+                                        onSingleTap()
+                                    }
                                 }
                             }
                             break
@@ -185,20 +185,8 @@ fun GestureOverlay(
                                     val delta = (-dy / size.height.toFloat()) * sensitivity
                                     if (isRightSide) {
                                         onVolumeSwipe(delta)
-                                        val newVolume = (volumeLevel + delta).coerceIn(0f, 1f)
-                                        if ((newVolume == 0f || newVolume == 1f) && newVolume != volumeLevel) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        volumeLevel = newVolume
-                                        showVolumeFeedback = true
                                     } else {
                                         onBrightnessSwipe(delta)
-                                        val newBrightness = (brightnessLevel + delta).coerceIn(0f, 1f)
-                                        if ((newBrightness == 0f || newBrightness == 1f) && newBrightness != brightnessLevel) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        brightnessLevel = newBrightness
-                                        showBrightnessFeedback = true
                                     }
                                 }
                                 "HORIZONTAL" -> {
@@ -279,33 +267,42 @@ fun GestureOverlay(
     }
 }
 
-// 
 // Edge volume/brightness slider
-// 
 
 @Composable
 private fun EdgeSlider(level: Float) {
-    Box(
-        modifier = Modifier
-            .padding(horizontal = 24.dp)
-            .height(140.dp)
-            .width(6.dp)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.2f))
+    androidx.compose.foundation.layout.Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 24.dp)
     ) {
+        val percentage = (level * 100).toInt()
+        Text(
+            text = "$percentage%",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxHeight(level)
+                .height(140.dp)
                 .width(6.dp)
-                .background(Color.White)
-        )
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.2f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxHeight(level)
+                    .width(6.dp)
+                    .background(Color.White)
+            )
+        }
     }
 }
-
-// 
+ 
 // Left / right seek ripple (pill-shaped, curved toward center)
-// 
+ 
 
 @Composable
 private fun SeekRipple(isRightSide: Boolean, label: String) {
@@ -331,9 +328,7 @@ private fun SeekRipple(isRightSide: Boolean, label: String) {
     }
 }
 
-// 
 // Center play/pause ripple (circular)
-// 
 
 @Composable
 private fun CenterRipple(wasPlaying: Boolean) {
