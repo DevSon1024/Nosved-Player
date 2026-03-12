@@ -131,6 +131,17 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         }
         playerManager?.pause()
     }
+    fun stopVideo() {
+        // Save history before stopping
+        val uri = _currentVideo.value?.uri
+        val pos = playerManager?.currentPosition?.value ?: 0L
+        if (uri != null && pos > 0L) {
+            viewModelScope.launch { historyRepo.savePosition(uri, pos) }
+        }
+        // Fully stop and release the media item to prevent background audio
+        playerManager?.exoPlayer?.stop()
+        playerManager?.exoPlayer?.clearMediaItems()
+    }
 
     /** Resumes only if there is an active video (prevents auto-play on cold start). */
     fun resumeVideo() {

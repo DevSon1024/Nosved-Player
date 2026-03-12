@@ -19,8 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ import java.util.*
 @Composable
 fun VideoListScreen(
     onVideoSelected: (Video) -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: VideoListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -98,7 +100,6 @@ fun VideoListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text(if (selectedFolder != null) selectedFolder!! else "Folders", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (selectedFolder != null) {
@@ -108,10 +109,22 @@ fun VideoListScreen(
                     }
                 },
                 actions = {
-                    if (selectedFolder != null) {
-                        IconButton(onClick = { showSettingsSheet = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "View Settings")
-                        }
+                    
+                    
+                    
+                    // 1. Your existing View Settings / Filter Icon
+                    IconButton(onClick = { showSettingsSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Tune, // Or whichever icon you chose
+                            contentDescription = "View Settings"
+                        )
+                    }
+                    // 2. New App Settings Icon
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings"
+                        )
                     }
                 }
             )

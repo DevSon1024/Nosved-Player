@@ -1,7 +1,5 @@
 package com.devson.nosvedplayer.ui.screens
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,7 +60,6 @@ import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -76,7 +72,6 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 title = {
                     Text(
                         text = "Nosved Player",

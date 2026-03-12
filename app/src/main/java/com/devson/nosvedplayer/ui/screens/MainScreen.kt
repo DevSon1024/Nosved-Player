@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
+import androidx.compose.foundation.layout.consumeWindowInsets
 
 /** Tabs available in the bottom nav bar. */
 enum class BottomNavTab { HOME, VIDEOS }
@@ -47,7 +48,7 @@ fun MainScreen(
 
     // Back handler for player
     BackHandler(enabled = isPlayerVisible) {
-        videoViewModel.pauseVideo()
+        videoViewModel.stopVideo()
         currentVideo = null
         resumePositionMs = 0L
     }
@@ -82,9 +83,7 @@ fun MainScreen(
                         enter = slideInVertically(initialOffsetY = { it }),
                         exit = slideOutVertically(targetOffsetY = { it })
                     ) {
-                        NavigationBar(
-                            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
-                        ) {
+                        NavigationBar {
                             NavigationBarItem(
                                 selected = selectedTab == BottomNavTab.HOME,
                                 onClick = { selectedTab = BottomNavTab.HOME },
@@ -117,6 +116,7 @@ fun MainScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
+                        .consumeWindowInsets(paddingValues)
                 ) {
                     when (selectedTab) {
                         BottomNavTab.HOME -> {
@@ -135,7 +135,8 @@ fun MainScreen(
                                     resumePositionMs = 0L
                                     currentVideo = video
                                     videoViewModel.playVideo(video, 0L)
-                                }
+                                },
+                                onNavigateToSettings = { appScreen = AppScreen.SETTINGS }
                             )
                         }
                     }

@@ -49,7 +49,6 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 title = { Text("Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
