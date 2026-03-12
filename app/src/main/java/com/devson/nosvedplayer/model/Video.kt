@@ -14,5 +14,6 @@ data class Video(
     val title: String,
     val duration: Long = 0L,
     val size: Long = 0L,
-    val folderName: String = "Unknown"
+    val folderName: String = "Unknown",
+    val dateAdded: Long = 0L
 )

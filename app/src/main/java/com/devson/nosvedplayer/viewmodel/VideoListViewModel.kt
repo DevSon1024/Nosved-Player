@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.devson.nosvedplayer.repository.ViewSettingsRepository
+import com.devson.nosvedplayer.model.SortOrder
+import com.devson.nosvedplayer.model.ViewSettings
 
 class VideoListViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -23,6 +26,20 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     private val _selectedFolder = MutableStateFlow<String?>(null)
     val selectedFolder: StateFlow<String?> = _selectedFolder.asStateFlow()
 
+    private val settingsRepository = ViewSettingsRepository(application)
+    
+    private val _viewSettings = MutableStateFlow(ViewSettings())
+    val viewSettings: StateFlow<ViewSettings> = _viewSettings.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            settingsRepository.viewSettingsFlow.collect { settings ->
+                _viewSettings.value = settings
+                // Force a reload/sort when settings change if needed
+            }
+        }
+    }
+
     fun loadVideos() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -35,4 +52,19 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     fun selectFolder(folderName: String?) {
         _selectedFolder.value = folderName
     }
+
+    // Settings update functions
+    fun updateIsGrid(isGrid: Boolean) = viewModelScope.launch { settingsRepository.updateIsGrid(isGrid) }
+    fun updateGridColumns(columns: Int) = viewModelScope.launch { settingsRepository.updateGridColumns(columns) }
+    fun updateSortOrder(order: SortOrder) = viewModelScope.launch { settingsRepository.updateSortOrder(order) }
+    fun updateShowThumbnail(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowThumbnail(show) }
+    fun updateShowDuration(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowDuration(show) }
+    fun updateShowSize(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowSize(show) }
+    fun updateShowDate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowDate(show) }
+    fun updateShowSubtitleType(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowSubtitleType(show) }
+    fun updateShowResolution(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowResolution(show) }
+    fun updateShowFramerate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFramerate(show) }
+    fun updateShowPlayedTime(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPlayedTime(show) }
+    fun updateShowPath(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPath(show) }
+    fun updateShowFileExtension(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFileExtension(show) }
 }
