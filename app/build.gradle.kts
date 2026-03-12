@@ -66,7 +66,7 @@ android {
             isMinifyEnabled = false
             isDebuggable = true
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "Nosved Beta"
+            manifestPlaceholders["appLabel"] = "NosPlayer Beta"
         }
     }
 

@@ -18,13 +18,14 @@ import com.devson.nosvedplayer.ui.screens.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.VideoScreen
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
-
+import androidx.activity.enableEdgeToEdge
 class MainActivity : ComponentActivity() {
 
     private var videoViewModelRef: VideoViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             NosvedPlayerTheme {
                 Surface(

@@ -90,6 +90,20 @@ fun VideoScreen(
     LaunchedEffect(brightnessFeedbackTrigger) {
         if (brightnessFeedbackTrigger > 0) { delay(1000); showBrightnessFeedback = false }
     }
+    // Capture the original window properties when the screen is composed
+    val originalWindowParams = remember {
+        val window = activity?.window
+        val insetsController = if (window != null) androidx.core.view.WindowCompat.getInsetsController(window, window.decorView) else null
+
+        object {
+            val statusBarColor = window?.statusBarColor
+            val navigationBarColor = window?.navigationBarColor
+            val isNavBarContrastEnforced = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window?.isNavigationBarContrastEnforced else null
+            val isStatusBarContrastEnforced = if (Build.VERSION.SDK_INT >= Build.VERSION.SDK_INT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window?.isStatusBarContrastEnforced else null
+            val systemBarsBehavior = insetsController?.systemBarsBehavior
+        }
+    }
+
     val originalOrientation = remember {
         activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
@@ -131,7 +145,6 @@ fun VideoScreen(
     DisposableEffect(Unit) {
         activity?.window?.let { window ->
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -142,10 +155,20 @@ fun VideoScreen(
         onDispose {
             activity?.window?.let { window ->
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+
+                // Restore original theme colors and behavior
+                originalWindowParams.statusBarColor?.let { window.statusBarColor = it }
+                originalWindowParams.navigationBarColor?.let { window.navigationBarColor = it }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    originalWindowParams.isNavBarContrastEnforced?.let { window.isNavigationBarContrastEnforced = it }
+                    originalWindowParams.isStatusBarContrastEnforced?.let { window.isStatusBarContrastEnforced = it }
+                }
+
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                originalWindowParams.systemBarsBehavior?.let { insetsController.systemBarsBehavior = it }
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
             activity?.requestedOrientation = originalOrientation
-            if (activity != null) showSystemUI(activity)  // always restore system UI on exit
         }
     }
 
