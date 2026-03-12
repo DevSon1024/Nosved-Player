@@ -1,10 +1,11 @@
 package com.devson.nosvedplayer.viewmodel
 
-import android.content.Context
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.player.PlayerManager
+import com.devson.nosvedplayer.repository.WatchHistoryRepository
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
@@ -21,10 +22,12 @@ enum class SeekBarStyle { DEFAULT, FLAT }
 /** Control icon size preset applied to play/pause and seek icons. */
 enum class ControlIconSize { SMALL, MEDIUM, LARGE }
 
-class VideoViewModel : ViewModel() {
+class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val historyRepo = WatchHistoryRepository(application.applicationContext)
     private var playerManager: PlayerManager? = null
     private var pendingVideo: Video? = null
+    private var pendingResumeMs: Long = 0L
 
     // Exposed so that VideoScreen recomposes when the player becomes ready
     private val _playerInstance = MutableStateFlow<ExoPlayer?>(null)
@@ -72,7 +75,7 @@ class VideoViewModel : ViewModel() {
         startProgressUpdate()
     }
 
-    fun initializePlayer(context: Context) {
+    fun initializePlayer(context: android.content.Context) {
         if (settingsRepository == null) {
             settingsRepository = com.devson.nosvedplayer.repository.PlaybackSettingsRepository(context.applicationContext)
             viewModelScope.launch {
@@ -83,32 +86,35 @@ class VideoViewModel : ViewModel() {
                 }
             }
         }
-        
+
         if (playerManager == null) {
             playerManager = PlayerManager(context)
             playerManager?.initializePlayer()
-
-            // Publish the player instance so VideoScreen recomposes and attaches the surface
             _playerInstance.value = playerManager?.exoPlayer
 
-            // Play the video the user selected (stored before the player was ready)
             pendingVideo?.let { video ->
+                val resumeMs = pendingResumeMs
                 playerManager?.playVideo(video)
+                if (resumeMs > 0L) playerManager?.seekTo(resumeMs)
                 _controlsVisible.value = false
                 pendingVideo = null
+                pendingResumeMs = 0L
             }
         }
     }
 
     fun getPlayer() = _playerInstance.value
 
-    fun playVideo(video: Video) {
+    fun playVideo(video: Video, resumePositionMs: Long = 0L) {
         _currentVideo.value = video
+        viewModelScope.launch { historyRepo.recordPlay(video) }
         if (playerManager != null) {
             playerManager?.playVideo(video)
+            if (resumePositionMs > 0L) playerManager?.seekTo(resumePositionMs)
             _controlsVisible.value = false
         } else {
             pendingVideo = video
+            pendingResumeMs = resumePositionMs
         }
     }
 
@@ -118,6 +124,11 @@ class VideoViewModel : ViewModel() {
 
     /** Always pauses — used when leaving the screen or app goes to background. */
     fun pauseVideo() {
+        val uri = _currentVideo.value?.uri
+        val pos = playerManager?.currentPosition?.value ?: 0L
+        if (uri != null && pos > 0L) {
+            viewModelScope.launch { historyRepo.savePosition(uri, pos) }
+        }
         playerManager?.pause()
     }
 

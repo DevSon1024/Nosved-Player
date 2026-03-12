@@ -1,0 +1,25 @@
+package com.devson.nosvedplayer.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.devson.nosvedplayer.repository.PlaybackSettingsRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
+
+    /**
+     * Emits null = follow system, true = force dark, false = force light.
+     */
+    val isDarkTheme: StateFlow<Boolean?> = settingsRepo.isDarkThemeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun setDarkTheme(isDark: Boolean) {
+        viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
+    }
+}

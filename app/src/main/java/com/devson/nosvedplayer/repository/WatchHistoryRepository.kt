@@ -1,0 +1,45 @@
+package com.devson.nosvedplayer.repository
+
+import android.content.Context
+import com.devson.nosvedplayer.data.NosvedDatabase
+import com.devson.nosvedplayer.model.WatchHistory
+import com.devson.nosvedplayer.model.Video
+import kotlinx.coroutines.flow.Flow
+
+class WatchHistoryRepository(context: Context) {
+
+    private val dao = NosvedDatabase.getInstance(context).watchHistoryDao()
+
+    /** Observe history list (most recently played first). */
+    val historyFlow: Flow<List<WatchHistory>> = dao.observeHistory()
+
+    /** Call when a video starts playing to record/update it in history. */
+    suspend fun recordPlay(video: Video) {
+        dao.upsert(
+            WatchHistory(
+                uri = video.uri,
+                title = video.title,
+                duration = video.duration,
+                size = video.size,
+                folderName = video.folderName,
+                lastPositionMs = 0L,
+                lastPlayedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    /** Call when playback pauses/stops to save the current resume position. */
+    suspend fun savePosition(uri: String, positionMs: Long) {
+        dao.updatePosition(
+            uri = uri,
+            positionMs = positionMs,
+            playedAt = System.currentTimeMillis()
+        )
+    }
+
+    /** Delete a single history item. */
+    suspend fun delete(uri: String) = dao.delete(uri)
+
+    /** Wipe all history. */
+    suspend fun clearAll() = dao.clearAll()
+}

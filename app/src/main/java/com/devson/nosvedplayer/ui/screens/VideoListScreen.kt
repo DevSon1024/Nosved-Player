@@ -103,6 +103,7 @@ fun VideoListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 title = { Text(if (selectedFolder != null) selectedFolder!! else "Folders") },
                 navigationIcon = {
                     if (selectedFolder != null) {

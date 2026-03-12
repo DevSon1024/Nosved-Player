@@ -2,23 +2,20 @@ package com.devson.nosvedplayer
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.nosvedplayer.model.Video
-import com.devson.nosvedplayer.ui.screens.VideoListScreen
-import com.devson.nosvedplayer.ui.screens.VideoScreen
+import com.devson.nosvedplayer.ui.screens.MainScreen
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
+import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
-import androidx.activity.enableEdgeToEdge
+
 class MainActivity : ComponentActivity() {
 
     private var videoViewModelRef: VideoViewModel? = null
@@ -27,33 +24,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            NosvedPlayerTheme {
+            val settingsViewModel: SettingsViewModel = viewModel()
+            val forceDark by settingsViewModel.isDarkTheme.collectAsState()
+
+            NosvedPlayerTheme(forceDark = forceDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var currentVideo by remember { mutableStateOf<Video?>(null) }
                     val videoViewModel: VideoViewModel = viewModel()
                     videoViewModelRef = videoViewModel
-
-                    if (currentVideo == null) {
-                        VideoListScreen(
-                            onVideoSelected = { video ->
-                                currentVideo = video
-                                videoViewModel.playVideo(video)
-                            }
-                        )
-                    } else {
-                        // Always pause (never toggle) when leaving the player screen
-                        BackHandler {
-                            videoViewModel.pauseVideo()
-                            currentVideo = null
-                        }
-
-                        VideoScreen(
-                            viewModel = videoViewModel
-                        )
-                    }
+                    MainScreen(videoViewModel = videoViewModel)
                 }
             }
         }
