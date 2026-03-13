@@ -29,6 +29,8 @@ import androidx.media3.ui.PlayerView
 import com.devson.nosvedplayer.ui.components.DeviceStatsOverlay
 import com.devson.nosvedplayer.ui.components.GestureOverlay
 import com.devson.nosvedplayer.ui.components.PlayerControls
+import com.devson.nosvedplayer.ui.components.AudioTrackSheet
+import com.devson.nosvedplayer.ui.components.SubtitleSheet
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -62,6 +64,34 @@ fun VideoScreen(
     val seekDurationSeconds by viewModel.seekDurationSeconds.collectAsState()
     val seekBarStyle by viewModel.seekBarStyle.collectAsState()
     val controlIconSize by viewModel.controlIconSize.collectAsState()
+
+    // Tracks & Subtitles state
+    val audioTracks by viewModel.audioTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
+    val selectedAudioIndex by viewModel.selectedAudioIndex?.collectAsState(initial = -1) ?: remember { mutableStateOf(-1) }
+    
+    val subtitleTracks by viewModel.subtitleTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
+    val selectedSubtitleIndex by viewModel.selectedSubtitleIndex?.collectAsState(initial = -1) ?: remember { mutableStateOf(-1) }
+    
+    val subtitleTextSizeScale by viewModel.subtitleTextSizeScale.collectAsState()
+    val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
+
+    // Modals state
+    var showAudioSheet by remember { mutableStateOf(false) }
+    @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    val audioSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    var showSubtitleSheet by remember { mutableStateOf(false) }
+    @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    val subtitleSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val externalSubtitleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val mimeType = context.contentResolver.getType(uri) ?: "application/x-subrip" // Default if unknown
+            viewModel.loadExternalSubtitle(uri, mimeType)
+        }
+    }
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
@@ -194,6 +224,24 @@ fun VideoScreen(
                 update = { view -> 
                     if (view.player != player) view.player = player 
                     if (view.resizeMode != resizeMode) view.resizeMode = resizeMode
+
+                    // Apply Subtitle Customizations
+                    val fgColor = android.graphics.Color.WHITE
+                    val bgColorInt = when(subtitleBgStyle) {
+                        1 -> android.graphics.Color.parseColor("#80000000") // Semi-transparent
+                        2 -> android.graphics.Color.parseColor("#FF000000") // Opaque
+                        else -> android.graphics.Color.TRANSPARENT // None
+                    }
+                    val captionStyle = androidx.media3.ui.CaptionStyleCompat(
+                        fgColor, 
+                        bgColorInt, 
+                        android.graphics.Color.TRANSPARENT, 
+                        androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW, 
+                        android.graphics.Color.BLACK, 
+                        android.graphics.Typeface.DEFAULT
+                    )
+                    view.subtitleView?.setStyle(captionStyle)
+                    view.subtitleView?.setFractionalTextSize(androidx.media3.ui.SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * subtitleTextSizeScale)
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -293,9 +341,41 @@ fun VideoScreen(
             controlIconSize = controlIconSize,
             onSeekDurationChange = { viewModel.setSeekDuration(it) },
             onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
-            onControlIconSizeChange = { viewModel.setControlIconSize(it) }
+            onControlIconSizeChange = { viewModel.setControlIconSize(it) },
+            // Audio & Subtitles
+            onOpenAudioTracks = { showAudioSheet = true },
+            onOpenSubtitles = { showSubtitleSheet = true }
         )
     }
+
+    // --- Modals ---
+
+    @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    AudioTrackSheet(
+        showSheet = showAudioSheet,
+        sheetState = audioSheetState,
+        audioTracks = audioTracks,
+        selectedTrackIndex = selectedAudioIndex,
+        onSelectTrack = { viewModel.selectAudioTrack(it) },
+        onDismissRequest = { showAudioSheet = false }
+    )
+
+    @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    SubtitleSheet(
+        showSheet = showSubtitleSheet,
+        sheetState = subtitleSheetState,
+        subtitleTracks = subtitleTracks,
+        selectedTrackIndex = selectedSubtitleIndex,
+        textSizeScale = subtitleTextSizeScale,
+        bgStyle = subtitleBgStyle,
+        onSelectTrack = { viewModel.selectSubtitleTrack(it) },
+        onPickExternalSubtitle = { 
+            externalSubtitleLauncher.launch("*/*")
+        },
+        onTextSizeChange = { viewModel.updateSubtitleTextSizeScale(it) },
+        onBgStyleChange = { viewModel.updateSubtitleBgStyle(it) },
+        onDismissRequest = { showSubtitleSheet = false }
+    )
 }
 
 /**

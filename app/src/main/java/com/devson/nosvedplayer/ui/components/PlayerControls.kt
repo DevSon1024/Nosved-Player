@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -112,7 +114,10 @@ fun PlayerControls(
     controlIconSize: ControlIconSize = ControlIconSize.MEDIUM,
     onSeekDurationChange: ((Int) -> Unit)? = null,
     onSeekBarStyleChange: ((SeekBarStyle) -> Unit)? = null,
-    onControlIconSizeChange: ((ControlIconSize) -> Unit)? = null
+    onControlIconSizeChange: ((ControlIconSize) -> Unit)? = null,
+    // Audio and Subtitle Modals
+    onOpenAudioTracks: (() -> Unit)? = null,
+    onOpenSubtitles: (() -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -163,6 +168,18 @@ fun PlayerControls(
                             contentDescription = "Device Stats",
                             tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
                         )
+                    }
+                    // Audio Tracks
+                    if (onOpenAudioTracks != null) {
+                        IconButton(onClick = onOpenAudioTracks) {
+                            Icon(Icons.Filled.Audiotrack, contentDescription = "Audio Tracks", tint = Color.White)
+                        }
+                    }
+                    // Subtitles (CC)
+                    if (onOpenSubtitles != null) {
+                        IconButton(onClick = onOpenSubtitles) {
+                            Icon(Icons.Filled.ClosedCaption, contentDescription = "Subtitles", tint = Color.White)
+                        }
                     }
                     // Playback Settings button
                     IconButton(onClick = {

@@ -12,6 +12,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.devson.nosvedplayer.model.TrackInfo
+import android.net.Uri
 import kotlinx.coroutines.launch
 
 //  Playback Settings Enums 
@@ -43,6 +45,12 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     val isPortraitVideo get() = playerManager?.isPortraitVideo
     val videoFps get() = playerManager?.videoFps
 
+    // --- Audio & Subtitle Tracks from Manager ---
+    val audioTracks get() = playerManager?.audioTracks
+    val selectedAudioIndex get() = playerManager?.selectedAudioIndex
+    val subtitleTracks get() = playerManager?.subtitleTracks
+    val selectedSubtitleIndex get() = playerManager?.selectedSubtitleIndex
+
     private val _controlsVisible = MutableStateFlow(false)  // hidden until first tap
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
 
@@ -70,6 +78,15 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     /** Size preset for the playback control icons. */
     private val _controlIconSize = MutableStateFlow(ControlIconSize.MEDIUM)
     val controlIconSize: StateFlow<ControlIconSize> = _controlIconSize.asStateFlow()
+
+    // --- Subtitle Customization State ---
+    
+    private val _subtitleTextSizeScale = MutableStateFlow(1f)
+    val subtitleTextSizeScale: StateFlow<Float> = _subtitleTextSizeScale.asStateFlow()
+
+    // 0 = None, 1 = Semi-transparent, 2 = Opaque
+    private val _subtitleBgStyle = MutableStateFlow(0)
+    val subtitleBgStyle: StateFlow<Int> = _subtitleBgStyle.asStateFlow()
 
     init {
         startProgressUpdate()
@@ -203,6 +220,28 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setControlIconSize(size: ControlIconSize) { 
         viewModelScope.launch { settingsRepository?.updateControlIconSize(size.name) }
+    }
+
+    // --- Audio & Subtitle Control Bridges ---
+
+    fun selectAudioTrack(index: Int) {
+        playerManager?.selectAudioTrack(index)
+    }
+
+    fun selectSubtitleTrack(index: Int?) {
+        playerManager?.selectSubtitleTrack(index ?: -1)
+    }
+
+    fun loadExternalSubtitle(uri: Uri, mimeType: String) {
+        playerManager?.loadExternalSubtitle(uri, mimeType)
+    }
+
+    fun updateSubtitleTextSizeScale(scale: Float) {
+        _subtitleTextSizeScale.value = scale
+    }
+
+    fun updateSubtitleBgStyle(style: Int) {
+        _subtitleBgStyle.value = style
     }
 
     private var hideJob: kotlinx.coroutines.Job? = null
