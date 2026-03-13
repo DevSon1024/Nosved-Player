@@ -37,7 +37,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import coil.request.videoFrameMillis
+import coil.size.Scale
 import com.devson.nosvedplayer.model.SortOrder
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.ViewSettings
@@ -272,7 +274,13 @@ fun VideoThumbnail(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(uri)
-                .videoFrameMillis(1000)
+                .videoFrameMillis(1_000)
+                // Match the size the worker used so Coil reuses the exact cached entry.
+                .size(512, 512)
+                .scale(Scale.FILL)
+                // Read from both caches for instant display on the UI thread.
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .memoryCachePolicy(CachePolicy.ENABLED)
                 .crossfade(true)
                 .build(),
             contentDescription = "Video Thumbnail",

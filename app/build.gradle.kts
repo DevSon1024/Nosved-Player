@@ -16,6 +16,7 @@ if (keystorePropertiesFile.exists()) {
 val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskNames.any {
     it.contains("debug", ignoreCase = true)
 }
+val appVersionName = "1.0"
 
 android {
     namespace = "com.devson.nosvedplayer"
@@ -30,7 +31,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = appVersionName
 
         if (!splitApks) {
             // For debug builds - only include device ABI for faster builds
@@ -99,7 +100,7 @@ androidComponents {
         variant.outputs.forEach { output ->
             val abiName = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "Universal"
             val buildType = variant.buildType?.replaceFirstChar { it.uppercase() } ?: "Unknown"
-            (output as com.android.build.api.variant.impl.VariantOutputImpl).outputFileName.set("NosvedPlayer_v1.0_${buildType}_${abiName}.apk")
+            (output as com.android.build.api.variant.impl.VariantOutputImpl).outputFileName.set("NosvedPlayer_v${appVersionName}_${buildType}_${abiName}.apk")
         }
     }
 }
@@ -123,6 +124,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.androidx.work.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

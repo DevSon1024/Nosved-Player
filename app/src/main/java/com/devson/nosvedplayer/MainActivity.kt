@@ -11,10 +11,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.devson.nosvedplayer.ui.screens.MainScreen
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
+import com.devson.nosvedplayer.worker.ThumbnailPreloadWorker
 
 class MainActivity : ComponentActivity() {
 
@@ -23,6 +27,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Enqueue thumbnail pre-loading exactly once.
+        // KEEP: if the work is already queued or running, do nothing.
+        // If it completed successfully, WorkManager will not re-run it.
+        val preloadRequest = OneTimeWorkRequestBuilder<ThumbnailPreloadWorker>().build()
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            ThumbnailPreloadWorker.WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            preloadRequest
+        )
+
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val forceDark by settingsViewModel.isDarkTheme.collectAsState()
