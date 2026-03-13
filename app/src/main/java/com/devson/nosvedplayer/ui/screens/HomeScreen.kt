@@ -56,10 +56,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import coil.compose.AsyncImage
-import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
-import coil.size.Scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.items
@@ -279,12 +277,7 @@ private fun HistoryCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(item.uri)
-                        .videoFrameMillis(1_000)
-                        // Match the worker's size so Coil reuses the cached entry.
-                        .size(512, 512)
-                        .scale(Scale.FILL)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .videoFrameMillis(1000)
                         .crossfade(true)
                         .build(),
                     contentDescription = "Video Thumbnail",

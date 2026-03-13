@@ -28,14 +28,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Enqueue thumbnail pre-loading exactly once.
-        // KEEP: if the work is already queued or running, do nothing.
-        // If it completed successfully, WorkManager will not re-run it.
-        val preloadRequest = OneTimeWorkRequestBuilder<ThumbnailPreloadWorker>().build()
+        // Enqueue thumbnail pre-generation once. KEEP ensures:
+        //  - If the job is already running or queued  → do nothing.
+        //  - If it has already succeeded in a previous session → WorkManager won't re-run it.
         WorkManager.getInstance(this).enqueueUniqueWork(
             ThumbnailPreloadWorker.WORK_NAME,
             ExistingWorkPolicy.KEEP,
-            preloadRequest
+            OneTimeWorkRequestBuilder<ThumbnailPreloadWorker>().build()
         )
 
         setContent {

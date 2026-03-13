@@ -13,7 +13,7 @@ lifecycleViewModelCompose = "2.8.7"
 room = "2.7.0"
 ksp = "2.2.10-2.0.2"
 coil = "2.6.0"
-workManager = "2.9.1"
+workManager = "2.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

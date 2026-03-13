@@ -8,84 +8,61 @@ import coil.ImageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
-import coil.size.Size
 import com.devson.nosvedplayer.repository.VideoRepository
 
 /**
- * A background [CoroutineWorker] that pre-generates thumbnails for every local
- * video and writes them into Coil's persistent disk cache.
+ * A one-shot background worker that pre-generates and caches thumbnails for every
+ * local video found by [VideoRepository]. Thumbnails are written exclusively to the
+ * Coil disk cache so they can be served instantly on the next app launch without
+ * re-decoding any video frames.
  *
- * Enqueue with [ExistingWorkPolicy.KEEP] so it runs once (or resumes if it was
- * interrupted) and never re-queues unnecessarily.
+ * Enqueue with [ExistingWorkPolicy.KEEP] so the job is never duplicated.
  */
 class ThumbnailPreloadWorker(
     appContext: Context,
-    params: WorkerParameters
-) : CoroutineWorker(appContext, params) {
+    workerParams: WorkerParameters
+) : CoroutineWorker(appContext, workerParams) {
 
-    private val tag = "ThumbnailPreloadWorker"
+    companion object {
+        const val WORK_NAME = "thumbnail_preload"
+        private const val TAG = "ThumbnailPreloadWorker"
+    }
 
     override suspend fun doWork(): Result {
-        Log.d(tag, "Starting thumbnail pre-load…")
+        Log.d(TAG, "Starting thumbnail pre-generation…")
 
-        val repository = VideoRepository(applicationContext)
         val imageLoader = ImageLoader.Builder(applicationContext).build()
+        val repository = VideoRepository(applicationContext)
 
         val videos = try {
             repository.getAllVideos()
         } catch (e: Exception) {
-            Log.e(tag, "Failed to query videos from MediaStore", e)
+            Log.e(TAG, "Failed to query video list", e)
             return Result.failure()
         }
 
-        Log.d(tag, "Pre-loading thumbnails for ${videos.size} video(s).")
+        Log.d(TAG, "Preloading thumbnails for ${videos.size} videos")
 
-        var successCount = 0
-        var failCount = 0
-
-        for (video in videos) {
-            // Check if WorkManager has requested cancellation between each item.
-            if (isStopped) {
-                Log.d(tag, "Worker stopped early — will resume on next run.")
-                break
-            }
-
-            val request = ImageRequest.Builder(applicationContext)
-                .data(video.uri)
-                // Grab a frame at 1 second to avoid black first-frames.
-                .videoFrameMillis(1_000)
-                // Downsample to 512×512 to keep the cache lean.
-                .size(512, 512)
-                // Do NOT pollute RAM — disk only.
-                .memoryCachePolicy(CachePolicy.DISABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                // Disable hardware bitmaps for background safety.
-                .allowHardware(false)
-                .build()
-
+        videos.forEach { video ->
             try {
-                val result = imageLoader.execute(request)
-                if (result.drawable != null) {
-                    successCount++
-                } else {
-                    failCount++
-                    Log.w(tag, "Null drawable for: ${video.uri}")
-                }
+                val request = ImageRequest.Builder(applicationContext)
+                    .data(video.uri)
+                    .videoFrameMillis(1_000L)       // Grab frame at 1-second mark
+                    .size(512, 512)                 // Downsample — keeps cache footprint small
+                    .memoryCachePolicy(CachePolicy.DISABLED)   // Don't pollute RAM during background work
+                    .diskCachePolicy(CachePolicy.ENABLED)      // Write to (and read from) disk cache only
+                    .allowHardware(false)           // Background threads have no GL context
+                    .build()
+
+                imageLoader.execute(request)
+                Log.v(TAG, "Cached thumbnail: ${video.title}")
             } catch (e: Exception) {
-                failCount++
-                Log.w(tag, "Failed to load thumbnail for: ${video.uri}", e)
+                // One bad file must not abort the entire batch — log and continue
+                Log.w(TAG, "Skipping thumbnail for '${video.title}': ${e.message}")
             }
         }
 
-        // Shut down the local ImageLoader to release its resources.
-        imageLoader.shutdown()
-
-        Log.d(tag, "Thumbnail pre-load complete. Success=$successCount, Failed=$failCount")
+        Log.d(TAG, "Thumbnail pre-generation complete (${videos.size} processed)")
         return Result.success()
-    }
-
-    companion object {
-        /** Unique name used to identify this work in WorkManager. */
-        const val WORK_NAME = "thumbnail_preload_work"
     }
 }
