@@ -139,6 +139,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.playPause()
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        playerManager?.setPlaybackSpeed(speed)
+    }
+
     /** Always pauses — used when leaving the screen or app goes to background. */
     fun pauseVideo() {
         val uri = _currentVideo.value?.uri

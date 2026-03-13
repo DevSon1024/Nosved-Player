@@ -259,6 +259,9 @@ fun VideoScreen(
             onSeekCommit = { deltaMs -> 
                 viewModel.seekByOffset(deltaMs)
             },
+            onFastForwardToggle = { active ->
+                viewModel.setPlaybackSpeed(if (active) 2.0f else 1.0f)
+            },
             onVolumeSwipe = { delta ->
                 accumulatedVolume = (accumulatedVolume + delta).coerceIn(0f, 1f)
                 val newVol = (accumulatedVolume * maxVolume).toInt()

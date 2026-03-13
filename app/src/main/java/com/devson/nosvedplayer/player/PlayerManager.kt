@@ -145,6 +145,11 @@ class PlayerManager(private val context: Context) {
         _playerError.value = null
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        val player = exoPlayer ?: return
+        player.playbackParameters = androidx.media3.common.PlaybackParameters(speed)
+    }
+
     fun playPause() {
         val player = exoPlayer ?: return
         if (player.isPlaying) {

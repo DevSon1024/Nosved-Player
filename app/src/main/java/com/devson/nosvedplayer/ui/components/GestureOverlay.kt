@@ -56,6 +56,7 @@ fun GestureOverlay(
     onVolumeSwipe: (Float) -> Unit,
     onBrightnessSwipe: (Float) -> Unit,
     onSeekCommit: (Long) -> Unit = {},
+    onFastForwardToggle: (Boolean) -> Unit = {},
     volumeLevel: Float,
     brightnessLevel: Float,
     showVolumeFeedback: Boolean,
@@ -89,6 +90,9 @@ fun GestureOverlay(
     // Invisible Seek Bar tracking
     var scrubDeltaMs by remember { mutableStateOf<Long?>(null) }
 
+    // Fast Forward (2x speed) State
+    var isFastForwarding by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -104,11 +108,29 @@ fun GestureOverlay(
                     var isSwiping  = false
                     var swipeAxis  = ""
 
+                    var isLongPressActive = false
+                    val longPressJob = coroutineScope.launch {
+                        delay(600)
+                        if (isPlaying && !isSwiping) {
+                            isLongPressActive = true
+                            isFastForwarding = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onFastForwardToggle(true)
+                        }
+                    }
+
                     while (true) {
                         val event  = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: break
 
                         if (!change.pressed) {
+                            longPressJob.cancel()
+                            if (isLongPressActive) {
+                                isFastForwarding = false
+                                onFastForwardToggle(false)
+                                break
+                            }
+
                             if (isSwiping && swipeAxis == "HORIZONTAL") {
                                 // Commit the seek
                                 scrubDeltaMs?.let { delta ->
@@ -174,11 +196,19 @@ fun GestureOverlay(
 
                         if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                             isSwiping = true
+                            longPressJob.cancel()
+                            if (isLongPressActive) {
+                                isFastForwarding = false
+                                onFastForwardToggle(false)
+                                isLongPressActive = false
+                            }
                             swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
                         }
 
                         if (isSwiping) {
                             change.consume()
+                            if (isLongPressActive) break // Prevent swiping while holding fast-forward
+                            
                             when (swipeAxis) {
                                 "VERTICAL" -> {
                                     val sensitivity = 1.2f
@@ -235,6 +265,27 @@ fun GestureOverlay(
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                     )
                 }
+            }
+        }
+
+        // Fast Forward Badge (Top Center)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isFastForwarding,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                    .padding(horizontal = 24.dp, vertical = 10.dp)
+            ) {
+                androidx.compose.material3.Text(
+                    text = "⏩ 2x Speed",
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
             }
         }
 
