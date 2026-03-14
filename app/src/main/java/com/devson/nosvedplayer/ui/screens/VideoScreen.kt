@@ -41,6 +41,8 @@ fun VideoScreen(
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     val player by viewModel.playerInstance.collectAsState()
     val isPlaying by viewModel.isPlaying?.collectAsState(initial = false)
@@ -352,13 +354,17 @@ fun VideoScreen(
             seekBarStyle = seekBarStyle,
             controlIconSize = controlIconSize,
             autoPlayEnabled = autoPlayEnabled,
+            onSeekDurationChange = { viewModel.setSeekDuration(it) },
+            onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
+            onControlIconSizeChange = { viewModel.setControlIconSize(it) },
             onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
             // Audio & Subtitles
             onOpenAudioTracks = { showAudioSheet = true },
             onOpenSubtitles = { showSubtitleSheet = true },
             // Playlist Navigation
             onPlayPrevious = { viewModel.playPreviousVideo() },
-            onPlayNext = { viewModel.playNextVideo() }
+            onPlayNext = { viewModel.playNextVideo() },
+            isLandscape = isLandscape
         )
     }
 
@@ -370,6 +376,7 @@ fun VideoScreen(
         sheetState = audioSheetState,
         audioTracks = audioTracks,
         selectedTrackIndex = selectedAudioIndex,
+        isLandscape = isLandscape,
         onSelectTrack = { viewModel.selectAudioTrack(it) },
         onDismissRequest = { showAudioSheet = false }
     )
@@ -382,6 +389,7 @@ fun VideoScreen(
         selectedTrackIndex = selectedSubtitleIndex,
         textSizeScale = subtitleTextSizeScale,
         bgStyle = subtitleBgStyle,
+        isLandscape = isLandscape,
         onSelectTrack = { viewModel.selectSubtitleTrack(it) },
         onPickExternalSubtitle = { 
             externalSubtitleLauncher.launch("*/*")

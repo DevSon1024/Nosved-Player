@@ -1,10 +1,14 @@
 package com.devson.nosvedplayer.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.model.TrackInfo
@@ -25,6 +30,7 @@ fun AudioTrackSheet(
     sheetState: SheetState,
     audioTracks: List<TrackInfo>,
     selectedTrackIndex: Int,
+    isLandscape: Boolean,
     onSelectTrack: (Int) -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -34,45 +40,78 @@ fun AudioTrackSheet(
             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
         }
 
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = sheetState,
-            containerColor = Color(0xFF12121F),
-            tonalElevation = 0.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
-                    .padding(bottom = 32.dp)
-            ) {
-                Text(
-                    text = "Audio Tracks",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 20.dp)
+        if (isLandscape) {
+            SideSheet(visible = showSheet, onDismissRequest = onDismissRequest) {
+                MediaTrackSheetContent(
+                    title = "Audio Tracks",
+                    tracks = audioTracks,
+                    selectedTrackIndex = selectedTrackIndex,
+                    onSelectTrack = onSelectTrack,
+                    onDismissRequest = onDismissRequest
                 )
+            }
+        } else {
+            ModalBottomSheet(
+                onDismissRequest = onDismissRequest,
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                MediaTrackSheetContent(
+                    title = "Audio Tracks",
+                    tracks = audioTracks,
+                    selectedTrackIndex = selectedTrackIndex,
+                    onSelectTrack = onSelectTrack,
+                    onDismissRequest = onDismissRequest
+                )
+            }
+        }
+    }
+}
 
-                if (audioTracks.isEmpty()) {
-                    Text(
-                        text = "No additional audio tracks found.",
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontSize = 14.sp
-                    )
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(audioTracks) { track ->
-                            TrackItem(
-                                track = track,
-                                isSelected = selectedTrackIndex == track.index,
-                                onClick = {
-                                    onSelectTrack(track.index)
-                                    dismiss()
-                                }
-                            )
+@Composable
+private fun MediaTrackSheetContent(
+    title: String,
+    tracks: List<TrackInfo>,
+    selectedTrackIndex: Int,
+    onSelectTrack: (Int) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            text = title,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+
+        if (tracks.isEmpty()) {
+            Text(
+                text = "No tracks found.",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                fontSize = 14.sp
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(tracks) { track ->
+                    TrackItem(
+                        track = track,
+                        isSelected = selectedTrackIndex == track.index,
+                        onClick = {
+                            onSelectTrack(track.index)
+                            onDismissRequest()
                         }
-                    }
+                    )
                 }
             }
         }
@@ -88,6 +127,7 @@ fun SubtitleSheet(
     selectedTrackIndex: Int,
     textSizeScale: Float,
     bgStyle: Int,
+    isLandscape: Boolean,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
@@ -101,88 +141,135 @@ fun SubtitleSheet(
             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
         }
 
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = sheetState,
-            containerColor = Color(0xFF12121F),
-            tonalElevation = 0.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
-                    .padding(bottom = 32.dp)
-            ) {
-                Text(
-                    text = "Subtitles",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 12.dp)
+        if (isLandscape) {
+            SideSheet(visible = showSheet, onDismissRequest = onDismissRequest) {
+                SubtitleSheetContent(
+                    subtitleTracks = subtitleTracks,
+                    selectedTrackIndex = selectedTrackIndex,
+                    textSizeScale = textSizeScale,
+                    bgStyle = bgStyle,
+                    onSelectTrack = onSelectTrack,
+                    onPickExternalSubtitle = onPickExternalSubtitle,
+                    onTextSizeChange = onTextSizeChange,
+                    onBgStyleChange = onBgStyleChange,
+                    onDismissRequest = onDismissRequest
                 )
+            }
+        } else {
+            ModalBottomSheet(
+                onDismissRequest = onDismissRequest,
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                SubtitleSheetContent(
+                    subtitleTracks = subtitleTracks,
+                    selectedTrackIndex = selectedTrackIndex,
+                    textSizeScale = textSizeScale,
+                    bgStyle = bgStyle,
+                    onSelectTrack = onSelectTrack,
+                    onPickExternalSubtitle = onPickExternalSubtitle,
+                    onTextSizeChange = onTextSizeChange,
+                    onBgStyleChange = onBgStyleChange,
+                    onDismissRequest = onDismissRequest
+                )
+            }
+        }
+    }
+}
 
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    containerColor = Color.Transparent,
-                    contentColor = Color.White,
-                    divider = {}
-                ) {
-                    val tabs = listOf("Tracks", "External", "Customize")
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
-                            text = { 
-                                Text(
-                                    title, 
-                                    color = if (selectedTabIndex == index) Color.White else Color.White.copy(alpha = 0.5f) 
-                                ) 
-                            }
-                        )
+@Composable
+private fun SubtitleSheetContent(
+    subtitleTracks: List<TrackInfo>,
+    selectedTrackIndex: Int,
+    textSizeScale: Float,
+    bgStyle: Int,
+    onSelectTrack: (Int?) -> Unit,
+    onPickExternalSubtitle: () -> Unit,
+    onTextSizeChange: (Float) -> Unit,
+    onBgStyleChange: (Int) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            text = "Subtitles",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
+        ) {
+            val tabs = listOf("Tracks", "External", "Customize")
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { 
+                        Text(
+                            title, 
+                            color = if (selectedTabIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) 
+                        ) 
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(modifier = Modifier.weight(1f, fill = false)) {
+            when (selectedTabIndex) {
+                0 -> { // Tracks
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            TrackItem(
+                                track = TrackInfo(-1, "Off", null),
+                                isSelected = selectedTrackIndex == -1,
+                                onClick = {
+                                    onSelectTrack(-1)
+                                    onDismissRequest()
+                                }
+                            )
+                        }
+                        items(subtitleTracks) { track ->
+                            TrackItem(
+                                track = track,
+                                isSelected = selectedTrackIndex == track.index,
+                                onClick = {
+                                    onSelectTrack(track.index)
+                                    onDismissRequest()
+                                }
+                            )
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                when (selectedTabIndex) {
-                    0 -> { // Tracks
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            item {
-                                TrackItem(
-                                    track = TrackInfo(-1, "Off", null),
-                                    isSelected = selectedTrackIndex == -1,
-                                    onClick = {
-                                        onSelectTrack(-1)
-                                        dismiss()
-                                    }
-                                )
-                            }
-                            items(subtitleTracks) { track ->
-                                TrackItem(
-                                    track = track,
-                                    isSelected = selectedTrackIndex == track.index,
-                                    onClick = {
-                                        onSelectTrack(track.index)
-                                        dismiss()
-                                    }
-                                )
-                            }
-                        }
+                1 -> { // External
+                    Button(
+                        onClick = {
+                            onPickExternalSubtitle()
+                            onDismissRequest()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Pick .SRT or .VTT File", color = MaterialTheme.colorScheme.onPrimary)
                     }
-                    1 -> { // External
-                        Button(
-                            onClick = {
-                                onPickExternalSubtitle()
-                                dismiss()
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("Pick .SRT or .VTT File", color = Color.White)
-                        }
-                    }
-                    2 -> { // Customize
+                }
+                2 -> { // Customize
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         SettingsSection(title = "Text Size") {
                             Slider(
                                 value = textSizeScale,
@@ -192,7 +279,7 @@ fun SubtitleSheet(
                             )
                             Text(
                                 "${(textSizeScale * 100).toInt()}%", 
-                                color = Color.White.copy(0.7f), 
+                                color = MaterialTheme.colorScheme.onSurface.copy(0.7f), 
                                 fontSize = 12.sp,
                                 modifier = Modifier.align(Alignment.End)
                             )
@@ -226,7 +313,8 @@ private fun TrackItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) Color.White.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f)
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) 
+                  else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,10 +324,9 @@ private fun TrackItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val text = track.label
         Text(
-            text = text,
-            color = Color.White,
+            text = track.label,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             fontSize = 15.sp
         )

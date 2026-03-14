@@ -43,6 +43,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -127,7 +131,8 @@ fun PlayerControls(
     onOpenSubtitles: (() -> Unit)? = null,
     // Playlist Navigation
     onPlayPrevious: (() -> Unit)? = null,
-    onPlayNext: (() -> Unit)? = null
+    onPlayNext: (() -> Unit)? = null,
+    isLandscape: Boolean = false
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -157,8 +162,14 @@ fun PlayerControls(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Back") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            }
                         }
                     } else {
                         Spacer(Modifier.width(8.dp))
@@ -172,35 +183,59 @@ fun PlayerControls(
                         modifier = Modifier.weight(1f)
                     )
                     // Stats toggle
-                    IconButton(onClick = { onToggleStats?.invoke() }) {
-                        Icon(
-                            imageVector = Icons.Filled.Speed,
-                            contentDescription = "Device Stats",
-                            tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
-                        )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text("Device Stats") } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = { onToggleStats?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Filled.Speed,
+                                contentDescription = "Device Stats",
+                                tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
+                            )
+                        }
                     }
                     // Audio Tracks
                     if (onOpenAudioTracks != null) {
-                        IconButton(onClick = onOpenAudioTracks) {
-                            Icon(Icons.Filled.Audiotrack, contentDescription = "Audio Tracks", tint = Color.White)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Audio Tracks") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = onOpenAudioTracks) {
+                                Icon(Icons.Filled.Audiotrack, contentDescription = "Audio Tracks", tint = Color.White)
+                            }
                         }
                     }
                     // Subtitles (CC)
                     if (onOpenSubtitles != null) {
-                        IconButton(onClick = onOpenSubtitles) {
-                            Icon(Icons.Filled.ClosedCaption, contentDescription = "Subtitles", tint = Color.White)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Subtitles") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = onOpenSubtitles) {
+                                Icon(Icons.Filled.ClosedCaption, contentDescription = "Subtitles", tint = Color.White)
+                            }
                         }
                     }
                     // Playback Settings button
-                    IconButton(onClick = {
-                        scope.launch { sheetState.show() }
-                        showSettingsSheet = true
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Playback Settings",
-                            tint = Color.White
-                        )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text("Playback Settings") } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = {
+                            scope.launch { sheetState.show() }
+                            showSettingsSheet = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = "Playback Settings",
+                                tint = Color.White
+                            )
+                        }
                     }
                     Spacer(Modifier.width(4.dp))
                 }
@@ -273,83 +308,128 @@ fun PlayerControls(
 
                     // Row 2: Lock | Rewind + Play + Forward | Resize
                     Box(modifier = Modifier.fillMaxWidth().offset(y = (-12).dp)) {
-                        IconButton(
-                            onClick = { /* TODO: Lock controls */ },
-                            modifier = Modifier.align(Alignment.CenterStart)
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Lock Controls") } },
+                            state = rememberTooltipState()
                         ) {
-                            Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                            IconButton(
+                                onClick = { /* TODO: Lock controls */ },
+                                modifier = Modifier.align(Alignment.CenterStart)
+                            ) {
+                                Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                            }
                         }
 
                         Row(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .fillMaxWidth()
+                                .padding(horizontal = 56.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                onClick = { onPlayPrevious?.invoke() },
-                                modifier = Modifier.size(controlIconSize.buttonSize),
-                                enabled = hasPrevious
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Previous") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(
-                                    Icons.Filled.SkipPrevious,
-                                    contentDescription = "Previous",
-                                    tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(controlIconSize.iconSize)
-                                )
+                                IconButton(
+                                    onClick = { onPlayPrevious?.invoke() },
+                                    modifier = Modifier.size(controlIconSize.buttonSize),
+                                    enabled = hasPrevious
+                                ) {
+                                    Icon(
+                                        Icons.Filled.SkipPrevious,
+                                        contentDescription = "Previous",
+                                        tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = { onSeekBackward?.invoke() },
-                                modifier = Modifier.size(controlIconSize.buttonSize)
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Rewind ${seekDurationSeconds}s") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(
-                                    Icons.Filled.FastRewind,
-                                    contentDescription = "Rewind ${seekDurationSeconds}s",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(controlIconSize.iconSize)
-                                )
+                                IconButton(
+                                    onClick = { onSeekBackward?.invoke() },
+                                    modifier = Modifier.size(controlIconSize.buttonSize)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.FastRewind,
+                                        contentDescription = "Rewind ${seekDurationSeconds}s",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = onPlayPauseToggle,
-                                modifier = Modifier.size(controlIconSize.playButtonSize)
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text(if (isPlaying) "Pause" else "Play") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(controlIconSize.playIconSize)
-                                )
+                                IconButton(
+                                    onClick = onPlayPauseToggle,
+                                    modifier = Modifier.size(controlIconSize.playButtonSize)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                        contentDescription = if (isPlaying) "Pause" else "Play",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(controlIconSize.playIconSize)
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = { onSeekForward?.invoke() },
-                                modifier = Modifier.size(controlIconSize.buttonSize)
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Forward ${seekDurationSeconds}s") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(
-                                    Icons.Filled.FastForward,
-                                    contentDescription = "Forward ${seekDurationSeconds}s",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(controlIconSize.iconSize)
-                                )
+                                IconButton(
+                                    onClick = { onSeekForward?.invoke() },
+                                    modifier = Modifier.size(controlIconSize.buttonSize)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.FastForward,
+                                        contentDescription = "Forward ${seekDurationSeconds}s",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                    )
+                                }
                             }
-                            IconButton(
-                                onClick = { onPlayNext?.invoke() },
-                                modifier = Modifier.size(controlIconSize.buttonSize),
-                                enabled = hasNext
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Next") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(
-                                    Icons.Filled.SkipNext,
-                                    contentDescription = "Next",
-                                    tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(controlIconSize.iconSize)
-                                )
+                                IconButton(
+                                    onClick = { onPlayNext?.invoke() },
+                                    modifier = Modifier.size(controlIconSize.buttonSize),
+                                    enabled = hasNext
+                                ) {
+                                    Icon(
+                                        Icons.Filled.SkipNext,
+                                        contentDescription = "Next",
+                                        tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                    )
+                                }
                             }
                         }
 
                         if (onToggleResizeMode != null) {
-                            IconButton(
-                                onClick = onToggleResizeMode,
-                                modifier = Modifier.align(Alignment.CenterEnd)
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Resize Mode") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
+                                IconButton(
+                                    onClick = onToggleResizeMode,
+                                    modifier = Modifier.align(Alignment.CenterEnd)
+                                ) {
+                                    Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
+                                }
                             }
                         }
                     }
@@ -366,6 +446,7 @@ fun PlayerControls(
         seekBarStyle = seekBarStyle,
         controlIconSize = controlIconSize,
         autoPlayEnabled = autoPlayEnabled,
+        isLandscape = isLandscape,
         onDismissRequest = { showSettingsSheet = false },
         onSeekDurationChange = { onSeekDurationChange?.invoke(it) },
         onSeekBarStyleChange = { onSeekBarStyleChange?.invoke(it) },

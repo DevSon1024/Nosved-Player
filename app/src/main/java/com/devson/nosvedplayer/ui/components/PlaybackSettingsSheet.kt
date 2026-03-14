@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ fun PlaybackSettingsSheet(
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
+    isLandscape: Boolean,
     onDismissRequest: () -> Unit,
     onSeekDurationChange: (Int) -> Unit,
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
@@ -40,127 +43,161 @@ fun PlaybackSettingsSheet(
     val scope = rememberCoroutineScope()
 
     if (showSettingsSheet) {
-        val dismissSheet: () -> Unit = {
-            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
+        if (isLandscape) {
+            SideSheet(visible = showSettingsSheet, onDismissRequest = onDismissRequest) {
+                PlaybackSettingsContent(
+                    seekDurationSeconds = seekDurationSeconds,
+                    seekBarStyle = seekBarStyle,
+                    controlIconSize = controlIconSize,
+                    autoPlayEnabled = autoPlayEnabled,
+                    dismissSheet = onDismissRequest,
+                    onSeekDurationChange = onSeekDurationChange,
+                    onSeekBarStyleChange = onSeekBarStyleChange,
+                    onControlIconSizeChange = onControlIconSizeChange,
+                    onAutoPlayChange = onAutoPlayChange
+                )
+            }
+        } else {
+            ModalBottomSheet(
+                onDismissRequest = onDismissRequest,
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                PlaybackSettingsContent(
+                    seekDurationSeconds = seekDurationSeconds,
+                    seekBarStyle = seekBarStyle,
+                    controlIconSize = controlIconSize,
+                    autoPlayEnabled = autoPlayEnabled,
+                    dismissSheet = onDismissRequest,
+                    onSeekDurationChange = onSeekDurationChange,
+                    onSeekBarStyleChange = onSeekBarStyleChange,
+                    onControlIconSizeChange = onControlIconSizeChange,
+                    onAutoPlayChange = onAutoPlayChange
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaybackSettingsContent(
+    seekDurationSeconds: Int,
+    seekBarStyle: SeekBarStyle,
+    controlIconSize: ControlIconSize,
+    autoPlayEnabled: Boolean,
+    dismissSheet: () -> Unit,
+    onSeekDurationChange: (Int) -> Unit,
+    onSeekBarStyleChange: (SeekBarStyle) -> Unit,
+    onControlIconSizeChange: (ControlIconSize) -> Unit,
+    onAutoPlayChange: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 32.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = "Playback Settings",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
+
+        // Setting 1: Seek Duration
+        SettingsSection(title = "Seek Duration") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf(5, 10, 15, 20).forEach { secs ->
+                    val selected = seekDurationSeconds == secs
+                    ChipButton(
+                        label = "${secs}s",
+                        selected = selected,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            onSeekDurationChange(secs)
+                        }
+                    )
+                }
+            }
         }
 
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = sheetState,
-            containerColor = Color(0xFF12121F),
-            tonalElevation = 0.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
+        Spacer(Modifier.height(20.dp))
+
+        // Setting 2: Seek Bar Style
+        SettingsSection(title = "Seek Bar Style") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ChipButton(
+                    label = "Default",
+                    selected = seekBarStyle == SeekBarStyle.DEFAULT,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onSeekBarStyleChange(SeekBarStyle.DEFAULT)
+                    }
+                )
+                ChipButton(
+                    label = "Flat",
+                    selected = seekBarStyle == SeekBarStyle.FLAT,
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onSeekBarStyleChange(SeekBarStyle.FLAT)
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // Setting 3: Control Icon Size
+        SettingsSection(title = "Control Icon Size") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf(
+                    "Small" to ControlIconSize.SMALL,
+                    "Medium" to ControlIconSize.MEDIUM,
+                    "Large" to ControlIconSize.LARGE
+                ).forEach { (label, size) ->
+                    ChipButton(
+                        label = label,
+                        selected = controlIconSize == size,
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            onControlIconSizeChange(size)
+                        }
+                    )
+                }
+            }
+        }
+        
+        Spacer(Modifier.height(20.dp))
+
+        // Setting 4: Auto Play
+        SettingsSection(title = "Auto Play") {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Playback Settings",
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 20.dp)
+                    text = "Play next video automatically",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
                 )
-
-                // Setting 1: Seek Duration
-                SettingsSection(title = "Seek Duration") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        listOf(5, 10, 15, 20).forEach { secs ->
-                            val selected = seekDurationSeconds == secs
-                            ChipButton(
-                                label = "${secs}s",
-                                selected = selected,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    onSeekDurationChange(secs)
-                                    dismissSheet()
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                // Setting 2: Seek Bar Style
-                SettingsSection(title = "Seek Bar Style") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        ChipButton(
-                            label = "Default",
-                            selected = seekBarStyle == SeekBarStyle.DEFAULT,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onSeekBarStyleChange(SeekBarStyle.DEFAULT)
-                                dismissSheet()
-                            }
-                        )
-                        ChipButton(
-                            label = "Flat",
-                            selected = seekBarStyle == SeekBarStyle.FLAT,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onSeekBarStyleChange(SeekBarStyle.FLAT)
-                                dismissSheet()
-                            }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(20.dp))
-
-                // Setting 3: Control Icon Size
-                SettingsSection(title = "Control Icon Size") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        listOf(
-                            "Small" to ControlIconSize.SMALL,
-                            "Medium" to ControlIconSize.MEDIUM,
-                            "Large" to ControlIconSize.LARGE
-                        ).forEach { (label, size) ->
-                            ChipButton(
-                                label = label,
-                                selected = controlIconSize == size,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    onControlIconSizeChange(size)
-                                    dismissSheet()
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(Modifier.height(20.dp))
-
-                // Setting 4: Auto Play
-                SettingsSection(title = "Auto Play") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(42.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Play next video automatically",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Switch(
-                            checked = autoPlayEnabled,
-                            onCheckedChange = { onAutoPlayChange(it) }
-                        )
-                    }
-                }
+                Switch(
+                    checked = autoPlayEnabled,
+                    onCheckedChange = { onAutoPlayChange(it) }
+                )
             }
         }
     }
@@ -170,7 +207,7 @@ fun PlaybackSettingsSheet(
 fun SettingsSection(title: String, content: @Composable () -> Unit) {
     Text(
         text = title,
-        color = Color.White.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(bottom = 10.dp)
@@ -185,9 +222,12 @@ fun ChipButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f)
-    val textColor = if (selected) Color.White else Color.White.copy(alpha = 0.55f)
-    val border = if (selected) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.12f)
+    val bgColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) 
+                  else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    val textColor = if (selected) MaterialTheme.colorScheme.primary 
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    val border = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) 
+                 else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
 
     Box(
         contentAlignment = Alignment.Center,

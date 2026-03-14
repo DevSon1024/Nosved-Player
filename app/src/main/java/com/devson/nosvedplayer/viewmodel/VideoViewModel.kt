@@ -264,15 +264,19 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     //  Playback Settings Setters 
 
     fun setSeekDuration(seconds: Int) { 
+        _seekDurationSeconds.value = seconds
         viewModelScope.launch { settingsRepository?.updateSeekDuration(seconds) }
     }
     fun setSeekBarStyle(style: SeekBarStyle) { 
+        _seekBarStyle.value = style
         viewModelScope.launch { settingsRepository?.updateSeekBarStyle(style.name) }
     }
     fun setControlIconSize(size: ControlIconSize) { 
+        _controlIconSize.value = size
         viewModelScope.launch { settingsRepository?.updateControlIconSize(size.name) }
     }
     fun setAutoPlayEnabled(enabled: Boolean) {
+        _autoPlayEnabled.value = enabled
         viewModelScope.launch { settingsRepository?.updateAutoPlayEnabled(enabled) }
     }
 

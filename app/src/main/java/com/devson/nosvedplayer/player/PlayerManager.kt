@@ -63,10 +63,11 @@ class PlayerManager(private val context: Context) {
 
     fun initializePlayer() {
         if (exoPlayer == null) {
+            // CHANGE 1: Remove .forceDisableMediaCodecAsynchronousQueueing()
+            // This prevents the IllegalStateException crash on MediaTek devices.
             val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
                 .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 .setEnableDecoderFallback(true)
-                .forceDisableMediaCodecAsynchronousQueueing()
 
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
@@ -93,6 +94,7 @@ class PlayerManager(private val context: Context) {
 
                     override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                         super.onTracksChanged(tracks)
+                        // Keep all your existing audio/subtitle track parsing logic here exactly as it is...
                         
                         val newAudioTracks = mutableListOf<TrackInfo>()
                         val newSubtitleTracks = mutableListOf<TrackInfo>()
@@ -142,7 +144,16 @@ class PlayerManager(private val context: Context) {
 
                     override fun onPlayerError(error: PlaybackException) {
                         super.onPlayerError(error)
-                        _playerError.value = error.message ?: "Unknown playback error"
+                        
+                        // CHANGE 2: Intercept format and decoder failures
+                        val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
+                        val isDecoderFailed = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
+
+                        if (isFormatUnsupported || isDecoderFailed) {
+                            _playerError.value = "Hardware unsupported: Your device cannot decode this video format (e.g., HEVC 10-bit)."
+                        } else {
+                            _playerError.value = error.message ?: "Unknown playback error"
+                        }
                     }
                 })
             }
