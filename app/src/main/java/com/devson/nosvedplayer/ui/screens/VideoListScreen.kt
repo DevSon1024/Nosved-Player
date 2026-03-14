@@ -50,7 +50,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoListScreen(
-    onVideoSelected: (Video) -> Unit,
+    onVideoSelected: (Video, List<Video>) -> Unit,
     onNavigateToSettings: () -> Unit,
     viewModel: VideoListViewModel = viewModel()
 ) {
@@ -180,7 +180,7 @@ fun VideoListScreen(
                     VideoListContent(
                         videos = sortedVideos,
                         settings = viewSettings,
-                        onVideoClick = onVideoSelected
+                        onVideoClick = { video -> onVideoSelected(video, sortedVideos) }
                     )
                 }
             }

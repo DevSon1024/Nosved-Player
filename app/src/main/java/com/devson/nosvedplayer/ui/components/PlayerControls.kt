@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -113,12 +115,19 @@ fun PlayerControls(
     seekDurationSeconds: Int = 10,
     seekBarStyle: SeekBarStyle = SeekBarStyle.DEFAULT,
     controlIconSize: ControlIconSize = ControlIconSize.MEDIUM,
+    autoPlayEnabled: Boolean = false,
+    hasPrevious: Boolean = false,
+    hasNext: Boolean = false,
     onSeekDurationChange: ((Int) -> Unit)? = null,
     onSeekBarStyleChange: ((SeekBarStyle) -> Unit)? = null,
     onControlIconSizeChange: ((ControlIconSize) -> Unit)? = null,
+    onAutoPlayChange: ((Boolean) -> Unit)? = null,
     // Audio and Subtitle Modals
     onOpenAudioTracks: (() -> Unit)? = null,
-    onOpenSubtitles: (() -> Unit)? = null
+    onOpenSubtitles: (() -> Unit)? = null,
+    // Playlist Navigation
+    onPlayPrevious: (() -> Unit)? = null,
+    onPlayNext: (() -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -273,9 +282,21 @@ fun PlayerControls(
 
                         Row(
                             modifier = Modifier.align(Alignment.Center),
-                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = { onPlayPrevious?.invoke() },
+                                modifier = Modifier.size(controlIconSize.buttonSize),
+                                enabled = hasPrevious
+                            ) {
+                                Icon(
+                                    Icons.Filled.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(controlIconSize.iconSize)
+                                )
+                            }
                             IconButton(
                                 onClick = { onSeekBackward?.invoke() },
                                 modifier = Modifier.size(controlIconSize.buttonSize)
@@ -309,6 +330,18 @@ fun PlayerControls(
                                     modifier = Modifier.size(controlIconSize.iconSize)
                                 )
                             }
+                            IconButton(
+                                onClick = { onPlayNext?.invoke() },
+                                modifier = Modifier.size(controlIconSize.buttonSize),
+                                enabled = hasNext
+                            ) {
+                                Icon(
+                                    Icons.Filled.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(controlIconSize.iconSize)
+                                )
+                            }
                         }
 
                         if (onToggleResizeMode != null) {
@@ -332,10 +365,12 @@ fun PlayerControls(
         seekDurationSeconds = seekDurationSeconds,
         seekBarStyle = seekBarStyle,
         controlIconSize = controlIconSize,
+        autoPlayEnabled = autoPlayEnabled,
         onDismissRequest = { showSettingsSheet = false },
         onSeekDurationChange = { onSeekDurationChange?.invoke(it) },
         onSeekBarStyleChange = { onSeekBarStyleChange?.invoke(it) },
-        onControlIconSizeChange = { onControlIconSizeChange?.invoke(it) }
+        onControlIconSizeChange = { onControlIconSizeChange?.invoke(it) },
+        onAutoPlayChange = { onAutoPlayChange?.invoke(it) }
     )
 }
 

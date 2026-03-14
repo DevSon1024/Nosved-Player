@@ -29,6 +29,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val historyRepo = WatchHistoryRepository(application.applicationContext)
     private var playerManager: PlayerManager? = null
     private var pendingVideo: Video? = null
+    private var pendingPlaylist: List<Video> = emptyList()
     private var pendingResumeMs: Long = 0L
 
     // Exposed so that VideoScreen recomposes when the player becomes ready
@@ -60,6 +61,12 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentVideo = MutableStateFlow<Video?>(null)
     val currentVideo: StateFlow<Video?> = _currentVideo.asStateFlow()
 
+    private val _currentPlaylist = MutableStateFlow<List<Video>>(emptyList())
+    val currentPlaylist: StateFlow<List<Video>> = _currentPlaylist.asStateFlow()
+    
+    private val _currentPlaylistIndex = MutableStateFlow(-1)
+    val currentPlaylistIndex: StateFlow<Int> = _currentPlaylistIndex.asStateFlow()
+
     private val _resizeMode = MutableStateFlow(AspectRatioFrameLayout.RESIZE_MODE_FIT)
     val resizeMode: StateFlow<Int> = _resizeMode.asStateFlow()
 
@@ -78,6 +85,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     /** Size preset for the playback control icons. */
     private val _controlIconSize = MutableStateFlow(ControlIconSize.MEDIUM)
     val controlIconSize: StateFlow<ControlIconSize> = _controlIconSize.asStateFlow()
+
+    private val _autoPlayEnabled = MutableStateFlow(false)
+    val autoPlayEnabled: StateFlow<Boolean> = _autoPlayEnabled.asStateFlow()
 
     // --- Subtitle Customization State ---
     
@@ -100,6 +110,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
                     _seekDurationSeconds.value = settings.seekDurationSeconds
                     _seekBarStyle.value = try { SeekBarStyle.valueOf(settings.seekBarStyle) } catch (e: Exception) { SeekBarStyle.DEFAULT }
                     _controlIconSize.value = try { ControlIconSize.valueOf(settings.controlIconSize) } catch (e: Exception) { ControlIconSize.MEDIUM }
+                    _autoPlayEnabled.value = settings.autoPlayEnabled
                 }
             }
         }
@@ -109,12 +120,24 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             playerManager?.initializePlayer()
             _playerInstance.value = playerManager?.exoPlayer
 
+            playerManager?.onVideoEnded = {
+                if (_autoPlayEnabled.value) {
+                    playNextVideo()
+                }
+            }
+
             pendingVideo?.let { video ->
                 val resumeMs = pendingResumeMs
+                val playlist = pendingPlaylist
+                
+                _currentPlaylist.value = playlist
+                _currentPlaylistIndex.value = playlist.indexOfFirst { it.uri == video.uri }
+                
                 playerManager?.playVideo(video)
                 if (resumeMs > 0L) playerManager?.seekTo(resumeMs)
                 _controlsVisible.value = false
                 pendingVideo = null
+                pendingPlaylist = emptyList()
                 pendingResumeMs = 0L
             }
         }
@@ -122,8 +145,13 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getPlayer() = _playerInstance.value
 
-    fun playVideo(video: Video, resumePositionMs: Long = 0L) {
+    fun playVideo(video: Video, playlist: List<Video> = emptyList(), resumePositionMs: Long = 0L) {
         _currentVideo.value = video
+        
+        val actualPlaylist = if (playlist.isEmpty()) listOf(video) else playlist
+        _currentPlaylist.value = actualPlaylist
+        _currentPlaylistIndex.value = actualPlaylist.indexOfFirst { it.uri == video.uri }
+        
         viewModelScope.launch { historyRepo.recordPlay(video) }
         if (playerManager != null) {
             playerManager?.playVideo(video)
@@ -131,7 +159,26 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             _controlsVisible.value = false
         } else {
             pendingVideo = video
+            pendingPlaylist = actualPlaylist
             pendingResumeMs = resumePositionMs
+        }
+    }
+
+    fun playNextVideo() {
+        val playlist = _currentPlaylist.value
+        val currentIndex = _currentPlaylistIndex.value
+        if (playlist.isNotEmpty() && currentIndex in 0 until playlist.lastIndex) {
+            val nextVideo = playlist[currentIndex + 1]
+            playVideo(nextVideo, playlist, 0L)
+        }
+    }
+
+    fun playPreviousVideo() {
+        val playlist = _currentPlaylist.value
+        val currentIndex = _currentPlaylistIndex.value
+        if (playlist.isNotEmpty() && currentIndex > 0) {
+            val prevVideo = playlist[currentIndex - 1]
+            playVideo(prevVideo, playlist, 0L)
         }
     }
 
@@ -224,6 +271,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setControlIconSize(size: ControlIconSize) { 
         viewModelScope.launch { settingsRepository?.updateControlIconSize(size.name) }
+    }
+    fun setAutoPlayEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository?.updateAutoPlayEnabled(enabled) }
     }
 
     // --- Audio & Subtitle Control Bridges ---

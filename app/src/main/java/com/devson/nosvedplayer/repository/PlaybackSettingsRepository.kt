@@ -17,7 +17,8 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pl
 data class PlaybackSettings(
     val seekDurationSeconds: Int,
     val seekBarStyle: String,
-    val controlIconSize: String
+    val controlIconSize: String,
+    val autoPlayEnabled: Boolean
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -26,6 +27,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val SEEK_DURATION = intPreferencesKey("seek_duration_seconds")
         val SEEK_BAR_STYLE = stringPreferencesKey("seek_bar_style")
         val CONTROL_ICON_SIZE = stringPreferencesKey("control_icon_size")
+        val AUTO_PLAY = booleanPreferencesKey("auto_play")
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         // null stored as absent = follow system
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
@@ -36,10 +38,12 @@ class PlaybackSettingsRepository(private val context: Context) {
             val seekDuration = preferences[PreferencesKeys.SEEK_DURATION] ?: 10
             val seekBarStyle = preferences[PreferencesKeys.SEEK_BAR_STYLE] ?: "DEFAULT"
             val controlIconSize = preferences[PreferencesKeys.CONTROL_ICON_SIZE] ?: "MEDIUM"
+            val autoPlay = preferences[PreferencesKeys.AUTO_PLAY] ?: false
             PlaybackSettings(
                 seekDurationSeconds = seekDuration,
                 seekBarStyle = seekBarStyle,
-                controlIconSize = controlIconSize
+                controlIconSize = controlIconSize,
+                autoPlayEnabled = autoPlay
             )
         }
 
@@ -75,6 +79,12 @@ class PlaybackSettingsRepository(private val context: Context) {
     suspend fun updateControlIconSize(size: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.CONTROL_ICON_SIZE] = size
+        }
+    }
+
+    suspend fun updateAutoPlayEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.AUTO_PLAY] = enabled
         }
     }
 }

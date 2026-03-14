@@ -30,10 +30,12 @@ fun PlaybackSettingsSheet(
     seekDurationSeconds: Int,
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
+    autoPlayEnabled: Boolean,
     onDismissRequest: () -> Unit,
     onSeekDurationChange: (Int) -> Unit,
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
-    onControlIconSizeChange: (ControlIconSize) -> Unit
+    onControlIconSizeChange: (ControlIconSize) -> Unit,
+    onAutoPlayChange: (Boolean) -> Unit
 ) {
     val scope = rememberCoroutineScope()
 
@@ -135,6 +137,28 @@ fun PlaybackSettingsSheet(
                                 }
                             )
                         }
+                    }
+                }
+                
+                Spacer(Modifier.height(20.dp))
+
+                // Setting 4: Auto Play
+                SettingsSection(title = "Auto Play") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Play next video automatically",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Switch(
+                            checked = autoPlayEnabled,
+                            onCheckedChange = { onAutoPlayChange(it) }
+                        )
                     }
                 }
             }

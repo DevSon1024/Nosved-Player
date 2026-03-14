@@ -65,7 +65,7 @@ import androidx.compose.foundation.lazy.items
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onVideoSelected: (Video, Long) -> Unit,
+    onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onNavigateToSettings: () -> Unit,
     homeViewModel: HomeViewModel = viewModel()
 ) {
@@ -183,6 +183,15 @@ fun HomeScreen(
                         HistoryCard(
                             item = item,
                             onClick = {
+                                val playlist = history.map { 
+                                    Video(
+                                        uri = it.uri,
+                                        title = it.title,
+                                        duration = it.duration,
+                                        size = it.size,
+                                        folderName = it.folderName
+                                    ) 
+                                }
                                 onVideoSelected(
                                     Video(
                                         uri = item.uri,
@@ -191,6 +200,7 @@ fun HomeScreen(
                                         size = item.size,
                                         folderName = item.folderName
                                     ),
+                                    playlist,
                                     item.lastPositionMs
                                 )
                             },

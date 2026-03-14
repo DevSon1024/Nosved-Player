@@ -236,12 +236,7 @@ private fun TrackItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val text = buildString {
-            append(track.label)
-            if (!track.language.isNullOrBlank() && track.language != track.label) {
-                append(" (${track.language})")
-            }
-        }
+        val text = track.label
         Text(
             text = text,
             color = Color.White,

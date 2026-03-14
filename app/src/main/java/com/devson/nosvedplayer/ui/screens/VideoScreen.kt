@@ -64,6 +64,9 @@ fun VideoScreen(
     val seekDurationSeconds by viewModel.seekDurationSeconds.collectAsState()
     val seekBarStyle by viewModel.seekBarStyle.collectAsState()
     val controlIconSize by viewModel.controlIconSize.collectAsState()
+    val autoPlayEnabled by viewModel.autoPlayEnabled.collectAsState()
+    val currentPlaylist by viewModel.currentPlaylist.collectAsState()
+    val currentPlaylistIndex by viewModel.currentPlaylistIndex.collectAsState()
 
     // Tracks & Subtitles state
     val audioTracks by viewModel.audioTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
@@ -306,6 +309,9 @@ fun VideoScreen(
         )
 
         // 4. Player controls
+        val hasPrevious = currentPlaylist.isNotEmpty() && currentPlaylistIndex > 0
+        val hasNext = currentPlaylist.isNotEmpty() && currentPlaylistIndex in 0 until currentPlaylist.lastIndex
+
         PlayerControls(
             isVisible = controlsVisible,
             isPlaying = isPlaying,
@@ -313,6 +319,9 @@ fun VideoScreen(
             currentPosition = currentPosition,
             duration = duration,
             showStats = showStats,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            onBack = { (context as? androidx.activity.ComponentActivity)?.onBackPressedDispatcher?.onBackPressed() },
             onToggleStats = { viewModel.toggleStats() },
             onPlayPauseToggle = {
                 viewModel.togglePlayPause()
@@ -342,12 +351,14 @@ fun VideoScreen(
             seekDurationSeconds = seekDurationSeconds,
             seekBarStyle = seekBarStyle,
             controlIconSize = controlIconSize,
-            onSeekDurationChange = { viewModel.setSeekDuration(it) },
-            onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
-            onControlIconSizeChange = { viewModel.setControlIconSize(it) },
+            autoPlayEnabled = autoPlayEnabled,
+            onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
             // Audio & Subtitles
             onOpenAudioTracks = { showAudioSheet = true },
-            onOpenSubtitles = { showSubtitleSheet = true }
+            onOpenSubtitles = { showSubtitleSheet = true },
+            // Playlist Navigation
+            onPlayPrevious = { viewModel.playPreviousVideo() },
+            onPlayNext = { viewModel.playNextVideo() }
         )
     }
 

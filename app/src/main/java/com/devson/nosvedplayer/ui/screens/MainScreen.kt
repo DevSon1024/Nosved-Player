@@ -121,20 +121,20 @@ fun MainScreen(
                     when (selectedTab) {
                         BottomNavTab.HOME -> {
                             HomeScreen(
-                                onVideoSelected = { video, position ->
+                                onVideoSelected = { video, playlist, position ->
                                     resumePositionMs = position
                                     currentVideo = video
-                                    videoViewModel.playVideo(video, position)
+                                    videoViewModel.playVideo(video, playlist, position)
                                 },
                                 onNavigateToSettings = { appScreen = AppScreen.SETTINGS }
                             )
                         }
                         BottomNavTab.VIDEOS -> {
                             VideoListScreen(
-                                onVideoSelected = { video ->
+                                onVideoSelected = { video, playlist ->
                                     resumePositionMs = 0L
                                     currentVideo = video
-                                    videoViewModel.playVideo(video, 0L)
+                                    videoViewModel.playVideo(video, playlist, 0L)
                                 },
                                 onNavigateToSettings = { appScreen = AppScreen.SETTINGS }
                             )
