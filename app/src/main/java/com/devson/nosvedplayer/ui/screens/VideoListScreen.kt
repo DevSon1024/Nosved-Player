@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -101,7 +102,7 @@ fun VideoListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (selectedFolder != null) selectedFolder!! else "Folders", fontWeight = FontWeight.Bold) },
+                title = { Text(if (selectedFolder != null) selectedFolder!!.name else "Folders", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (selectedFolder != null) {
                         IconButton(onClick = { viewModel.selectFolder(null) }) {
@@ -158,9 +159,10 @@ fun VideoListScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 if (selectedFolder == null) {
-                    FolderList(
+                    FolderListContent(
                         folders = videosByFolder,
-                        onFolderClick = { folderName -> viewModel.selectFolder(folderName) }
+                        settings = viewSettings,
+                        onFolderClick = { folder -> viewModel.selectFolder(folder) }
                     )
                 } else {
                     val videos = videosByFolder[selectedFolder] ?: emptyList()
@@ -188,6 +190,7 @@ fun VideoListScreen(
     if (showSettingsSheet) {
         ViewSettingsBottomSheet(
             settings = viewSettings,
+            isFolderView = selectedFolder == null,
             onDismiss = { showSettingsSheet = false },
             viewModel = viewModel
         )
@@ -195,39 +198,164 @@ fun VideoListScreen(
 }
 
 @Composable
-fun FolderList(
-    folders: Map<String, List<Video>>,
-    onFolderClick: (String) -> Unit
+fun FolderListContent(
+    folders: Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>,
+    settings: ViewSettings,
+    onFolderClick: (com.devson.nosvedplayer.model.VideoFolder) -> Unit
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(folders.keys.toList().sortedBy { it.lowercase() }) { folderName ->
-            Row(
+    val sortedFolders = remember(folders) { folders.keys.toList().sortedBy { it.name.lowercase() } }
+
+    if (settings.isGrid) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(settings.gridColumns),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(sortedFolders) { folder ->
+                FolderGridItem(
+                    folder = folder,
+                    videos = folders[folder] ?: emptyList(),
+                    settings = settings,
+                    onClick = onFolderClick
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            items(sortedFolders) { folder ->
+                FolderListItem(
+                    folder = folder,
+                    videos = folders[folder] ?: emptyList(),
+                    settings = settings,
+                    onClick = onFolderClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FolderListItem(
+    folder: com.devson.nosvedplayer.model.VideoFolder,
+    videos: List<Video>,
+    settings: ViewSettings,
+    onClick: (com.devson.nosvedplayer.model.VideoFolder) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick(folder) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Folder,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(
+                text = folder.name,
+                style = MaterialTheme.typography.titleMedium
+            )
+            FolderMetadataRow(videos, settings)
+        }
+    }
+}
+
+@Composable
+fun FolderGridItem(
+    folder: com.devson.nosvedplayer.model.VideoFolder,
+    videos: List<Video>,
+    settings: ViewSettings,
+    onClick: (com.devson.nosvedplayer.model.VideoFolder) -> Unit
+) {
+    val isDense = settings.gridColumns >= 3
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(if (isDense) 1f else 0.8f)
+            .clickable { onClick(folder) },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onFolderClick(folderName) }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Folder,
                     contentDescription = null,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
+                if (isDense && settings.showFolderVideoCount) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(text = "${videos.size}", color = Color.White, fontSize = 10.sp)
+                    }
+                }
+            }
+
+            if (!isDense) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
                     Text(
-                        text = folderName,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "${folders[folderName]?.size ?: 0} videos",
+                        text = folder.name,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FolderMetadataRow(videos, settings, isGrid = true)
                 }
             }
         }
+    }
+}
+
+@Composable
+fun FolderMetadataRow(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
+    val metaItems = mutableListOf<String>()
+    
+    if (settings.showFolderVideoCount) metaItems.add("${videos.size} videos")
+    if (settings.showFolderSize) {
+        val totalSize = videos.sumOf { it.size }
+        metaItems.add(formatSize(totalSize))
+    }
+    if (settings.showFolderDate) {
+        val oldestVideoDate = videos.minOfOrNull { it.dateAdded } ?: 0L
+        if (oldestVideoDate > 0) metaItems.add(formatDate(oldestVideoDate))
+    }
+
+    if (metaItems.isNotEmpty()) {
+        val text = metaItems.filter { it.isNotEmpty() }.joinToString(" • ")
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = if (isGrid) 2 else 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -353,52 +481,65 @@ fun VideoGridItem(
     settings: ViewSettings,
     onClick: (Video) -> Unit
 ) {
+    val isDense = settings.gridColumns >= 3
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.8f)
+            .aspectRatio(if (isDense) 1f else 0.8f)
             .clickable { onClick(video) },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (settings.showThumbnail) {
-                VideoThumbnail(
-                    uri = video.uri,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f) // Takes remaining height
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.PlayCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.secondary
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                if (settings.showThumbnail) {
+                    VideoThumbnail(
+                        uri = video.uri,
+                        modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+                
+                if (isDense && settings.showDuration) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(formatDuration(video.duration), color = Color.White, fontSize = 10.sp)
+                    }
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) {
-                Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                VideoMetadataRow(video, settings, isGrid = true)
+            if (!isDense) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = video.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    VideoMetadataRow(video, settings, isGrid = true)
+                }
             }
         }
     }
@@ -429,6 +570,7 @@ fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = fal
 @Composable
 fun ViewSettingsBottomSheet(
     settings: ViewSettings,
+    isFolderView: Boolean,
     onDismiss: () -> Unit,
     viewModel: VideoListViewModel
 ) {
@@ -508,14 +650,23 @@ fun ViewSettingsBottomSheet(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            // Metadata Toggles
-            Text("Show Metadata", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            
-            MetadataToggle("Thumbnail", settings.showThumbnail) { viewModel.updateShowThumbnail(it) }
-            MetadataToggle("Duration", settings.showDuration) { viewModel.updateShowDuration(it) }
-            MetadataToggle("File Size", settings.showSize) { viewModel.updateShowSize(it) }
-            MetadataToggle("Date Added", settings.showDate) { viewModel.updateShowDate(it) }
-            MetadataToggle("File Extension", settings.showFileExtension) { viewModel.updateShowFileExtension(it) }
+            if (!isFolderView) {
+                // Metadata Toggles
+                Text("Show Metadata", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                
+                MetadataToggle("Thumbnail", settings.showThumbnail) { viewModel.updateShowThumbnail(it) }
+                MetadataToggle("Duration", settings.showDuration) { viewModel.updateShowDuration(it) }
+                MetadataToggle("File Size", settings.showSize) { viewModel.updateShowSize(it) }
+                MetadataToggle("Date Added", settings.showDate) { viewModel.updateShowDate(it) }
+                MetadataToggle("File Extension", settings.showFileExtension) { viewModel.updateShowFileExtension(it) }
+            } else {
+                // Folder Metadata Toggles
+                Text("Folder Metadata", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                
+                MetadataToggle("Video Count", settings.showFolderVideoCount) { viewModel.updateShowFolderVideoCount(it) }
+                MetadataToggle("Folder Size", settings.showFolderSize) { viewModel.updateShowFolderSize(it) }
+                MetadataToggle("Created At", settings.showFolderDate) { viewModel.updateShowFolderDate(it) }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
         }

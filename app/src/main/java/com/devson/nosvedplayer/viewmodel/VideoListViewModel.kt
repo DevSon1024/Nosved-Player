@@ -17,14 +17,14 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val repository = VideoRepository(application)
 
-    private val _videosByFolder = MutableStateFlow<Map<String, List<Video>>>(emptyMap())
-    val videosByFolder: StateFlow<Map<String, List<Video>>> = _videosByFolder.asStateFlow()
+    private val _videosByFolder = MutableStateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>>(emptyMap())
+    val videosByFolder: StateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>> = _videosByFolder.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _selectedFolder = MutableStateFlow<String?>(null)
-    val selectedFolder: StateFlow<String?> = _selectedFolder.asStateFlow()
+    private val _selectedFolder = MutableStateFlow<com.devson.nosvedplayer.model.VideoFolder?>(null)
+    val selectedFolder: StateFlow<com.devson.nosvedplayer.model.VideoFolder?> = _selectedFolder.asStateFlow()
 
     private val settingsRepository = ViewSettingsRepository(application)
     
@@ -49,8 +49,8 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun selectFolder(folderName: String?) {
-        _selectedFolder.value = folderName
+    fun selectFolder(folder: com.devson.nosvedplayer.model.VideoFolder?) {
+        _selectedFolder.value = folder
     }
 
     // Settings update functions
@@ -67,4 +67,9 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     fun updateShowPlayedTime(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPlayedTime(show) }
     fun updateShowPath(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPath(show) }
     fun updateShowFileExtension(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFileExtension(show) }
+    
+    // Folder specific
+    fun updateShowFolderVideoCount(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderVideoCount(show) }
+    fun updateShowFolderSize(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderSize(show) }
+    fun updateShowFolderDate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderDate(show) }
 }

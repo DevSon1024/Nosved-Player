@@ -1,4 +1,12 @@
 {
   "java.configuration.updateBuildConfiguration": "automatic",
-  "workbench.colorTheme": "Default Dark Modern"
+  "workbench.colorTheme": "Default Dark Modern",
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio\\jbr",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "C:\\Program Files\\Android\\Android Studio\\jbr",
+      "default": true
+    }
+  ]
 }

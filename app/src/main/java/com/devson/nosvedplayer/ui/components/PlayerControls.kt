@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -212,6 +213,7 @@ fun PlayerControls(
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
+                    var showRemainingTime by remember { mutableStateOf(false) }
 
                     // Row 1: Time + Seekbar + Time
                     Row(
@@ -253,9 +255,10 @@ fun PlayerControls(
                         Spacer(Modifier.width(8.dp))
                         val remaining = if (duration > currentPosition) duration - currentPosition else 0L
                         Text(
-                            "-" + formatTime(remaining),
+                            text = if (showRemainingTime) "-" + formatTime(remaining) else formatTime(duration),
                             color = Color.White,
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
                         )
                     }
 
@@ -379,7 +382,13 @@ private fun FlatSeekBar(
 
 private fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
 }

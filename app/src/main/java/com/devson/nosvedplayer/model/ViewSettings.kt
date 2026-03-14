@@ -22,5 +22,9 @@ data class ViewSettings(
     val showFramerate: Boolean = false,
     val showPlayedTime: Boolean = false,
     val showPath: Boolean = false,
-    val showFileExtension: Boolean = false
+    val showFileExtension: Boolean = false,
+    // Folder specific
+    val showFolderVideoCount: Boolean = true,
+    val showFolderSize: Boolean = false,
+    val showFolderDate: Boolean = false
 )

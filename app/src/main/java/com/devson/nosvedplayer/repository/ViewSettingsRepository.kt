@@ -27,6 +27,9 @@ class ViewSettingsRepository(private val context: Context) {
         val SHOW_PLAYED_TIME = booleanPreferencesKey("show_played_time")
         val SHOW_PATH = booleanPreferencesKey("show_path")
         val SHOW_EXTENSION = booleanPreferencesKey("show_extension")
+        val SHOW_FOLDER_VIDEO_COUNT = booleanPreferencesKey("show_folder_video_count")
+        val SHOW_FOLDER_SIZE = booleanPreferencesKey("show_folder_size")
+        val SHOW_FOLDER_DATE = booleanPreferencesKey("show_folder_date")
     }
 
     val viewSettingsFlow: Flow<ViewSettings> = context.viewSettingsDataStore.data.map { preferences ->
@@ -43,7 +46,10 @@ class ViewSettingsRepository(private val context: Context) {
             showFramerate = preferences[SHOW_FRAMERATE] ?: false,
             showPlayedTime = preferences[SHOW_PLAYED_TIME] ?: false,
             showPath = preferences[SHOW_PATH] ?: false,
-            showFileExtension = preferences[SHOW_EXTENSION] ?: false
+            showFileExtension = preferences[SHOW_EXTENSION] ?: false,
+            showFolderVideoCount = preferences[SHOW_FOLDER_VIDEO_COUNT] ?: true,
+            showFolderSize = preferences[SHOW_FOLDER_SIZE] ?: false,
+            showFolderDate = preferences[SHOW_FOLDER_DATE] ?: false
         )
     }
 
@@ -97,5 +103,17 @@ class ViewSettingsRepository(private val context: Context) {
 
     suspend fun updateShowFileExtension(show: Boolean) {
         context.viewSettingsDataStore.edit { it[SHOW_EXTENSION] = show }
+    }
+
+    suspend fun updateShowFolderVideoCount(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_VIDEO_COUNT] = show }
+    }
+
+    suspend fun updateShowFolderSize(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_SIZE] = show }
+    }
+
+    suspend fun updateShowFolderDate(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_DATE] = show }
     }
 }

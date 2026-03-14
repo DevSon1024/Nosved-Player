@@ -24,6 +24,7 @@ class VideoRepository(private val context: Context) {
             MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.DURATION,
             MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.BUCKET_ID,
             MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Video.Media.DATE_ADDED
         )
@@ -41,6 +42,7 @@ class VideoRepository(private val context: Context) {
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+            val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_ID)
             val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
 
@@ -49,6 +51,7 @@ class VideoRepository(private val context: Context) {
                 val name = cursor.getString(nameColumn) ?: "Unknown"
                 val duration = cursor.getLong(durationColumn)
                 val size = cursor.getLong(sizeColumn)
+                val folderId = cursor.getString(bucketIdColumn) ?: "Unknown"
                 val folderName = cursor.getString(bucketColumn) ?: "Unknown"
                 val dateAdded = cursor.getLong(dateAddedColumn)
 
@@ -60,6 +63,7 @@ class VideoRepository(private val context: Context) {
                         title = name,
                         duration = duration,
                         size = size,
+                        folderId = folderId,
                         folderName = folderName,
                         dateAdded = dateAdded * 1000L // MediaStore stores DATE_ADDED in seconds. Convert to millis.
                     )
@@ -70,8 +74,8 @@ class VideoRepository(private val context: Context) {
         return@withContext videos
     }
 
-    suspend fun getFoldersWithVideos(): Map<String, List<Video>> {
+    suspend fun getFoldersWithVideos(): Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>> {
         val allVideos = getAllVideos()
-        return allVideos.groupBy { it.folderName }
+        return allVideos.groupBy { com.devson.nosvedplayer.model.VideoFolder(it.folderId, it.folderName) }
     }
 }
