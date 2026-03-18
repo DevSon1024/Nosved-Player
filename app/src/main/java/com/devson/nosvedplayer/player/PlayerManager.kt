@@ -14,10 +14,10 @@ import com.devson.nosvedplayer.model.TrackInfo
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.MediaItem.SubtitleConfiguration
 import android.net.Uri
+import androidx.media3.common.util.UnstableApi
+import androidx.annotation.OptIn
 
-/**
- * Manages the ExoPlayer instance and its state.
-*/
+@OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
 
     var exoPlayer: ExoPlayer? = null
@@ -66,7 +66,7 @@ class PlayerManager(private val context: Context) {
             // CHANGE 1: Remove .forceDisableMediaCodecAsynchronousQueueing()
             // This prevents the IllegalStateException crash on MediaTek devices.
             val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
-                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON) // <-- Change toON
                 .setEnableDecoderFallback(true)
 
             exoPlayer = ExoPlayer.Builder(context)

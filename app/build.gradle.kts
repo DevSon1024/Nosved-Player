@@ -89,7 +89,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures {
+        buildFeatures {
         compose = true
         buildConfig = true
     }
@@ -117,6 +117,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.iconsExtended)
     implementation(libs.androidx.media3.exoplayer)
+
+    implementation(files("libs/lib-decoder-ffmpeg-release.aar"))
+
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation("androidx.datastore:datastore-preferences:1.0.0")

@@ -1,0 +1,1 @@
+in this folder we have lib-decoeder-ffmpeg-release.aar
