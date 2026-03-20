@@ -42,6 +42,7 @@ import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAbout: () -> Unit,
+    onNavigateToLogs: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark by settingsViewModel.isDarkTheme.collectAsState()
@@ -145,6 +146,46 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            val isDeveloperMode by settingsViewModel.isDeveloperMode.collectAsState()
+            if (isDeveloperMode) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "DEVELOPER",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                ListItem(
+                    headlineContent = { Text("Error Logs") },
+                    supportingContent = {
+                        Text(
+                            text = "View app and playback errors",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Filled.Info, // Ideally a BugReport icon, but Info works placeholder
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    modifier = Modifier.clickable { onNavigateToLogs() }
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            }
         }
     }
 }

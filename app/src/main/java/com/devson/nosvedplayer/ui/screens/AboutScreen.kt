@@ -2,6 +2,11 @@ package com.devson.nosvedplayer.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +58,11 @@ private val libraries = listOf(
         url = "https://github.com/androidx/media"
     ),
     LibraryInfo(
+        name = "Nextlib",
+        description = "Nextlib is a powerful media player library for Android that provides advanced features such as hardware acceleration, custom codecs, and more.",
+        url = "https://github.com/anilbeesetti/nextlib"
+    ),
+    LibraryInfo(
         name = "Jetpack Compose",
         description = "Modern declarative UI toolkit for Android.",
         url = "https://developer.android.com/jetpack/compose"
@@ -85,13 +96,13 @@ private val libraries = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit) {
+fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
     val context = LocalContext.current
+    var versionClicks by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 title = { Text("About", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -105,9 +116,15 @@ fun AboutScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // App identity card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 600.dp)
+            ) {
+                // App identity card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -140,7 +157,15 @@ fun AboutScreen(onBack: () -> Unit) {
                     Text(
                         text = "Version ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        modifier = Modifier.clickable {
+                            versionClicks++
+                            if (versionClicks >= 8) {
+                                onEnableDeveloperMode()
+                                Toast.makeText(context, "Developer Mode Enabled", Toast.LENGTH_SHORT).show()
+                                versionClicks = 0
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -186,15 +211,16 @@ fun AboutScreen(onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Made with ♥ footer
-            Text(
-                text = "Made with ♥ by DevSon",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 24.dp)
-            )
+                // Made with ♥ footer
+                Text(
+                    text = "Made with ♥ by DevSon",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 24.dp)
+                )
+            }
         }
     }
 }

@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.iconsExtended)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.nextlib.media3ext)
+    implementation(libs.nextlib.mediainfo)
 
     implementation(files("libs/lib-decoder-ffmpeg-release.aar"))
 

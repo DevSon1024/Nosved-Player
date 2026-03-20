@@ -33,7 +33,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 enum class BottomNavTab { HOME, VIDEOS }
 
 /** App-level navigation state. */
-private enum class AppScreen { MAIN, SETTINGS, ABOUT }
+private enum class AppScreen { MAIN, SETTINGS, ABOUT, LOGS }
 
 @Composable
 fun MainScreen(
@@ -43,6 +43,7 @@ fun MainScreen(
     var currentVideo by remember { mutableStateOf<Video?>(null) }
     var resumePositionMs by remember { mutableStateOf(0L) }
     var appScreen by remember { mutableStateOf(AppScreen.MAIN) }
+    val settingsViewModel: com.devson.nosvedplayer.viewmodel.SettingsViewModel = viewModel()
 
     val isPlayerVisible = currentVideo != null
 
@@ -64,14 +65,25 @@ fun MainScreen(
             BackHandler { appScreen = AppScreen.MAIN }
             SettingsScreen(
                 onBack = { appScreen = AppScreen.MAIN },
-                onNavigateToAbout = { appScreen = AppScreen.ABOUT }
+                onNavigateToAbout = { appScreen = AppScreen.ABOUT },
+                onNavigateToLogs = { appScreen = AppScreen.LOGS },
+                settingsViewModel = settingsViewModel
             )
         }
 
         // About
         appScreen == AppScreen.ABOUT -> {
             BackHandler { appScreen = AppScreen.SETTINGS }
-            AboutScreen(onBack = { appScreen = AppScreen.SETTINGS })
+            AboutScreen(
+                onBack = { appScreen = AppScreen.SETTINGS },
+                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
+            )
+        }
+        
+        // Logs
+        appScreen == AppScreen.LOGS -> {
+            BackHandler { appScreen = AppScreen.SETTINGS }
+            LogScreen(onBack = { appScreen = AppScreen.SETTINGS })
         }
 
         // Main scaffold with bottom nav

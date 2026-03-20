@@ -18,3 +18,5 @@ nosvedplayer-keystore
 /*.txt
 *.log
 *.aar
+*.sh
+mxplayer_openSource_license.md

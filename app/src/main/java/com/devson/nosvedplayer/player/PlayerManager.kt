@@ -16,6 +16,7 @@ import androidx.media3.common.MediaItem.SubtitleConfiguration
 import android.net.Uri
 import androidx.media3.common.util.UnstableApi
 import androidx.annotation.OptIn
+import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -44,6 +45,9 @@ class PlayerManager(private val context: Context) {
     private val _videoFps = MutableStateFlow(0f)
     val videoFps: StateFlow<Float> = _videoFps.asStateFlow()
 
+    private val _videoDecoderName = MutableStateFlow<String?>(null)
+    val videoDecoderName: StateFlow<String?> = _videoDecoderName.asStateFlow()
+
     private val _playerError = MutableStateFlow<String?>(null)
     val playerError: StateFlow<String?> = _playerError.asStateFlow()
 
@@ -63,14 +67,19 @@ class PlayerManager(private val context: Context) {
 
     fun initializePlayer() {
         if (exoPlayer == null) {
-            // CHANGE 1: Remove .forceDisableMediaCodecAsynchronousQueueing()
-            // This prevents the IllegalStateException crash on MediaTek devices.
-            val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
-                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON) // <-- Change toON
-                .setEnableDecoderFallback(true)
+            // 1. Use Nextlib's factory instead of ExoPlayer's DefaultRenderersFactory
+            // (If it shows in red, click it and press Alt+Enter to import it)
+            val renderersFactory = NextRenderersFactory(context)
+            // 2. Tell it to prefer FFmpeg over hardware decoders
+            .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            // 3. Fallback to hardware if FFmpeg doesn't support the format
+            .setEnableDecoderFallback(true)
+            // 4. Stop the MediaTek hardware crash!
+            .forceDisableMediaCodecAsynchronousQueueing()
 
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
+
                 .build().apply {
                 addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -145,6 +154,8 @@ class PlayerManager(private val context: Context) {
                     override fun onPlayerError(error: PlaybackException) {
                         super.onPlayerError(error)
                         
+                        com.devson.nosvedplayer.AppLogger.log("ExoPlayer error: ${error.message} - $error")
+                        
                         // CHANGE 2: Intercept format and decoder failures
                         val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
                         val isDecoderFailed = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
@@ -154,6 +165,17 @@ class PlayerManager(private val context: Context) {
                         } else {
                             _playerError.value = error.message ?: "Unknown playback error"
                         }
+                    }
+                })
+                
+                addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                    override fun onVideoDecoderInitialized(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        decoderName: String,
+                        initializedTimestampMs: Long,
+                        initializationDurationMs: Long
+                    ) {
+                        _videoDecoderName.value = decoderName
                     }
                 })
             }

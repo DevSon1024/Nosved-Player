@@ -19,7 +19,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val isDarkTheme: StateFlow<Boolean?> = settingsRepo.isDarkThemeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val isDeveloperMode: StateFlow<Boolean> = settingsRepo.isDeveloperModeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun setDarkTheme(isDark: Boolean) {
         viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
+    }
+
+    fun enableDeveloperMode() {
+        viewModelScope.launch { settingsRepo.setDeveloperMode(true) }
     }
 }

@@ -54,7 +54,8 @@ data class DeviceStats(
 fun DeviceStatsOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    videoFps: Float = 0f
+    videoFps: Float = 0f,
+    videoDecoderName: String? = null
 ) {
     val context = LocalContext.current
     var stats by remember { mutableStateOf(DeviceStats(videoFps = videoFps)) }
@@ -117,6 +118,18 @@ fun DeviceStatsOverlay(
                 if (stats.videoFps > 0f) "%.1f fps".format(stats.videoFps) else "—",
                 Color.White
             )
+            val decoderLabel = when {
+                videoDecoderName == null -> "—"
+                videoDecoderName.contains("c2.android", ignoreCase = true) -> "[SW] $videoDecoderName"
+                videoDecoderName.contains("omx.google", ignoreCase = true) -> "[SW] $videoDecoderName"
+                videoDecoderName.contains("ffmpeg", ignoreCase = true) -> "[SW] $videoDecoderName"
+                else -> "[HW] $videoDecoderName"
+            }
+            StatRow(
+                "Decoder",
+                decoderLabel,
+                if (decoderLabel.contains("[SW]")) Color(0xFFFF9800) else Color(0xFF4CAF50)
+            )
         }
     }
 }
@@ -153,7 +166,9 @@ private fun StatRow(label: String, value: String, valueColor: Color) {
             color = valueColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier = Modifier.padding(start = 8.dp).weight(1f, fill = false)
         )
     }
 }

@@ -31,6 +31,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         // null stored as absent = follow system
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
+        val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -57,10 +58,20 @@ class PlaybackSettingsRepository(private val context: Context) {
         } else null
     }
 
+    val isDeveloperModeFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.DEVELOPER_MODE] ?: false
+    }
+
     suspend fun setDarkTheme(isDark: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DARK_THEME] = isDark
             prefs[PreferencesKeys.DARK_THEME_SET] = true
+        }
+    }
+
+    suspend fun setDeveloperMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.DEVELOPER_MODE] = enabled
         }
     }
 

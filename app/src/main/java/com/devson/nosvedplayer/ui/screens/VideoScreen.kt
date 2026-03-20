@@ -59,6 +59,8 @@ fun VideoScreen(
     val showStats by viewModel.showStats.collectAsState()
     val videoFps by viewModel.videoFps?.collectAsState(initial = 0f)
         ?: remember { mutableStateOf(0f) }
+    val videoDecoderName by viewModel.videoDecoderName?.collectAsState(initial = null)
+        ?: remember { mutableStateOf<String?>(null) }
     val playerError by viewModel.playerError?.collectAsState(initial = null)
         ?: remember { mutableStateOf<String?>(null) }
     
@@ -307,6 +309,7 @@ fun VideoScreen(
         DeviceStatsOverlay(
             visible = showStats,
             videoFps = videoFps,
+            videoDecoderName = videoDecoderName,
             modifier = Modifier.align(androidx.compose.ui.Alignment.CenterEnd)
         )
 
