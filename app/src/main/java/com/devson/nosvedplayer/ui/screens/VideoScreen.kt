@@ -72,6 +72,8 @@ fun VideoScreen(
     val currentPlaylist by viewModel.currentPlaylist.collectAsState()
     val currentPlaylistIndex by viewModel.currentPlaylistIndex.collectAsState()
 
+    var isLocked by remember { mutableStateOf(false) }
+
     // Tracks & Subtitles state
     val audioTracks by viewModel.audioTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
     val selectedAudioIndex by viewModel.selectedAudioIndex?.collectAsState(initial = -1) ?: remember { mutableStateOf(-1) }
@@ -138,6 +140,7 @@ fun VideoScreen(
             val isNavBarContrastEnforced = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window?.isNavigationBarContrastEnforced else null
             val isStatusBarContrastEnforced = if (Build.VERSION.SDK_INT >= Build.VERSION.SDK_INT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window?.isStatusBarContrastEnforced else null
             val systemBarsBehavior = insetsController?.systemBarsBehavior
+            val screenBrightness = window?.attributes?.screenBrightness
         }
     }
 
@@ -201,6 +204,12 @@ fun VideoScreen(
                     originalWindowParams.isStatusBarContrastEnforced?.let { window.isStatusBarContrastEnforced = it }
                 }
 
+                originalWindowParams.screenBrightness?.let { originalBrightness ->
+                    val layoutParams = window.attributes
+                    layoutParams.screenBrightness = originalBrightness
+                    window.attributes = layoutParams
+                }
+
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 originalWindowParams.systemBarsBehavior?.let { insetsController.systemBarsBehavior = it }
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
@@ -259,6 +268,7 @@ fun VideoScreen(
             modifier = Modifier.fillMaxSize(),
             seekDurationSeconds = seekDurationSeconds,
             isPlaying = isPlaying,
+            isLocked = isLocked,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapLeft = { viewModel.seekBackward() },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
@@ -367,7 +377,18 @@ fun VideoScreen(
             // Playlist Navigation
             onPlayPrevious = { viewModel.playPreviousVideo() },
             onPlayNext = { viewModel.playNextVideo() },
-            isLandscape = isLandscape
+            isLandscape = isLandscape,
+            isLocked = isLocked,
+            onToggleLock = { 
+                isLocked = !isLocked
+                viewModel.showControlsAndDelayHide()
+            },
+            onPipToggle = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val pipParams = android.app.PictureInPictureParams.Builder().build()
+                    activity?.enterPictureInPictureMode(pipParams)
+                }
+            }
         )
     }
 

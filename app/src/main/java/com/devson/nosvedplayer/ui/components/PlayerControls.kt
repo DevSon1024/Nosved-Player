@@ -26,8 +26,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
@@ -115,6 +117,10 @@ fun PlayerControls(
     showStats: Boolean = false,
     onToggleStats: (() -> Unit)? = null,
     onToggleResizeMode: (() -> Unit)? = null,
+    // Add Lock and PIP
+    isLocked: Boolean = false,
+    onToggleLock: () -> Unit = {},
+    onPipToggle: (() -> Unit)? = null,
     // Playback settings
     seekDurationSeconds: Int = 10,
     seekBarStyle: SeekBarStyle = SeekBarStyle.DEFAULT,
@@ -144,9 +150,32 @@ fun PlayerControls(
         exit = fadeOut(),
         modifier = modifier.fillMaxSize()
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        if (isLocked) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 32.dp)
+                ) {
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text("Unlock Controls") } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = onToggleLock,
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(Icons.Filled.Lock, contentDescription = "Unlock Controls", tint = Color.White)
+                        }
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
             //  Top gradient 
             Box(
                 modifier = Modifier
@@ -217,6 +246,18 @@ fun PlayerControls(
                         ) {
                             IconButton(onClick = onOpenSubtitles) {
                                 Icon(Icons.Filled.ClosedCaption, contentDescription = "Subtitles", tint = Color.White)
+                            }
+                        }
+                    }
+                    // Picture in Picture
+                    if (onPipToggle != null) {
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Picture in Picture") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = onPipToggle) {
+                                Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "Picture in Picture", tint = Color.White)
                             }
                         }
                     }
@@ -308,16 +349,17 @@ fun PlayerControls(
 
                     // Row 2: Lock | Rewind + Play + Forward | Resize
                     Box(modifier = Modifier.fillMaxWidth().offset(y = (-12).dp)) {
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                            tooltip = { PlainTooltip { Text("Lock Controls") } },
-                            state = rememberTooltipState()
-                        ) {
-                            IconButton(
-                                onClick = { /* TODO: Lock controls */ },
-                                modifier = Modifier.align(Alignment.CenterStart)
+                        Box(modifier = Modifier.align(Alignment.CenterStart)) {
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("Lock Controls") } },
+                                state = rememberTooltipState()
                             ) {
-                                Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                                IconButton(
+                                    onClick = onToggleLock
+                                ) {
+                                    Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                                }
                             }
                         }
 
@@ -419,16 +461,17 @@ fun PlayerControls(
                         }
 
                         if (onToggleResizeMode != null) {
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("Resize Mode") } },
-                                state = rememberTooltipState()
-                            ) {
-                                IconButton(
-                                    onClick = onToggleResizeMode,
-                                    modifier = Modifier.align(Alignment.CenterEnd)
+                            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                    tooltip = { PlainTooltip { Text("Resize Mode") } },
+                                    state = rememberTooltipState()
                                 ) {
-                                    Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
+                                    IconButton(
+                                        onClick = onToggleResizeMode
+                                    ) {
+                                        Icon(Icons.Filled.Crop, contentDescription = "Toggle Resize Mode", tint = Color.White)
+                                    }
                                 }
                             }
                         }
@@ -436,6 +479,7 @@ fun PlayerControls(
                 }
             }
         }
+        } // close else block
     }
 
     //  Playback Settings Bottom Sheet 

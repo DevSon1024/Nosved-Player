@@ -401,7 +401,7 @@ fun VideoThumbnail(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(uri)
-                .videoFrameMillis(1_000L)
+                // .videoFrameMillis(1_000L)
                 // Match the exact size the worker wrote — guarantees a disk cache hit
                 .size(512, 512)
                 // Serve from disk cache first; only decode the video if not yet cached

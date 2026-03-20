@@ -24,7 +24,7 @@ class NosvedApplication : Application(), ImageLoaderFactory {
             }
             // Disable hardware bitmaps so frames can be decoded safely on background threads
             // (WorkManager threads have no active GL context).
-            .allowHardware(false)
+            // .allowHardware(false)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.20) // Use 20% of app memory for in-memory LRU cache

@@ -48,6 +48,7 @@ fun GestureOverlay(
     modifier: Modifier = Modifier,
     seekDurationSeconds: Int,
     isPlaying: Boolean = false,
+    isLocked: Boolean = false,
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -96,10 +97,28 @@ fun GestureOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(isLocked) {
                 val slopPx = 10.dp.toPx()
                 awaitEachGesture {
                     val down   = awaitFirstDown(requireUnconsumed = false)
+
+                    if (isLocked) {
+                        var isTap = true
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: break
+                            val dx = change.position.x - down.position.x
+                            val dy = change.position.y - down.position.y
+                            if (abs(dx) > slopPx || abs(dy) > slopPx) {
+                                isTap = false
+                            }
+                            change.consume()
+                            if (!change.pressed) break
+                        }
+                        if (isTap) onSingleTap()
+                        return@awaitEachGesture
+                    }
+
                     val startX = down.position.x
                     val isRightSide = startX > size.width / 2f
 

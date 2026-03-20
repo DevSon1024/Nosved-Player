@@ -21,6 +21,7 @@
             android:exported="true"
             android:label="${appLabel}"
             android:theme="@style/Theme.NosvedPlayer"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

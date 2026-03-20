@@ -28,15 +28,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Enqueue thumbnail pre-generation once. KEEP ensures:
-        //  - If the job is already running or queued  → do nothing.
-        //  - If it has already succeeded in a previous session → WorkManager won't re-run it.
-        WorkManager.getInstance(this).enqueueUniqueWork(
-            ThumbnailPreloadWorker.WORK_NAME,
-            ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<ThumbnailPreloadWorker>().build()
-        )
-
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val forceDark by settingsViewModel.isDarkTheme.collectAsState()

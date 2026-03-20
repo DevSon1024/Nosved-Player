@@ -71,7 +71,7 @@ class PlayerManager(private val context: Context) {
             // (If it shows in red, click it and press Alt+Enter to import it)
             val renderersFactory = NextRenderersFactory(context)
             // 2. Tell it to prefer FFmpeg over hardware decoders
-            .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             // 3. Fallback to hardware if FFmpeg doesn't support the format
             .setEnableDecoderFallback(true)
             // 4. Stop the MediaTek hardware crash!
@@ -79,7 +79,6 @@ class PlayerManager(private val context: Context) {
 
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
-
                 .build().apply {
                 addListener(object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
