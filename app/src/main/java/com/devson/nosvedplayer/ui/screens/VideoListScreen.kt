@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -74,8 +73,7 @@ import androidx.activity.result.IntentSenderRequest
 fun VideoListScreen(
     onVideoSelected: (Video, List<Video>) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onFolderStateChange: (Boolean) -> Unit = {},
-    onSelectionStateChange: (Boolean) -> Unit = {},
+    onBack: () -> Unit = {},
     viewModel: VideoListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -171,9 +169,6 @@ fun VideoListScreen(
     var renameInputText by remember { mutableStateOf("") }
 
     //  State change callbacks → MainScreen 
-    LaunchedEffect(selectedFolder) { onFolderStateChange(selectedFolder != null) }
-    LaunchedEffect(isSelectionActive) { onSelectionStateChange(isSelectionActive) }
-
     //  Watch pendingIntentSender and launch it automatically 
     val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsState()
     LaunchedEffect(pendingIntentSender) {
@@ -204,45 +199,41 @@ fun VideoListScreen(
     }
 
     Scaffold(
-        // Outer MainScreen Scaffold (contentWindowInsets=WindowInsets(0)) does NOT consume
-        // statusBar insets, so our TopAppBar's default windowInsets=statusBars still work.
-        // We set our own contentWindowInsets=0 to avoid double-applying the system nav inset
-        // (the outer NavigationBar via its windowInsets already handles it).
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+
         topBar = {
             if (isSelectionActive && selectedFolder == null) {
                 // ---- CONTEXTUAL TOP APP BAR ----
                 val allSelected = selectedFolders.size == sortedFolderKeys.size
                 TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = { selectedFolders = emptySet() }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear Selection")
-                        }
-                    },
-                    title = {
-                        Text(
-                            "${selectedFolders.size} / ${sortedFolderKeys.size}",
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            selectedFolders = if (allSelected) emptySet()
-                            else sortedFolderKeys.toSet()
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.SelectAll,
-                                contentDescription = if (allSelected) "Unselect All" else "Select All"
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        navigationIcon = {
+                            IconButton(onClick = { selectedFolders = emptySet() }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear Selection")
+                            }
+                        },
+                        title = {
+                            Text(
+                                "${selectedFolders.size} / ${sortedFolderKeys.size}",
+                                fontWeight = FontWeight.Bold
                             )
+                        },
+                        actions = {
+                            IconButton(onClick = {
+                                selectedFolders = if (allSelected) emptySet()
+                                else sortedFolderKeys.toSet()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.SelectAll,
+                                    contentDescription = if (allSelected) "Unselect All" else "Select All"
+                                )
+                            }
                         }
-                    }
-                )
+                    )
             } else {
                 // ---- STANDARD TOP APP BAR ----
                 TopAppBar(
@@ -255,7 +246,11 @@ fun VideoListScreen(
                     navigationIcon = {
                         if (selectedFolder != null) {
                             IconButton(onClick = { viewModel.selectFolder(null) }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Folders")
+                            }
+                        } else {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
                             }
                         }
                     },
@@ -280,8 +275,8 @@ fun VideoListScreen(
             // ---- CONTEXTUAL BOTTOM APP BAR ----
             if (isSelectionActive && selectedFolder == null) {
                 BottomAppBar(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -696,57 +691,76 @@ fun FolderListItem(
     val bgColor = if (isSelected)
         MaterialTheme.colorScheme.primaryContainer
     else
-        Color.Transparent
+        MaterialTheme.colorScheme.surfaceContainerLow
 
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
-            )
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Filled.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary
-            )
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .align(Alignment.TopEnd)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(12.dp)
-                    )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary 
+                        else MaterialTheme.colorScheme.surfaceVariant, 
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .align(Alignment.TopEnd)
+                            .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
+                            .padding(2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = folder.name,
-                style = MaterialTheme.typography.titleMedium
-            )
-            FolderMetadataRow(videos, settings)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = folder.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                FolderMetadataRow(videos, settings)
+            }
         }
     }
 }
 
-// 
 // FOLDER GRID ITEM
-// 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -759,66 +773,81 @@ fun FolderGridItem(
     onLongClick: () -> Unit = {}
 ) {
     val isDense = settings.gridColumns >= 3
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(if (isDense) 1f else 0.8f)
+            .aspectRatio(if (isDense) 1f else 0.85f)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.surfaceVariant
-        ),
-        border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(
-                2.dp,
-                MaterialTheme.colorScheme.primary
-            )
-        } else null
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Icon Section
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(if (isDense) 8.dp else 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    // Circular background for the folder icon
+                    Box(
+                        modifier = Modifier
+                            .size(if (isDense) 48.dp else 64.dp)
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary 
+                                else MaterialTheme.colorScheme.surfaceVariant, 
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(if (isDense) 24.dp else 32.dp),
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Video count pill for dense grid
                     if (isDense && settings.showFolderVideoCount) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(4.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text(text = "${videos.size}", color = Color.White, fontSize = 10.sp)
+                            Text(
+                                text = "${videos.size}", 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, 
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 }
 
+                // Text Section (hidden if dense grid to save space)
                 if (!isDense) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp)
+                            // Changed to use start, end, and bottom explicitly
+                            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = folder.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 2,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -832,16 +861,17 @@ fun FolderGridItem(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .size(22.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        .padding(8.dp)
+                        .size(24.dp)
+                        .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
+                        .padding(2.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
                         contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(14.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -954,9 +984,7 @@ fun VideoThumbnail(
     }
 }
 
-// 
-// VIDEO LIST ITEM
-// 
+// VIDEO LIST ITEM 
 
 @Composable
 fun VideoListItem(
@@ -964,47 +992,62 @@ fun VideoListItem(
     settings: ViewSettings,
     onClick: (Video) -> Unit
 ) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(video) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable { onClick(video) },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
-        if (settings.showThumbnail) {
-            VideoThumbnail(
-                uri = video.uri,
-                modifier = Modifier
-                    .size(width = 100.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-        } else {
-            Icon(
-                imageVector = Icons.Filled.PlayCircle,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (settings.showThumbnail) {
+                VideoThumbnail(
+                    uri = video.uri,
+                    modifier = Modifier
+                        .size(width = 110.dp, height = 64.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+            }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            VideoMetadataRow(video, settings)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                VideoMetadataRow(video, settings)
+            }
         }
     }
 }
 
-// 
 // VIDEO GRID ITEM
-// 
 
 @Composable
 fun VideoGridItem(
@@ -1013,58 +1056,81 @@ fun VideoGridItem(
     onClick: (Video) -> Unit
 ) {
     val isDense = settings.gridColumns >= 3
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(if (isDense) 1f else 0.8f)
+            .aspectRatio(if (isDense) 1f else 0.85f)
             .clickable { onClick(video) },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            // Thumbnail Section
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(if (isDense) 0.dp else 8.dp) 
+            ) {
+                val clipShape = if (isDense) RoundedCornerShape(0.dp) else RoundedCornerShape(12.dp)
+                
                 if (settings.showThumbnail) {
                     VideoThumbnail(
                         uri = video.uri,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(clipShape)
                     )
                 } else {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(clipShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.PlayCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.secondary
+                            modifier = Modifier.size(if (isDense) 32.dp else 48.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
 
-                if (isDense && settings.showDuration) {
+                // Duration badge overlay
+                if (settings.showDuration) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .padding(6.dp)
+                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text(formatDuration(video.duration), color = Color.White, fontSize = 10.sp)
+                        Text(
+                            text = formatDuration(video.duration), 
+                            color = Color.White, 
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
+            // Text Section (hidden if dense grid)
             if (!isDense) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        // Changed to use start, top, end, and bottom explicitly
+                        .padding(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 12.dp)
                 ) {
                     Text(
                         text = video.title,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1076,9 +1142,7 @@ fun VideoGridItem(
     }
 }
 
-// 
 // VIDEO METADATA ROW
-// 
 
 @Composable
 fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = false) {
@@ -1101,9 +1165,7 @@ fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = fal
     }
 }
 
-// 
-// VIEW SETTINGS BOTTOM SHEET
-// 
+// VIEW SETTINGS BOTTOM SHEET 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1208,9 +1270,7 @@ fun ViewSettingsBottomSheet(
     }
 }
 
-// 
 // METADATA TOGGLE ROW
-// 
 
 @Composable
 fun MetadataToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
