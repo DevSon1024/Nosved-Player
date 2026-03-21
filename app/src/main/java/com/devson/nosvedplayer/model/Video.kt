@@ -18,3 +18,14 @@ data class Video(
     val folderName: String = "Unknown",
     val dateAdded: Long = 0L
 )
+
+fun List<Video>.applySort(order: SortOrder): List<Video> {
+    return when (order) {
+        SortOrder.A_TO_Z -> sortedBy { it.title.lowercase() }
+        SortOrder.Z_TO_A -> sortedByDescending { it.title.lowercase() }
+        SortOrder.NEWEST_FIRST -> sortedByDescending { it.dateAdded }
+        SortOrder.OLDEST_FIRST -> sortedBy { it.dateAdded }
+        SortOrder.LARGEST_FIRST -> sortedByDescending { it.size }
+        SortOrder.SMALLEST_FIRST -> sortedBy { it.size }
+    }
+}

@@ -3,19 +3,14 @@ package com.devson.nosvedplayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.devson.nosvedplayer.utility.formatLogTime
 
 data class LogEntry(
     val timestamp: Long,
     val message: String
 ) {
     val formattedTime: String
-        get() {
-            val sdf = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
-            return sdf.format(Date(timestamp))
-        }
+        get() = formatLogTime(timestamp)
 }
 
 object AppLogger {

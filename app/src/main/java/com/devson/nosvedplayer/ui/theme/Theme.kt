@@ -70,3 +70,23 @@ fun NosvedPlayerTheme(
         content = content
     )
 }
+
+/**
+ * Fixes the navigation bar color being drawn with a solid color (e.g. light background) in dark mode 
+ * when using ModalBottomSheet or other dialog-based components that create their own window.
+ */
+@Composable
+fun DialogNavigationBarThemeFix() {
+    val view = LocalView.current
+    val darkTheme = isSystemInDarkTheme()
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            if (window != null) {
+                window.navigationBarColor = Color.Transparent.toArgb()
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
+}

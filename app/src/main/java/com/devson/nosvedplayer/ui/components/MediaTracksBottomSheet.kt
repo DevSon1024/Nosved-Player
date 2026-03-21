@@ -57,6 +57,7 @@ fun AudioTrackSheet(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 4.dp
             ) {
+                com.devson.nosvedplayer.ui.theme.DialogNavigationBarThemeFix()
                 MediaTrackSheetContent(
                     title = "Audio Tracks",
                     tracks = audioTracks,
@@ -162,6 +163,7 @@ fun SubtitleSheet(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 4.dp
             ) {
+                com.devson.nosvedplayer.ui.theme.DialogNavigationBarThemeFix()
                 SubtitleSheetContent(
                     subtitleTracks = subtitleTracks,
                     selectedTrackIndex = selectedTrackIndex,

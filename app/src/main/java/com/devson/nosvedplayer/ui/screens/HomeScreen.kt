@@ -37,15 +37,15 @@ import coil.request.videoFrameMillis
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.WatchHistory
 import com.devson.nosvedplayer.viewmodel.HomeViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import com.devson.nosvedplayer.utility.formatDuration
+import com.devson.nosvedplayer.utility.formatRelativeTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToVideos: () -> Unit, // ADDED: Direct navigation to Video List
+    onNavigateToVideos: () -> Unit,
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val history by homeViewModel.history.collectAsState()
@@ -347,7 +347,7 @@ private fun HistoryCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = formatHistoryDuration(item.duration),
+                            text = formatDuration(item.duration),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Medium
@@ -381,7 +381,7 @@ private fun HistoryCard(
                 ) {
                     if (item.lastPositionMs > 0 && item.duration > 0) {
                         Text(
-                            text = "${formatHistoryDuration(item.lastPositionMs)} left",
+                            text = "${formatDuration(item.lastPositionMs)} left",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -394,27 +394,5 @@ private fun HistoryCard(
                 }
             }
         }
-    }
-}
-
-private fun formatHistoryDuration(durationMs: Long): String {
-    val df = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    df.timeZone = TimeZone.getTimeZone("UTC")
-    return if (durationMs >= 3_600_000) {
-        df.format(Date(durationMs))
-    } else {
-        val short = SimpleDateFormat("mm:ss", Locale.getDefault())
-        short.timeZone = TimeZone.getTimeZone("UTC")
-        short.format(Date(durationMs))
-    }
-}
-
-private fun formatRelativeTime(epochMs: Long): String {
-    val diff = System.currentTimeMillis() - epochMs
-    return when {
-        diff < 60_000 -> "Just now"
-        diff < 3_600_000 -> "${diff / 60_000}m ago"
-        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
-        else -> "${diff / 86_400_000}d ago"
     }
 }

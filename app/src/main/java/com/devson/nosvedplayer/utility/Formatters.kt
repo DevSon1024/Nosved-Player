@@ -1,0 +1,158 @@
+package com.devson.nosvedplayer.utility
+
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.devson.nosvedplayer.model.SortOrder
+import com.devson.nosvedplayer.model.Video
+import com.devson.nosvedplayer.model.VideoFolder
+import com.devson.nosvedplayer.model.ViewSettings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+import com.devson.nosvedplayer.model.applySort
+
+
+fun formatSize(sizeBytes: Long): String {
+    if (sizeBytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(sizeBytes.toDouble()) / Math.log10(1024.0)).toInt()
+    return String.format(Locale.getDefault(), "%.1f %s", sizeBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
+
+fun formatDate(epochMs: Long): String {
+    val df = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    return df.format(Date(epochMs))
+}
+
+fun formatDuration(durationMs: Long): String {
+    val df = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    df.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    return if (durationMs >= 3600000) {
+        df.format(Date(durationMs))
+    } else {
+        val dfShort = SimpleDateFormat("mm:ss", Locale.getDefault())
+        dfShort.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        dfShort.format(Date(durationMs))
+    }
+}
+
+fun formatSortOrder(order: SortOrder): String {
+    return when (order) {
+        SortOrder.A_TO_Z -> "A to Z"
+        SortOrder.Z_TO_A -> "Z to A"
+        SortOrder.NEWEST_FIRST -> "Newest First"
+        SortOrder.OLDEST_FIRST -> "Oldest First"
+        SortOrder.LARGEST_FIRST -> "Largest First"
+        SortOrder.SMALLEST_FIRST -> "Smallest First"
+    }
+}
+
+fun formatRelativeTime(epochMs: Long): String {
+    val diff = System.currentTimeMillis() - epochMs
+    return when {
+        diff < 60_000 -> "Just now"
+        diff < 3_600_000 -> "${diff / 60_000}m ago"
+        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
+        else -> "${diff / 86_400_000}d ago"
+    }
+}
+
+fun formatLogTime(timestamp: Long): String {
+    val sdf = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
+    return sdf.format(Date(timestamp))
+}
+
+// Bottom App Bar Component
+@Composable
+fun SelectionBottomAppBar(
+    selectedFolders: Set<VideoFolder>,
+    videosByFolder: Map<VideoFolder, List<Video>>,
+    viewSettings: ViewSettings,
+    onVideoSelected: (Video, List<Video>) -> Unit,
+    onClearSelection: () -> Unit,
+    onMove: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onShowInfo: () -> Unit
+) {
+    BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Play All
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable {
+                        val sortedSelectedFolders = selectedFolders.sortedBy { it.name.lowercase() }
+                        val allVideos = sortedSelectedFolders.flatMap { folder ->
+                            (videosByFolder[folder] ?: emptyList()).applySort(viewSettings.sortOrder)
+                        }
+                        if (allVideos.isNotEmpty()) {
+                            onVideoSelected(allVideos.first(), allVideos)
+                        }
+                        onClearSelection()
+                    }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = "Play All")
+                Text("Play All", fontSize = 10.sp)
+            }
+
+            // Move
+            ActionColumn(icon = Icons.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            // Copy
+            ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
+            // Delete
+            ActionColumn(icon = Icons.Filled.Delete, label = "Delete", onClick = onDelete)
+
+            // Rename
+            if (selectedFolders.size == 1) {
+                ActionColumn(icon = Icons.Filled.DriveFileRenameOutline, label = "Rename", onClick = onRename)
+            }
+
+            // Info
+            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
+        }
+    }
+}
+
+@Composable
+private fun ActionColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Icon(icon, contentDescription = label)
+        Text(label, fontSize = 10.sp)
+    }
+}

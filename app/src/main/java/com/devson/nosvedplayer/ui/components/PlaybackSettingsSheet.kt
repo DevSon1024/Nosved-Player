@@ -64,6 +64,7 @@ fun PlaybackSettingsSheet(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 4.dp
             ) {
+                com.devson.nosvedplayer.ui.theme.DialogNavigationBarThemeFix()
                 PlaybackSettingsContent(
                     seekDurationSeconds = seekDurationSeconds,
                     seekBarStyle = seekBarStyle,
