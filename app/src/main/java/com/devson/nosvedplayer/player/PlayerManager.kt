@@ -17,6 +17,7 @@ import android.net.Uri
 import androidx.media3.common.util.UnstableApi
 import androidx.annotation.OptIn
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
+import androidx.media3.exoplayer.upstream.Loader
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -25,6 +26,9 @@ class PlayerManager(private val context: Context) {
         private set
 
     var onVideoEnded: (() -> Unit)? = null
+
+    /** Called when a non-fatal source/parse error occurs (e.g. corrupt MKV). The video should be skipped. */
+    var onPlaybackError: ((String) -> Unit)? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -152,17 +156,30 @@ class PlayerManager(private val context: Context) {
 
                     override fun onPlayerError(error: PlaybackException) {
                         super.onPlayerError(error)
-                        
-                        com.devson.nosvedplayer.AppLogger.log("ExoPlayer error: ${error.message} - $error")
-                        
-                        // CHANGE 2: Intercept format and decoder failures
-                        val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
-                        val isDecoderFailed = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
 
-                        if (isFormatUnsupported || isDecoderFailed) {
-                            _playerError.value = "Hardware unsupported: Your device cannot decode this video format (e.g., HEVC 10-bit)."
-                        } else {
-                            _playerError.value = error.message ?: "Unknown playback error"
+                        com.devson.nosvedplayer.AppLogger.log("ExoPlayer error: ${error.message} - $error")
+
+                        val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
+                        val isDecoderFailed    = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
+
+                        // Source / container parse errors (e.g. corrupt MKV "varint" crash)
+                        // are not fatal format errors – skip to the next video instead.
+                        val isSourceError = error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                            error.cause?.cause is IllegalStateException ||
+                            error.cause is Loader.UnexpectedLoaderException
+
+                        when {
+                            isFormatUnsupported || isDecoderFailed -> {
+                                _playerError.value = "Hardware unsupported: Your device cannot decode this video format (e.g., HEVC 10-bit)."
+                            }
+                            isSourceError -> {
+                                // Skip the broken file – notify the ViewModel
+                                val msg = error.message ?: "Source error"
+                                onPlaybackError?.invoke(msg)
+                            }
+                            else -> {
+                                _playerError.value = error.message ?: "Unknown playback error"
+                            }
                         }
                     }
                 })

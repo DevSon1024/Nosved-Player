@@ -61,6 +61,7 @@ import coil.request.videoFrameMillis
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.WindowInsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +73,11 @@ fun HomeScreen(
     val history by homeViewModel.history.collectAsState()
 
     Scaffold(
+        // Outer MainScreen Scaffold (contentWindowInsets=WindowInsets(0)) does NOT consume
+        // statusBar insets, so our TopAppBar's default windowInsets=statusBars still work.
+        // We set our own contentWindowInsets=0 to avoid double-applying the system nav inset
+        // (the outer NavigationBar via its windowInsets already handles it).
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {

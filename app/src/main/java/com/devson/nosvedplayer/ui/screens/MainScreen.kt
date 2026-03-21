@@ -1,12 +1,10 @@
 package com.devson.nosvedplayer.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -27,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
-import androidx.compose.foundation.layout.consumeWindowInsets
 
 /** Tabs available in the bottom nav bar. */
 enum class BottomNavTab { HOME, VIDEOS }
@@ -44,6 +41,13 @@ fun MainScreen(
     var resumePositionMs by remember { mutableStateOf(0L) }
     var appScreen by remember { mutableStateOf(AppScreen.MAIN) }
     val settingsViewModel: com.devson.nosvedplayer.viewmodel.SettingsViewModel = viewModel()
+
+    //  Hoisted state from VideoListScreen for dynamic bottom nav visibility 
+    var isInsideFolder by remember { mutableStateOf(false) }
+    var isSelectionActive by remember { mutableStateOf(false) }
+
+    // Bottom nav is hidden when user drills into a folder OR activates selection mode
+    val showBottomNav = !isInsideFolder && !isSelectionActive
 
     val isPlayerVisible = currentVideo != null
 
@@ -89,16 +93,17 @@ fun MainScreen(
         // Main scaffold with bottom nav
         else -> {
             Scaffold(
+                // contentWindowInsets=WindowInsets(0) so the outer Scaffold does NOT consume
+                // status bar insets — inner screens handle them via their own TopAppBar's
+                // windowInsets = TopAppBarDefaults.windowInsets (= WindowInsets.statusBars)
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInVertically(initialOffsetY = { it }),
-                        exit = slideOutVertically(targetOffsetY = { it })
-                    ) {
+                    if (showBottomNav) {
                         NavigationBar {
                             NavigationBarItem(
                                 selected = selectedTab == BottomNavTab.HOME,
                                 onClick = { selectedTab = BottomNavTab.HOME },
+                                // alwaysShowLabel = false,
                                 icon = {
                                     Icon(
                                         imageVector = if (selectedTab == BottomNavTab.HOME)
@@ -106,11 +111,12 @@ fun MainScreen(
                                         contentDescription = "Home"
                                     )
                                 },
-                                label = { Text("Home") }
+                                // label = { Text("Home") }
                             )
                             NavigationBarItem(
                                 selected = selectedTab == BottomNavTab.VIDEOS,
                                 onClick = { selectedTab = BottomNavTab.VIDEOS },
+                                // alwaysShowLabel = false,
                                 icon = {
                                     Icon(
                                         imageVector = if (selectedTab == BottomNavTab.VIDEOS)
@@ -118,7 +124,7 @@ fun MainScreen(
                                         contentDescription = "Videos"
                                     )
                                 },
-                                label = { Text("Videos") }
+                                // label = { Text("Videos") }
                             )
                         }
                     }
@@ -127,8 +133,9 @@ fun MainScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
-                        .consumeWindowInsets(paddingValues)
+                        // Only apply BOTTOM padding (= NavigationBar height + system nav height).
+                        // Inner screens apply TOP (status bar) padding via their own TopAppBar.
+                        .padding(bottom = paddingValues.calculateBottomPadding())
                 ) {
                     when (selectedTab) {
                         BottomNavTab.HOME -> {
@@ -148,7 +155,10 @@ fun MainScreen(
                                     currentVideo = video
                                     videoViewModel.playVideo(video, playlist, 0L)
                                 },
-                                onNavigateToSettings = { appScreen = AppScreen.SETTINGS }
+                                onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
+                                // Notify MainScreen so it can hide/show the bottom nav
+                                onFolderStateChange = { isInsideFolder = it },
+                                onSelectionStateChange = { isSelectionActive = it }
                             )
                         }
                     }

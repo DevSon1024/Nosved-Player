@@ -127,6 +127,11 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
+            playerManager?.onPlaybackError = {
+                // A source/parse error (e.g. corrupt MKV) — skip to next video silently
+                playNextVideo()
+            }
+
             pendingVideo?.let { video ->
                 val resumeMs = pendingResumeMs
                 val playlist = pendingPlaylist
