@@ -18,4 +18,7 @@ data class WatchHistory(
     val lastPositionMs: Long = 0L,
     /** Epoch millis when the video was last played (for ordering). */
     val lastPlayedAt: Long = System.currentTimeMillis()
-)
+) {
+    val position: Long get() = lastPositionMs
+    val timestamp: Long get() = lastPlayedAt
+}

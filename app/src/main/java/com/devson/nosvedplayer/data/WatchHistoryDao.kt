@@ -28,4 +28,8 @@ interface WatchHistoryDao {
     /** Clear all history. */
     @Query("DELETE FROM watch_history")
     suspend fun clearAll()
+
+    /** Fetch history entry for a specific URI. */
+    @Query("SELECT * FROM watch_history WHERE uri = :uri")
+    suspend fun getHistoryByUri(uri: String): WatchHistory?
 }

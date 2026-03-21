@@ -1,3 +1,5 @@
+import com.android.build.api.variant.FilterConfiguration
+import com.android.build.api.variant.impl.VariantOutputImpl
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -7,7 +9,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystorePropertiesFile= rootProject.file("keystore.properties")!!
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
@@ -99,9 +101,9 @@ android {
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
-            val abiName = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier ?: "Universal"
+            val abiName = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier ?: "Universal"
             val buildType = variant.buildType?.replaceFirstChar { it.uppercase() } ?: "Unknown"
-            (output as com.android.build.api.variant.impl.VariantOutputImpl).outputFileName.set("NosvedPlayer_v${appVersion}_${buildType}_${abiName}.apk")
+            (output as VariantOutputImpl).outputFileName.set("NosvedPlayer_v${appVersion}_${buildType}_${abiName}.apk")
         }
     }
 }
@@ -127,6 +129,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.compose.material)
     ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)

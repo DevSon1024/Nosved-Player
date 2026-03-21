@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -17,13 +18,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -48,6 +46,9 @@ import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import android.app.Activity
 import android.net.Uri
 import androidx.activity.result.IntentSenderRequest
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Scaffold
 import com.devson.nosvedplayer.model.applySort
 import com.devson.nosvedplayer.ui.components.RenameDialog
 import com.devson.nosvedplayer.ui.components.ViewSettingsBottomSheet
@@ -106,12 +107,13 @@ fun VideoListScreen(
 
     //  SELECTION STATE 
     var selectedFolders by remember { mutableStateOf(emptySet<VideoFolder>()) }
-    var showInfoDialog by remember { mutableStateOf(false) }
+    var selectedVideos by remember { mutableStateOf(emptySet<Video>()) }
+    var showInfoBottomSheet by remember { mutableStateOf(false) }
 
     val sortedFolderKeys = remember(videosByFolder) {
         videosByFolder.keys.toList().sortedBy { it.name.lowercase() }
     }
-    val isSelectionActive = selectedFolders.isNotEmpty()
+    val isSelectionActive = selectedFolders.isNotEmpty() || selectedVideos.isNotEmpty()
 
     //  File Operations 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
@@ -131,11 +133,16 @@ fun VideoListScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            val uris = selectedFolders.flatMap { folder ->
-                videosByFolder[folder] ?: emptyList()
-            }.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            val uris = if (selectedFolder != null) {
+                selectedVideos.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            } else {
+                selectedFolders.flatMap { folder ->
+                    videosByFolder[folder] ?: emptyList()
+                }.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            }
             fileOpsViewModel.moveVideos(context, uris, uri)
             selectedFolders = emptySet()
+            selectedVideos = emptySet()
         }
     }
 
@@ -144,11 +151,16 @@ fun VideoListScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         if (uri != null) {
-            val uris = selectedFolders.flatMap { folder ->
-                videosByFolder[folder] ?: emptyList()
-            }.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            val uris = if (selectedFolder != null) {
+                selectedVideos.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            } else {
+                selectedFolders.flatMap { folder ->
+                    videosByFolder[folder] ?: emptyList()
+                }.mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
+            }
             fileOpsViewModel.copyVideos(context, uris, uri)
             selectedFolders = emptySet()
+            selectedVideos = emptySet()
         }
     }
 
@@ -181,22 +193,31 @@ fun VideoListScreen(
     // Back handler: clears selection first before navigating out
     BackHandler(enabled = selectedFolder != null || isSelectionActive) {
         when {
-            isSelectionActive -> selectedFolders = emptySet()
+            selectedVideos.isNotEmpty() -> selectedVideos = emptySet()
+            selectedFolders.isNotEmpty() -> selectedFolders = emptySet()
             else -> viewModel.selectFolder(null)
         }
     }
-
     Scaffold(
         topBar = {
             VideoListTopAppBar(
                 isSelectionActive = isSelectionActive,
                 selectedFolder = selectedFolder,
-                selectedFoldersCount = selectedFolders.size,
-                totalFoldersCount = sortedFolderKeys.size,
-                onClearSelection = { selectedFolders = emptySet() },
+                selectedCount = if (selectedFolder != null) selectedVideos.size else selectedFolders.size,
+                totalCount = if (selectedFolder != null) (videosByFolder[selectedFolder] ?: emptyList()).size else sortedFolderKeys.size,
+                onClearSelection = { 
+                    selectedFolders = emptySet()
+                    selectedVideos = emptySet()
+                },
                 onSelectAll = {
-                    val allSelected = selectedFolders.size == sortedFolderKeys.size
-                    selectedFolders = if (allSelected) emptySet() else sortedFolderKeys.toSet()
+                    if (selectedFolder != null) {
+                        val allVideos = videosByFolder[selectedFolder] ?: emptyList()
+                        val allSelected = selectedVideos.size == allVideos.size
+                        selectedVideos = if (allSelected) emptySet() else allVideos.toSet()
+                    } else {
+                        val allSelected = selectedFolders.size == sortedFolderKeys.size
+                        selectedFolders = if (allSelected) emptySet() else sortedFolderKeys.toSet()
+                    }
                 },
                 onBack = onBack,
                 onNavigateToSettings = onNavigateToSettings,
@@ -205,38 +226,65 @@ fun VideoListScreen(
             )
         },
         bottomBar = {
-            if (isSelectionActive && selectedFolder == null) {
-                SelectionBottomAppBar(
-                    selectedFolders = selectedFolders,
-                    videosByFolder = videosByFolder,
-                    viewSettings = viewSettings,
-                    onVideoSelected = onVideoSelected,
-                    onClearSelection = { selectedFolders = emptySet() },
-                    onMove = { moveLauncher.launch(null) },
-                    onCopy = { copyLauncher.launch(null) },
-                    onDelete = {
-                        val urisToDelete = selectedFolders
-                            .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
-                            .mapNotNull { video ->
-                                try { Uri.parse(video.uri) } catch (_: Exception) { null }
+            if (isSelectionActive) {
+                if (selectedFolder == null) {
+                    SelectionBottomAppBar(
+                        selectedFolders = selectedFolders,
+                        videosByFolder = videosByFolder,
+                        viewSettings = viewSettings,
+                        onVideoSelected = onVideoSelected,
+                        onClearSelection = { selectedFolders = emptySet() },
+                        onMove = { moveLauncher.launch(null) },
+                        onCopy = { copyLauncher.launch(null) },
+                        onDelete = {
+                            val urisToDelete = selectedFolders
+                                .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
+                                .mapNotNull { video ->
+                                    try { Uri.parse(video.uri) } catch (_: Exception) { null }
+                                }
+                            if (urisToDelete.isNotEmpty()) {
+                                fileOpsViewModel.deleteVideos(context, urisToDelete)
+                                selectedFolders = emptySet()
                             }
-                        if (urisToDelete.isNotEmpty()) {
-                            fileOpsViewModel.deleteVideos(context, urisToDelete)
-                            selectedFolders = emptySet()
-                        }
-                    },
-                    onRename = {
-                        val folder = selectedFolders.first()
-                        val videos = videosByFolder[folder] ?: emptyList()
-                        if (videos.size == 1) {
-                            renameInputText = videos.first().title.substringBeforeLast(".")
+                        },
+                        onRename = {
+                            val folder = selectedFolders.first()
+                            val videos = videosByFolder[folder] ?: emptyList()
+                            if (videos.size == 1) {
+                                renameInputText = videos.first().title.substringBeforeLast(".")
+                                showRenameDialog = true
+                            } else {
+                                Toast.makeText(context, "Rename only works for a folder with a single video.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onShowInfo = { showInfoBottomSheet = true }
+                    )
+                } else {
+                    // Contextual Bottom Bar for Videos
+                    VideoSelectionBottomAppBar(
+                        selectedVideos = selectedVideos,
+                        onPlayAll = {
+                            val allVideos = (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortOrder)
+                            onVideoSelected(selectedVideos.first(), allVideos)
+                            selectedVideos = emptySet()
+                        },
+                        onMove = { moveLauncher.launch(null) },
+                        onCopy = { copyLauncher.launch(null) },
+                        onDelete = {
+                            val urisToDelete = selectedVideos.mapNotNull { try { Uri.parse(it.uri) } catch (_: Exception) { null } }
+                            if (urisToDelete.isNotEmpty()) {
+                                fileOpsViewModel.deleteVideos(context, urisToDelete)
+                                selectedVideos = emptySet()
+                            }
+                        },
+                        onRename = {
+                            val video = selectedVideos.first()
+                            renameInputText = video.title.substringBeforeLast(".")
                             showRenameDialog = true
-                        } else {
-                            Toast.makeText(context, "Rename only works for a folder with a single video.", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onShowInfo = { showInfoDialog = true }
-                )
+                        },
+                        onShowInfo = { showInfoBottomSheet = true }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -304,26 +352,42 @@ fun VideoListScreen(
                     VideoListContent(
                         videos = sortedVideos,
                         settings = viewSettings,
-                        onVideoClick = { video -> onVideoSelected(video, sortedVideos) }
+                        selectedVideos = selectedVideos,
+                        onVideoClick = { video ->
+                            if (selectedVideos.isNotEmpty()) {
+                                selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
+                            } else {
+                                onVideoSelected(video, sortedVideos)
+                            }
+                        },
+                        onVideoLongClick = { video ->
+                            selectedVideos = selectedVideos + video
+                        }
                     )
                 }
             }
         }
     }
 
-    // ---- FOLDER INFO DIALOG ----
-    if (showInfoDialog && isSelectionActive) {
-        FolderInfoDialog(
-            selectedFolders = selectedFolders,
-            videosByFolder = videosByFolder,
-            onDismiss = { showInfoDialog = false }
+    // ---- INFORMATION BOTTOM SHEET ----
+    if (showInfoBottomSheet && isSelectionActive) {
+        val videosToShow = if (selectedFolder != null) selectedVideos else {
+            selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.toSet()
+        }
+        InformationBottomSheet(
+            selectedVideos = videosToShow,
+            onDismiss = { showInfoBottomSheet = false }
         )
     }
 
     // ---- RENAME DIALOG ----
-    if (showRenameDialog && selectedFolders.size == 1) {
-        val folder = selectedFolders.first()
-        val video = (videosByFolder[folder] ?: emptyList()).firstOrNull()
+    if (showRenameDialog && (selectedFolders.size == 1 || selectedVideos.size == 1)) {
+        val video = if (selectedFolder != null) {
+            selectedVideos.firstOrNull()
+        } else {
+            val folder = selectedFolders.first()
+            (videosByFolder[folder] ?: emptyList()).firstOrNull()
+        }
         RenameDialog(
             initialName = renameInputText,
             onConfirm = { newName ->
@@ -332,6 +396,7 @@ fun VideoListScreen(
                 }
                 showRenameDialog = false
                 selectedFolders = emptySet()
+                selectedVideos = emptySet()
             },
             onDismiss = { showRenameDialog = false }
         )
@@ -352,7 +417,9 @@ fun VideoListScreen(
 fun VideoListContent(
     videos: List<Video>,
     settings: ViewSettings,
-    onVideoClick: (Video) -> Unit
+    selectedVideos: Set<Video>,
+    onVideoClick: (Video) -> Unit,
+    onVideoLongClick: (Video) -> Unit
 ) {
     if (settings.isGrid) {
         LazyVerticalGrid(
@@ -363,7 +430,13 @@ fun VideoListContent(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(videos) { video ->
-                VideoGridItem(video, settings, onVideoClick)
+                VideoGridItem(
+                    video = video,
+                    settings = settings,
+                    isSelected = video in selectedVideos,
+                    onClick = { onVideoClick(video) },
+                    onLongClick = { onVideoLongClick(video) }
+                )
             }
         }
     } else {
@@ -372,7 +445,13 @@ fun VideoListContent(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(videos) { video ->
-                VideoListItem(video, settings, onVideoClick)
+                VideoListItem(
+                    video = video,
+                    settings = settings,
+                    isSelected = video in selectedVideos,
+                    onClick = { onVideoClick(video) },
+                    onLongClick = { onVideoLongClick(video) }
+                )
             }
         }
     }
@@ -419,20 +498,33 @@ fun VideoThumbnail(
 
 // VIDEO LIST ITEM 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoListItem(
     video: Video,
     settings: ViewSettings,
-    onClick: (Video) -> Unit
+    isSelected: Boolean = false,
+    onClick: (Video) -> Unit,
+    onLongClick: (Video) -> Unit
 ) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onClick(video) },
+            .combinedClickable(
+                onClick = { onClick(video) },
+                onLongClick = {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onLongClick(video)
+                }
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Row(
             modifier = Modifier
@@ -440,30 +532,55 @@ fun VideoListItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (settings.showThumbnail) {
-                VideoThumbnail(
-                    uri = video.uri,
-                    modifier = Modifier
-                        .size(width = 110.dp, height = 64.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.PlayCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.primary
+            Box(modifier = Modifier.size(width = 110.dp, height = 64.dp)) {
+                if (settings.showThumbnail) {
+                    VideoThumbnail(
+                        uri = video.uri,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
+            
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -482,22 +599,34 @@ fun VideoListItem(
 
 // VIDEO GRID ITEM
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoGridItem(
     video: Video,
     settings: ViewSettings,
-    onClick: (Video) -> Unit
+    isSelected: Boolean = false,
+    onClick: (Video) -> Unit,
+    onLongClick: (Video) -> Unit
 ) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val isDense = settings.gridColumns >= 3
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(if (isDense) 1f else 0.85f)
-            .clickable { onClick(video) },
+            .combinedClickable(
+                onClick = { onClick(video) },
+                onLongClick = {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onLongClick(video)
+                }
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+        colors = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Thumbnail Section
@@ -533,8 +662,32 @@ fun VideoGridItem(
                     }
                 }
 
+                // Selection Overlay
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(if (isDense) 32.dp else 48.dp)
+                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(if (isDense) 20.dp else 28.dp)
+                            )
+                        }
+                    }
+                }
+
                 // Duration badge overlay
-                if (settings.showDuration) {
+                if (settings.showDuration && !isSelected) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -598,15 +751,14 @@ fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = fal
     }
 }
 
-
 // Top App Bar Component
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VideoListTopAppBar(
     isSelectionActive: Boolean,
     selectedFolder: VideoFolder?,
-    selectedFoldersCount: Int,
-    totalFoldersCount: Int,
+    selectedCount: Int,
+    totalCount: Int,
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onBack: () -> Unit,
@@ -614,8 +766,8 @@ private fun VideoListTopAppBar(
     onShowSettings: () -> Unit,
     onBackToFolders: () -> Unit
 ) {
-    if (isSelectionActive && selectedFolder == null) {
-        val allSelected = selectedFoldersCount == totalFoldersCount
+    if (isSelectionActive) {
+        val allSelected = selectedCount == totalCount
         TopAppBar(
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -630,7 +782,7 @@ private fun VideoListTopAppBar(
             },
             title = {
                 Text(
-                    "$selectedFoldersCount / $totalFoldersCount",
+                    "$selectedCount / $totalCount",
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -654,11 +806,17 @@ private fun VideoListTopAppBar(
             navigationIcon = {
                 if (selectedFolder != null) {
                     IconButton(onClick = onBackToFolders) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Folders")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Folders"
+                        )
                     }
                 } else {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Home"
+                        )
                     }
                 }
             },
@@ -671,5 +829,71 @@ private fun VideoListTopAppBar(
                 }
             }
         )
+    }
+}
+
+// VIDEO SELECTION BOTTOM APP BAR
+@Composable
+fun VideoSelectionBottomAppBar(
+    selectedVideos: Set<Video>,
+    onPlayAll: () -> Unit,
+    onMove: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onShowInfo: () -> Unit
+) {
+    BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Play All
+            ActionColumn(
+                icon = Icons.Filled.PlayCircle,
+                label = "Play All",
+                onClick = onPlayAll
+            )
+            // Move
+            ActionColumn(icon = Icons.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            // Copy
+            ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
+            // Delete
+            ActionColumn(icon = Icons.Filled.Delete, label = "Delete", onClick = onDelete)
+            // Rename
+            if (selectedVideos.size == 1) {
+                ActionColumn(
+                    icon = Icons.Filled.DriveFileRenameOutline,
+                    label = "Rename",
+                    onClick = onRename
+                )
+            }
+            // Info
+            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
+        }
+    }
+}
+
+@Composable
+private fun ActionColumn(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Icon(icon, contentDescription = label)
+        Text(label, fontSize = 10.sp)
     }
 }
