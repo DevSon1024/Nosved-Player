@@ -62,8 +62,7 @@ fun PlaybackSettingsSheet(
                 onDismissRequest = onDismissRequest,
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp,
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+                tonalElevation = 4.dp
             ) {
                 PlaybackSettingsContent(
                     seekDurationSeconds = seekDurationSeconds,
@@ -98,7 +97,6 @@ private fun PlaybackSettingsContent(
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp)
-            .androidx.compose.foundation.layout.navigationBarsPadding()
             .verticalScroll(rememberScrollState())
     ) {
         Text(

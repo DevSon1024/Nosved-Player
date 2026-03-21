@@ -55,8 +55,7 @@ fun AudioTrackSheet(
                 onDismissRequest = onDismissRequest,
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp,
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+                tonalElevation = 4.dp
             ) {
                 MediaTrackSheetContent(
                     title = "Audio Tracks",
@@ -84,7 +83,6 @@ private fun MediaTrackSheetContent(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 10.dp)
             .padding(bottom = 32.dp)
-            .androidx.compose.foundation.layout.navigationBarsPadding()
     ) {
         Text(
             text = title,
@@ -162,8 +160,7 @@ fun SubtitleSheet(
                 onDismissRequest = onDismissRequest,
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp,
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+                tonalElevation = 4.dp
             ) {
                 SubtitleSheetContent(
                     subtitleTracks = subtitleTracks,
@@ -200,7 +197,6 @@ private fun SubtitleSheetContent(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 10.dp)
             .padding(bottom = 32.dp)
-            .androidx.compose.foundation.layout.navigationBarsPadding()
     ) {
         Text(
             text = "Subtitles",
