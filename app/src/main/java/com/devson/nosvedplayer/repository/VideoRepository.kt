@@ -26,7 +26,8 @@ class VideoRepository(private val context: Context) {
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.BUCKET_ID,
             MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Video.Media.DATE_ADDED
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.DATA
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -45,6 +46,7 @@ class VideoRepository(private val context: Context) {
             val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_ID)
             val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -54,6 +56,7 @@ class VideoRepository(private val context: Context) {
                 val folderId = cursor.getString(bucketIdColumn) ?: "Unknown"
                 val folderName = cursor.getString(bucketColumn) ?: "Unknown"
                 val dateAdded = cursor.getLong(dateAddedColumn)
+                val path = cursor.getString(dataColumn) ?: ""
 
                 val contentUri = ContentUris.withAppendedId(collection, id)
 
@@ -65,7 +68,8 @@ class VideoRepository(private val context: Context) {
                         size = size,
                         folderId = folderId,
                         folderName = folderName,
-                        dateAdded = dateAdded * 1000L // MediaStore stores DATE_ADDED in seconds. Convert to millis.
+                        dateAdded = dateAdded * 1000L, // MediaStore stores DATE_ADDED in seconds. Convert to millis.
+                        path = path
                     )
                 )
             }

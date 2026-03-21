@@ -16,7 +16,8 @@ data class Video(
     val size: Long = 0L,
     val folderId: String = "",
     val folderName: String = "Unknown",
-    val dateAdded: Long = 0L
+    val dateAdded: Long = 0L,
+    val path: String = ""
 )
 
 fun List<Video>.applySort(order: SortOrder): List<Video> {

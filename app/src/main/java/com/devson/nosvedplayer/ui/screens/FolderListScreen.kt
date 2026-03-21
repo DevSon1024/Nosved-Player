@@ -292,7 +292,12 @@ fun FolderInfoDialog(
     val totalVideos = allVideos.size
     val totalSize = allVideos.sumOf { it.size }
     val location = if (selectedFolders.size == 1) {
-        selectedFolders.first().id
+        val firstVideo = allVideos.firstOrNull()
+        if (firstVideo != null && firstVideo.path.contains("/")) {
+            firstVideo.path.substringBeforeLast("/")
+        } else {
+            selectedFolders.first().name
+        }
     } else {
         "${selectedFolders.size} folders selected"
     }
