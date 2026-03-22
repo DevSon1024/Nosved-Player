@@ -22,9 +22,9 @@
 ## 📱 Screenshots
 
 <div align="center">
-<img src="screenshots/HomePage.jpg" width="30%" style="border-radius: 14px;"/>
-<img src="screenshots/VideoFoldersList.jpg" width="30%" style="border-radius: 14px;"/>
-<img src="screenshots/PlayerScrenVertical.jpg" width="30%" style="border-radius: 14px;"/>
+<img src="Screenshots/HomePage.jpg" width="30%" style="border-radius: 14px;"/>
+<img src="Screenshots/VideoFoldersList.jpg" width="30%" style="border-radius: 14px;"/>
+<img src="Screenshots/PlayerScrenVertical.jpg" width="30%" style="border-radius: 14px;"/>
 <img src="Screenshots/PlayerScreen_Horizontal.jpg" width="800" style="border-radius: 14px;">
 </div>
 
