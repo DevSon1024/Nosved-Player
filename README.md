@@ -1,18 +1,19 @@
 # Nosved Player
 
+<div align="center">
 <img src="Screenshots/logo.png" width="160" height="160" style="border-radius: 80px;"/>
 
 [![GitHub release](https://img.shields.io/github/v/release/DevSon1024/Nosved-Player?label=Release&logo=github)](https://github.com/DevSon1024/Nosved-Player/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/DevSon1024/Nosved-Player/total.svg?logo=github)](https://github.com/DevSon1024/Nosved-Player/releases)
 [![License: MIT](https://img.shields.io/github/license/DevSon1024/Nosved-Player)](LICENSE)
 
----
-
 [![Platform](https://img.shields.io/badge/Platform-Android-00DE7A.svg?logo=android)](https://developer.android.com)
 
 ## Download
 
 [![Nosved Player](https://img.shields.io/github/release/DevSon1024/Nosved-Player.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://github.com/DevSon1024/Nosved-Player/releases)
+
+</div>
 
 **Nosved Player** is a clean, modern, and high-performance local video player for Android. Built from the ground up using **Jetpack Compose** and **Media3 (ExoPlayer)**, it offers a premium media experience with a focus on simplicity and fluidity.
 
@@ -27,6 +28,7 @@
 <p align="center">
   <img src="Screenshots/PlayerScreen_Horizontal.jpg" width="800" style="border-radius: 14px;">
 </p>
+</div>
 ---
 
 ## Key Features

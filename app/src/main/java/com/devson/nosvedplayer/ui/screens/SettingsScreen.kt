@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToLogs: () -> Unit,
+    onNavigateToPrivacyPolicy: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark by settingsViewModel.isDarkTheme.collectAsState()
@@ -143,6 +145,36 @@ fun SettingsScreen(
                     )
                 },
                 modifier = Modifier.clickable { onNavigateToAbout() }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            // Privacy Policy row
+            ListItem(
+                headlineContent = { Text("Privacy Policy") },
+                supportingContent = {
+                    Text(
+                        text = "How we handle permissions & your data",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Filled.Policy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                modifier = Modifier.clickable { onNavigateToPrivacyPolicy() }
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

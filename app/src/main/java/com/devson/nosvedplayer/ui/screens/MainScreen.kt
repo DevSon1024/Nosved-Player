@@ -12,7 +12,7 @@ import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
 /** App-level navigation state. */
-private enum class AppScreen { HOME, VIDEOS, SETTINGS, ABOUT, LOGS }
+private enum class AppScreen { HOME, VIDEOS, SETTINGS, ABOUT, LOGS, PRIVACY_POLICY }
 
 @Composable
 fun MainScreen(
@@ -51,6 +51,7 @@ fun MainScreen(
                     onBack = { appScreen = previousScreen },
                     onNavigateToAbout = { appScreen = AppScreen.ABOUT },
                     onNavigateToLogs = { appScreen = AppScreen.LOGS },
+                    onNavigateToPrivacyPolicy = { appScreen = AppScreen.PRIVACY_POLICY },
                     settingsViewModel = settingsViewModel
                 )
             }
@@ -72,6 +73,14 @@ fun MainScreen(
             BackHandler { appScreen = AppScreen.SETTINGS }
             saveableStateHolder.SaveableStateProvider(AppScreen.LOGS.name) {
                 LogScreen(onBack = { appScreen = AppScreen.SETTINGS })
+            }
+        }
+
+        // Privacy Policy
+        appScreen == AppScreen.PRIVACY_POLICY -> {
+            BackHandler { appScreen = AppScreen.SETTINGS }
+            saveableStateHolder.SaveableStateProvider(AppScreen.PRIVACY_POLICY.name) {
+                PrivacyPolicyScreen(onBack = { appScreen = AppScreen.SETTINGS })
             }
         }
 
