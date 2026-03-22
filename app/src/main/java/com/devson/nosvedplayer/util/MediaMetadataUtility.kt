@@ -1,8 +1,7 @@
-package com.devson.nosvedplayer.utility
+package com.devson.nosvedplayer.util
 
 import android.content.Context
-import android.media.MediaExtractor
-import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.annotation.OptIn
 import com.devson.nosvedplayer.data.WatchHistoryDao
@@ -18,6 +17,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.MetadataRetriever
+import java.util.Locale
 
 data class DetailedVideoMetadata(
     val video: Video,
@@ -98,7 +98,7 @@ suspend fun getVideoMetadata(
                     else -> mime.substringAfterLast('/').uppercase()
                 }
 
-                val language = format.language?.let { java.util.Locale(it).displayLanguage }
+                val language = format.language?.let { Locale(it).displayLanguage }
                 val extra = mutableMapOf<String, String>()
                 
                 format.label?.let { extra["Title"] = it }
@@ -128,12 +128,12 @@ suspend fun getVideoMetadata(
     }
 
     val retrieverJob = async(Dispatchers.IO) {
-        val retriever = android.media.MediaMetadataRetriever()
+        val retriever = MediaMetadataRetriever()
         var format = "Unknown"
         var writeBy: String? = null
         try {
             retriever.setDataSource(context, Uri.parse(video.uri))
-            val mime = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+            val mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
             format = when {
                 mime == null -> video.uri.substringAfterLast('.', "Unknown").uppercase()
                 mime.contains("mp4") -> "MP4"
@@ -143,7 +143,7 @@ suspend fun getVideoMetadata(
                 mime.contains("avi") -> "AVI"
                 else -> mime.substringAfterLast('/').uppercase()
             }
-            writeBy = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_WRITER)
+            writeBy = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_WRITER)
         } catch (_: Exception) {} finally { retriever.release() }
         format to writeBy
     }

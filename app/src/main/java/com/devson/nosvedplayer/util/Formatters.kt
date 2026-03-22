@@ -1,4 +1,4 @@
-package com.devson.nosvedplayer.utility
+package com.devson.nosvedplayer.util
 
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.MaterialTheme
@@ -24,10 +24,12 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.devson.nosvedplayer.model.applySort
+import java.util.TimeZone
 
 
 fun formatSize(sizeBytes: Long): String {
@@ -44,12 +46,12 @@ fun formatDate(epochMs: Long): String {
 
 fun formatDuration(durationMs: Long): String {
     val df = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    df.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    df.timeZone = TimeZone.getTimeZone("UTC")
     return if (durationMs >= 3600000) {
         df.format(Date(durationMs))
     } else {
         val dfShort = SimpleDateFormat("mm:ss", Locale.getDefault())
-        dfShort.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        dfShort.timeZone = TimeZone.getTimeZone("UTC")
         dfShort.format(Date(durationMs))
     }
 }
@@ -149,7 +151,7 @@ fun SelectionBottomAppBar(
 }
 
 @Composable
-private fun ActionColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun ActionColumn(icon: ImageVector, label: String, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier

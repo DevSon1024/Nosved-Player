@@ -7,6 +7,7 @@ import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import okio.Path.Companion.toOkioPath
+import com.devson.nosvedplayer.util.MediaStoreThumbnailFetcher
 
 class NosvedApplication : Application(), ImageLoaderFactory {
 
@@ -20,6 +21,7 @@ class NosvedApplication : Application(), ImageLoaderFactory {
 
         return ImageLoader.Builder(this)
             .components {
+                add(MediaStoreThumbnailFetcher.Factory())
                 add(VideoFrameDecoder.Factory())
             }
             // Disable hardware bitmaps so frames can be decoded safely on background threads

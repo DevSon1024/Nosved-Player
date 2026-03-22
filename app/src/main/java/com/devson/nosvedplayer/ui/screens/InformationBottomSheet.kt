@@ -3,22 +3,21 @@ package com.devson.nosvedplayer.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.data.NosvedDatabase
 import com.devson.nosvedplayer.model.Video
-import com.devson.nosvedplayer.utility.*
-import kotlinx.coroutines.launch
+import com.devson.nosvedplayer.util.DetailedVideoMetadata
+import com.devson.nosvedplayer.util.TrackType
+import com.devson.nosvedplayer.util.formatDate
+import com.devson.nosvedplayer.util.formatDuration
+import com.devson.nosvedplayer.util.formatSize
+import com.devson.nosvedplayer.util.getVideoMetadata
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

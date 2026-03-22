@@ -7,8 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,12 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.model.LayoutMode
 import com.devson.nosvedplayer.model.SortDirection
-import com.devson.nosvedplayer.model.SortField
 import com.devson.nosvedplayer.model.ViewMode
 import com.devson.nosvedplayer.model.ViewSettings
-import com.devson.nosvedplayer.utility.formatSortField
+import com.devson.nosvedplayer.util.formatSortField
 import com.devson.nosvedplayer.viewmodel.VideoListViewModel
-import com.devson.nosvedplayer.ui.components.RotarySortWheelDialog
 
 // VIEW SETTINGS BOTTOM SHEET
 

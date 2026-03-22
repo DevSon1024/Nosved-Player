@@ -1,6 +1,5 @@
 package com.devson.nosvedplayer.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,16 +8,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.data.NosvedDatabase
 import com.devson.nosvedplayer.model.Video
-import com.devson.nosvedplayer.utility.*
-import kotlinx.coroutines.launch
+import com.devson.nosvedplayer.util.DetailedVideoMetadata
+import com.devson.nosvedplayer.util.TrackMetadata
+import com.devson.nosvedplayer.util.TrackType
+import com.devson.nosvedplayer.util.formatDate
+import com.devson.nosvedplayer.util.formatDuration
+import com.devson.nosvedplayer.util.formatLogTime
+import com.devson.nosvedplayer.util.formatSize
+import com.devson.nosvedplayer.util.getVideoMetadata
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +110,9 @@ fun InformationBottomSheet(
 
                         InfoRow(label = "Finished State", value = state)
                         if (history != null) {
-                            InfoRow(label = "Last Playback", value = formatDate(history.lastPlayedAt) + " " + formatLogTime(history.lastPlayedAt).substringAfter(','))
+                            InfoRow(label = "Last Playback", value = formatDate(history.lastPlayedAt) + " " + formatLogTime(
+                                history.lastPlayedAt
+                            ).substringAfter(','))
                             InfoRow(label = "Last Position", value = formatDuration(history.lastPositionMs))
                         }
                     }

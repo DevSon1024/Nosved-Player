@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -61,10 +62,10 @@ import androidx.compose.material3.Scaffold
 import com.devson.nosvedplayer.model.applySort
 import com.devson.nosvedplayer.ui.components.RenameDialog
 import com.devson.nosvedplayer.ui.components.ViewSettingsBottomSheet
-import com.devson.nosvedplayer.utility.SelectionBottomAppBar
-import com.devson.nosvedplayer.utility.formatDate
-import com.devson.nosvedplayer.utility.formatDuration
-import com.devson.nosvedplayer.utility.formatSize
+import com.devson.nosvedplayer.util.SelectionBottomAppBar
+import com.devson.nosvedplayer.util.formatDate
+import com.devson.nosvedplayer.util.formatDuration
+import com.devson.nosvedplayer.util.formatSize
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -603,7 +604,8 @@ fun VideoListContent(
 @Composable
 fun VideoThumbnail(
     uri: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showPlayIcon: Boolean = true
 ) {
     Box(
         modifier = modifier
@@ -615,24 +617,28 @@ fun VideoThumbnail(
                 .size(512, 512)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
-                .crossfade(true)
+                .crossfade(false)
                 .build(),
+            placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+            error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             contentDescription = "Video Thumbnail",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.PlayCircle,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(32.dp)
-            )
+        if (showPlayIcon) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayCircle,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }

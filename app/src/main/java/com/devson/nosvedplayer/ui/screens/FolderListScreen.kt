@@ -34,8 +34,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -52,13 +50,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.model.LayoutMode
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.VideoFolder
 import com.devson.nosvedplayer.model.ViewSettings
-import com.devson.nosvedplayer.utility.formatDate
-import com.devson.nosvedplayer.utility.formatSize
+import com.devson.nosvedplayer.util.formatDate
+import com.devson.nosvedplayer.util.formatSize
+import com.devson.nosvedplayer.ui.components.FolderShape
 
 // FOLDER MEDIA PREVIEW
 
@@ -70,53 +68,19 @@ fun FolderMediaPreview(
     modifier: Modifier = Modifier
 ) {
     val bgColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val iconTint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
 
     Box(
-        modifier = modifier.background(bgColor),
+        modifier = modifier
+            .clip(FolderShape())
+            .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                VideoThumbnail(
-                    uri = videos.first().uri,
-                    modifier = Modifier.fillMaxSize()
-                )
-                // Gradient overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0.3f to Color.Transparent,
-                                1.0f to Color.Black.copy(alpha = 0.8f)
-                            )
-                        )
-                )
-                Icon(
-                    imageVector = Icons.Filled.Folder,
-                    contentDescription = "Folder",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(6.dp)
-                        .size(16.dp)
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(bgColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = iconTint
-                )
-            }
+            VideoThumbnail(
+                uri = videos.first().uri,
+                modifier = Modifier.fillMaxSize(),
+                showPlayIcon = false
+            )
         }
     }
 }
@@ -181,9 +145,7 @@ fun FolderListItem(
                     videos = videos,
                     isSelected = false,
                     settings = settings,
-                    modifier = Modifier
-                        .size(width = 80.dp, height = 60.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                    modifier = Modifier.size(width = 80.dp, height = 60.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -240,9 +202,7 @@ fun FolderGridItem(
                             videos = videos,
                             isSelected = false,
                             settings = settings,
-                            modifier = Modifier
-                                .size(width = 120.dp, height = 80.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                            modifier = Modifier.size(width = 120.dp, height = 80.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -283,7 +243,6 @@ fun FolderGridItem(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                         )
                         Column(
                             modifier = Modifier

@@ -29,7 +29,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.devson.nosvedplayer.model.SortDirection
 import com.devson.nosvedplayer.model.SortField
-import com.devson.nosvedplayer.utility.formatSortField
+import com.devson.nosvedplayer.util.formatSortField
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
