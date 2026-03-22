@@ -25,10 +25,9 @@
 <img src="screenshots/HomePage.jpg" width="30%" style="border-radius: 14px;"/>
 <img src="screenshots/VideoFoldersList.jpg" width="30%" style="border-radius: 14px;"/>
 <img src="screenshots/PlayerScrenVertical.jpg" width="30%" style="border-radius: 14px;"/>
-<p align="center">
-  <img src="Screenshots/PlayerScreen_Horizontal.jpg" width="800" style="border-radius: 14px;">
-</p>
+<img src="Screenshots/PlayerScreen_Horizontal.jpg" width="800" style="border-radius: 14px;">
 </div>
+
 ---
 
 ## Key Features
