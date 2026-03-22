@@ -199,39 +199,6 @@ fun ViewModeRadioButton(label: String, mode: ViewMode, selectedMode: ViewMode, o
     }
 }
 
-// RENAME DIALOG
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RenameDialog(
-    initialName: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var text by remember { mutableStateOf(initialName) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = { if (text.isNotBlank()) onConfirm(text.trim()) },
-                enabled = text.isNotBlank()
-            ) { Text("Rename") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-        title = { Text("Rename Video", fontWeight = FontWeight.Bold) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("New file name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    )
-}
-
 // METADATA TOGGLE ROW
 @Composable
 fun MetadataToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {

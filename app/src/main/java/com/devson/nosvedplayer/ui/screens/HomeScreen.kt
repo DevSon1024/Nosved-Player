@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -182,11 +183,12 @@ fun HomeScreen(
             if (history.isEmpty()) {
                 EmptyHistoryCard(onNavigateToVideos)
             } else {
+                val recentHistory = remember(history) { history.take(10) }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(history, key = { it.uri }) { item ->
+                    items(recentHistory, key = { it.uri }) { item ->
                         HistoryCard(
                             item = item,
                             onClick = {
@@ -378,9 +380,9 @@ private fun HistoryCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (item.lastPositionMs > 0 && item.duration > 0) {
+                    if (item.lastPositionMs > 0L) {
                         Text(
-                            text = "${formatDuration(item.lastPositionMs)} left",
+                            text = "At ${formatDuration(item.lastPositionMs)}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )

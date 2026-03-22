@@ -65,6 +65,42 @@ class VideoRepository(private val context: Context) {
                 val dateAdded = cursor.getLong(dateAddedColumn)
                 val path = cursor.getString(dataColumn) ?: ""
                 
+                var finalDuration = duration
+                var finalSize = size
+
+                if (finalSize <= 0L || finalDuration <= 0L) {
+                    try {
+                        // Try standard File API first if path is available
+                        if (path.isNotEmpty()) {
+                            val file = java.io.File(path)
+                            if (file.exists() && file.isFile) {
+                                if (finalSize <= 0L) finalSize = file.length()
+                            }
+                        }
+                        
+                        // Use ContentResolver + MediaMetadataRetriever as a robust fallback for duration and size
+                        val contentUri = ContentUris.withAppendedId(collection, id)
+                        context.contentResolver.openFileDescriptor(contentUri, "r")?.use { pfd ->
+                            if (finalSize <= 0L) finalSize = pfd.statSize
+                            
+                            if (finalDuration <= 0L) {
+                                val retriever = android.media.MediaMetadataRetriever()
+                                try {
+                                    retriever.setDataSource(pfd.fileDescriptor)
+                                    val timeStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                                    if (timeStr != null) {
+                                        finalDuration = timeStr.toLong()
+                                    }
+                                } finally {
+                                    retriever.release()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Ignore manual extraction errors
+                    }
+                }
+                
                 var resolutionStr: String? = null
                 if (resolutionColumn != -1) {
                     val res = cursor.getString(resolutionColumn)
@@ -86,8 +122,8 @@ class VideoRepository(private val context: Context) {
                     Video(
                         uri = contentUri.toString(),
                         title = name,
-                        duration = duration,
-                        size = size,
+                        duration = finalDuration,
+                        size = finalSize,
                         folderId = folderId,
                         folderName = folderName,
                         dateAdded = dateAdded * 1000L, // MediaStore stores DATE_ADDED in seconds. Convert to millis.

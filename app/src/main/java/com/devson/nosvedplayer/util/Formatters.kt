@@ -15,6 +15,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileMove
@@ -133,7 +134,7 @@ fun SelectionBottomAppBar(
             }
 
             // Move
-            ActionColumn(icon = Icons.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
             // Copy
             ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
             // Delete

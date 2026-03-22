@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.media.MediaScannerConnection
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -98,12 +99,12 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         pendingAction = null
         viewModelScope.launch {
             try {
-                val deleted = withContext(Dispatchers.IO) {
+                val deletedCount = withContext(Dispatchers.IO) {
                     action.uris.count { uri ->
                         try { context.contentResolver.delete(uri, null, null) > 0 } catch (e: Exception) { false }
                     }
                 }
-                _operationResult.value = "Deleted $deleted file(s) successfully."
+                _operationResult.value = "Successfully deleted ${deletedCount} videos."
             } catch (e: Exception) {
                 _operationResult.value = "Delete failed: ${e.localizedMessage}"
             } finally {
@@ -130,6 +131,49 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                 }
             } catch (e: Exception) {
                 _operationResult.value = "Rename failed: ${e.localizedMessage}"
+                _operationInProgress.value = false
+            }
+        }
+    }
+
+    /**
+     * Renames a folder using the File API.
+     * Assumes MANAGE_EXTERNAL_STORAGE is granted on API 30+.
+     */
+    fun renameFolder(context: Context, folderPath: String, newName: String) {
+        viewModelScope.launch {
+            _operationInProgress.value = true
+            try {
+                withContext(Dispatchers.IO) {
+                    val oldFolder = java.io.File(folderPath)
+                    if (!oldFolder.exists()) throw IllegalStateException("Folder does not exist.")
+                    
+                    val newFolder = java.io.File(oldFolder.parentFile, newName)
+                    if (newFolder.exists()) throw IllegalStateException("A folder with this name already exists.")
+                    
+                    if (oldFolder.renameTo(newFolder)) {
+                        // Scan all files in the new folder to update MediaStore
+                        val filesToScan = mutableListOf<String>()
+                        fun collectFiles(file: java.io.File) {
+                            if (file.isDirectory) {
+                                file.listFiles()?.forEach { collectFiles(it) }
+                            } else {
+                                filesToScan.add(file.absolutePath)
+                            }
+                        }
+                        collectFiles(newFolder)
+                        
+                        if (filesToScan.isNotEmpty()) {
+                            MediaScannerConnection.scanFile(context, filesToScan.toTypedArray(), null, null)
+                        }
+                        _operationResult.value = "Folder renamed successfully."
+                    } else {
+                        throw IllegalStateException("Rename failed.")
+                    }
+                }
+            } catch (e: Exception) {
+                _operationResult.value = "Rename failed: ${e.localizedMessage}"
+            } finally {
                 _operationInProgress.value = false
             }
         }
@@ -244,6 +288,124 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    //  CUSTOM STORAGE EXPLORER Move/Copy 
+
+    /**
+     * Copies all files from [uris] to [destinationFile] directory.
+     * Assumes MANAGE_EXTERNAL_STORAGE is granted on API 30+, or WRITE_EXTERNAL_STORAGE on API 29-.
+     */
+    fun copyItemsToPath(context: Context, uris: List<Uri>, destinationFile: java.io.File) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _operationInProgress.value = true
+            var successCount = 0
+            var failCount = 0
+            try {
+                withContext(Dispatchers.IO) {
+                    if (!destinationFile.exists()) destinationFile.mkdirs()
+                    for (uri in uris) {
+                        try {
+                            val fileName = getDisplayName(context, uri) ?: "video_${System.currentTimeMillis()}"
+                            val destFile = java.io.File(destinationFile, fileName)
+                            
+                            var bytesCopied = 0L
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                java.io.FileOutputStream(destFile).use { output ->
+                                    bytesCopied = input.copyTo(output)
+                                }
+                            }
+                            
+                            if (bytesCopied <= 0L && uris.size == 1) {
+                                throw IllegalStateException("Failed to copy data or file is empty.")
+                            }
+                            
+                            if (bytesCopied > 0L) {
+                                // Trigger MediaStore scan for the new file and wait up to 3 seconds
+                                kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                                    kotlinx.coroutines.suspendCancellableCoroutine<Unit> { continuation ->
+                                        MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), null) { _, _ ->
+                                            if (continuation.isActive) continuation.resumeWith(Result.success(Unit))
+                                        }
+                                    }
+                                }
+                                successCount++
+                            } else {
+                                failCount++
+                                if (destFile.exists()) destFile.delete()
+                            }
+                        } catch (e: Exception) {
+                            failCount++
+                        }
+                    }
+                }
+                _operationResult.value = buildOpResult("Copied", successCount, failCount)
+            } catch (e: Exception) {
+                _operationResult.value = "Copy failed: ${e.localizedMessage}"
+            } finally {
+                _operationInProgress.value = false
+            }
+        }
+    }
+
+    /**
+     * Moves all files from [uris] to [destinationFile] directory.
+     */
+    fun moveItemsToPath(context: Context, uris: List<Uri>, destinationFile: java.io.File) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _operationInProgress.value = true
+            var successCount = 0
+            var failCount = 0
+            try {
+                withContext(Dispatchers.IO) {
+                    if (!destinationFile.exists()) destinationFile.mkdirs()
+                    for (uri in uris) {
+                        try {
+                            val fileName = getDisplayName(context, uri) ?: "video_${System.currentTimeMillis()}"
+                            val destFile = java.io.File(destinationFile, fileName)
+                            
+                            // For moving via SAF URI to File path, we copy then delete.
+                            var bytesCopied = 0L
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                java.io.FileOutputStream(destFile).use { output ->
+                                    bytesCopied = input.copyTo(output)
+                                }
+                            }
+                            
+                            if (bytesCopied <= 0L && uris.size == 1) {
+                                throw IllegalStateException("Failed to copy data or file is empty.")
+                            }
+                            
+                            // Trigger MediaStore scan for the new file and wait up to 3 seconds
+                            kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                                kotlinx.coroutines.suspendCancellableCoroutine<Unit> { continuation ->
+                                    MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), null) { _, _ ->
+                                        if (continuation.isActive) continuation.resumeWith(Result.success(Unit))
+                                    }
+                                }
+                            }
+                            
+                            if (bytesCopied > 0L) {
+                                try { context.contentResolver.delete(uri, null, null) } catch (_: Exception) {}
+                                successCount++
+                            } else {
+                                failCount++
+                                if (destFile.exists()) destFile.delete()
+                            }
+                        } catch (e: Exception) {
+                            failCount++
+                        }
+                    }
+                }
+                _operationResult.value = buildOpResult("Moved", successCount, failCount)
+            } catch (e: Exception) {
+                _operationResult.value = "Move failed: ${e.localizedMessage}"
+            } finally {
+                _operationInProgress.value = false
+            }
+        }
+    }
+
     // 
     // PRIVATE HELPERS
     // 
@@ -266,9 +428,9 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                     failedUris.add(uri)
                 }
             }
-            val successCount = uris.size - failedUris.size
+            val deletedCount = uris.size - failedUris.size
             if (failedUris.isEmpty()) {
-                _operationResult.value = "Deleted $successCount file(s) successfully."
+                _operationResult.value = "Successfully deleted ${deletedCount} videos."
             }
             // If there are failed URIs with a RecoverableSecurityException,
             // UI will see pendingIntentSender and launch it.

@@ -21,6 +21,7 @@ fun MainScreen(
     var currentVideo by remember { mutableStateOf<Video?>(null) }
     var resumePositionMs by remember { mutableStateOf(0L) }
     var appScreen by remember { mutableStateOf(AppScreen.HOME) }
+    var previousScreen by remember { mutableStateOf(AppScreen.HOME) }
     val settingsViewModel: com.devson.nosvedplayer.viewmodel.SettingsViewModel = viewModel()
     
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -44,10 +45,10 @@ fun MainScreen(
 
         // Settings
         appScreen == AppScreen.SETTINGS -> {
-            BackHandler { appScreen = AppScreen.HOME }
+            BackHandler { appScreen = previousScreen }
             saveableStateHolder.SaveableStateProvider(AppScreen.SETTINGS.name) {
                 SettingsScreen(
-                    onBack = { appScreen = AppScreen.HOME },
+                    onBack = { appScreen = previousScreen },
                     onNavigateToAbout = { appScreen = AppScreen.ABOUT },
                     onNavigateToLogs = { appScreen = AppScreen.LOGS },
                     settingsViewModel = settingsViewModel
@@ -79,12 +80,15 @@ fun MainScreen(
             BackHandler { appScreen = AppScreen.HOME }
             saveableStateHolder.SaveableStateProvider(AppScreen.VIDEOS.name) {
                 VideoListScreen(
-                    onVideoSelected = { video, playlist ->
-                        resumePositionMs = 0L
+                    onVideoSelected = { video, playlist, position ->
+                        resumePositionMs = position
                         currentVideo = video
-                        videoViewModel.playVideo(video, playlist, 0L)
+                        videoViewModel.playVideo(video, playlist, position)
                     },
-                    onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
+                    onNavigateToSettings = { 
+                        previousScreen = appScreen
+                        appScreen = AppScreen.SETTINGS 
+                    },
                     onBack = { appScreen = AppScreen.HOME }
                 )
             }
@@ -99,7 +103,10 @@ fun MainScreen(
                         currentVideo = video
                         videoViewModel.playVideo(video, playlist, position)
                     },
-                    onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
+                    onNavigateToSettings = { 
+                        previousScreen = AppScreen.HOME
+                        appScreen = AppScreen.SETTINGS 
+                    },
                     onNavigateToVideos = { appScreen = AppScreen.VIDEOS }
                 )
             }
