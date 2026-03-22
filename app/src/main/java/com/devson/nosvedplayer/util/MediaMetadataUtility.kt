@@ -18,6 +18,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.MetadataRetriever
 import java.util.Locale
+import androidx.core.net.toUri
 
 data class DetailedVideoMetadata(
     val video: Video,
@@ -49,7 +50,7 @@ suspend fun getVideoMetadata(
     // Resolve path early for display and external sub check
     val resolvedPath = withContext(Dispatchers.IO) {
         try {
-            val uri = Uri.parse(video.uri)
+            val uri = video.uri.toUri()
             if (uri.scheme == "content") {
                 context.contentResolver.query(uri, arrayOf("_data"), null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow("_data")) else video.uri
@@ -132,7 +133,7 @@ suspend fun getVideoMetadata(
         var format = "Unknown"
         var writeBy: String? = null
         try {
-            retriever.setDataSource(context, Uri.parse(video.uri))
+            retriever.setDataSource(context, video.uri.toUri())
             val mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
             format = when {
                 mime == null -> video.uri.substringAfterLast('.', "Unknown").uppercase()

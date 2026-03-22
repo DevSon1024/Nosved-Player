@@ -26,7 +26,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import com.devson.nosvedplayer.R
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,10 +43,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.BuildConfig
+import androidx.core.net.toUri
 
 private data class LibraryInfo(
     val name: String,
@@ -140,11 +145,10 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.VideoLibrary,
+                    AsyncImage(
+                        model = R.mipmap.ic_launcher,
                         contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -200,7 +204,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 LibraryRow(
                     library = lib,
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(lib.url))
+                        val intent = Intent(Intent.ACTION_VIEW, lib.url.toUri())
                         context.startActivity(intent)
                     }
                 )

@@ -1,7 +1,11 @@
 package com.devson.nosvedplayer.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -20,7 +24,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -263,20 +269,28 @@ private fun EmptyHistoryCard(onNavigateToVideos: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryCard(
     item: WatchHistory,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showDeleteButton by remember { mutableStateOf(false) }
     val progress = if (item.duration > 0) {
         (item.lastPositionMs.toFloat() / item.duration.toFloat()).coerceIn(0f, 1f)
     } else 0f
 
     ElevatedCard(
         modifier = Modifier
-            .width(220.dp)
-            .clickable(onClick = onClick),
+            .width(200.dp)
+            .combinedClickable(
+                onClick = {
+                    if (showDeleteButton) showDeleteButton = false
+                    else onClick()
+                },
+                onLongClick = { showDeleteButton = true }
+            ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
@@ -317,24 +331,36 @@ private fun HistoryCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                // Center Delete Button with Animation
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showDeleteButton,
+                    enter = scaleIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)) + fadeIn(),
+                    exit = scaleOut() + fadeOut()
                 ) {
-                    IconButton(
-                        onClick = onDelete,
+                    Box(
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f))
+                            .clickable { showDeleteButton = false }, // Close on background click
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = "Remove",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Button(
+                            onClick = onDelete,
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
+                            modifier = Modifier.size(56.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Delete",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
                 }
 
@@ -357,13 +383,16 @@ private fun HistoryCard(
                 }
             }
 
-            if (progress > 0f) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+            // Always take 4dp space to keep layout even
+            Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+                if (progress > 0f) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
             }
 
             Column(modifier = Modifier.padding(12.dp)) {
@@ -371,7 +400,7 @@ private fun HistoryCard(
                     text = item.title,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
