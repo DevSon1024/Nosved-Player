@@ -4,7 +4,10 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
-import com.devson.nosvedplayer.model.SortOrder
+import com.devson.nosvedplayer.model.LayoutMode
+import com.devson.nosvedplayer.model.SortDirection
+import com.devson.nosvedplayer.model.SortField
+import com.devson.nosvedplayer.model.ViewMode
 import com.devson.nosvedplayer.model.ViewSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -14,106 +17,114 @@ private val Context.viewSettingsDataStore: DataStore<Preferences> by preferences
 class ViewSettingsRepository(private val context: Context) {
 
     companion object {
-        val IS_GRID = booleanPreferencesKey("is_grid")
+        val VIEW_MODE = stringPreferencesKey("view_mode")
+        val LAYOUT_MODE = stringPreferencesKey("layout_mode")
         val GRID_COLUMNS = intPreferencesKey("grid_columns")
-        val SORT_ORDER = stringPreferencesKey("sort_order")
+        val SORT_FIELD = stringPreferencesKey("sort_field")
+        val SORT_DIRECTION = stringPreferencesKey("sort_direction")
+        
         val SHOW_THUMBNAIL = booleanPreferencesKey("show_thumbnail")
-        val SHOW_DURATION = booleanPreferencesKey("show_duration")
+        val SHOW_LENGTH = booleanPreferencesKey("show_length")
+        val SHOW_FILE_EXTENSION = booleanPreferencesKey("show_file_extension")
+        val SHOW_PLAYED_TIME = booleanPreferencesKey("show_played_time")
+        val SHOW_RESOLUTION = booleanPreferencesKey("show_resolution")
+        val SHOW_FRAME_RATE = booleanPreferencesKey("show_frame_rate")
+        val SHOW_PATH = booleanPreferencesKey("show_path")
         val SHOW_SIZE = booleanPreferencesKey("show_size")
         val SHOW_DATE = booleanPreferencesKey("show_date")
-        val SHOW_SUBTITLE_TYPE = booleanPreferencesKey("show_subtitle_type")
-        val SHOW_RESOLUTION = booleanPreferencesKey("show_resolution")
-        val SHOW_FRAMERATE = booleanPreferencesKey("show_framerate")
-        val SHOW_PLAYED_TIME = booleanPreferencesKey("show_played_time")
-        val SHOW_PATH = booleanPreferencesKey("show_path")
-        val SHOW_EXTENSION = booleanPreferencesKey("show_extension")
-        val SHOW_FOLDER_VIDEO_COUNT = booleanPreferencesKey("show_folder_video_count")
-        val SHOW_FOLDER_SIZE = booleanPreferencesKey("show_folder_size")
-        val SHOW_FOLDER_DATE = booleanPreferencesKey("show_folder_date")
+        
+        val DISPLAY_LENGTH_OVER_THUMBNAIL = booleanPreferencesKey("display_length_over_thumbnail")
+        val SHOW_HIDDEN_FILES = booleanPreferencesKey("show_hidden_files")
+        val RECOGNIZE_NOMEDIA = booleanPreferencesKey("recognize_nomedia")
     }
 
     val viewSettingsFlow: Flow<ViewSettings> = context.viewSettingsDataStore.data.map { preferences ->
         ViewSettings(
-            isGrid = preferences[IS_GRID] ?: false,
+            viewMode = try { ViewMode.valueOf(preferences[VIEW_MODE] ?: ViewMode.ALL_FOLDERS.name) } catch (e: Exception) { ViewMode.ALL_FOLDERS },
+            layoutMode = try { LayoutMode.valueOf(preferences[LAYOUT_MODE] ?: LayoutMode.LIST.name) } catch (e: Exception) { LayoutMode.LIST },
             gridColumns = preferences[GRID_COLUMNS] ?: 2,
-            sortOrder = try { SortOrder.valueOf(preferences[SORT_ORDER] ?: SortOrder.A_TO_Z.name) } catch (e: Exception) { SortOrder.A_TO_Z },
+            sortField = try { SortField.valueOf(preferences[SORT_FIELD] ?: SortField.TITLE.name) } catch (e: Exception) { SortField.TITLE },
+            sortDirection = try { SortDirection.valueOf(preferences[SORT_DIRECTION] ?: SortDirection.ASCENDING.name) } catch (e: Exception) { SortDirection.ASCENDING },
             showThumbnail = preferences[SHOW_THUMBNAIL] ?: true,
-            showDuration = preferences[SHOW_DURATION] ?: true,
+            showLength = preferences[SHOW_LENGTH] ?: true,
+            showFileExtension = preferences[SHOW_FILE_EXTENSION] ?: false,
+            showPlayedTime = preferences[SHOW_PLAYED_TIME] ?: false,
+            showResolution = preferences[SHOW_RESOLUTION] ?: false,
+            showFrameRate = preferences[SHOW_FRAME_RATE] ?: false,
+            showPath = preferences[SHOW_PATH] ?: false,
             showSize = preferences[SHOW_SIZE] ?: true,
             showDate = preferences[SHOW_DATE] ?: false,
-            showSubtitleType = preferences[SHOW_SUBTITLE_TYPE] ?: false,
-            showResolution = preferences[SHOW_RESOLUTION] ?: false,
-            showFramerate = preferences[SHOW_FRAMERATE] ?: false,
-            showPlayedTime = preferences[SHOW_PLAYED_TIME] ?: false,
-            showPath = preferences[SHOW_PATH] ?: false,
-            showFileExtension = preferences[SHOW_EXTENSION] ?: false,
-            showFolderVideoCount = preferences[SHOW_FOLDER_VIDEO_COUNT] ?: true,
-            showFolderSize = preferences[SHOW_FOLDER_SIZE] ?: false,
-            showFolderDate = preferences[SHOW_FOLDER_DATE] ?: false
+            displayLengthOverThumbnail = preferences[DISPLAY_LENGTH_OVER_THUMBNAIL] ?: false,
+            showHiddenFiles = preferences[SHOW_HIDDEN_FILES] ?: false,
+            recognizeNoMedia = preferences[RECOGNIZE_NOMEDIA] ?: false
         )
     }
 
-    suspend fun updateIsGrid(isGrid: Boolean) {
-        context.viewSettingsDataStore.edit { it[IS_GRID] = isGrid }
+    suspend fun updateViewMode(mode: ViewMode) {
+        context.viewSettingsDataStore.edit { it[VIEW_MODE] = mode.name }
+    }
+
+    suspend fun updateLayoutMode(mode: LayoutMode) {
+        context.viewSettingsDataStore.edit { it[LAYOUT_MODE] = mode.name }
     }
 
     suspend fun updateGridColumns(columns: Int) {
         context.viewSettingsDataStore.edit { it[GRID_COLUMNS] = columns }
     }
 
-    suspend fun updateSortOrder(order: SortOrder) {
-        context.viewSettingsDataStore.edit { it[SORT_ORDER] = order.name }
+    suspend fun updateSortField(field: SortField) {
+        context.viewSettingsDataStore.edit { it[SORT_FIELD] = field.name }
+    }
+
+    suspend fun updateSortDirection(direction: SortDirection) {
+        context.viewSettingsDataStore.edit { it[SORT_DIRECTION] = direction.name }
     }
 
     suspend fun updateShowThumbnail(show: Boolean) {
         context.viewSettingsDataStore.edit { it[SHOW_THUMBNAIL] = show }
     }
 
-    suspend fun updateShowDuration(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_DURATION] = show }
+    suspend fun updateShowLength(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_LENGTH] = show }
     }
 
-    suspend fun updateShowSize(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_SIZE] = show }
+    suspend fun updateShowFileExtension(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FILE_EXTENSION] = show }
     }
-    
-    suspend fun updateShowDate(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_DATE] = show }
+
+    suspend fun updateShowPlayedTime(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_PLAYED_TIME] = show }
     }
-    
-    suspend fun updateShowSubtitleType(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_SUBTITLE_TYPE] = show }
-    }
-    
+
     suspend fun updateShowResolution(show: Boolean) {
         context.viewSettingsDataStore.edit { it[SHOW_RESOLUTION] = show }
     }
-    
-    suspend fun updateShowFramerate(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_FRAMERATE] = show }
-    }
-    
-    suspend fun updateShowPlayedTime(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_PLAYED_TIME] = show }
+
+    suspend fun updateShowFrameRate(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FRAME_RATE] = show }
     }
 
     suspend fun updateShowPath(show: Boolean) {
         context.viewSettingsDataStore.edit { it[SHOW_PATH] = show }
     }
 
-    suspend fun updateShowFileExtension(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_EXTENSION] = show }
+    suspend fun updateShowSize(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_SIZE] = show }
     }
 
-    suspend fun updateShowFolderVideoCount(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_VIDEO_COUNT] = show }
+    suspend fun updateShowDate(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_DATE] = show }
     }
 
-    suspend fun updateShowFolderSize(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_SIZE] = show }
+    suspend fun updateDisplayLengthOverThumbnail(display: Boolean) {
+        context.viewSettingsDataStore.edit { it[DISPLAY_LENGTH_OVER_THUMBNAIL] = display }
     }
 
-    suspend fun updateShowFolderDate(show: Boolean) {
-        context.viewSettingsDataStore.edit { it[SHOW_FOLDER_DATE] = show }
+    suspend fun updateShowHiddenFiles(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_HIDDEN_FILES] = show }
+    }
+
+    suspend fun updateRecognizeNoMedia(recognize: Boolean) {
+        context.viewSettingsDataStore.edit { it[RECOGNIZE_NOMEDIA] = recognize }
     }
 }

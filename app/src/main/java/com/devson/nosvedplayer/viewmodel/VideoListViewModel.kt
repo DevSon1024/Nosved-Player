@@ -8,17 +8,39 @@ import com.devson.nosvedplayer.repository.VideoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.devson.nosvedplayer.repository.ViewSettingsRepository
-import com.devson.nosvedplayer.model.SortOrder
+import com.devson.nosvedplayer.model.LayoutMode
+import com.devson.nosvedplayer.model.SortDirection
+import com.devson.nosvedplayer.model.SortField
+import com.devson.nosvedplayer.model.ViewMode
 import com.devson.nosvedplayer.model.ViewSettings
 
 class VideoListViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = VideoRepository(application)
 
-    private val _videosByFolder = MutableStateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>>(emptyMap())
-    val videosByFolder: StateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>> = _videosByFolder.asStateFlow()
+    private val settingsRepository = ViewSettingsRepository(application)
+    
+    private val _viewSettings = MutableStateFlow(ViewSettings())
+    val viewSettings: StateFlow<ViewSettings> = _viewSettings.asStateFlow()
+
+    private val _allVideosCache = MutableStateFlow<List<Video>>(emptyList())
+
+    val videosByFolder: StateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>> = combine(
+        _allVideosCache,
+        _viewSettings
+    ) { allVideos, settings ->
+        val filtered = if (settings.showHiddenFiles) {
+            allVideos
+        } else {
+            allVideos.filter { !it.path.split('/').any { segment -> segment.startsWith(".") && segment.isNotEmpty() } }
+        }
+        filtered.groupBy { com.devson.nosvedplayer.model.VideoFolder(it.folderId, it.folderName) }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -26,10 +48,43 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     private val _selectedFolder = MutableStateFlow<com.devson.nosvedplayer.model.VideoFolder?>(null)
     val selectedFolder: StateFlow<com.devson.nosvedplayer.model.VideoFolder?> = _selectedFolder.asStateFlow()
 
-    private val settingsRepository = ViewSettingsRepository(application)
-    
-    private val _viewSettings = MutableStateFlow(ViewSettings())
-    val viewSettings: StateFlow<ViewSettings> = _viewSettings.asStateFlow()
+    private val _currentExplorerPath = MutableStateFlow<String?>(null)
+    val currentExplorerPath: StateFlow<String?> = _currentExplorerPath.asStateFlow()
+
+    // Explorer nodes for the current path: Pair(Folders, Videos)
+    val explorerNodes = combine(videosByFolder, _currentExplorerPath) { folders, currentPath ->
+        val allVideos = folders.values.flatten()
+        if (allVideos.isEmpty()) return@combine Pair(emptyList<com.devson.nosvedplayer.model.VideoFolder>(), emptyList<Video>())
+
+        // Find common root if currentPath is null
+        val base = currentPath ?: getCommonPrefix(allVideos.map { it.path })
+
+        val childFolders = mutableSetOf<String>()
+        val childVideos = mutableListOf<Video>()
+
+        for (video in allVideos) {
+            val path = video.path
+            if (path.startsWith(base)) {
+                val remainder = path.removePrefix(base)
+                if (remainder.contains('/')) {
+                    // It's in a subdirectory
+                    val folderName = remainder.substringBefore('/')
+                    childFolders.add(folderName)
+                } else {
+                    // It's a file in this directory
+                    childVideos.add(video)
+                }
+            }
+        }
+
+        val mappedFolders = childFolders.map { folderName ->
+            com.devson.nosvedplayer.model.VideoFolder(id = base + folderName + "/", name = folderName)
+        }.sortedBy { it.name.lowercase() }
+
+        Pair(mappedFolders, childVideos)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, Pair(emptyList(), emptyList()))
+
+
 
     init {
         viewModelScope.launch {
@@ -43,8 +98,8 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadVideos() {
         viewModelScope.launch {
             _isLoading.value = true
-            val folders = repository.getFoldersWithVideos()
-            _videosByFolder.value = folders
+            val videos = repository.getAllVideos()
+            _allVideosCache.value = videos
             _isLoading.value = false
         }
     }
@@ -53,23 +108,66 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
         _selectedFolder.value = folder
     }
 
+    private fun getCommonPrefix(paths: List<String>): String {
+        if (paths.isEmpty()) return "/"
+        var commonPrefix = paths.first().substringBeforeLast('/') + "/"
+        for (p in paths) {
+            while (!p.startsWith(commonPrefix)) {
+                commonPrefix = commonPrefix.substringBeforeLast('/', "").substringBeforeLast('/') + "/"
+            }
+        }
+        if (commonPrefix == "/") commonPrefix = "/storage/" // fallback
+        return commonPrefix
+    }
+
+    fun navigateToExplorerPath(path: String) {
+        _currentExplorerPath.value = path
+    }
+
+    fun navigateExplorerUp(): Boolean {
+        val current = _currentExplorerPath.value ?: return false
+        val currentTrimmed = current.dropLast(1) // remove trailing slash
+        if (!currentTrimmed.contains('/')) {
+            _currentExplorerPath.value = null // Back to root
+            return false
+        }
+        val parent = currentTrimmed.substringBeforeLast('/') + "/"
+        
+        val allVideos = videosByFolder.value.values.flatten()
+        if (allVideos.isEmpty()) {
+            _currentExplorerPath.value = null
+            return false
+        }
+        
+        val commonPrefix = getCommonPrefix(allVideos.map { it.path })
+
+        if (parent.length < commonPrefix.length) {
+            _currentExplorerPath.value = null
+            return false
+        } else {
+            _currentExplorerPath.value = parent
+            return true
+        }
+    }
+
     // Settings update functions
-    fun updateIsGrid(isGrid: Boolean) = viewModelScope.launch { settingsRepository.updateIsGrid(isGrid) }
+    fun updateViewMode(mode: ViewMode) = viewModelScope.launch { settingsRepository.updateViewMode(mode) }
+    fun updateLayoutMode(mode: LayoutMode) = viewModelScope.launch { settingsRepository.updateLayoutMode(mode) }
     fun updateGridColumns(columns: Int) = viewModelScope.launch { settingsRepository.updateGridColumns(columns) }
-    fun updateSortOrder(order: SortOrder) = viewModelScope.launch { settingsRepository.updateSortOrder(order) }
+    fun updateSortField(field: SortField) = viewModelScope.launch { settingsRepository.updateSortField(field) }
+    fun updateSortDirection(direction: SortDirection) = viewModelScope.launch { settingsRepository.updateSortDirection(direction) }
+    
     fun updateShowThumbnail(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowThumbnail(show) }
-    fun updateShowDuration(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowDuration(show) }
+    fun updateShowLength(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowLength(show) }
+    fun updateShowFileExtension(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFileExtension(show) }
+    fun updateShowPlayedTime(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPlayedTime(show) }
+    fun updateShowResolution(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowResolution(show) }
+    fun updateShowFrameRate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFrameRate(show) }
+    fun updateShowPath(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPath(show) }
     fun updateShowSize(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowSize(show) }
     fun updateShowDate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowDate(show) }
-    fun updateShowSubtitleType(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowSubtitleType(show) }
-    fun updateShowResolution(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowResolution(show) }
-    fun updateShowFramerate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFramerate(show) }
-    fun updateShowPlayedTime(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPlayedTime(show) }
-    fun updateShowPath(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowPath(show) }
-    fun updateShowFileExtension(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFileExtension(show) }
     
-    // Folder specific
-    fun updateShowFolderVideoCount(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderVideoCount(show) }
-    fun updateShowFolderSize(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderSize(show) }
-    fun updateShowFolderDate(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowFolderDate(show) }
+    fun updateDisplayLengthOverThumbnail(display: Boolean) = viewModelScope.launch { settingsRepository.updateDisplayLengthOverThumbnail(display) }
+    fun updateShowHiddenFiles(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowHiddenFiles(show) }
+    fun updateRecognizeNoMedia(recognize: Boolean) = viewModelScope.launch { settingsRepository.updateRecognizeNoMedia(recognize) }
 }

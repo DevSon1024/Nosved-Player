@@ -7,12 +7,17 @@ import android.provider.MediaStore
 import com.devson.nosvedplayer.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.devson.nosvedplayer.data.NosvedDatabase
 
 class VideoRepository(private val context: Context) {
 
     suspend fun getAllVideos(): List<Video> = withContext(Dispatchers.IO) {
         val videos = mutableListOf<Video>()
         
+        val watchHistoryDao = NosvedDatabase.getInstance(context).watchHistoryDao()
+        val historyList = watchHistoryDao.getAllHistoryList()
+        val historyMap = historyList.associate { it.uri to it.lastPositionMs }
+
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
         } else {
@@ -27,7 +32,8 @@ class VideoRepository(private val context: Context) {
             MediaStore.Video.Media.BUCKET_ID,
             MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Video.Media.DATE_ADDED,
-            MediaStore.Video.Media.DATA
+            MediaStore.Video.Media.DATA,
+            "resolution" // Works from API 21
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -47,6 +53,7 @@ class VideoRepository(private val context: Context) {
             val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val resolutionColumn = cursor.getColumnIndex("resolution")
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -57,8 +64,23 @@ class VideoRepository(private val context: Context) {
                 val folderName = cursor.getString(bucketColumn) ?: "Unknown"
                 val dateAdded = cursor.getLong(dateAddedColumn)
                 val path = cursor.getString(dataColumn) ?: ""
+                
+                var resolutionStr: String? = null
+                if (resolutionColumn != -1) {
+                    val res = cursor.getString(resolutionColumn)
+                    if (res != null) {
+                        val parts = res.split("x")
+                        if (parts.size == 2) {
+                            val height = parts[1].toIntOrNull()
+                            if (height != null) {
+                                resolutionStr = "${height}p"
+                            }
+                        }
+                    }
+                }
 
                 val contentUri = ContentUris.withAppendedId(collection, id)
+                val playedTime = historyMap[contentUri.toString()]
 
                 videos.add(
                     Video(
@@ -69,7 +91,9 @@ class VideoRepository(private val context: Context) {
                         folderId = folderId,
                         folderName = folderName,
                         dateAdded = dateAdded * 1000L, // MediaStore stores DATE_ADDED in seconds. Convert to millis.
-                        path = path
+                        path = path,
+                        resolution = resolutionStr,
+                        playedTime = playedTime
                     )
                 )
             }

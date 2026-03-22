@@ -1,30 +1,40 @@
 package com.devson.nosvedplayer.model
 
-enum class SortOrder {
-    A_TO_Z,
-    Z_TO_A,
-    NEWEST_FIRST,
-    OLDEST_FIRST,
-    LARGEST_FIRST,
-    SMALLEST_FIRST
+enum class ViewMode {
+    ALL_FOLDERS,
+    FILES,
+    FOLDERS
+}
+
+enum class LayoutMode {
+    LIST,
+    GRID
+}
+
+enum class SortField {
+    TITLE, DATE, PLAYED_TIME, STATUS, LENGTH, SIZE, RESOLUTION, PATH, FRAME_RATE, TYPE
+}
+
+enum class SortDirection {
+    ASCENDING, DESCENDING
 }
 
 data class ViewSettings(
-    val isGrid: Boolean = false,
+    val viewMode: ViewMode = ViewMode.ALL_FOLDERS,
+    val layoutMode: LayoutMode = LayoutMode.LIST,
     val gridColumns: Int = 2,
-    val sortOrder: SortOrder = SortOrder.A_TO_Z,
+    val sortField: SortField = SortField.TITLE,
+    val sortDirection: SortDirection = SortDirection.ASCENDING,
     val showThumbnail: Boolean = true,
-    val showDuration: Boolean = true,
-    val showSize: Boolean = true,
-    val showDate: Boolean = false, // Not tracked yet, but placeholder
-    val showSubtitleType: Boolean = false,
-    val showResolution: Boolean = false,
-    val showFramerate: Boolean = false,
-    val showPlayedTime: Boolean = false,
-    val showPath: Boolean = false,
+    val showLength: Boolean = true,
     val showFileExtension: Boolean = false,
-    // Folder specific
-    val showFolderVideoCount: Boolean = true,
-    val showFolderSize: Boolean = false,
-    val showFolderDate: Boolean = false
+    val showPlayedTime: Boolean = false,
+    val showResolution: Boolean = false,
+    val showFrameRate: Boolean = false,
+    val showPath: Boolean = false,
+    val showSize: Boolean = true,
+    val showDate: Boolean = false,
+    val displayLengthOverThumbnail: Boolean = false,
+    val showHiddenFiles: Boolean = false,
+    val recognizeNoMedia: Boolean = false
 )

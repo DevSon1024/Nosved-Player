@@ -32,4 +32,8 @@ interface WatchHistoryDao {
     /** Fetch history entry for a specific URI. */
     @Query("SELECT * FROM watch_history WHERE uri = :uri")
     suspend fun getHistoryByUri(uri: String): WatchHistory?
+
+    /** Returns all history entries synchronously. */
+    @Query("SELECT * FROM watch_history")
+    suspend fun getAllHistoryList(): List<WatchHistory>
 }

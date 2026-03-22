@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.devson.nosvedplayer.model.SortOrder
+import com.devson.nosvedplayer.model.SortField
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.VideoFolder
 import com.devson.nosvedplayer.model.ViewSettings
@@ -54,14 +54,18 @@ fun formatDuration(durationMs: Long): String {
     }
 }
 
-fun formatSortOrder(order: SortOrder): String {
-    return when (order) {
-        SortOrder.A_TO_Z -> "A to Z"
-        SortOrder.Z_TO_A -> "Z to A"
-        SortOrder.NEWEST_FIRST -> "Newest First"
-        SortOrder.OLDEST_FIRST -> "Oldest First"
-        SortOrder.LARGEST_FIRST -> "Largest First"
-        SortOrder.SMALLEST_FIRST -> "Smallest First"
+fun formatSortField(field: SortField): String {
+    return when (field) {
+        SortField.TITLE -> "Title"
+        SortField.DATE -> "Date Added"
+        SortField.PLAYED_TIME -> "Played Time"
+        SortField.STATUS -> "Status"
+        SortField.LENGTH -> "Length"
+        SortField.SIZE -> "Size"
+        SortField.RESOLUTION -> "Resolution"
+        SortField.PATH -> "Path"
+        SortField.FRAME_RATE -> "Frame Rate"
+        SortField.TYPE -> "Type"
     }
 }
 
@@ -113,7 +117,7 @@ fun SelectionBottomAppBar(
                     .clickable {
                         val sortedSelectedFolders = selectedFolders.sortedBy { it.name.lowercase() }
                         val allVideos = sortedSelectedFolders.flatMap { folder ->
-                            (videosByFolder[folder] ?: emptyList()).applySort(viewSettings.sortOrder)
+                            (videosByFolder[folder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
                         }
                         if (allVideos.isNotEmpty()) {
                             onVideoSelected(allVideos.first(), allVideos)

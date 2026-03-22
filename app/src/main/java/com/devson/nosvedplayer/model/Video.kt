@@ -17,16 +17,39 @@ data class Video(
     val folderId: String = "",
     val folderName: String = "Unknown",
     val dateAdded: Long = 0L,
-    val path: String = ""
+    val path: String = "",
+    val frameRate: Float? = null,
+    val resolution: String? = null,
+    val playedTime: Long? = null,
+    val status: String? = null
 )
 
-fun List<Video>.applySort(order: SortOrder): List<Video> {
-    return when (order) {
-        SortOrder.A_TO_Z -> sortedBy { it.title.lowercase() }
-        SortOrder.Z_TO_A -> sortedByDescending { it.title.lowercase() }
-        SortOrder.NEWEST_FIRST -> sortedByDescending { it.dateAdded }
-        SortOrder.OLDEST_FIRST -> sortedBy { it.dateAdded }
-        SortOrder.LARGEST_FIRST -> sortedByDescending { it.size }
-        SortOrder.SMALLEST_FIRST -> sortedBy { it.size }
+fun List<Video>.applySort(field: SortField, direction: SortDirection): List<Video> {
+    return if (direction == SortDirection.ASCENDING) {
+        when (field) {
+            SortField.TITLE -> sortedBy { it.title.lowercase() }
+            SortField.DATE -> sortedBy { it.dateAdded }
+            SortField.PLAYED_TIME -> sortedBy { it.playedTime ?: 0L }
+            SortField.STATUS -> sortedBy { it.status.orEmpty().lowercase() }
+            SortField.LENGTH -> sortedBy { it.duration }
+            SortField.SIZE -> sortedBy { it.size }
+            SortField.RESOLUTION -> sortedBy { it.resolution.orEmpty() }
+            SortField.PATH -> sortedBy { it.path.lowercase() }
+            SortField.FRAME_RATE -> sortedBy { it.frameRate ?: 0f }
+            SortField.TYPE -> sortedBy { it.uri.substringAfterLast('.', "").lowercase() }
+        }
+    } else {
+        when (field) {
+            SortField.TITLE -> sortedByDescending { it.title.lowercase() }
+            SortField.DATE -> sortedByDescending { it.dateAdded }
+            SortField.PLAYED_TIME -> sortedByDescending { it.playedTime ?: 0L }
+            SortField.STATUS -> sortedByDescending { it.status.orEmpty().lowercase() }
+            SortField.LENGTH -> sortedByDescending { it.duration }
+            SortField.SIZE -> sortedByDescending { it.size }
+            SortField.RESOLUTION -> sortedByDescending { it.resolution.orEmpty() }
+            SortField.PATH -> sortedByDescending { it.path.lowercase() }
+            SortField.FRAME_RATE -> sortedByDescending { it.frameRate ?: 0f }
+            SortField.TYPE -> sortedByDescending { it.uri.substringAfterLast('.', "").lowercase() }
+        }
     }
 }
