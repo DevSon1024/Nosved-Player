@@ -13,9 +13,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.*
@@ -23,6 +27,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,6 +119,22 @@ fun VideoListScreen(
         videosByFolder.keys.toList().sortedBy { it.name.lowercase() }
     }
     val isSelectionActive = selectedFolders.isNotEmpty() || selectedVideos.isNotEmpty()
+
+    // Hoisted scroll states — survive recomposition and view-mode toggling
+    val folderListState = rememberLazyListState()
+    val folderGridState = rememberLazyGridState()
+    var currentFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    val videoListState = rememberLazyListState()
+    val videoGridState = rememberLazyGridState()
+
+    // Reset video scroll position when entering a different folder
+    LaunchedEffect(selectedFolder) {
+        if (selectedFolder?.name != currentFolderId) {
+            videoListState.scrollToItem(0)
+            videoGridState.scrollToItem(0)
+            currentFolderId = selectedFolder?.name
+        }
+    }
 
     //  File Operations 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()
@@ -341,7 +362,9 @@ fun VideoListScreen(
                         },
                         onFolderLongClick = { folder ->
                             selectedFolders = selectedFolders + folder
-                        }
+                        },
+                        listState = folderListState,
+                        gridState = folderGridState
                     )
                 } else {
                     val videos = videosByFolder[selectedFolder] ?: emptyList()
@@ -362,7 +385,9 @@ fun VideoListScreen(
                         },
                         onVideoLongClick = { video ->
                             selectedVideos = selectedVideos + video
-                        }
+                        },
+                        listState = videoListState,
+                        gridState = videoGridState
                     )
                 }
             }
@@ -419,11 +444,14 @@ fun VideoListContent(
     settings: ViewSettings,
     selectedVideos: Set<Video>,
     onVideoClick: (Video) -> Unit,
-    onVideoLongClick: (Video) -> Unit
+    onVideoLongClick: (Video) -> Unit,
+    listState: LazyListState = rememberLazyListState(),
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
     if (settings.isGrid) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.gridColumns),
+            state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -441,6 +469,7 @@ fun VideoListContent(
         }
     } else {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {

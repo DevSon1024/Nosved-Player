@@ -17,10 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -360,7 +364,9 @@ fun FolderListContent(
     settings: ViewSettings,
     selectedFolders: Set<VideoFolder>,
     onFolderClick: (VideoFolder) -> Unit,
-    onFolderLongClick: (VideoFolder) -> Unit
+    onFolderLongClick: (VideoFolder) -> Unit,
+    listState: LazyListState = rememberLazyListState(),
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
     val haptic = LocalHapticFeedback.current
     val sortedFolders = remember(folders) { folders.keys.toList().sortedBy { it.name.lowercase() } }
@@ -368,6 +374,7 @@ fun FolderListContent(
     if (settings.isGrid) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.gridColumns),
+            state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -389,6 +396,7 @@ fun FolderListContent(
         }
     } else {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {

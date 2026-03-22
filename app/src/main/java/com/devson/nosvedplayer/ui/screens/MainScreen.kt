@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
@@ -21,6 +22,8 @@ fun MainScreen(
     var resumePositionMs by remember { mutableStateOf(0L) }
     var appScreen by remember { mutableStateOf(AppScreen.HOME) }
     val settingsViewModel: com.devson.nosvedplayer.viewmodel.SettingsViewModel = viewModel()
+    
+    val saveableStateHolder = rememberSaveableStateHolder()
 
     val isPlayerVisible = currentVideo != null
 
@@ -34,60 +37,72 @@ fun MainScreen(
     when {
         // Full-screen player overlay (no bottom nav)
         isPlayerVisible -> {
-            VideoScreen(viewModel = videoViewModel)
+            saveableStateHolder.SaveableStateProvider("PLAYER") {
+                VideoScreen(viewModel = videoViewModel)
+            }
         }
 
         // Settings
         appScreen == AppScreen.SETTINGS -> {
             BackHandler { appScreen = AppScreen.HOME }
-            SettingsScreen(
-                onBack = { appScreen = AppScreen.HOME },
-                onNavigateToAbout = { appScreen = AppScreen.ABOUT },
-                onNavigateToLogs = { appScreen = AppScreen.LOGS },
-                settingsViewModel = settingsViewModel
-            )
+            saveableStateHolder.SaveableStateProvider(AppScreen.SETTINGS.name) {
+                SettingsScreen(
+                    onBack = { appScreen = AppScreen.HOME },
+                    onNavigateToAbout = { appScreen = AppScreen.ABOUT },
+                    onNavigateToLogs = { appScreen = AppScreen.LOGS },
+                    settingsViewModel = settingsViewModel
+                )
+            }
         }
 
         // About
         appScreen == AppScreen.ABOUT -> {
             BackHandler { appScreen = AppScreen.SETTINGS }
-            AboutScreen(
-                onBack = { appScreen = AppScreen.SETTINGS },
-                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
-            )
+            saveableStateHolder.SaveableStateProvider(AppScreen.ABOUT.name) {
+                AboutScreen(
+                    onBack = { appScreen = AppScreen.SETTINGS },
+                    onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
+                )
+            }
         }
         
         // Logs
         appScreen == AppScreen.LOGS -> {
             BackHandler { appScreen = AppScreen.SETTINGS }
-            LogScreen(onBack = { appScreen = AppScreen.SETTINGS })
+            saveableStateHolder.SaveableStateProvider(AppScreen.LOGS.name) {
+                LogScreen(onBack = { appScreen = AppScreen.SETTINGS })
+            }
         }
 
         // Videos List
         appScreen == AppScreen.VIDEOS -> {
             BackHandler { appScreen = AppScreen.HOME }
-            VideoListScreen(
-                onVideoSelected = { video, playlist ->
-                    resumePositionMs = 0L
-                    currentVideo = video
-                    videoViewModel.playVideo(video, playlist, 0L)
-                },
-                onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
-                onBack = { appScreen = AppScreen.HOME }
-            )
+            saveableStateHolder.SaveableStateProvider(AppScreen.VIDEOS.name) {
+                VideoListScreen(
+                    onVideoSelected = { video, playlist ->
+                        resumePositionMs = 0L
+                        currentVideo = video
+                        videoViewModel.playVideo(video, playlist, 0L)
+                    },
+                    onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
+                    onBack = { appScreen = AppScreen.HOME }
+                )
+            }
         }
 
         // Home
         else -> {
-            HomeScreen(
-                onVideoSelected = { video, playlist, position ->
-                    resumePositionMs = position
-                    currentVideo = video
-                    videoViewModel.playVideo(video, playlist, position)
-                },
-                onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
-                onNavigateToVideos = { appScreen = AppScreen.VIDEOS }
-            )
+            saveableStateHolder.SaveableStateProvider(AppScreen.HOME.name) {
+                HomeScreen(
+                    onVideoSelected = { video, playlist, position ->
+                        resumePositionMs = position
+                        currentVideo = video
+                        videoViewModel.playVideo(video, playlist, position)
+                    },
+                    onNavigateToSettings = { appScreen = AppScreen.SETTINGS },
+                    onNavigateToVideos = { appScreen = AppScreen.VIDEOS }
+                )
+            }
         }
     }
 }
