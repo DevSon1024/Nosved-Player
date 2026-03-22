@@ -23,6 +23,7 @@ import com.devson.nosvedplayer.model.ViewMode
 import com.devson.nosvedplayer.model.ViewSettings
 import com.devson.nosvedplayer.utility.formatSortField
 import com.devson.nosvedplayer.viewmodel.VideoListViewModel
+import com.devson.nosvedplayer.ui.components.RotarySortWheelDialog
 
 // VIEW SETTINGS BOTTOM SHEET
 
@@ -130,56 +131,25 @@ fun ViewSettingsBottomSheet(
 
             // Sort Section
             Text("Sort By", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            var sortExpanded by remember { mutableStateOf(false) }
+            var showSortWheel by remember { mutableStateOf(false) }
             Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 OutlinedButton(
-                    onClick = { sortExpanded = true },
+                    onClick = { showSortWheel = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(formatSortField(settings.sortField))
-                }
-                DropdownMenu(
-                    expanded = sortExpanded,
-                    onDismissRequest = { sortExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    SortField.values().forEach { field ->
-                        DropdownMenuItem(
-                            text = { Text(formatSortField(field)) },
-                            onClick = {
-                                viewModel.updateSortField(field)
-                                sortExpanded = false
-                            },
-                            trailingIcon = if (settings.sortField == field) {
-                                { Icon(Icons.Filled.Check, null) }
-                            } else null
-                        )
-                    }
+                    val dirText = if (settings.sortDirection == SortDirection.ASCENDING) "Ascending" else "Descending"
+                    Text("${formatSortField(settings.sortField)} ($dirText)")
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val dirLabels = getSortDirectionLabels(settings.sortField)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = settings.sortDirection == SortDirection.ASCENDING,
-                        onClick = { viewModel.updateSortDirection(SortDirection.ASCENDING) }
-                    )
-                    Text(dirLabels.first, modifier = Modifier.clickable { viewModel.updateSortDirection(SortDirection.ASCENDING) })
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = settings.sortDirection == SortDirection.DESCENDING,
-                        onClick = { viewModel.updateSortDirection(SortDirection.DESCENDING) }
-                    )
-                    Text(dirLabels.second, modifier = Modifier.clickable { viewModel.updateSortDirection(SortDirection.DESCENDING) })
-                }
+            if (showSortWheel) {
+                RotarySortWheelDialog(
+                    currentSortField = settings.sortField,
+                    sortDirection = settings.sortDirection,
+                    onSortFieldSelected = { viewModel.updateSortField(it) },
+                    onSortOrderToggled = { viewModel.updateSortDirection(it) },
+                    onDismissRequest = { showSortWheel = false }
+                )
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
@@ -230,21 +200,6 @@ fun ViewModeRadioButton(label: String, mode: ViewMode, selectedMode: ViewMode, o
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
         RadioButton(selected = mode == selectedMode, onClick = { onClick(mode) })
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.clickable { onClick(mode) })
-    }
-}
-
-fun getSortDirectionLabels(field: SortField): Pair<String, String> {
-    return when (field) {
-        SortField.TITLE -> "A to Z" to "Z to A"
-        SortField.DATE -> "Oldest" to "Newest"
-        SortField.PLAYED_TIME -> "Oldest" to "Newest"
-        SortField.STATUS -> "Ascending" to "Descending"
-        SortField.LENGTH -> "Shortest" to "Longest"
-        SortField.SIZE -> "Smallest" to "Largest"
-        SortField.RESOLUTION -> "Lowest" to "Highest"
-        SortField.PATH -> "Ascending" to "Descending"
-        SortField.FRAME_RATE -> "Lowest" to "Highest"
-        SortField.TYPE -> "Ascending" to "Descending"
     }
 }
 

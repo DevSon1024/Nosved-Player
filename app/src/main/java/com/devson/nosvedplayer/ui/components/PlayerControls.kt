@@ -348,8 +348,15 @@ fun PlayerControls(
                     }
 
                     // Row 2: Lock | Rewind + Play + Forward | Resize
-                    Box(modifier = Modifier.fillMaxWidth().offset(y = (-12).dp)) {
-                        Box(modifier = Modifier.align(Alignment.CenterStart)) {
+                    val activeControlSize = if (isLandscape) controlIconSize else ControlIconSize.SMALL
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = (-12).dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(0.15f), contentAlignment = Alignment.CenterStart) {
                             TooltipBox(
                                 positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                                 tooltip = { PlainTooltip { Text("Lock Controls") } },
@@ -364,10 +371,7 @@ fun PlayerControls(
                         }
 
                         Row(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .fillMaxWidth()
-                                .padding(horizontal = 56.dp),
+                            modifier = Modifier.weight(0.7f),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -378,14 +382,14 @@ fun PlayerControls(
                             ) {
                                 IconButton(
                                     onClick = { onPlayPrevious?.invoke() },
-                                    modifier = Modifier.size(controlIconSize.buttonSize),
+                                    modifier = Modifier.size(activeControlSize.buttonSize),
                                     enabled = hasPrevious
                                 ) {
                                     Icon(
                                         Icons.Filled.SkipPrevious,
                                         contentDescription = "Previous",
                                         tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                        modifier = Modifier.size(activeControlSize.iconSize)
                                     )
                                 }
                             }
@@ -396,13 +400,13 @@ fun PlayerControls(
                             ) {
                                 IconButton(
                                     onClick = { onSeekBackward?.invoke() },
-                                    modifier = Modifier.size(controlIconSize.buttonSize)
+                                    modifier = Modifier.size(activeControlSize.buttonSize)
                                 ) {
                                     Icon(
                                         Icons.Filled.FastRewind,
                                         contentDescription = "Rewind ${seekDurationSeconds}s",
                                         tint = Color.White,
-                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                        modifier = Modifier.size(activeControlSize.iconSize)
                                     )
                                 }
                             }
@@ -413,13 +417,13 @@ fun PlayerControls(
                             ) {
                                 IconButton(
                                     onClick = onPlayPauseToggle,
-                                    modifier = Modifier.size(controlIconSize.playButtonSize)
+                                    modifier = Modifier.size(activeControlSize.playButtonSize)
                                 ) {
                                     Icon(
                                         imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                         contentDescription = if (isPlaying) "Pause" else "Play",
                                         tint = Color.White,
-                                        modifier = Modifier.size(controlIconSize.playIconSize)
+                                        modifier = Modifier.size(activeControlSize.playIconSize)
                                     )
                                 }
                             }
@@ -430,13 +434,13 @@ fun PlayerControls(
                             ) {
                                 IconButton(
                                     onClick = { onSeekForward?.invoke() },
-                                    modifier = Modifier.size(controlIconSize.buttonSize)
+                                    modifier = Modifier.size(activeControlSize.buttonSize)
                                 ) {
                                     Icon(
                                         Icons.Filled.FastForward,
                                         contentDescription = "Forward ${seekDurationSeconds}s",
                                         tint = Color.White,
-                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                        modifier = Modifier.size(activeControlSize.iconSize)
                                     )
                                 }
                             }
@@ -447,21 +451,21 @@ fun PlayerControls(
                             ) {
                                 IconButton(
                                     onClick = { onPlayNext?.invoke() },
-                                    modifier = Modifier.size(controlIconSize.buttonSize),
+                                    modifier = Modifier.size(activeControlSize.buttonSize),
                                     enabled = hasNext
                                 ) {
                                     Icon(
                                         Icons.Filled.SkipNext,
                                         contentDescription = "Next",
                                         tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(controlIconSize.iconSize)
+                                        modifier = Modifier.size(activeControlSize.iconSize)
                                     )
                                 }
                             }
                         }
 
-                        if (onToggleResizeMode != null) {
-                            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                        Box(modifier = Modifier.weight(0.15f), contentAlignment = Alignment.CenterEnd) {
+                            if (onToggleResizeMode != null) {
                                 TooltipBox(
                                     positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                                     tooltip = { PlainTooltip { Text("Resize Mode") } },
