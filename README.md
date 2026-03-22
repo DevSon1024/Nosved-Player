@@ -1,6 +1,6 @@
+<div align="center">
 # Nosved Player
 
-<div align="center">
 <img src="Screenshots/logo.png" width="160" height="160" style="border-radius: 80px;"/>
 
 [![GitHub release](https://img.shields.io/github/v/release/DevSon1024/Nosved-Player?label=Release&logo=github)](https://github.com/DevSon1024/Nosved-Player/releases/latest)
