@@ -9,6 +9,9 @@ import com.devson.nosvedplayer.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.devson.nosvedplayer.data.NosvedDatabase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.io.File
 
 class VideoRepository(private val context: Context) {
@@ -142,27 +145,44 @@ class VideoRepository(private val context: Context) {
             }
         }
 
-        //  Hidden file scan 
-        // MediaStore filters out files inside hidden directories (those with
-        // a path segment starting with '.'). Walk those directories manually.
+        //  Hidden file scan
+        // MediaStore omits files inside hidden directories (starting with '.').
+        // Strategy: (1) collect candidate paths quickly with no I/O, then
+        //           (2) extract metadata in PARALLEL so the total cost is
+        //               ~max(single file cost) rather than sum(all file costs).
         if (showHiddenFiles) {
             val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "webm", "m4v", "flv", "3gp", "ts", "wmv")
             val root = Environment.getExternalStorageDirectory()
 
-            fun scanHiddenDir(dir: File) {
-                if (!dir.exists() || !dir.isDirectory) return
-                // Skip if .nomedia present and recognizeNoMedia is true (honour .nomedia)
-                if (recognizeNoMedia && File(dir, ".nomedia").exists()) return
+            // Step A: collect candidate File objects (pure filesystem listing, no retriever I/O)
+            val candidateFiles = mutableListOf<File>()
 
+            fun collectHiddenDir(dir: File) {
+                if (!dir.exists() || !dir.isDirectory) return
+                if (recognizeNoMedia && File(dir, ".nomedia").exists()) return
                 dir.listFiles()?.forEach { child ->
                     if (child.isDirectory) {
-                        // Recurse into all subdirs of hidden dirs
-                        scanHiddenDir(child)
+                        collectHiddenDir(child)
                     } else if (child.isFile) {
                         val ext = child.extension.lowercase()
                         if (ext in videoExtensions && child.absolutePath !in seenPaths) {
                             seenPaths.add(child.absolutePath)
-                            // Build a file:// URI - content URI won't exist for hidden files
+                            candidateFiles.add(child)
+                        }
+                    }
+                }
+            }
+
+            root.listFiles { f -> f.isDirectory && f.name.startsWith(".") }?.forEach { collectHiddenDir(it) }
+            root.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { topDir ->
+                topDir.listFiles { f -> f.isDirectory && f.name.startsWith(".") }?.forEach { collectHiddenDir(it) }
+            }
+
+            // Step B: resolve metadata in parallel
+            if (candidateFiles.isNotEmpty()) {
+                val hiddenVideos = coroutineScope {
+                    candidateFiles.map { child ->
+                        async(Dispatchers.IO) {
                             val fileUri = "file://${child.absolutePath}"
                             var dur = 0L
                             var fr: Float? = null
@@ -174,42 +194,29 @@ class VideoRepository(private val context: Context) {
                                 val w = ret.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                                 val h = ret.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                                 if (w > 0 && h > 0) res = "${w}x${h}"
-                                val frStr = ret.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
-                                fr = frStr?.toFloatOrNull()?.takeIf { it > 0f }
+                                fr = ret.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
+                                    ?.toFloatOrNull()?.takeIf { it > 0f }
                                 ret.release()
                             } catch (_: Exception) {}
 
-                            val folderName = child.parentFile?.name ?: "Unknown"
-                            val folderId = child.parentFile?.absolutePath ?: "Unknown"
-                            videos.add(
-                                Video(
-                                    uri = fileUri,
-                                    title = child.name,
-                                    duration = dur,
-                                    size = child.length(),
-                                    folderId = folderId,
-                                    folderName = folderName,
-                                    dateAdded = child.lastModified(),
-                                    path = child.absolutePath,
-                                    resolution = res,
-                                    frameRate = fr,
-                                    playedTime = historyMap[fileUri]
-                                )
+                            Video(
+                                uri = fileUri,
+                                title = child.name,
+                                duration = dur,
+                                size = child.length(),
+                                folderId = child.parentFile?.absolutePath ?: "Unknown",
+                                folderName = child.parentFile?.name ?: "Unknown",
+                                dateAdded = child.lastModified(),
+                                path = child.absolutePath,
+                                resolution = res,
+                                frameRate = fr,
+                                playedTime = historyMap[fileUri],
+                                lastPlayedAt = historyTimestampMap[fileUri]
                             )
                         }
-                    }
+                    }.awaitAll()
                 }
-            }
-
-            // Walk only top-level hidden directories to avoid scanning everything
-            root.listFiles { f -> f.isDirectory && f.name.startsWith(".") }?.forEach { hiddenDir ->
-                scanHiddenDir(hiddenDir)
-            }
-            // Also scan hidden sub-dirs inside non-hidden dirs
-            root.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }?.forEach { topDir ->
-                topDir.listFiles { f -> f.isDirectory && f.name.startsWith(".") }?.forEach { hiddenSub ->
-                    scanHiddenDir(hiddenSub)
-                }
+                videos.addAll(hiddenVideos)
             }
         }
 
