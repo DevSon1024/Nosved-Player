@@ -20,7 +20,10 @@ data class Video(
     val path: String = "",
     val frameRate: Float? = null,
     val resolution: String? = null,
+    /** Last resume position in milliseconds (position inside the video). */
     val playedTime: Long? = null,
+    /** Wall-clock epoch millis of when this video was last played (for "Played X Ago"). */
+    val lastPlayedAt: Long? = null,
     val status: String? = null
 )
 

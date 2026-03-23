@@ -11,20 +11,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.devson.nosvedplayer.ui.screens.MainScreen
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
-import com.devson.nosvedplayer.worker.ThumbnailPreloadWorker
 import android.graphics.Color
 import android.os.Build
 import androidx.activity.SystemBarStyle
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-
 class MainActivity : ComponentActivity() {
 
     private var videoViewModelRef: VideoViewModel? = null

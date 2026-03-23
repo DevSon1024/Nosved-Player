@@ -249,14 +249,14 @@ fun GestureOverlay(
                 }
             }
     ) {
-        //  Brightness slider — left edge 
+        //  Brightness slider - left edge 
         AnimatedVisibility(
             visible = showBrightnessFeedback,
             enter = fadeIn(), exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart)
         ) { EdgeSlider(level = brightnessLevel) }
 
-        //  Volume slider — right edge 
+        //  Volume slider - right edge 
         AnimatedVisibility(
             visible = showVolumeFeedback,
             enter = fadeIn(), exit = fadeOut(),

@@ -98,7 +98,11 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadVideos() {
         viewModelScope.launch {
             _isLoading.value = true
-            val videos = repository.getAllVideos()
+            val settings = _viewSettings.value
+            val videos = repository.getAllVideos(
+                showHiddenFiles = settings.showHiddenFiles,
+                recognizeNoMedia = settings.recognizeNoMedia
+            )
             _allVideosCache.value = videos
             _isLoading.value = false
         }

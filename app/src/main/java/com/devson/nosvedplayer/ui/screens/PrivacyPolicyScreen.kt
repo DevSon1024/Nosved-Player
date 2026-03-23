@@ -111,7 +111,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Nosved Player is a 100% offline, local video player. We collect absolutely no personal data — ever.",
+                            text = "Nosved Player is a 100% offline, local video player. We collect absolutely no personal data - ever.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                             textAlign = TextAlign.Center
@@ -140,7 +140,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                     PolicyPoint(
                         icon = Icons.Filled.Security,
                         title = "No Internet Access",
-                        description = "The app does not use the internet. All operations — playback, file browsing, history, settings — happen entirely on your device."
+                        description = "The app does not use the internet. All operations - playback, file browsing, history, settings - happen entirely on your device."
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     PolicyPoint(
@@ -221,7 +221,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                             )
                         ) {
                             Text(
-                                text = "⚠️  This permission is NEVER used to upload files, read your personal data, or perform any action unrelated to the file operations listed above. It is used exclusively as a local, on-device file manager — nothing else.",
+                                text = "⚠️  This permission is NEVER used to upload files, read your personal data, or perform any action unrelated to the file operations listed above. It is used exclusively as a local, on-device file manager - nothing else.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(12.dp)
@@ -292,7 +292,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
 
                 // Footer
                 Text(
-                    text = "Nosved Player — Built with privacy in mind by DevSon",
+                    text = "Nosved Player - Built with privacy in mind by DevSon",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

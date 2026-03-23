@@ -75,12 +75,30 @@ fun formatSortField(field: SortField): String {
 fun formatRelativeTime(epochMs: Long): String {
     val diff = System.currentTimeMillis() - epochMs
     return when {
-        diff < 60_000 -> "Just now"
-        diff < 3_600_000 -> "${diff / 60_000}m ago"
-        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
-        else -> "${diff / 86_400_000}d ago"
+        diff < 60_000L                  -> "Played Just Now"
+        diff < 3_600_000L               -> "Played ${diff / 60_000}m Ago"
+        diff < 86_400_000L              -> "Played ${diff / 3_600_000}h Ago"
+        diff < 2_592_000_000L           -> "Played ${diff / 86_400_000} Days Ago"
+        diff < 31_536_000_000L          -> "Played ${diff / 2_592_000_000} Months Ago"
+        else                            -> "Played ${diff / 31_536_000_000} Years Ago"
     }
 }
+
+/**
+ * Converts a "WIDTHxHEIGHT" resolution string (e.g. "1280x720") into a compact
+ * "Xp" label (e.g. "720p") using the smaller dimension — works for both landscape
+ * and portrait videos. Returns null if the string can't be parsed.
+ */
+fun formatResolutionCompact(resolution: String?): String? {
+    if (resolution.isNullOrBlank()) return null
+    val parts = resolution.split("x", "X", "×")
+    if (parts.size != 2) return null
+    val w = parts[0].trim().toIntOrNull() ?: return null
+    val h = parts[1].trim().toIntOrNull() ?: return null
+    return "${minOf(w, h)}p"
+}
+
+
 
 fun formatLogTime(timestamp: Long): String {
     val sdf = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())

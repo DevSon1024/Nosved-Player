@@ -64,7 +64,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
             _operationInProgress.value = true
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    // API 30+: create a batch delete request — one system dialog for all
+                    // API 30+: create a batch delete request - one system dialog for all
                     val pi = MediaStore.createDeleteRequest(context.contentResolver, uris)
                     pendingAction = PendingFileAction.Delete(uris)
                     _pendingIntentSender.value = pi.intentSender

@@ -115,11 +115,11 @@ fun DeviceStatsOverlay(
 
             StatRow(
                 "Frame Rate",
-                if (stats.videoFps > 0f) "%.1f fps".format(stats.videoFps) else "—",
+                if (stats.videoFps > 0f) "%.1f fps".format(stats.videoFps) else "-",
                 Color.White
             )
             val decoderLabel = when {
-                videoDecoderName == null -> "—"
+                videoDecoderName == null -> "-"
                 videoDecoderName.contains("c2.android", ignoreCase = true) -> "[SW] $videoDecoderName"
                 videoDecoderName.contains("omx.google", ignoreCase = true) -> "[SW] $videoDecoderName"
                 videoDecoderName.contains("ffmpeg", ignoreCase = true) -> "[SW] $videoDecoderName"
@@ -212,7 +212,7 @@ private fun collectStats(context: Context, videoFps: Float): DeviceStats {
     val plugged = batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) ?: 0
     val charging = plugged != 0
 
-    // Temperature (from battery broadcast — most reliable cross-device)
+    // Temperature (from battery broadcast - most reliable cross-device)
     val rawTemp = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0
     val tempC = rawTemp / 10f
 

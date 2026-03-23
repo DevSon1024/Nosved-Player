@@ -59,12 +59,15 @@ import android.net.Uri
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material3.Scaffold
 import com.devson.nosvedplayer.model.applySort
 import com.devson.nosvedplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nosvedplayer.util.SelectionBottomAppBar
 import com.devson.nosvedplayer.util.formatDate
 import com.devson.nosvedplayer.util.formatDuration
+import com.devson.nosvedplayer.util.formatRelativeTime
+import com.devson.nosvedplayer.util.formatResolutionCompact
 import com.devson.nosvedplayer.util.formatSize
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -128,7 +131,7 @@ fun VideoListScreen(
     }
     val isSelectionActive = selectedFolders.isNotEmpty() || selectedVideos.isNotEmpty()
 
-    // Hoisted scroll states — survive recomposition and view-mode toggling
+    // Hoisted scroll states - survive recomposition and view-mode toggling
     val folderListState = rememberLazyListState()
     val folderGridState = rememberLazyGridState()
     var currentFolderId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -281,7 +284,44 @@ fun VideoListScreen(
         },
         bottomBar = {
             if (isSelectionActive) {
-                if (selectedFolder == null) {
+                // Unified URI computation across all view modes
+                val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+                val selectedUris: List<Uri> = remember(
+                    viewSettings.viewMode, selectedVideos, selectedFolders, selectedFolder, videosByFolder
+                ) {
+                    when (viewSettings.viewMode) {
+                        ViewMode.FILES -> {
+                            selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                        }
+                        ViewMode.ALL_FOLDERS -> {
+                            if (selectedFolder != null) {
+                                // Inside a folder: operate on selected individual videos
+                                selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                            } else {
+                                // Folder-list view: map every video inside selected folders
+                                selectedFolders
+                                    .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
+                                    .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                            }
+                        }
+                        ViewMode.FOLDERS -> {
+                            // Combine standalone selected videos AND all videos inside selected dirs
+                            val fromFolders = selectedFolders
+                                .flatMap { f -> allVideosFlat.filter { it.path.startsWith(f.id) } }
+                            (selectedVideos.toList() + fromFolders)
+                                .distinctBy { it.uri }
+                                .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                        }
+                    }
+                }
+
+                // In ALL_FOLDERS folder-list view, keep the original SelectionBottomAppBar
+                // for its folder-centric features (Play All folder, Rename folder, etc.)
+                val useFolderBar = viewSettings.viewMode == ViewMode.ALL_FOLDERS
+                    && selectedFolder == null
+                    && selectedFolders.isNotEmpty()
+
+                if (useFolderBar) {
                     SelectionBottomAppBar(
                         selectedFolders = selectedFolders,
                         videosByFolder = videosByFolder,
@@ -291,31 +331,20 @@ fun VideoListScreen(
                         },
                         onClearSelection = { selectedFolders = emptySet() },
                         onMove = {
-                            val uris = selectedFolders
-                                .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
-                                .mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
-                            if (uris.isNotEmpty()) {
-                                storageExplorerUris = uris
+                            if (selectedUris.isNotEmpty()) {
+                                storageExplorerUris = selectedUris
                                 storageExplorerOp = "MOVE"
                             }
                         },
                         onCopy = {
-                            val uris = selectedFolders
-                                .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
-                                .mapNotNull { video -> try { Uri.parse(video.uri) } catch (_: Exception) { null } }
-                            if (uris.isNotEmpty()) {
-                                storageExplorerUris = uris
+                            if (selectedUris.isNotEmpty()) {
+                                storageExplorerUris = selectedUris
                                 storageExplorerOp = "COPY"
                             }
                         },
                         onDelete = {
-                            val urisToDelete = selectedFolders
-                                .flatMap { folder -> videosByFolder[folder] ?: emptyList() }
-                                .mapNotNull { video ->
-                                    try { Uri.parse(video.uri) } catch (_: Exception) { null }
-                                }
-                            if (urisToDelete.isNotEmpty()) {
-                                fileOpsViewModel.deleteVideos(context, urisToDelete)
+                            if (selectedUris.isNotEmpty()) {
+                                fileOpsViewModel.deleteVideos(context, selectedUris)
                                 selectedFolders = emptySet()
                             }
                         },
@@ -327,39 +356,47 @@ fun VideoListScreen(
                         onShowInfo = { showInfoBottomSheet = true }
                     )
                 } else {
+                    // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
+                    // use the video-centric bar driven by the unified selectedUris list
                     VideoSelectionBottomAppBar(
                         selectedVideos = selectedVideos,
                         onPlayAll = {
-                            val allVideos = (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
-                            val video = selectedVideos.first()
-                            onVideoSelected(video, allVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
-                            selectedVideos = emptySet()
+                            val playVideo = selectedVideos.firstOrNull()
+                            if (playVideo != null) {
+                                val playlist = when (viewSettings.viewMode) {
+                                    ViewMode.FILES -> videosByFolder.values.flatten().applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                    ViewMode.ALL_FOLDERS -> (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                    ViewMode.FOLDERS -> explorerNodes.second.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                }
+                                onVideoSelected(playVideo, playlist, historyMap[playVideo.uri]?.lastPositionMs ?: 0L)
+                                selectedVideos = emptySet()
+                            }
                         },
                         onMove = {
-                            val uris = selectedVideos.mapNotNull { try { Uri.parse(it.uri) } catch (_: Exception) { null } }
-                            if (uris.isNotEmpty()) {
-                                storageExplorerUris = uris
+                            if (selectedUris.isNotEmpty()) {
+                                storageExplorerUris = selectedUris
                                 storageExplorerOp = "MOVE"
                             }
                         },
                         onCopy = {
-                            val uris = selectedVideos.mapNotNull { try { Uri.parse(it.uri) } catch (_: Exception) { null } }
-                            if (uris.isNotEmpty()) {
-                                storageExplorerUris = uris
+                            if (selectedUris.isNotEmpty()) {
+                                storageExplorerUris = selectedUris
                                 storageExplorerOp = "COPY"
                             }
                         },
                         onDelete = {
-                            val urisToDelete = selectedVideos.mapNotNull { try { Uri.parse(it.uri) } catch (_: Exception) { null } }
-                            if (urisToDelete.isNotEmpty()) {
-                                fileOpsViewModel.deleteVideos(context, urisToDelete)
+                            if (selectedUris.isNotEmpty()) {
+                                fileOpsViewModel.deleteVideos(context, selectedUris)
                                 selectedVideos = emptySet()
+                                selectedFolders = emptySet()
                             }
                         },
                         onRename = {
-                            val video = selectedVideos.first()
-                            renameInputText = video.title.substringBeforeLast(".")
-                            showRenameDialog = true
+                            val video = selectedVideos.firstOrNull()
+                            if (video != null) {
+                                renameInputText = video.title.substringBeforeLast(".")
+                                showRenameDialog = true
+                            }
                         },
                         onShowInfo = { showInfoBottomSheet = true }
                     )
@@ -696,7 +733,7 @@ fun VideoListItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .combinedClickable(
                 onClick = { onClick(video) },
                 onLongClick = {
@@ -704,7 +741,7 @@ fun VideoListItem(
                     onLongClick(video)
                 }
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
@@ -712,10 +749,10 @@ fun VideoListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(width = 110.dp, height = 64.dp)) {
+            Box(modifier = Modifier.size(width = 96.dp, height = 56.dp)) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
                         uri = video.uri,
@@ -795,7 +832,7 @@ fun VideoListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -1076,9 +1113,11 @@ fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = fal
     // if (lastPositionMs > 0L) metaItems.add("At ${formatDuration(lastPositionMs)}")
 
     if (settings.showLength && !settings.displayLengthOverThumbnail) metaItems.add(formatDuration(video.duration))
-    if (settings.showPlayedTime && video.playedTime != null && video.playedTime > 0) metaItems.add("Played: ${formatDuration(video.playedTime)}")
-    if (settings.showResolution && !video.resolution.isNullOrEmpty()) metaItems.add(video.resolution)
-    if (settings.showFrameRate && video.frameRate != null) metaItems.add("${video.frameRate} fps")
+    // lastPlayedAt = wall-clock timestamp → formatRelativeTime gives "Played 2h Ago"
+    if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
+        metaItems.add(formatRelativeTime(video.lastPlayedAt))
+    if (settings.showResolution && !video.resolution.isNullOrEmpty()) metaItems.add(formatResolutionCompact(video.resolution) ?: video.resolution!!)
+    if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f) metaItems.add("${video.frameRate.toInt()} fps")
     if (settings.showFileExtension) metaItems.add(video.title.substringAfterLast('.', video.uri.substringAfterLast('.', "")).uppercase())
     if (settings.showSize) metaItems.add(formatSize(video.size))
     if (settings.showDate && video.dateAdded > 0) metaItems.add(formatDate(video.dateAdded))
@@ -1094,7 +1133,7 @@ fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = fal
         ) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1314,7 +1353,7 @@ fun VideoSelectionBottomAppBar(
                 onClick = onPlayAll
             )
             // Move
-            ActionColumn(icon = Icons.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
             // Copy
             ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
             // Delete

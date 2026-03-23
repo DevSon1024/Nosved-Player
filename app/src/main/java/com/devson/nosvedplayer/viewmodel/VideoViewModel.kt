@@ -128,7 +128,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             playerManager?.onPlaybackError = {
-                // A source/parse error (e.g. corrupt MKV) — skip to next video silently
+                // A source/parse error (e.g. corrupt MKV) - skip to next video silently
                 playNextVideo()
             }
 
@@ -196,7 +196,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.setPlaybackSpeed(speed)
     }
 
-    /** Always pauses — used when leaving the screen or app goes to background. */
+    /** Always pauses - used when leaving the screen or app goes to background. */
     fun pauseVideo() {
         val uri = _currentVideo.value?.uri
         val pos = playerManager?.currentPosition?.value ?: 0L
@@ -312,7 +312,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleControlsVisibility() {
         if (_controlsVisible.value) {
-            // Already visible — hide immediately
+            // Already visible - hide immediately
             hideJob?.cancel()
             _controlsVisible.value = false
         } else {

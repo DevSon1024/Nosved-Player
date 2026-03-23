@@ -315,7 +315,7 @@ fun VideoScreen(
             showBrightnessFeedback = showBrightnessFeedback
         )
 
-        // 3. Device stats overlay — anchored to right edge, independent of controls
+        // 3. Device stats overlay - anchored to right edge, independent of controls
         DeviceStatsOverlay(
             visible = showStats,
             videoFps = videoFps,
