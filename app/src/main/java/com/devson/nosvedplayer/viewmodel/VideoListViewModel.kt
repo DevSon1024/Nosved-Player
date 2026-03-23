@@ -50,6 +50,9 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _selectedFolder = MutableStateFlow<com.devson.nosvedplayer.model.VideoFolder?>(null)
     val selectedFolder: StateFlow<com.devson.nosvedplayer.model.VideoFolder?> = _selectedFolder.asStateFlow()
 
@@ -107,25 +110,37 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun loadVideos() {
+    fun loadVideos(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            val settings = _viewSettings.value
-            // Skip expensive hidden scan if nothing has changed since last load
-            if (settings.showHiddenFiles == lastLoadedShowHidden &&
-                settings.recognizeNoMedia == lastLoadedRecognizeNoMedia &&
-                _allVideosCache.value.isNotEmpty()) {
-                _isLoading.value = false
-                return@launch
+            if (forceRefresh) {
+                _isRefreshing.value = true
+            } else {
+                val settings = _viewSettings.value
+                // Skip expensive hidden scan if nothing has changed since last load
+                if (settings.showHiddenFiles == lastLoadedShowHidden &&
+                    settings.recognizeNoMedia == lastLoadedRecognizeNoMedia &&
+                    _allVideosCache.value.isNotEmpty()) {
+                    _isLoading.value = false
+                    return@launch
+                }
+                _isLoading.value = true
             }
-            _isLoading.value = true
-            val videos = repository.getAllVideos(
-                showHiddenFiles = settings.showHiddenFiles,
-                recognizeNoMedia = settings.recognizeNoMedia
-            )
-            lastLoadedShowHidden = settings.showHiddenFiles
-            lastLoadedRecognizeNoMedia = settings.recognizeNoMedia
-            _allVideosCache.value = videos
-            _isLoading.value = false
+            
+            try {
+                val settings = _viewSettings.value
+                val videos = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    repository.getAllVideos(
+                        showHiddenFiles = settings.showHiddenFiles,
+                        recognizeNoMedia = settings.recognizeNoMedia
+                    )
+                }
+                lastLoadedShowHidden = settings.showHiddenFiles
+                lastLoadedRecognizeNoMedia = settings.recognizeNoMedia
+                _allVideosCache.value = videos
+            } finally {
+                _isLoading.value = false
+                _isRefreshing.value = false
+            }
         }
     }
 

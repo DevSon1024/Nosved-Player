@@ -7,11 +7,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.model.LayoutMode
@@ -51,49 +55,72 @@ fun ViewSettingsBottomSheet(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            //  View Mode 
-            SettingsSectionLabel("View Mode")
-            Spacer(modifier = Modifier.height(6.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.Top
             ) {
-                SegmentedToggleButton(
-                    label = "All Folders",
-                    selected = settings.viewMode == ViewMode.ALL_FOLDERS,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.updateViewMode(ViewMode.ALL_FOLDERS) }
-                SegmentedToggleButton(
-                    label = "Files",
-                    selected = settings.viewMode == ViewMode.FILES,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.updateViewMode(ViewMode.FILES) }
-                SegmentedToggleButton(
-                    label = "Folders",
-                    selected = settings.viewMode == ViewMode.FOLDERS,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.updateViewMode(ViewMode.FOLDERS) }
-            }
+                // View Mode
+                Column(modifier = Modifier.weight(1.5f)) {
+                    SettingsSectionLabel("View Mode")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        IconToggleButton(
+                            label = "All folders",
+                            selected = settings.viewMode == ViewMode.ALL_FOLDERS,
+                            selectedIcon = Icons.Filled.FolderCopy,
+                            unselectedIcon = Icons.Outlined.FolderCopy,
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.updateViewMode(ViewMode.ALL_FOLDERS) }
+                        )
+                        IconToggleButton(
+                            label = "Files",
+                            selected = settings.viewMode == ViewMode.FILES,
+                            selectedIcon = Icons.Filled.Description,
+                            unselectedIcon = Icons.Outlined.Description,
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.updateViewMode(ViewMode.FILES) }
+                        )
+                        IconToggleButton(
+                            label = "Explorer",
+                            selected = settings.viewMode == ViewMode.FOLDERS,
+                            selectedIcon = Icons.Filled.Folder,
+                            unselectedIcon = Icons.Outlined.Folder,
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.updateViewMode(ViewMode.FOLDERS) }
+                        )
+                    }
+                }
+                
+                VerticalDivider(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .padding(top = 36.dp, bottom = 8.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
-
-            //  Layout 
-            SettingsSectionLabel("Layout")
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                SegmentedToggleButton(
-                    label = "List",
-                    selected = settings.layoutMode == LayoutMode.LIST,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.updateLayoutMode(LayoutMode.LIST) }
-                SegmentedToggleButton(
-                    label = "Grid",
-                    selected = settings.layoutMode == LayoutMode.GRID,
-                    modifier = Modifier.weight(1f)
-                ) { viewModel.updateLayoutMode(LayoutMode.GRID) }
+                // Layout
+                Column(modifier = Modifier.weight(1f)) {
+                    SettingsSectionLabel("Layout")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        IconToggleButton(
+                            label = "List",
+                            selected = settings.layoutMode == LayoutMode.LIST,
+                            selectedIcon = Icons.Filled.ViewAgenda,
+                            unselectedIcon = Icons.Outlined.ViewAgenda,
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.updateLayoutMode(LayoutMode.LIST) }
+                        )
+                        IconToggleButton(
+                            label = "Grid",
+                            selected = settings.layoutMode == LayoutMode.GRID,
+                            selectedIcon = Icons.Filled.GridView,
+                            unselectedIcon = Icons.Outlined.GridView,
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.updateLayoutMode(LayoutMode.GRID) }
+                        )
+                    }
+                }
             }
 
             if (settings.layoutMode == LayoutMode.GRID) {
@@ -227,33 +254,41 @@ private fun SettingsSectionLabel(text: String) {
 }
 
 @Composable
-private fun SegmentedToggleButton(
+private fun IconToggleButton(
     label: String,
     selected: Boolean,
+    selectedIcon: ImageVector,
+    unselectedIcon: ImageVector,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-    val textColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val icon = if (selected) selectedIcon else unselectedIcon
+    val fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
 
-    Surface(
+    Column(
         modifier = modifier
-            .height(36.dp)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
-        color = bgColor,
-        shape = RoundedCornerShape(10.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color = textColor
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = fontWeight,
+            color = color,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 

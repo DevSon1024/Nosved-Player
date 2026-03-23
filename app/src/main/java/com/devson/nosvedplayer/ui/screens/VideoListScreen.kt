@@ -113,6 +113,7 @@ fun VideoListScreen(
 
     val videosByFolder by viewModel.videosByFolder.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val selectedFolder by viewModel.selectedFolder.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
     val explorerNodes by viewModel.explorerNodes.collectAsState()
@@ -439,10 +440,15 @@ fun VideoListScreen(
             } else if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                when (viewSettings.viewMode) {
-                    ViewMode.ALL_FOLDERS -> {
-                        if (selectedFolder == null) {
-                            FolderListContent(
+                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.loadVideos(forceRefresh = true) },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    when (viewSettings.viewMode) {
+                        ViewMode.ALL_FOLDERS -> {
+                            if (selectedFolder == null) {
+                                FolderListContent(
                                 folders = videosByFolder,
                                 settings = viewSettings,
                                 selectedFolders = selectedFolders,
@@ -557,6 +563,7 @@ fun VideoListScreen(
                             gridState = folderGridState
                         )
                     }
+                }
                 }
             }
         }
