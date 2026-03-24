@@ -90,6 +90,12 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _autoPlayEnabled = MutableStateFlow(false)
     val autoPlayEnabled: StateFlow<Boolean> = _autoPlayEnabled.asStateFlow()
 
+    private val _showSeekButtons = MutableStateFlow(true)
+    val showSeekButtons: StateFlow<Boolean> = _showSeekButtons.asStateFlow()
+
+    private val _fastplaySpeed = MutableStateFlow(2.0f)
+    val fastplaySpeed: StateFlow<Float> = _fastplaySpeed.asStateFlow()
+
     // --- Subtitle Customization State ---
     
     private val _subtitleTextSizeScale = MutableStateFlow(1f)
@@ -112,6 +118,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
                     _seekBarStyle.value = try { SeekBarStyle.valueOf(settings.seekBarStyle) } catch (e: Exception) { SeekBarStyle.DEFAULT }
                     _controlIconSize.value = try { ControlIconSize.valueOf(settings.controlIconSize) } catch (e: Exception) { ControlIconSize.MEDIUM }
                     _autoPlayEnabled.value = settings.autoPlayEnabled
+                    _showSeekButtons.value = settings.showSeekButtons
+                    _fastplaySpeed.value = settings.fastplaySpeed
                 }
             }
         }
@@ -284,6 +292,14 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoPlayEnabled(enabled: Boolean) {
         _autoPlayEnabled.value = enabled
         viewModelScope.launch { settingsRepository?.updateAutoPlayEnabled(enabled) }
+    }
+    fun setShowSeekButtons(show: Boolean) {
+        _showSeekButtons.value = show
+        viewModelScope.launch { settingsRepository?.updateShowSeekButtons(show) }
+    }
+    fun setFastplaySpeed(speed: Float) {
+        _fastplaySpeed.value = speed
+        viewModelScope.launch { settingsRepository?.updateFastplaySpeed(speed) }
     }
 
     // --- Audio & Subtitle Control Bridges ---

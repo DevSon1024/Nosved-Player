@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
@@ -132,6 +133,11 @@ fun PlayerControls(
     onSeekBarStyleChange: ((SeekBarStyle) -> Unit)? = null,
     onControlIconSizeChange: ((ControlIconSize) -> Unit)? = null,
     onAutoPlayChange: ((Boolean) -> Unit)? = null,
+    showSeekButtons: Boolean = true,
+    fastplaySpeed: Float = 2.0f,
+    onShowSeekButtonsChange: ((Boolean) -> Unit)? = null,
+    onFastplaySpeedChange: ((Float) -> Unit)? = null,
+    onInfoClick: (() -> Unit)? = null,
     // Audio and Subtitle Modals
     onOpenAudioTracks: (() -> Unit)? = null,
     onOpenSubtitles: (() -> Unit)? = null,
@@ -212,6 +218,19 @@ fun PlayerControls(
                         modifier = Modifier.weight(1f)
                     )
                     // Stats toggle
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = { PlainTooltip { Text("Video Info") } },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(onClick = { onInfoClick?.invoke() }) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Video Info",
+                                tint = Color.White
+                            )
+                        }
+                    }
                     TooltipBox(
                         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                         tooltip = { PlainTooltip { Text("Device Stats") } },
@@ -398,16 +417,20 @@ fun PlayerControls(
                                 tooltip = { PlainTooltip { Text("Rewind ${seekDurationSeconds}s") } },
                                 state = rememberTooltipState()
                             ) {
-                                IconButton(
-                                    onClick = { onSeekBackward?.invoke() },
-                                    modifier = Modifier.size(activeControlSize.buttonSize)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.FastRewind,
-                                        contentDescription = "Rewind ${seekDurationSeconds}s",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(activeControlSize.iconSize)
-                                    )
+                                if (showSeekButtons) {
+                                    IconButton(
+                                        onClick = { onSeekBackward?.invoke() },
+                                        modifier = Modifier.size(activeControlSize.buttonSize)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.FastRewind,
+                                            contentDescription = "Rewind ${seekDurationSeconds}s",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(activeControlSize.iconSize)
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.size(activeControlSize.buttonSize))
                                 }
                             }
                             TooltipBox(
@@ -432,16 +455,20 @@ fun PlayerControls(
                                 tooltip = { PlainTooltip { Text("Forward ${seekDurationSeconds}s") } },
                                 state = rememberTooltipState()
                             ) {
-                                IconButton(
-                                    onClick = { onSeekForward?.invoke() },
-                                    modifier = Modifier.size(activeControlSize.buttonSize)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.FastForward,
-                                        contentDescription = "Forward ${seekDurationSeconds}s",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(activeControlSize.iconSize)
-                                    )
+                                if (showSeekButtons) {
+                                    IconButton(
+                                        onClick = { onSeekForward?.invoke() },
+                                        modifier = Modifier.size(activeControlSize.buttonSize)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.FastForward,
+                                            contentDescription = "Forward ${seekDurationSeconds}s",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(activeControlSize.iconSize)
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.size(activeControlSize.buttonSize))
                                 }
                             }
                             TooltipBox(
@@ -494,12 +521,16 @@ fun PlayerControls(
         seekBarStyle = seekBarStyle,
         controlIconSize = controlIconSize,
         autoPlayEnabled = autoPlayEnabled,
+        showSeekButtons = showSeekButtons,
+        fastplaySpeed = fastplaySpeed,
         isLandscape = isLandscape,
         onDismissRequest = { showSettingsSheet = false },
         onSeekDurationChange = { onSeekDurationChange?.invoke(it) },
         onSeekBarStyleChange = { onSeekBarStyleChange?.invoke(it) },
         onControlIconSizeChange = { onControlIconSizeChange?.invoke(it) },
-        onAutoPlayChange = { onAutoPlayChange?.invoke(it) }
+        onAutoPlayChange = { onAutoPlayChange?.invoke(it) },
+        onShowSeekButtonsChange = { onShowSeekButtonsChange?.invoke(it) },
+        onFastplaySpeedChange = { onFastplaySpeedChange?.invoke(it) }
     )
 }
 

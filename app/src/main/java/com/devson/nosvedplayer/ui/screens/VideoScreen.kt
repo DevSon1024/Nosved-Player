@@ -31,6 +31,7 @@ import com.devson.nosvedplayer.ui.components.GestureOverlay
 import com.devson.nosvedplayer.ui.components.PlayerControls
 import com.devson.nosvedplayer.ui.components.AudioTrackSheet
 import com.devson.nosvedplayer.ui.components.SubtitleSheet
+import com.devson.nosvedplayer.ui.components.InformationBottomSheet
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -69,6 +70,8 @@ fun VideoScreen(
     val seekBarStyle by viewModel.seekBarStyle.collectAsState()
     val controlIconSize by viewModel.controlIconSize.collectAsState()
     val autoPlayEnabled by viewModel.autoPlayEnabled.collectAsState()
+    val showSeekButtons by viewModel.showSeekButtons.collectAsState()
+    val fastplaySpeed by viewModel.fastplaySpeed.collectAsState()
     val currentPlaylist by viewModel.currentPlaylist.collectAsState()
     val currentPlaylistIndex by viewModel.currentPlaylistIndex.collectAsState()
 
@@ -92,6 +95,8 @@ fun VideoScreen(
     var showSubtitleSheet by remember { mutableStateOf(false) }
     @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     val subtitleSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var showInfoSheet by remember { mutableStateOf(false) }
 
     val externalSubtitleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -269,6 +274,7 @@ fun VideoScreen(
             seekDurationSeconds = seekDurationSeconds,
             isPlaying = isPlaying,
             isLocked = isLocked,
+            fastplaySpeed = fastplaySpeed,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapLeft = { viewModel.seekBackward() },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
@@ -277,7 +283,7 @@ fun VideoScreen(
                 viewModel.seekByOffset(deltaMs)
             },
             onFastForwardToggle = { active ->
-                viewModel.setPlaybackSpeed(if (active) 2.0f else 1.0f)
+                viewModel.setPlaybackSpeed(if (active) fastplaySpeed else 1.0f)
             },
             onVolumeSwipe = { delta ->
                 accumulatedVolume = (accumulatedVolume + delta).coerceIn(0f, 1f)
@@ -367,10 +373,18 @@ fun VideoScreen(
             seekBarStyle = seekBarStyle,
             controlIconSize = controlIconSize,
             autoPlayEnabled = autoPlayEnabled,
+            showSeekButtons = showSeekButtons,
+            fastplaySpeed = fastplaySpeed,
             onSeekDurationChange = { viewModel.setSeekDuration(it) },
             onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
             onControlIconSizeChange = { viewModel.setControlIconSize(it) },
             onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
+            onShowSeekButtonsChange = { viewModel.setShowSeekButtons(it) },
+            onFastplaySpeedChange = { viewModel.setFastplaySpeed(it) },
+            onInfoClick = {
+                showInfoSheet = true
+                viewModel.showControlsAndDelayHide()
+            },
             // Audio & Subtitles
             onOpenAudioTracks = { showAudioSheet = true },
             onOpenSubtitles = { showSubtitleSheet = true },
@@ -422,6 +436,16 @@ fun VideoScreen(
         onBgStyleChange = { viewModel.updateSubtitleBgStyle(it) },
         onDismissRequest = { showSubtitleSheet = false }
     )
+
+    // Video Info Sheet
+    if (showInfoSheet) {
+        val videoSet = currentVideo?.let { setOf(it) } ?: emptySet()
+        InformationBottomSheet(
+            selectedVideos = videoSet,
+            onDismiss = { showInfoSheet = false },
+            useSideSheet = true
+        )
+    }
 }
 
 /**

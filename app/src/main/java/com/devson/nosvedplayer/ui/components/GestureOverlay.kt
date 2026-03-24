@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -27,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -49,6 +54,7 @@ fun GestureOverlay(
     seekDurationSeconds: Int,
     isPlaying: Boolean = false,
     isLocked: Boolean = false,
+    fastplaySpeed: Float = 2.0f,
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -71,17 +77,11 @@ fun GestureOverlay(
     // Snapshot of isPlaying at the moment of the center tap (before toggle)
     var centerWasPlaying by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showLeftRipple) {
-        if (showLeftRipple)   { delay(600); showLeftRipple = false }
-    }
     LaunchedEffect(showCenterRipple) {
         if (showCenterRipple) { delay(600); showCenterRipple = false }
     }
-    LaunchedEffect(showRightRipple) {
-        if (showRightRipple)  { delay(600); showRightRipple = false }
-    }
 
-    //  Double-tap tracking 
+    //  Double-tap tracking
     var lastTapTime by remember { mutableStateOf(0L) }
     var lastTapX    by remember { mutableStateOf(0f) }
     var lastTapY    by remember { mutableStateOf(0f) }
@@ -91,8 +91,16 @@ fun GestureOverlay(
     // Invisible Seek Bar tracking
     var scrubDeltaMs by remember { mutableStateOf<Long?>(null) }
 
-    // Fast Forward (2x speed) State
+    // Fast Forward speed state
     var isFastForwarding by remember { mutableStateOf(false) }
+
+    // --- Accumulating double-tap seek ---
+    var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
+    var accumulatedRightMs by remember { mutableLongStateOf(0L) }
+    var seekDebounceJob    by remember { mutableStateOf<Job?>(null) }
+    // Controls whether the side-seek overlays are shown
+    var showLeftSeek  by remember { mutableStateOf(false) }
+    var showRightSeek by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -160,7 +168,7 @@ fun GestureOverlay(
                                 scrubDeltaMs = null
                             }
 
-                            //  Tap detection 
+                            //  Tap detection
                             if (!isSwiping) {
                                 val now  = System.currentTimeMillis()
                                 val dt   = now - lastTapTime
@@ -168,23 +176,43 @@ fun GestureOverlay(
                                 val dy   = change.position.y - lastTapY
                                 val dist = sqrt(dx * dx + dy * dy)
 
-                                if (dt < 300 && dist < 80f) {
+                                if (dt < 400 && dist < 100f) {
                                     //  Double tap: cancel pending single tap
                                     singleTapJob?.cancel()
                                     lastTapTime = 0L
                                     val tapX = change.position.x
                                     when {
                                         tapX < size.width * 0.33f -> {
-                                            // Left zone → backward
-                                            showLeftRipple = true
+                                            // Left zone → immediate backward seek
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDoubleTapLeft()
+                                            val stepMs = seekDurationSeconds * 1000L
+                                            accumulatedLeftMs += stepMs
+                                            showLeftSeek = true
+                                            // Seek immediately for this tap
+                                            onSeekCommit(-stepMs)
+                                            // Debounce only controls overlay visibility
+                                            seekDebounceJob?.cancel()
+                                            seekDebounceJob = coroutineScope.launch {
+                                                delay(2000)
+                                                accumulatedLeftMs = 0L
+                                                showLeftSeek = false
+                                            }
                                         }
                                         tapX > size.width * 0.66f -> {
-                                            // Right zone → forward
-                                            showRightRipple = true
+                                            // Right zone → immediate forward seek
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDoubleTapRight()
+                                            val stepMs = seekDurationSeconds * 1000L
+                                            accumulatedRightMs += stepMs
+                                            showRightSeek = true
+                                            // Seek immediately for this tap
+                                            onSeekCommit(stepMs)
+                                            // Debounce only controls overlay visibility
+                                            seekDebounceJob?.cancel()
+                                            seekDebounceJob = coroutineScope.launch {
+                                                delay(2000)
+                                                accumulatedRightMs = 0L
+                                                showRightSeek = false
+                                            }
                                         }
                                         else -> {
                                             // Center zone → play/pause
@@ -227,7 +255,7 @@ fun GestureOverlay(
                         if (isSwiping) {
                             change.consume()
                             if (isLongPressActive) break // Prevent swiping while holding fast-forward
-                            
+
                             when (swipeAxis) {
                                 "VERTICAL" -> {
                                     val sensitivity = 1.2f
@@ -249,14 +277,14 @@ fun GestureOverlay(
                 }
             }
     ) {
-        //  Brightness slider - left edge 
+        //  Brightness slider - left edge
         AnimatedVisibility(
             visible = showBrightnessFeedback,
             enter = fadeIn(), exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart)
         ) { EdgeSlider(level = brightnessLevel) }
 
-        //  Volume slider - right edge 
+        //  Volume slider - right edge
         AnimatedVisibility(
             visible = showVolumeFeedback,
             enter = fadeIn(), exit = fadeOut(),
@@ -266,22 +294,22 @@ fun GestureOverlay(
         // Precise scrub overlay (Horizontal seek)
         androidx.compose.animation.AnimatedVisibility(
             visible = scrubDeltaMs != null,
-            enter = androidx.compose.animation.fadeIn(), 
+            enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
             scrubDeltaMs?.let { deltaMs ->
                 Box(
                     modifier = Modifier
-                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(32.dp))
                         .padding(horizontal = 24.dp, vertical = 12.dp)
                 ) {
                     val sign = if (deltaMs >= 0) "+" else ""
-                    androidx.compose.material3.Text(
+                    Text(
                         text = "$sign${deltaMs / 1000}s",
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = Color.White,
                         fontSize = 24.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -296,28 +324,33 @@ fun GestureOverlay(
         ) {
             Box(
                 modifier = Modifier
-                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(32.dp))
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(32.dp))
                     .padding(horizontal = 24.dp, vertical = 10.dp)
             ) {
-                androidx.compose.material3.Text(
-                    text = "⏩ 2x Speed",
-                    color = androidx.compose.ui.graphics.Color.White,
+                val speedLabel = if (fastplaySpeed == fastplaySpeed.toLong().toFloat())
+                    "${fastplaySpeed.toLong()}x" else "${fastplaySpeed}x"
+                Text(
+                    text = "⏩ ${speedLabel} Speed",
+                    color = Color.White,
                     fontSize = 16.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        //  Left double-tap ripple 
+        // Left accumulating seek overlay
         AnimatedVisibility(
-            visible = showLeftRipple,
+            visible = showLeftSeek,
             enter = fadeIn(), exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart)
         ) {
-            SeekRipple(isRightSide = false, label = "-${seekDurationSeconds}s")
+            AccumulatingSeekRipple(
+                isRightSide = false,
+                accumulatedMs = accumulatedLeftMs
+            )
         }
 
-        //  Center double-tap ripple (play / pause) 
+        //  Center double-tap ripple (play / pause)
         AnimatedVisibility(
             visible = showCenterRipple,
             enter = fadeIn(), exit = fadeOut(),
@@ -326,13 +359,16 @@ fun GestureOverlay(
             CenterRipple(wasPlaying = centerWasPlaying)
         }
 
-        //  Right double-tap ripple 
+        // Right accumulating seek overlay
         AnimatedVisibility(
-            visible = showRightRipple,
+            visible = showRightSeek,
             enter = fadeIn(), exit = fadeOut(),
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            SeekRipple(isRightSide = true, label = "+${seekDurationSeconds}s")
+            AccumulatingSeekRipple(
+                isRightSide = true,
+                accumulatedMs = accumulatedRightMs
+            )
         }
     }
 }
@@ -341,7 +377,7 @@ fun GestureOverlay(
 
 @Composable
 private fun EdgeSlider(level: Float) {
-    androidx.compose.foundation.layout.Column(
+    Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(horizontal = 24.dp)
     ) {
@@ -350,7 +386,7 @@ private fun EdgeSlider(level: Float) {
             text = "$percentage%",
             color = Color.White,
             fontSize = 14.sp,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Box(
@@ -370,16 +406,17 @@ private fun EdgeSlider(level: Float) {
         }
     }
 }
- 
-// Left / right seek ripple (pill-shaped, curved toward center)
- 
+
+// Accumulating seek ripple – shows icon + accumulated time label
 
 @Composable
-private fun SeekRipple(isRightSide: Boolean, label: String) {
+private fun AccumulatingSeekRipple(isRightSide: Boolean, accumulatedMs: Long) {
+    val secs = accumulatedMs / 1000L
+    val label = if (isRightSide) "+${secs}s" else "-${secs}s"
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .width(110.dp)
+            .width(130.dp)
             .background(
                 color = Color.White.copy(alpha = 0.15f),
                 shape = if (isRightSide)
@@ -389,12 +426,21 @@ private fun SeekRipple(isRightSide: Boolean, label: String) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            color = Color.White,
-            fontSize = 16.sp,
-            style = MaterialTheme.typography.titleMedium
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = if (isRightSide) Icons.Filled.FastForward else Icons.Filled.FastRewind,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(36.dp)
+            )
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
     }
 }
 
