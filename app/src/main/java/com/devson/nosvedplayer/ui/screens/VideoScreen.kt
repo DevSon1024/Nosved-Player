@@ -146,6 +146,8 @@ fun VideoScreen(
             val isStatusBarContrastEnforced = if (Build.VERSION.SDK_INT >= Build.VERSION.SDK_INT && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window?.isStatusBarContrastEnforced else null
             val systemBarsBehavior = insetsController?.systemBarsBehavior
             val screenBrightness = window?.attributes?.screenBrightness
+            val isAppearanceLightStatusBars = insetsController?.isAppearanceLightStatusBars
+            val isAppearanceLightNavigationBars = insetsController?.isAppearanceLightNavigationBars
         }
     }
 
@@ -196,6 +198,9 @@ fun VideoScreen(
                 window.isNavigationBarContrastEnforced = false
                 window.isStatusBarContrastEnforced = false
             }
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
         }
         onDispose {
             activity?.window?.let { window ->
@@ -217,6 +222,8 @@ fun VideoScreen(
 
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 originalWindowParams.systemBarsBehavior?.let { insetsController.systemBarsBehavior = it }
+                originalWindowParams.isAppearanceLightStatusBars?.let { insetsController.isAppearanceLightStatusBars = it }
+                originalWindowParams.isAppearanceLightNavigationBars?.let { insetsController.isAppearanceLightNavigationBars = it }
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
             activity?.requestedOrientation = originalOrientation

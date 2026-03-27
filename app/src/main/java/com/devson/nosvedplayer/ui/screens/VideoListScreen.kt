@@ -838,7 +838,7 @@ fun VideoListItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = video.title,
+                    text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
@@ -972,7 +972,7 @@ fun VideoGridItem(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = video.title,
+                            text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 2,
@@ -1096,7 +1096,7 @@ fun VideoGridItem(
                         .padding(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 12.dp)
                 ) {
                     Text(
-                        text = video.title,
+                        text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
