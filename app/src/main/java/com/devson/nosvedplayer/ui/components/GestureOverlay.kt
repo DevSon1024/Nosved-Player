@@ -80,7 +80,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-//  Public API 
 @Composable
 fun GestureOverlay(
     modifier: Modifier = Modifier,
@@ -105,7 +104,7 @@ fun GestureOverlay(
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 
-    //  Center ripple 
+    //  Center ripple
     var showCenterRipple by remember { mutableStateOf(false) }
     var centerWasPlaying by remember { mutableStateOf(false) }
     LaunchedEffect(showCenterRipple) {
@@ -123,6 +122,7 @@ fun GestureOverlay(
 
     //  Long-press fast-forward 
     var isFastForwarding by remember { mutableStateOf(false) }
+    var isFastForwardLocked by remember { mutableStateOf(false) }
 
     //  Accumulating double-tap seek 
     var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
@@ -141,16 +141,16 @@ fun GestureOverlay(
                 val slopPx = 10.dp.toPx()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = true)
-
-                    //  Locked mode: only allow single-tap 
                     if (isLocked) {
                         var isTap = true
                         while (true) {
-                            val event  = awaitPointerEvent()
+                            val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull() ?: break
                             val dx = change.position.x - down.position.x
                             val dy = change.position.y - down.position.y
-                            if (abs(dx) > slopPx || abs(dy) > slopPx) isTap = false
+                            if (abs(dx) > slopPx || abs(dy) > slopPx) {
+                                isTap = false
+                            }
                             change.consume()
                             if (!change.pressed) break
                         }
@@ -158,46 +158,66 @@ fun GestureOverlay(
                         return@awaitEachGesture
                     }
 
-                    //  Touch zone detection 
-                    val startX     = down.position.x
-                    val isLeftSide  = startX < size.width * 0.25f
-                    val isRightSide = startX > size.width * 0.75f
-                    val isCenterZone = !isLeftSide && !isRightSide
+                    val startX = down.position.x
+                    val isRightSide = startX > size.width / 2f
 
-                    var totalDx     = 0f
-                    var totalDy     = 0f
-                    var isSwiping   = false
-                    var swipeAxis   = ""
+                    var totalDx  = 0f
+                    var totalDy  = 0f
+                    var isSwiping  = false
+                    var swipeAxis  = ""
 
-                    //  Long-press → fast-forward 
                     var isLongPressActive = false
+                    // NEW: Track if a 3-finger tap occurred during this gesture
+                    var threeFingerTriggered = false
+
                     val longPressJob = coroutineScope.launch {
-                        delay(550)
-                        if (isPlaying && !isSwiping) {
+                        delay(600)
+                        // Prevent normal long-press if 3-finger lock is already active
+                        if (isPlaying && !isSwiping && !isFastForwardLocked) {
                             isLongPressActive = true
-                            isFastForwarding  = true
+                            isFastForwarding = true
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onFastForwardToggle(true)
                         }
                     }
 
-                    //  Main event loop 
                     while (true) {
                         val event  = awaitPointerEvent()
+
+                        // NEW: 3-Finger Toggle Logic
+                        if (event.changes.size == 3 && !threeFingerTriggered) {
+                            threeFingerTriggered = true
+                            isFastForwardLocked = !isFastForwardLocked
+                            isFastForwarding = isFastForwardLocked
+                            onFastForwardToggle(isFastForwardLocked)
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+
                         val change = event.changes.firstOrNull() ?: break
-                        if (change.isConsumed) break
+
+                        if (change.isConsumed) {
+                            longPressJob.cancel()
+                            break
+                        }
 
                         if (!change.pressed) {
                             longPressJob.cancel()
 
-                            // Release fast-forward
                             if (isLongPressActive) {
-                                isFastForwarding = false
-                                onFastForwardToggle(false)
+                                isLongPressActive = false
+                                // Only stop fast-forward if it wasn't locked by 3 fingers
+                                if (!isFastForwardLocked) {
+                                    isFastForwarding = false
+                                    onFastForwardToggle(false)
+                                }
                                 break
                             }
 
-                            // Commit horizontal scrub
+                            // If this was a 3-finger gesture, exit cleanly without triggering taps
+                            if (threeFingerTriggered) {
+                                break
+                            }
+
                             if (isSwiping && swipeAxis == "HORIZONTAL") {
                                 scrubDeltaMs?.let { delta ->
                                     if (delta != 0L) onSeekCommit(delta)
@@ -205,16 +225,15 @@ fun GestureOverlay(
                                 scrubDeltaMs = null
                             }
 
-                            //  Tap detection 
                             if (!isSwiping) {
+                                // ... existing single/double tap detection logic ...
                                 val now  = System.currentTimeMillis()
                                 val dt   = now - lastTapTime
-                                val ddx  = change.position.x - lastTapX
-                                val ddy  = change.position.y - lastTapY
-                                val dist = sqrt(ddx * ddx + ddy * ddy)
+                                val dx   = change.position.x - lastTapX
+                                val dy   = change.position.y - lastTapY
+                                val dist = sqrt(dx * dx + dy * dy)
 
                                 if (dt < 400 && dist < 100f) {
-                                    //  Double-tap 
                                     singleTapJob?.cancel()
                                     lastTapTime = 0L
                                     val tapX = change.position.x
@@ -224,31 +243,20 @@ fun GestureOverlay(
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedLeftMs += stepMs
                                             showLeftSeek = true
-                                            leftRippleTick++
                                             onSeekCommit(-stepMs)
                                             seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch {
-                                                delay(1800)
-                                                accumulatedLeftMs = 0L
-                                                showLeftSeek = false
-                                            }
+                                            seekDebounceJob = coroutineScope.launch { delay(2000); accumulatedLeftMs = 0L; showLeftSeek = false }
                                         }
                                         tapX > size.width * 0.66f -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedRightMs += stepMs
                                             showRightSeek = true
-                                            rightRippleTick++
                                             onSeekCommit(stepMs)
                                             seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch {
-                                                delay(1800)
-                                                accumulatedRightMs = 0L
-                                                showRightSeek = false
-                                            }
+                                            seekDebounceJob = coroutineScope.launch { delay(2000); accumulatedRightMs = 0L; showRightSeek = false }
                                         }
                                         else -> {
-                                            // Center: play/pause
                                             centerWasPlaying = isPlaying
                                             showCenterRipple = true
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -256,20 +264,21 @@ fun GestureOverlay(
                                         }
                                     }
                                 } else {
-                                    //  Single-tap (delayed) 
                                     lastTapTime = now
                                     lastTapX    = change.position.x
                                     lastTapY    = change.position.y
-                                    singleTapJob = coroutineScope.launch {
-                                        delay(300)
-                                        onSingleTap()
-                                    }
+                                    singleTapJob = coroutineScope.launch { delay(300); onSingleTap() }
                                 }
                             }
                             break
                         }
 
-                        //  Drag delta tracking 
+                        // NEW: If 3 fingers are down, consume the event so we don't trigger swipes
+                        if (threeFingerTriggered) {
+                            event.changes.forEach { it.consume() }
+                            continue
+                        }
+
                         val dx = change.position.x - change.previousPosition.x
                         val dy = change.position.y - change.previousPosition.y
                         totalDx += dx
@@ -279,30 +288,25 @@ fun GestureOverlay(
                             isSwiping = true
                             longPressJob.cancel()
                             if (isLongPressActive) {
-                                isFastForwarding  = false
-                                onFastForwardToggle(false)
                                 isLongPressActive = false
+                                if (!isFastForwardLocked) {
+                                    isFastForwarding = false
+                                    onFastForwardToggle(false)
+                                }
                             }
                             swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
                         }
 
                         if (isSwiping) {
-                            // Let system handle center-zone vertical swipes (notifications)
-                            if (isCenterZone && swipeAxis == "VERTICAL") {
-                                // do not consume
-                            } else {
-                                change.consume()
-                            }
-                            if (isLongPressActive) break
+                            change.consume()
+                            // Prevent swiping while holding normal fast-forward or locked fast-forward
+                            if (isLongPressActive || isFastForwardLocked) continue
 
                             when (swipeAxis) {
                                 "VERTICAL" -> {
-                                    if (!isCenterZone) {
-                                        val sensitivity = 1.2f
-                                        val delta = (-dy / size.height.toFloat()) * sensitivity
-                                        if (isRightSide) onVolumeSwipe(delta)
-                                        else if (isLeftSide) onBrightnessSwipe(delta)
-                                    }
+                                    val sensitivity = 1.2f
+                                    val delta = (-dy / size.height.toFloat()) * sensitivity
+                                    if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
                                 }
                                 "HORIZONTAL" -> {
                                     val deltaMs = (totalDx / size.width.toFloat()) * 100_000L
