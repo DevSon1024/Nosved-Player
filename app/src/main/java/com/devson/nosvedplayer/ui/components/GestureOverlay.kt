@@ -245,18 +245,30 @@ fun GestureOverlay(
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedLeftMs += stepMs
                                             showLeftSeek = true
+                                            // Increment tick BEFORE seek so animation fires on every tap
+                                            leftRippleTick++
                                             onSeekCommit(-stepMs)
                                             seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch { delay(2000); accumulatedLeftMs = 0L; showLeftSeek = false }
+                                            seekDebounceJob = coroutineScope.launch {
+                                                delay(1800)
+                                                accumulatedLeftMs = 0L
+                                                showLeftSeek = false
+                                            }
                                         }
                                         tapX > size.width * 0.66f -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedRightMs += stepMs
                                             showRightSeek = true
+                                            // Increment tick BEFORE seek so animation fires on every tap
+                                            rightRippleTick++
                                             onSeekCommit(stepMs)
                                             seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch { delay(2000); accumulatedRightMs = 0L; showRightSeek = false }
+                                            seekDebounceJob = coroutineScope.launch {
+                                                delay(1800)
+                                                accumulatedRightMs = 0L
+                                                showRightSeek = false
+                                            }
                                         }
                                         else -> {
                                             centerWasPlaying = isPlaying
@@ -321,7 +333,7 @@ fun GestureOverlay(
                 }
             }
     ) {
-        //  Brightness slider (left edge) 
+        //  Brightness slider (left edge)
         AnimatedVisibility(
             visible = showBrightnessFeedback,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = tween(180)),
@@ -331,7 +343,7 @@ fun GestureOverlay(
             ModernEdgeSlider(level = brightnessLevel, isVolume = false)
         }
 
-        //  Volume slider (right edge) 
+        //  Volume slider (right edge)
         AnimatedVisibility(
             visible = showVolumeFeedback,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = tween(180)),
@@ -341,7 +353,7 @@ fun GestureOverlay(
             ModernEdgeSlider(level = volumeLevel, isVolume = true, isAudioBoostEnabled = isAudioBoostEnabled)
         }
 
-        //  Horizontal scrub overlay (center) 
+        //  Horizontal scrub overlay (center)
         AnimatedVisibility(
             visible = scrubDeltaMs != null,
             enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.9f),
@@ -353,7 +365,7 @@ fun GestureOverlay(
             }
         }
 
-        //  Left accumulating seek 
+        //  Left accumulating seek
         AnimatedVisibility(
             visible = showLeftSeek,
             enter = fadeIn(tween(100)),
@@ -367,17 +379,23 @@ fun GestureOverlay(
             )
         }
 
-        //  Center play/pause ripple 
+        //  Center play/pause ripple
         AnimatedVisibility(
             visible = showCenterRipple,
-            enter = fadeIn(tween(80)) + scaleIn(initialScale = 0.7f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-            exit  = fadeOut(tween(400)) + scaleOut(targetScale = 1.15f, animationSpec = tween(400)),
+            enter = fadeIn(tween(60)) + scaleIn(
+                initialScale = 0.65f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ),
+            exit  = fadeOut(tween(380)) + scaleOut(targetScale = 1.2f, animationSpec = tween(380)),
             modifier = Modifier.align(Alignment.Center)
         ) {
             CenterRipple(wasPlaying = centerWasPlaying)
         }
 
-        //  Right accumulating seek 
+        //  Right accumulating seek
         AnimatedVisibility(
             visible = showRightSeek,
             enter = fadeIn(tween(100)),
@@ -404,7 +422,6 @@ fun GestureOverlay(
 }
 
 //  Modern edge slider  (volume / brightness)
-
 @Composable
 private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnabled: Boolean = false) {
     val clampedLevel = level.coerceIn(0f, 1f)
@@ -487,7 +504,6 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
 }
 
 //  Horizontal-scrub overlay
-
 @Composable
 private fun ScrubOverlay(deltaMs: Long) {
     val sign    = if (deltaMs >= 0) "+" else ""
@@ -531,28 +547,38 @@ private fun AccumulatingSeekRipple(
     val secs  = accumulatedMs / 1000L
     val label = if (isRightSide) "+${secs}s" else "-${secs}s"
 
-    // Animated arc sweep (0 → 1 on each new tap)
+    // Animated arc sweep: 0f → 1f on EACH new tap (rippleTick change)
     val arcProgress = remember { Animatable(0f) }
     LaunchedEffect(rippleTick) {
         if (rippleTick > 0) {
+            // Snap back to 0 then animate forward for stacked-tap feel
             arcProgress.snapTo(0f)
             arcProgress.animateTo(
                 targetValue   = 1f,
-                animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
             )
+        }
+    }
+
+    // Background flash on each tap
+    val flashAlpha = remember { Animatable(0f) }
+    LaunchedEffect(rippleTick) {
+        if (rippleTick > 0) {
+            flashAlpha.snapTo(0.22f)
+            flashAlpha.animateTo(0f, animationSpec = tween(500))
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .width(140.dp)
+            .width(150.dp)
             .background(
                 brush = Brush.horizontalGradient(
                     colors = if (isRightSide)
-                        listOf(Color.Transparent, Color.White.copy(alpha = 0.13f))
+                        listOf(Color.Transparent, Color.White.copy(alpha = 0.10f + flashAlpha.value))
                     else
-                        listOf(Color.White.copy(alpha = 0.13f), Color.Transparent)
+                        listOf(Color.White.copy(alpha = 0.10f + flashAlpha.value), Color.Transparent)
                 ),
                 shape = if (isRightSide)
                     RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
@@ -565,59 +591,77 @@ private fun AccumulatingSeekRipple(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Arc indicator
-            Canvas(modifier = Modifier.size(54.dp)) {
-                val stroke = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                val sweep  = 260f * arcProgress.value
-                val startAngle = if (isRightSide) 140f else -20f - sweep + (260f - sweep)
+            // Arc + chevron indicator
+            Canvas(modifier = Modifier.size(58.dp)) {
+                val stroke = Stroke(width = 3.2.dp.toPx(), cap = StrokeCap.Round)
+                val sweep  = 250f * arcProgress.value
 
-                // Background arc
+                // Arc spans from ~130° to ~310° (open toward the tap side)
+                // Right side: opens LEFT  → start at 140°, sweep clockwise
+                // Left side:  opens RIGHT → start at -70° (290°), sweep counter-clockwise
+                //   = start at 320°, sweep -250° → equivalent to start=320, sweep= -sweep (going CCW)
+                //   Simpler: mirror the right arc. startAngle for left = 320° - 250° = 70° reversed.
+                //   We draw right arc at startAngle=140, sweep=+250 (CW).
+                //   For left arc we want mirror: startAngle= -70° (= 290°), sweep=-250 (CCW).
+                //   In Canvas: drawArc with negative sweep draws CCW.
+
+                val bgStartAngle = if (isRightSide) 140f else -70f
+                val bgSweep      = if (isRightSide) 250f else -250f
+
+                // Background arc (full)
                 drawArc(
-                    color      = Color.White.copy(alpha = 0.2f),
-                    startAngle = if (isRightSide) 140f else -120f,
-                    sweepAngle = 260f,
+                    color      = Color.White.copy(alpha = 0.18f),
+                    startAngle = bgStartAngle,
+                    sweepAngle = bgSweep,
                     useCenter  = false,
                     style      = stroke
                 )
                 // Animated fill arc
                 drawArc(
-                    color      = Color.White.copy(alpha = 0.85f),
-                    startAngle = if (isRightSide) 140f else -120f,
-                    sweepAngle = if (isRightSide) sweep else -sweep + 260f,
+                    color      = Color.White.copy(alpha = 0.90f),
+                    startAngle = bgStartAngle,
+                    sweepAngle = if (isRightSide) sweep else -sweep,
                     useCenter  = false,
                     style      = stroke
                 )
 
-                // Chevron arrows
+                // Double chevron arrows (>>) pointing in seek direction
                 val cx = size.width / 2f
                 val cy = size.height / 2f
+                val aW = 7.dp.toPx()
+                val aH = 10.dp.toPx()
+                val gap = 5.dp.toPx()
                 val arrowColor = Color.White
-                val aW = 8.dp.toPx()
-                val aH = 12.dp.toPx()
+                val sw = 2.6.dp.toPx()
+
                 if (isRightSide) {
-                    drawLine(arrowColor, Offset(cx - aW, cy - aH / 2), Offset(cx, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx - aW, cy + aH / 2), Offset(cx, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx,      cy - aH / 2), Offset(cx + aW, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx,      cy + aH / 2), Offset(cx + aW, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
+                    // First chevron >
+                    drawLine(arrowColor, Offset(cx - aW - gap, cy - aH / 2), Offset(cx - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawLine(arrowColor, Offset(cx - aW - gap, cy + aH / 2), Offset(cx - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    // Second chevron >
+                    drawLine(arrowColor, Offset(cx - gap, cy - aH / 2), Offset(cx + aW - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawLine(arrowColor, Offset(cx - gap, cy + aH / 2), Offset(cx + aW - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                 } else {
-                    drawLine(arrowColor, Offset(cx + aW, cy - aH / 2), Offset(cx, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx + aW, cy + aH / 2), Offset(cx, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx,      cy - aH / 2), Offset(cx - aW, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
-                    drawLine(arrowColor, Offset(cx,      cy + aH / 2), Offset(cx - aW, cy), strokeWidth = 2.5f.dp.toPx(), cap = StrokeCap.Round)
+                    // First chevron <
+                    drawLine(arrowColor, Offset(cx + aW + gap, cy - aH / 2), Offset(cx + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawLine(arrowColor, Offset(cx + aW + gap, cy + aH / 2), Offset(cx + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    // Second chevron <
+                    drawLine(arrowColor, Offset(cx + gap, cy - aH / 2), Offset(cx - aW + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawLine(arrowColor, Offset(cx + gap, cy + aH / 2), Offset(cx - aW + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                 }
             }
 
             Text(
                 text       = label,
                 color      = Color.White,
-                fontSize   = 15.sp,
+                fontSize   = 16.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign  = TextAlign.Center
             )
 
             Text(
                 text      = if (isRightSide) "Forward" else "Rewind",
-                color     = Color.White.copy(alpha = 0.65f),
+                color     = Color.White.copy(alpha = 0.70f),
                 fontSize  = 11.sp,
                 textAlign = TextAlign.Center
             )
@@ -629,18 +673,26 @@ private fun AccumulatingSeekRipple(
 
 @Composable
 private fun CenterRipple(wasPlaying: Boolean) {
+    // wasPlaying = state BEFORE the tap, so icon shows what action was just taken:
+    // was playing → user just paused → show Pause icon
+    // was paused  → user just played → show PlayArrow icon
+    val pulseAnim = remember { Animatable(0.85f) }
+    LaunchedEffect(Unit) {
+        pulseAnim.animateTo(1.05f, animationSpec = tween(200, easing = FastOutSlowInEasing))
+        pulseAnim.animateTo(1.00f, animationSpec = tween(150, easing = FastOutSlowInEasing))
+    }
     Box(
         modifier = Modifier
-            .size(64.dp)
+            .size((64 * pulseAnim.value).dp)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.50f)),
+            .background(Color.Black.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector  = if (wasPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (wasPlaying) "Paused" else "Playing",
             tint         = Color.White,
-            modifier     = Modifier.size(44.dp)
+            modifier     = Modifier.size(40.dp)
         )
     }
 }
