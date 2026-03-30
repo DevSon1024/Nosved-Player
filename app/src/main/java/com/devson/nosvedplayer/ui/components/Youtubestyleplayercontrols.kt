@@ -123,33 +123,6 @@ fun YoutubeStylePlayerControls(
             modifier = Modifier.align(Alignment.CenterEnd)
         )
 
-        // 2. Fast-play indicator (driven externally by GestureOverlay long-press)
-        AnimatedVisibility(
-            visible = isFastForwarding,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 56.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(Color.Black.copy(0.6f), RoundedCornerShape(32.dp))
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "${fastplaySpeed}x speed",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
         // 4. Main controls — hidden while fast-forwarding or not visible
         AnimatedVisibility(
             visible = isVisible && !isFastForwarding,
@@ -514,9 +487,7 @@ private fun YtSeekBar(
         onValueChangeFinished = {
             onSeekEnd()
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(24.dp),   // taller touch target = more responsive
+        modifier = Modifier.fillMaxWidth(),
         colors = SliderDefaults.colors(
             thumbColor = Color(0xFFFF0000),
             activeTrackColor = Color(0xFFFF0000),
@@ -535,16 +506,23 @@ private fun YtSeekBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.3f))
+                    .height(24.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(frac)
-                        .fillMaxHeight()
-                        .background(Color(0xFFFF0000))
-                )
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.3f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(frac)
+                            .height(4.dp)
+                            .background(Color(0xFFFF0000))
+                    )
+                }
             }
         }
     )

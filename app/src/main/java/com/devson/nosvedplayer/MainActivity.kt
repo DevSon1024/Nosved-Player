@@ -18,6 +18,9 @@ import com.devson.nosvedplayer.viewmodel.VideoViewModel
 import android.graphics.Color
 import android.os.Build
 import androidx.activity.SystemBarStyle
+import androidx.media3.common.util.UnstableApi
+
+@UnstableApi
 class MainActivity : ComponentActivity() {
 
     private var videoViewModelRef: VideoViewModel? = null

@@ -572,7 +572,7 @@ private fun FlatSeekBar(
         onValueChange = onValueChange,
         onValueChangeFinished = onValueChangeFinished,
         valueRange = valueRange,
-        modifier = modifier.height(16.dp),
+        modifier = modifier,
         thumb = { /* no thumb */ },
         track = { sliderState ->
             val fraction = (sliderState.value - valueRange.start) /
@@ -580,16 +580,23 @@ private fun FlatSeekBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White.copy(alpha = 0.3f))
+                    .height(24.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                        .fillMaxWidth()
                         .height(3.dp)
-                        .background(Color.White)
-                )
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.3f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                            .height(3.dp)
+                            .background(Color.White)
+                    )
+                }
             }
         }
     )
