@@ -46,6 +46,7 @@ fun PlaybackSettingsSheet(
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
+    useYoutubeStyle: Boolean,
     showSeekButtons: Boolean = true,
     fastplaySpeed: Float = 2.0f,
     isLandscape: Boolean,
@@ -54,6 +55,7 @@ fun PlaybackSettingsSheet(
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
+    onYoutubeStyleChange: (Boolean) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit = {},
     onFastplaySpeedChange: (Float) -> Unit = {}
 ) {
@@ -69,10 +71,12 @@ fun PlaybackSettingsSheet(
                     seekBarStyle = seekBarStyle,
                     controlIconSize = controlIconSize,
                     autoPlayEnabled = autoPlayEnabled,
+                    useYoutubeStyle = useYoutubeStyle,
                     showSeekButtons = showSeekButtons,
                     fastplaySpeed = fastplaySpeed,
                     onControlIconSizeChange = onControlIconSizeChange,
                     onAutoPlayChange = onAutoPlayChange,
+                    onYoutubeStyleChange = onYoutubeStyleChange,
                     onSeekDurationChange = onSeekDurationChange,
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
@@ -97,10 +101,12 @@ fun PlaybackSettingsSheet(
                     seekBarStyle = seekBarStyle,
                     controlIconSize = controlIconSize,
                     autoPlayEnabled = autoPlayEnabled,
+                    useYoutubeStyle = useYoutubeStyle,
                     showSeekButtons = showSeekButtons,
                     fastplaySpeed = fastplaySpeed,
                     onControlIconSizeChange = onControlIconSizeChange,
                     onAutoPlayChange = onAutoPlayChange,
+                    onYoutubeStyleChange = onYoutubeStyleChange,
                     onSeekDurationChange = onSeekDurationChange,
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
@@ -113,7 +119,7 @@ fun PlaybackSettingsSheet(
     }
 }
 
-// ─── Animated page switcher ───────────────────────────────────────────────────
+//  Animated page switcher 
 
 @Composable
 private fun SheetPageContent(
@@ -122,10 +128,12 @@ private fun SheetPageContent(
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
+    useYoutubeStyle: Boolean,
     showSeekButtons: Boolean,
     fastplaySpeed: Float,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
+    onYoutubeStyleChange: (Boolean) -> Unit,
     onSeekDurationChange: (Int) -> Unit,
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit,
@@ -164,22 +172,26 @@ private fun SheetPageContent(
             MainSettingsPage(
                 controlIconSize = controlIconSize,
                 autoPlayEnabled = autoPlayEnabled,
+                useYoutubeStyle = useYoutubeStyle,
                 onControlIconSizeChange = onControlIconSizeChange,
                 onAutoPlayChange = onAutoPlayChange,
+                onYoutubeStyleChange = onYoutubeStyleChange,
                 onOpenSeekPage = onOpenSeekPage
             )
         }
     }
 }
 
-// ─── Page 1: Main settings ────────────────────────────────────────────────────
+//  Page 1: Main settings 
 
 @Composable
 private fun MainSettingsPage(
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
+    useYoutubeStyle: Boolean,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
+    onYoutubeStyleChange: (Boolean) -> Unit,
     onOpenSeekPage: () -> Unit
 ) {
     Column(
@@ -280,10 +292,34 @@ private fun MainSettingsPage(
                 )
             }
         }
+        
+        Spacer(Modifier.height(20.dp))
+
+        // Player Style
+        SettingsSection(title = "Player Style") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Use YouTube style controls",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Switch(
+                    checked = useYoutubeStyle,
+                    onCheckedChange = { onYoutubeStyleChange(it) }
+                )
+            }
+        }
     }
 }
 
-// ─── Page 2: Seek & Speed settings ───────────────────────────────────────────
+//  Page 2: Seek & Speed settings 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -307,7 +343,7 @@ private fun SeekSettingsPage(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 36.dp)
     ) {
-        // ── Header with back button ────────────────────────────────────────────
+        //  Header with back button 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -332,7 +368,7 @@ private fun SeekSettingsPage(
 
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
 
-            // ── Seek Duration ──────────────────────────────────────────────────
+            //  Seek Duration 
             SettingsSection(title = "Seek Duration") {
                 // Quick presets row
                 Row(
@@ -401,7 +437,7 @@ private fun SeekSettingsPage(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Seek Bar Style ─────────────────────────────────────────────────
+            //  Seek Bar Style 
             SettingsSection(title = "Seek Bar Style") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -424,7 +460,7 @@ private fun SeekSettingsPage(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Show Seek Buttons ──────────────────────────────────────────────
+            //  Show Seek Buttons 
             SettingsSection(title = "Seek Buttons") {
                 Row(
                     modifier = Modifier
@@ -448,7 +484,7 @@ private fun SeekSettingsPage(
 
             Spacer(Modifier.height(20.dp))
 
-            // ── Fastplay Speed ─────────────────────────────────────────────────
+            //  Fastplay Speed 
             val speedMin = 1.0f
             val speedMax = 4.0f
 
@@ -532,7 +568,7 @@ private fun SeekSettingsPage(
     }
 }
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+//  Shared helpers 
 
 @Composable
 fun SettingsSection(title: String, content: @Composable () -> Unit) {

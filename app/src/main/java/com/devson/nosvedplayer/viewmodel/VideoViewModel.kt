@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.devson.nosvedplayer.model.TrackInfo
 import android.net.Uri
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.launch
 
 //  Playback Settings Enums 
@@ -24,6 +26,7 @@ enum class SeekBarStyle { DEFAULT, FLAT }
 /** Control icon size preset applied to play/pause and seek icons. */
 enum class ControlIconSize { SMALL, MEDIUM, LARGE }
 
+@UnstableApi
 class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     private val historyRepo = WatchHistoryRepository(application.applicationContext)
@@ -260,6 +263,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.clearError()
     }
 
+    @OptIn(UnstableApi::class)
     fun toggleResizeMode(): String {
         val newMode = when (_resizeMode.value) {
             AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FILL

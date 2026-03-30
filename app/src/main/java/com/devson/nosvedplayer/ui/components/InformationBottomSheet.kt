@@ -52,7 +52,7 @@ fun InformationBottomSheet(
     }
 
     if (useSideSheet) {
-        // ── Side panel (video player context) ──────────────────────────────────
+        //  Side panel (video player context) 
         SideSheet(visible = true, onDismissRequest = onDismiss) {
             InfoSheetBody(
                 selectedVideos = selectedVideos,
@@ -62,7 +62,7 @@ fun InformationBottomSheet(
             )
         }
     } else {
-        // ── Regular bottom sheet (video list context) ───────────────────────────
+        //  Regular bottom sheet (video list context) 
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -79,7 +79,7 @@ fun InformationBottomSheet(
     }
 }
 
-// ─── Shared body ─────────────────────────────────────────────────────────────
+//  Shared body 
 
 @Composable
 private fun InfoSheetBody(
@@ -179,7 +179,7 @@ private fun InfoSheetBody(
     }
 }
 
-// ─── Composable helpers ───────────────────────────────────────────────────────
+//  Composable helpers 
 
 @Composable
 private fun CompactInfoSection(
@@ -270,7 +270,7 @@ private fun CompactStreamItem(
     }
 }
 
-// ─── Keep original helpers for VideoListScreen usage ─────────────────────────
+//  Keep original helpers for VideoListScreen usage 
 
 @Composable
 fun AggregatedStats(selectedVideos: Set<Video>) {

@@ -22,11 +22,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val isDeveloperMode: StateFlow<Boolean> = settingsRepo.isDeveloperModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /**
+     * true = YouTube-style player UI, false = default player UI.
+     * Persisted via PlaybackSettingsRepository / DataStore.
+     */
+    val useYoutubePlayerStyle: StateFlow<Boolean> = settingsRepo.useYoutubePlayerStyleFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun setDarkTheme(isDark: Boolean) {
         viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
     }
 
     fun enableDeveloperMode() {
         viewModelScope.launch { settingsRepo.setDeveloperMode(true) }
+    }
+
+    fun setYoutubePlayerStyle(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.setYoutubePlayerStyle(enabled) }
     }
 }

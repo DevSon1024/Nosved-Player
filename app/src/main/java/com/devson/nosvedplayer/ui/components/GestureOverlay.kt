@@ -315,29 +315,6 @@ fun GestureOverlay(
             }
         }
 
-        // Fast Forward Badge (Top Center)
-        androidx.compose.animation.AnimatedVisibility(
-            visible = isFastForwarding,
-            enter = androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 40.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(32.dp))
-                    .padding(horizontal = 24.dp, vertical = 10.dp)
-            ) {
-                val speedLabel = if (fastplaySpeed == fastplaySpeed.toLong().toFloat())
-                    "${fastplaySpeed.toLong()}x" else "${fastplaySpeed}x"
-                Text(
-                    text = "⏩ ${speedLabel} Speed",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
         // Left accumulating seek overlay
         AnimatedVisibility(
             visible = showLeftSeek,

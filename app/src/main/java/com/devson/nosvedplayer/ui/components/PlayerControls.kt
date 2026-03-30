@@ -144,7 +144,9 @@ fun PlayerControls(
     // Playlist Navigation
     onPlayPrevious: (() -> Unit)? = null,
     onPlayNext: (() -> Unit)? = null,
-    isLandscape: Boolean = false
+    isLandscape: Boolean = false,
+    useYoutubeStyle: Boolean = false,
+    onYoutubeStyleChange: ((Boolean) -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -316,8 +318,14 @@ fun PlayerControls(
                         .padding(horizontal = 16.dp, vertical = 0.dp),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    var sliderPosition by remember(currentPosition) { mutableFloatStateOf(currentPosition.toFloat()) }
+                    var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
+                    var isDragging by remember { mutableStateOf(false) }
                     var showRemainingTime by remember { mutableStateOf(false) }
+
+                    // Sync live position into slider ONLY when not dragging
+                    LaunchedEffect(currentPosition, isDragging) {
+                        if (!isDragging) sliderPosition = currentPosition.toFloat()
+                    }
 
                     // Row 1: Time + Seekbar + Time
                     Row(
@@ -336,16 +344,28 @@ fun PlayerControls(
                             FlatSeekBar(
                                 value = sliderPosition,
                                 valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
-                                onValueChange = { sliderPosition = it },
-                                onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
+                                onValueChange = {
+                                    isDragging = true
+                                    sliderPosition = it
+                                },
+                                onValueChangeFinished = {
+                                    isDragging = false
+                                    onSeekTo(sliderPosition.toLong())
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
                             //  Default Material3 Slider 
                             Slider(
                                 value = sliderPosition,
-                                onValueChange = { sliderPosition = it },
-                                onValueChangeFinished = { onSeekTo(sliderPosition.toLong()) },
+                                onValueChange = {
+                                    isDragging = true
+                                    sliderPosition = it
+                                },
+                                onValueChangeFinished = {
+                                    isDragging = false
+                                    onSeekTo(sliderPosition.toLong())
+                                },
                                 valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
                                 modifier = Modifier.weight(1f),
                                 colors = SliderDefaults.colors(
@@ -521,6 +541,7 @@ fun PlayerControls(
         seekBarStyle = seekBarStyle,
         controlIconSize = controlIconSize,
         autoPlayEnabled = autoPlayEnabled,
+        useYoutubeStyle = useYoutubeStyle,
         showSeekButtons = showSeekButtons,
         fastplaySpeed = fastplaySpeed,
         isLandscape = isLandscape,
@@ -529,6 +550,7 @@ fun PlayerControls(
         onSeekBarStyleChange = { onSeekBarStyleChange?.invoke(it) },
         onControlIconSizeChange = { onControlIconSizeChange?.invoke(it) },
         onAutoPlayChange = { onAutoPlayChange?.invoke(it) },
+        onYoutubeStyleChange = { onYoutubeStyleChange?.invoke(it) },
         onShowSeekButtonsChange = { onShowSeekButtonsChange?.invoke(it) },
         onFastplaySpeedChange = { onFastplaySpeedChange?.invoke(it) }
     )

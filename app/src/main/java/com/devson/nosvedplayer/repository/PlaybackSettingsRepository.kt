@@ -37,6 +37,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         // null stored as absent = follow system
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
+        val YOUTUBE_PLAYER_STYLE = booleanPreferencesKey("youtube_player_style")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -71,6 +72,10 @@ class PlaybackSettingsRepository(private val context: Context) {
         prefs[PreferencesKeys.DEVELOPER_MODE] ?: false
     }
 
+    val useYoutubePlayerStyleFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] ?: false
+    }
+
     suspend fun setDarkTheme(isDark: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DARK_THEME] = isDark
@@ -81,6 +86,12 @@ class PlaybackSettingsRepository(private val context: Context) {
     suspend fun setDeveloperMode(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DEVELOPER_MODE] = enabled
+        }
+    }
+
+    suspend fun setYoutubePlayerStyle(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] = enabled
         }
     }
 
