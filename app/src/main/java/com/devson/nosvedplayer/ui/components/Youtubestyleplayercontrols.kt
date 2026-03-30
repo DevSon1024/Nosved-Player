@@ -1,0 +1,715 @@
+package com.devson.nosvedplayer.ui.components
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.devson.nosvedplayer.model.TrackInfo
+import com.devson.nosvedplayer.model.Video
+import com.devson.nosvedplayer.viewmodel.SeekBarStyle
+import kotlinx.coroutines.delay
+
+/**
+ * A YouTube-inspired player controls overlay.
+ *
+ * Fixes applied:
+ *  ✓ Seek bar properly commits the last dragged position (not stale fraction)
+ *  ✓ Long-press anywhere activates fast-forward (releases on finger lift)
+ *  ✓ Double-tap centre toggles play/pause; left/right seek with indicator
+ *  ✓ "Up Next" arrow below seekbar expands an inline playlist panel
+ *  ✓ Settings panel uses MaterialTheme colours instead of hardcoded dark
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun YoutubeStylePlayerControls(
+    modifier: Modifier = Modifier,
+    isVisible: Boolean,
+    isPlaying: Boolean,
+    title: String,
+    currentPosition: Long,
+    duration: Long,
+    seekDurationSeconds: Int = 10,
+    seekBarStyle: SeekBarStyle = SeekBarStyle.DEFAULT,
+    fastplaySpeed: Float = 2.0f,
+    hasPrevious: Boolean = false,
+    hasNext: Boolean = false,
+    isLandscape: Boolean = false,
+    isLocked: Boolean = false,
+    // Tracks
+    audioTracks: List<TrackInfo> = emptyList(),
+    selectedAudioIndex: Int = -1,
+    subtitleTracks: List<TrackInfo> = emptyList(),
+    selectedSubtitleIndex: Int = -1,
+    // Playlist (for Up-Next panel)
+    playlist: List<Video> = emptyList(),
+    currentPlaylistIndex: Int = -1,
+    // Callbacks
+    onPlayPauseToggle: () -> Unit,
+    onSeekTo: (Long) -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit,
+    onBack: () -> Unit,
+    onToggleLock: () -> Unit,
+    onSelectAudio: (Int) -> Unit,
+    onSelectSubtitle: (Int?) -> Unit,
+    onSpeedChange: (Float) -> Unit,
+    onPlayPrevious: () -> Unit = {},
+    onPlayNext: () -> Unit = {},
+    onPlayFromPlaylist: (Int) -> Unit = {},
+    onToggleResizeMode: (() -> Unit)? = null,
+    onPipToggle: (() -> Unit)? = null,
+    onControlsStateChange: () -> Unit = {},
+    currentPlaybackSpeed: Float = 1f,
+    onFastForwardActive: (Boolean) -> Unit = {},
+    onOpenPlaybackSettings: () -> Unit = {},
+    onOpenAudioTracks: () -> Unit = {},
+    onOpenSubtitles: () -> Unit = {},
+    // Externally driven indicator state (fed from GestureOverlay)
+    showSeekLeft: Boolean = false,
+    showSeekRight: Boolean = false,
+    isFastForwarding: Boolean = false
+) {
+    //  Local UI state
+    var showPlaylistPanel by remember { mutableStateOf(false) }
+
+    //  Seek bar drag state — track last dragged value explicitly
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekPreview by remember { mutableStateOf(0L) }
+    var lastDraggedPos by remember { mutableStateOf(0L) }
+
+    // Displayed position: use seekPreview while dragging, else live position
+    val displayedPosition = if (isSeeking) seekPreview else currentPosition
+
+    Box(modifier = modifier.fillMaxSize()) {
+
+        // 1. Seek indicator overlays (driven externally by GestureOverlay)
+        SeekIndicator(
+            side = SeekSide.Left,
+            visible = showSeekLeft,
+            seconds = seekDurationSeconds,
+            modifier = Modifier.align(Alignment.CenterStart)
+        )
+        SeekIndicator(
+            side = SeekSide.Right,
+            visible = showSeekRight,
+            seconds = seekDurationSeconds,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
+
+        // 2. Fast-play indicator (driven externally by GestureOverlay long-press)
+        AnimatedVisibility(
+            visible = isFastForwarding,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 56.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(Color.Black.copy(0.6f), RoundedCornerShape(32.dp))
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "${fastplaySpeed}x speed",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // 4. Main controls — hidden while fast-forwarding or not visible
+        AnimatedVisibility(
+            visible = isVisible && !isFastForwarding,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (isLocked) {
+                // Show unlock button at the SAME top-left position as the lock icon
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 8.dp, top = 4.dp)
+                            .background(Color.Black.copy(0.5f), RoundedCornerShape(8.dp))
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // Placeholder for back arrow height alignment
+                            Spacer(Modifier.height(48.dp))
+                            IconButton(
+                                onClick = onToggleLock,
+                                modifier = Modifier
+                                    .background(Color.Black.copy(0.5f), RoundedCornerShape(8.dp))
+                            ) {
+                                Icon(
+                                    Icons.Filled.Lock,
+                                    contentDescription = "Unlock",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                YtControlsLayout(
+                    title = title,
+                    isPlaying = isPlaying,
+                    displayedPosition = displayedPosition,
+                    duration = duration,
+                    hasPrevious = hasPrevious,
+                    hasNext = hasNext,
+                    isLandscape = isLandscape,
+                    isSeeking = isSeeking,
+                    seekBarStyle = seekBarStyle,
+                    currentPlaybackSpeed = currentPlaybackSpeed,
+                    showPlaylistPanel = showPlaylistPanel,
+                    isLocked = isLocked,
+                    onBack = onBack,
+                    onPlayPauseToggle = onPlayPauseToggle,
+                    onPlayPrevious = onPlayPrevious,
+                    onPlayNext = onPlayNext,
+                    onToggleLock = onToggleLock,
+                    onToggleResizeMode = onToggleResizeMode,
+                    onPipToggle = onPipToggle,
+                    onSettingsClick = onOpenPlaybackSettings,
+                    onSubtitleClick = onOpenSubtitles,
+                    onAudioTrackClick = onOpenAudioTracks,
+                    onTogglePlaylist = { showPlaylistPanel = !showPlaylistPanel },
+                    onSeekStart = { pos ->
+                        isSeeking = true
+                        seekPreview = pos
+                        lastDraggedPos = pos
+                    },
+                    onSeekChange = { pos ->
+                        seekPreview = pos
+                        lastDraggedPos = pos
+                    },
+                    onSeekEnd = {
+                        isSeeking = false
+                        onSeekTo(lastDraggedPos)
+                    }
+                )
+            }
+        }
+
+        // 5. Up-Next playlist panel (slides up from bottom)
+        AnimatedVisibility(
+            visible = showPlaylistPanel && playlist.isNotEmpty(),
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            UpNextPanel(
+                playlist = playlist,
+                currentIndex = currentPlaylistIndex,
+                onSelectVideo = { index ->
+                    onPlayFromPlaylist(index)
+                    showPlaylistPanel = false
+                },
+                onDismiss = { showPlaylistPanel = false }
+            )
+        }
+    }
+}
+
+// Layout: Top bar + center play/pause + bottom bar 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun YtControlsLayout(
+    title: String,
+    isPlaying: Boolean,
+    displayedPosition: Long,
+    duration: Long,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    isLandscape: Boolean,
+    isSeeking: Boolean,
+    seekBarStyle: SeekBarStyle,
+    currentPlaybackSpeed: Float,
+    showPlaylistPanel: Boolean,
+    isLocked: Boolean,
+    onBack: () -> Unit,
+    onPlayPauseToggle: () -> Unit,
+    onPlayPrevious: () -> Unit,
+    onPlayNext: () -> Unit,
+    onToggleLock: () -> Unit,
+    onToggleResizeMode: (() -> Unit)?,
+    onPipToggle: (() -> Unit)?,
+    onSettingsClick: () -> Unit,
+    onSubtitleClick: () -> Unit,
+    onAudioTrackClick: () -> Unit,
+    onTogglePlaylist: () -> Unit,
+    onSeekStart: (Long) -> Unit,
+    onSeekChange: (Long) -> Unit,
+    onSeekEnd: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.7f),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.85f)
+                    )
+                )
+            )
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        // Top bar: left Column (Back + Lock) | Title | Right actions
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Left column: back arrow on top, lock below
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+                IconButton(
+                    onClick = onToggleLock,
+                    modifier = Modifier
+                        .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LockOpen,
+                        contentDescription = "Lock screen",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Title (fills all remaining space)
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp).padding(top = 12.dp)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Right actions
+            if (onPipToggle != null) {
+                IconButton(onClick = onPipToggle) {
+                    Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "PIP", tint = Color.White)
+                }
+            }
+            IconButton(onClick = onSubtitleClick) {
+                Icon(Icons.Filled.ClosedCaption, contentDescription = "CC / Subtitles", tint = Color.White)
+            }
+            IconButton(onClick = onAudioTrackClick) {
+                Icon(Icons.Filled.Audiotrack, contentDescription = "Audio Track", tint = Color.White)
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
+            }
+        }
+
+        // Centre: prev / play-pause / next
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onPlayPrevious,
+                enabled = hasPrevious,
+                modifier = Modifier.size(52.dp)
+            ) {
+                Icon(
+                    Icons.Filled.SkipPrevious,
+                    contentDescription = "Previous",
+                    tint = if (hasPrevious) Color.White else Color.White.copy(0.35f),
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(0.45f)),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(onClick = onPlayPauseToggle, modifier = Modifier.size(64.dp)) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+
+            IconButton(
+                onClick = onPlayNext,
+                enabled = hasNext,
+                modifier = Modifier.size(52.dp)
+            ) {
+                Icon(
+                    Icons.Filled.SkipNext,
+                    contentDescription = "Next",
+                    tint = if (hasNext) Color.White else Color.White.copy(0.35f),
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
+        // Bottom bar
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 12.dp)
+                .padding(bottom = if (isLandscape) 8.dp else 16.dp)
+        ) {
+            // Time row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${formatTime(displayedPosition)} / ${formatTime(duration)}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.weight(1f))
+                if (currentPlaybackSpeed != 1f) {
+                    Text(
+                        text = "${currentPlaybackSpeed}x",
+                        color = Color.White.copy(0.75f),
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (onToggleResizeMode != null) {
+                    IconButton(onClick = onToggleResizeMode, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Crop, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+
+            // Seek bar
+            YtSeekBar(
+                position = displayedPosition,
+                duration = duration,
+                isSeeking = isSeeking,
+                onSeekStart = onSeekStart,
+                onSeekChange = onSeekChange,
+                onSeekEnd = onSeekEnd
+            )
+
+            // Up-Next toggle arrow
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onTogglePlaylist
+                    )
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = if (showPlaylistPanel) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
+                    contentDescription = if (showPlaylistPanel) "Close playlist" else "Up Next",
+                    tint = Color.White.copy(alpha = 0.75f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "Up Next",
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+//  Seek Bar 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun YtSeekBar(
+    position: Long,
+    duration: Long,
+    isSeeking: Boolean,
+    onSeekStart: (Long) -> Unit,
+    onSeekChange: (Long) -> Unit,
+    onSeekEnd: () -> Unit
+) {
+    val safeDuration = duration.coerceAtLeast(1L)
+    // internalFraction drives the Slider; only synced from position when NOT dragging
+    var internalFraction by remember { mutableStateOf(0f) }
+
+    // Sync external position -> slider ONLY when the user is not dragging
+    LaunchedEffect(position, isSeeking) {
+        if (!isSeeking) {
+            internalFraction = (position.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+        }
+    }
+
+    Slider(
+        value = internalFraction,
+        onValueChange = { f ->
+            internalFraction = f
+            val newPos = (f * safeDuration).toLong()
+            if (!isSeeking) onSeekStart(newPos)
+            else onSeekChange(newPos)
+        },
+        onValueChangeFinished = {
+            onSeekEnd()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp),   // taller touch target = more responsive
+        colors = SliderDefaults.colors(
+            thumbColor = Color(0xFFFF0000),
+            activeTrackColor = Color(0xFFFF0000),
+            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+        ),
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(if (isSeeking) 18.dp else 14.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF0000))
+            )
+        },
+        track = { sliderState ->
+            val frac = sliderState.value.coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White.copy(alpha = 0.3f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(frac)
+                        .fillMaxHeight()
+                        .background(Color(0xFFFF0000))
+                )
+            }
+        }
+    )
+}
+
+//  Up-Next Panel 
+
+@Composable
+private fun UpNextPanel(
+    playlist: List<Video>,
+    currentIndex: Int,
+    onSelectVideo: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.45f)
+            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.97f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}   // consume — don't propagate to scrim
+            )
+    ) {
+        Column {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Up Next",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            LazyColumn {
+                itemsIndexed(playlist) { index, video ->
+                    val isCurrent = index == currentIndex
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                                else Color.Transparent
+                            )
+                            .clickable(enabled = !isCurrent) { onSelectVideo(index) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isCurrent) {
+                            Icon(
+                                Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        } else {
+                            Text(
+                                text = "${index + 1}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                                modifier = Modifier.width(28.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = video.title,
+                                color = if (isCurrent) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (video.duration > 0L) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = formatTime(video.duration),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                    if (index < playlist.lastIndex) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+//  Double-tap seek ripple indicator 
+
+private enum class SeekSide { Left, Right }
+
+@Composable
+private fun SeekIndicator(
+    side: SeekSide,
+    visible: Boolean,
+    seconds: Int,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .width(120.dp)
+                .fillMaxHeight()
+                .clip(
+                    if (side == SeekSide.Left) RoundedCornerShape(topEnd = 120.dp, bottomEnd = 120.dp)
+                    else RoundedCornerShape(topStart = 120.dp, bottomStart = 120.dp)
+                )
+                .background(Color.White.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = if (side == SeekSide.Left) Icons.Filled.FastRewind else Icons.Filled.FastForward,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+                Text(
+                    text = "$seconds seconds",
+                    color = Color.White,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+//  Time formatter 
+
+private fun formatTime(timeMs: Long): String {
+    val totalSeconds = timeMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds)
+    else "%02d:%02d".format(minutes, seconds)
+}

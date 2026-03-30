@@ -2,20 +2,20 @@ package com.devson.nosvedplayer.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.OndemandVideo
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -30,9 +30,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,6 +46,7 @@ fun SettingsScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark by settingsViewModel.isDarkTheme.collectAsState()
+    val useYoutubeStyle by settingsViewModel.useYoutubePlayerStyle.collectAsState()
 
     Scaffold(
         topBar = {
@@ -68,7 +67,7 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Appearance section header
+            //  APPEARANCE 
             Text(
                 text = "APPEARANCE",
                 style = MaterialTheme.typography.labelSmall,
@@ -77,7 +76,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Dark / Light toggle
             ListItem(
                 headlineContent = {
                     Text(
@@ -110,7 +108,49 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // App section header
+            //  PLAYER 
+            Text(
+                text = "PLAYER",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            ListItem(
+                headlineContent = {
+                    Text(text = "YouTube Style Player")
+                },
+                supportingContent = {
+                    Text(
+                        text = if (useYoutubeStyle)
+                            "Using YouTube-style controls with inline settings panel"
+                        else
+                            "Using default player controls with bottom sheet settings",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Filled.PlayCircleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = useYoutubeStyle,
+                        onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            //  APP 
             Text(
                 text = "APP",
                 style = MaterialTheme.typography.labelSmall,
@@ -119,7 +159,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // About row
             ListItem(
                 headlineContent = { Text("About Nosved Player") },
                 supportingContent = {
@@ -149,7 +188,6 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            // Privacy Policy row
             ListItem(
                 headlineContent = { Text("Privacy Policy") },
                 supportingContent = {
@@ -179,6 +217,7 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
+            //  DEVELOPER (visible only when developer mode is on) 
             val isDeveloperMode by settingsViewModel.isDeveloperMode.collectAsState()
             if (isDeveloperMode) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -201,7 +240,7 @@ fun SettingsScreen(
                     },
                     leadingContent = {
                         Icon(
-                            imageVector = Icons.Filled.Info, // Ideally a BugReport icon, but Info works placeholder
+                            imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error
                         )
