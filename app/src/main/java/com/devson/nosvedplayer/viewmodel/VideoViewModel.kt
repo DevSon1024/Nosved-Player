@@ -56,6 +56,12 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     val subtitleTracks get() = playerManager?.subtitleTracks
     val selectedSubtitleIndex get() = playerManager?.selectedSubtitleIndex
 
+    val isAudioBoostEnabled get() = playerManager?.isAudioBoostEnabled
+
+    fun toggleAudioBoost(enabled: Boolean) {
+        playerManager?.toggleAudioBoost(enabled)
+    }
+
     private val _controlsVisible = MutableStateFlow(false)  // hidden until first tap
     val controlsVisible: StateFlow<Boolean> = _controlsVisible.asStateFlow()
 

@@ -18,6 +18,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.annotation.OptIn
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import androidx.media3.exoplayer.upstream.Loader
+import android.media.audiofx.LoudnessEnhancer
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -68,6 +69,11 @@ class PlayerManager(private val context: Context) {
 
     private val _selectedSubtitleIndex = MutableStateFlow(-1)
     val selectedSubtitleIndex: StateFlow<Int> = _selectedSubtitleIndex.asStateFlow()
+
+    private val _isAudioBoostEnabled = MutableStateFlow(false)
+    val isAudioBoostEnabled: StateFlow<Boolean> = _isAudioBoostEnabled.asStateFlow()
+
+    private var loudnessEnhancer: LoudnessEnhancer? = null
 
     fun initializePlayer() {
         if (exoPlayer == null) {
@@ -185,6 +191,15 @@ class PlayerManager(private val context: Context) {
                 })
                 
                 addAnalyticsListener(object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                    override fun onAudioSessionIdChanged(
+                        eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                        audioSessionId: Int
+                    ) {
+                        if (_isAudioBoostEnabled.value) {
+                            applyLoudnessEnhancer(audioSessionId)
+                        }
+                    }
+
                     override fun onVideoDecoderInitialized(
                         eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
                         decoderName: String,
@@ -195,6 +210,38 @@ class PlayerManager(private val context: Context) {
                     }
                 })
             }
+        }
+    }
+
+    private fun applyLoudnessEnhancer(audioSessionId: Int) {
+        if (audioSessionId == androidx.media3.common.C.AUDIO_SESSION_ID_UNSET) return
+        try {
+            loudnessEnhancer?.enabled = false
+            loudnessEnhancer?.release()
+            loudnessEnhancer = LoudnessEnhancer(audioSessionId).apply {
+                // 1500 mB = 15 dB boost (roughly 2x to 3x perceived loudness)
+                setTargetGain(1500)
+                enabled = true
+            }
+        } catch (e: Exception) {
+            com.devson.nosvedplayer.AppLogger.log("Failed to initialize LoudnessEnhancer: ${e.message}")
+        }
+    }
+
+    fun toggleAudioBoost(enabled: Boolean) {
+        _isAudioBoostEnabled.value = enabled
+        val player = exoPlayer ?: return
+        
+        if (enabled) {
+            player.volume = 2.0f
+            applyLoudnessEnhancer(player.audioSessionId)
+        } else {
+            player.volume = 1.0f
+            try {
+                loudnessEnhancer?.enabled = false
+                loudnessEnhancer?.release()
+            } catch (e: Exception) {}
+            loudnessEnhancer = null
         }
     }
 
@@ -259,6 +306,11 @@ class PlayerManager(private val context: Context) {
     fun releasePlayer() {
         exoPlayer?.release()
         exoPlayer = null
+        try {
+            loudnessEnhancer?.enabled = false
+            loudnessEnhancer?.release()
+        } catch (e: Exception) {}
+        loudnessEnhancer = null
     }
 
     // --- Audio & Subtitle Selection ---

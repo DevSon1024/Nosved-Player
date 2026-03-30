@@ -31,6 +31,8 @@ fun AudioTrackSheet(
     audioTracks: List<TrackInfo>,
     selectedTrackIndex: Int,
     isLandscape: Boolean,
+    isAudioBoostEnabled: Boolean,
+    onToggleAudioBoost: (Boolean) -> Unit,
     onSelectTrack: (Int) -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -46,6 +48,8 @@ fun AudioTrackSheet(
                     title = "Audio Tracks",
                     tracks = audioTracks,
                     selectedTrackIndex = selectedTrackIndex,
+                    isAudioBoostEnabled = isAudioBoostEnabled,
+                    onToggleAudioBoost = onToggleAudioBoost,
                     onSelectTrack = onSelectTrack,
                     onDismissRequest = onDismissRequest
                 )
@@ -62,6 +66,8 @@ fun AudioTrackSheet(
                     title = "Audio Tracks",
                     tracks = audioTracks,
                     selectedTrackIndex = selectedTrackIndex,
+                    isAudioBoostEnabled = isAudioBoostEnabled,
+                    onToggleAudioBoost = onToggleAudioBoost,
                     onSelectTrack = onSelectTrack,
                     onDismissRequest = onDismissRequest
                 )
@@ -75,6 +81,8 @@ private fun MediaTrackSheetContent(
     title: String,
     tracks: List<TrackInfo>,
     selectedTrackIndex: Int,
+    isAudioBoostEnabled: Boolean,
+    onToggleAudioBoost: (Boolean) -> Unit,
     onSelectTrack: (Int) -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -115,6 +123,37 @@ private fun MediaTrackSheetContent(
                     )
                 }
             }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Audio Boost Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Audio Boost (200%)",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = "Loudness enhancer applied. This may impact battery life.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Switch(
+                checked = isAudioBoostEnabled,
+                onCheckedChange = { onToggleAudioBoost(it) }
+            )
         }
     }
 }

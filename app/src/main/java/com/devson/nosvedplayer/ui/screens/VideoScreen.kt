@@ -88,6 +88,7 @@ fun VideoScreen(
     // Tracks & Subtitles state
     val audioTracks by viewModel.audioTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
     val selectedAudioIndex by viewModel.selectedAudioIndex?.collectAsState(initial = -1) ?: remember { mutableStateOf(-1) }
+    val isAudioBoostEnabled by viewModel.isAudioBoostEnabled?.collectAsState(initial = false) ?: remember { mutableStateOf(false) }
 
     val subtitleTracks by viewModel.subtitleTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
     val selectedSubtitleIndex by viewModel.selectedSubtitleIndex?.collectAsState(initial = -1) ?: remember { mutableStateOf(-1) }
@@ -485,6 +486,8 @@ fun VideoScreen(
         audioTracks = audioTracks,
         selectedTrackIndex = selectedAudioIndex,
         isLandscape = isLandscape,
+        isAudioBoostEnabled = isAudioBoostEnabled,
+        onToggleAudioBoost = { viewModel.toggleAudioBoost(it) },
         onSelectTrack = { viewModel.selectAudioTrack(it) },
         onDismissRequest = { showAudioSheet = false }
     )
