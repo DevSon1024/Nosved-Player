@@ -315,7 +315,8 @@ fun VideoScreen(
             volumeLevel = volumeLevel,
             brightnessLevel = brightnessLevel,
             showVolumeFeedback = showVolumeFeedback,
-            showBrightnessFeedback = showBrightnessFeedback
+            showBrightnessFeedback = showBrightnessFeedback,
+            isAudioBoostEnabled = isAudioBoostEnabled
         )
 
         //  Device stats overlay 

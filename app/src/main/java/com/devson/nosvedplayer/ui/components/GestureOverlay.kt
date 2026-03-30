@@ -79,6 +79,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sqrt
+import kotlin.math.roundToInt
 
 @Composable
 fun GestureOverlay(
@@ -99,7 +100,8 @@ fun GestureOverlay(
     volumeLevel: Float,
     brightnessLevel: Float,
     showVolumeFeedback: Boolean,
-    showBrightnessFeedback: Boolean
+    showBrightnessFeedback: Boolean,
+    isAudioBoostEnabled: Boolean = false
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
@@ -336,7 +338,7 @@ fun GestureOverlay(
             exit  = fadeOut(tween(280)),
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            ModernEdgeSlider(level = volumeLevel, isVolume = true)
+            ModernEdgeSlider(level = volumeLevel, isVolume = true, isAudioBoostEnabled = isAudioBoostEnabled)
         }
 
         //  Horizontal scrub overlay (center) 
@@ -404,14 +406,21 @@ fun GestureOverlay(
 //  Modern edge slider  (volume / brightness)
 
 @Composable
-private fun ModernEdgeSlider(level: Float, isVolume: Boolean) {
+private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnabled: Boolean = false) {
     val clampedLevel = level.coerceIn(0f, 1f)
     val animLevel by animateFloatAsState(
         targetValue  = clampedLevel,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label        = "edgeSliderLevel"
     )
-    val percentage = (clampedLevel * 100).toInt()
+    val displayValue = if (!isVolume) {
+        val percentage = (clampedLevel * 100).toInt()
+        "$percentage%"
+    } else {
+        val maxSteps = if (isAudioBoostEnabled) 30 else 15
+        val currentStep = (clampedLevel * maxSteps).roundToInt().coerceIn(0, maxSteps)
+        "$currentStep"
+    }
 
     // Choose volume icon tier
     val volumeIcon = when {
@@ -468,7 +477,7 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean) {
             }
 
             Text(
-                text      = "$percentage%",
+                text      = displayValue,
                 color     = Color.White,
                 fontSize  = 11.sp,
                 fontWeight = FontWeight.SemiBold
