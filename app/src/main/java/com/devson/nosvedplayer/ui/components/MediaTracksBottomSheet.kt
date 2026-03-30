@@ -138,13 +138,13 @@ private fun MediaTrackSheetContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Audio Boost (200%)",
+                    text = "Audio Boost (2X)",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
                 Text(
-                    text = "Loudness enhancer applied. This may impact battery life.",
+                    text = "Loudness Enhancer Applied. This may impact battery life.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(top = 4.dp)

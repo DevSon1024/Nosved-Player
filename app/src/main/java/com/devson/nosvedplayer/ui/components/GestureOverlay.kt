@@ -631,7 +631,7 @@ private fun AccumulatingSeekRipple(
 private fun CenterRipple(wasPlaying: Boolean) {
     Box(
         modifier = Modifier
-            .size(88.dp)
+            .size(64.dp)
             .clip(CircleShape)
             .background(Color.Black.copy(alpha = 0.50f)),
         contentAlignment = Alignment.Center
@@ -640,7 +640,7 @@ private fun CenterRipple(wasPlaying: Boolean) {
             imageVector  = if (wasPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (wasPlaying) "Paused" else "Playing",
             tint         = Color.White,
-            modifier     = Modifier.size(48.dp)
+            modifier     = Modifier.size(44.dp)
         )
     }
 }
