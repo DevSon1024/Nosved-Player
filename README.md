@@ -29,11 +29,11 @@
 
 ## Key Features
 
-- **🚀 Performance-First Playback**: Powered by Google's Media3 (ExoPlayer) with integrated **FFmpeg decoders** for broad format support.
+- **Performance-First Playback**: Powered by Google's Media3 (ExoPlayer) with integrated **FFmpeg decoders** for broad format support.
 - **Modern Aesthetic**: A stunning UI built with **Material 3**, featuring dynamic theme support and smooth micro-animations.
 - **Smart History**: Keep track of your journey with a "Continue Watching" section. Long-press any history card for a quick, animated delete.
-- **🖼️ Fast Thumbnails**: Instant video previews powered by a custom MediaStore-optimized Coil integration.
-- **📂 Folder Organization**: Easily browse your local storage with a grouped folder view.
+- **Fast Thumbnails**: Instant video previews powered by a custom MediaStore-optimized Coil integration.
+- **Folder Organization**: Easily browse your local storage with a grouped folder view.
 - **Advanced Controls**: Gesture-based brightness/volume controls, playback speed adjustment, and aspect ratio switching.
 - **Subtitle Support**: Full support for internal and external subtitle tracks (SRT, ASS, VTT, etc.).
 

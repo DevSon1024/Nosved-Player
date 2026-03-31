@@ -19,7 +19,7 @@ val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskN
     it.contains("debug", ignoreCase = true)
 }
 
-val appVersion = "1.0.1"
+val appVersion = "1.0.2"
 
 android {
     namespace = "com.devson.nosvedplayer"
@@ -131,6 +131,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.navigation.compose)
     ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
