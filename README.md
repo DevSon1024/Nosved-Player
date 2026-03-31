@@ -16,7 +16,7 @@
 
 ---
 
-## 📱 Screenshots
+## Screenshots
 
 <div align="center">
 <img src="Screenshots/HomePage.jpg" width="30%" style="border-radius: 14px;"/>
