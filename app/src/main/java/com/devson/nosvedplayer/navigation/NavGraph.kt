@@ -7,11 +7,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.devson.nosvedplayer.model.Video
-import com.devson.nosvedplayer.ui.screens.AboutScreen
+import com.devson.nosvedplayer.ui.screens.settings.AboutScreen
 import com.devson.nosvedplayer.ui.screens.HomeScreen
-import com.devson.nosvedplayer.ui.screens.LogScreen
-import com.devson.nosvedplayer.ui.screens.PrivacyPolicyScreen
-import com.devson.nosvedplayer.ui.screens.SettingsScreen
+import com.devson.nosvedplayer.ui.screens.settings.LogScreen
+import com.devson.nosvedplayer.ui.screens.settings.PrivacyPolicyScreen
+import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel

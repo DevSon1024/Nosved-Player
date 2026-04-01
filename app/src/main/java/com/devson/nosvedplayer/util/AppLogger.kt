@@ -1,9 +1,8 @@
-package com.devson.nosvedplayer
+package com.devson.nosvedplayer.util
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.devson.nosvedplayer.util.formatLogTime
 
 data class LogEntry(
     val timestamp: Long,

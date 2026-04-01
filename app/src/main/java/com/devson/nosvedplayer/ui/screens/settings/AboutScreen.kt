@@ -1,7 +1,6 @@
-package com.devson.nosvedplayer.ui.screens
+package com.devson.nosvedplayer.ui.screens.settings
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.clickable

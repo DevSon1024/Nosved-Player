@@ -1,4 +1,4 @@
-package com.devson.nosvedplayer.ui.screens
+package com.devson.nosvedplayer.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

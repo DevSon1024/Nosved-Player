@@ -20,6 +20,7 @@ import androidx.annotation.OptIn
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import androidx.media3.exoplayer.upstream.Loader
 import android.media.audiofx.LoudnessEnhancer
+import com.devson.nosvedplayer.util.AppLogger
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -164,7 +165,7 @@ class PlayerManager(private val context: Context) {
                         override fun onPlayerError(error: PlaybackException) {
                             super.onPlayerError(error)
 
-                            com.devson.nosvedplayer.AppLogger.log("ExoPlayer error: ${error.message} - $error")
+                            AppLogger.log("ExoPlayer error: ${error.message} - $error")
 
                             val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
                             val isDecoderFailed    = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
@@ -225,7 +226,7 @@ class PlayerManager(private val context: Context) {
                 enabled = true
             }
         } catch (e: Exception) {
-            com.devson.nosvedplayer.AppLogger.log("Failed to initialize LoudnessEnhancer: ${e.message}")
+            AppLogger.log("Failed to initialize LoudnessEnhancer: ${e.message}")
         }
     }
 
