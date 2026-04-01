@@ -56,16 +56,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.viewmodel.ControlIconSize
 import com.devson.nosvedplayer.viewmodel.SeekBarStyle
-import com.devson.nosvedplayer.ui.components.PlaybackSettingsSheet
 import kotlinx.coroutines.launch
 
 // Icon size helpers
@@ -118,11 +113,9 @@ fun PlayerControls(
     showStats: Boolean = false,
     onToggleStats: (() -> Unit)? = null,
     onToggleResizeMode: (() -> Unit)? = null,
-    // Add Lock and PIP
     isLocked: Boolean = false,
     onToggleLock: () -> Unit = {},
     onPipToggle: (() -> Unit)? = null,
-    // Playback settings
     seekDurationSeconds: Int = 10,
     seekBarStyle: SeekBarStyle = SeekBarStyle.DEFAULT,
     controlIconSize: ControlIconSize = ControlIconSize.MEDIUM,
@@ -138,10 +131,8 @@ fun PlayerControls(
     onShowSeekButtonsChange: ((Boolean) -> Unit)? = null,
     onFastplaySpeedChange: ((Float) -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null,
-    // Audio and Subtitle Modals
     onOpenAudioTracks: (() -> Unit)? = null,
     onOpenSubtitles: (() -> Unit)? = null,
-    // Playlist Navigation
     onPlayPrevious: (() -> Unit)? = null,
     onPlayNext: (() -> Unit)? = null,
     isLandscape: Boolean = false,
@@ -219,7 +210,6 @@ fun PlayerControls(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    // Stats toggle
                     TooltipBox(
                         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                         tooltip = { PlainTooltip { Text("Video Info") } },
@@ -246,7 +236,6 @@ fun PlayerControls(
                             )
                         }
                     }
-                    // Audio Tracks
                     if (onOpenAudioTracks != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -258,7 +247,6 @@ fun PlayerControls(
                             }
                         }
                     }
-                    // Subtitles (CC)
                     if (onOpenSubtitles != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -270,7 +258,6 @@ fun PlayerControls(
                             }
                         }
                     }
-                    // Picture in Picture
                     if (onPipToggle != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -282,7 +269,6 @@ fun PlayerControls(
                             }
                         }
                     }
-                    // Playback Settings button
                     TooltipBox(
                         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                         tooltip = { PlainTooltip { Text("Playback Settings") } },
@@ -323,7 +309,6 @@ fun PlayerControls(
                     var showRemainingTime by remember { mutableStateOf(false) }
                     var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
-                    // Sync live position into slider ONLY when not dragging
                     LaunchedEffect(currentPosition) {
                         if (!isDragging) sliderPosition = currentPosition.toFloat()
                     }
@@ -340,11 +325,14 @@ fun PlayerControls(
                         )
                         Spacer(Modifier.width(8.dp))
 
+                        val safeDuration = if (duration > 0) duration.toFloat() else 100f
+                        val safeValueRange = 0f..safeDuration
+                        val safeSliderPosition = sliderPosition.coerceIn(0f, safeDuration)
+
                         if (seekBarStyle == SeekBarStyle.FLAT) {
-                            //  Flat seek bar 
                             FlatSeekBar(
-                                value = sliderPosition,
-                                valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                                value = safeSliderPosition,
+                                valueRange = safeValueRange,
                                 onValueChange = {
                                     draggingJob?.cancel()
                                     isDragging = true
@@ -360,9 +348,8 @@ fun PlayerControls(
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
-                            //  Default Material3 Slider 
                             Slider(
-                                value = sliderPosition,
+                                value = safeSliderPosition,
                                 onValueChange = {
                                     draggingJob?.cancel()
                                     isDragging = true
@@ -375,7 +362,7 @@ fun PlayerControls(
                                         isDragging = false
                                     }
                                 },
-                                valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
+                                valueRange = safeValueRange,
                                 modifier = Modifier.weight(1f),
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color.White,
@@ -539,10 +526,9 @@ fun PlayerControls(
                 }
             }
         }
-        } // close else block
+        }
     }
 
-    //  Playback Settings Bottom Sheet 
     PlaybackSettingsSheet(
         showSettingsSheet = showSettingsSheet,
         sheetState = sheetState,
@@ -565,8 +551,6 @@ fun PlayerControls(
     )
 }
 
-// Flat seek bar (no thumb, thin track)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FlatSeekBar(
@@ -584,8 +568,10 @@ private fun FlatSeekBar(
         modifier = modifier,
         thumb = { Spacer(modifier = Modifier.size(1.dp)) },
         track = { sliderState ->
-            val fraction = (sliderState.value - valueRange.start) /
+            val rawFraction = (sliderState.value - valueRange.start) /
                     (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f)
+            // Prevent NaN from freezing composition tree
+            val safeFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -601,7 +587,7 @@ private fun FlatSeekBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(fraction.coerceIn(0.001f, 1f))
+                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
                             .height(3.dp)
                             .background(Color.White)
                     )
@@ -610,8 +596,6 @@ private fun FlatSeekBar(
         }
     )
 }
-
-// Time formatter
 
 private fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000

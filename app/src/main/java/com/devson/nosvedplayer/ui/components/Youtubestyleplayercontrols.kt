@@ -46,16 +46,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.ColorPainter
 import kotlinx.coroutines.launch
 
-/**
- * A YouTube-inspired player controls overlay.
- *
- * Fixes applied:
- *  ✓ Seek bar properly commits the last dragged position (not stale fraction)
- *  ✓ Long-press anywhere activates fast-forward (releases on finger lift)
- *  ✓ Double-tap centre toggles play/pause; left/right seek with indicator
- *  ✓ "Up Next" arrow below seekbar expands an inline playlist panel
- *  ✓ Settings panel uses MaterialTheme colours instead of hardcoded dark
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YoutubeStylePlayerControls(
@@ -72,15 +62,12 @@ fun YoutubeStylePlayerControls(
     hasNext: Boolean = false,
     isLandscape: Boolean = false,
     isLocked: Boolean = false,
-    // Tracks
     audioTracks: List<TrackInfo> = emptyList(),
     selectedAudioIndex: Int = -1,
     subtitleTracks: List<TrackInfo> = emptyList(),
     selectedSubtitleIndex: Int = -1,
-    // Playlist (for Up-Next panel)
     playlist: List<Video> = emptyList(),
     currentPlaylistIndex: Int = -1,
-    // Callbacks
     onPlayPauseToggle: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onSeekForward: () -> Unit,
@@ -101,27 +88,18 @@ fun YoutubeStylePlayerControls(
     onOpenPlaybackSettings: () -> Unit = {},
     onOpenAudioTracks: () -> Unit = {},
     onOpenSubtitles: () -> Unit = {},
-    // Externally driven indicator state (fed from GestureOverlay)
     showSeekLeft: Boolean = false,
     showSeekRight: Boolean = false,
     isFastForwarding: Boolean = false
 ) {
-    //  Local UI state
     var showPlaylistPanel by remember { mutableStateOf(false) }
-
-    //  Seek bar drag state — track last dragged value explicitly
     var isSeeking by remember { mutableStateOf(false) }
     var seekPreview by remember { mutableStateOf(0L) }
     var lastDraggedPos by remember { mutableStateOf(0L) }
-    var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    val scope = rememberCoroutineScope()
 
-    // Displayed position: use seekPreview while dragging, else live position
     val displayedPosition = if (isSeeking) seekPreview else currentPosition
 
     Box(modifier = modifier.fillMaxSize()) {
-
-        // 1. Seek indicator overlays (driven externally by GestureOverlay)
         SeekIndicator(
             side = SeekSide.Left,
             visible = showSeekLeft,
@@ -135,7 +113,6 @@ fun YoutubeStylePlayerControls(
             modifier = Modifier.align(Alignment.CenterEnd)
         )
 
-        // 4. Main controls — hidden while fast-forwarding or not visible
         AnimatedVisibility(
             visible = isVisible && !isFastForwarding,
             enter = fadeIn(),
@@ -143,7 +120,6 @@ fun YoutubeStylePlayerControls(
             modifier = Modifier.fillMaxSize()
         ) {
             if (isLocked) {
-                // Show unlock button at the SAME top-left position as the lock icon
                 Box(modifier = Modifier.fillMaxSize()) {
                     Box(
                         modifier = Modifier
@@ -152,7 +128,6 @@ fun YoutubeStylePlayerControls(
                             .background(Color.Black.copy(0.5f), RoundedCornerShape(8.dp))
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            // Placeholder for back arrow height alignment
                             Spacer(Modifier.height(48.dp))
                             IconButton(
                                 onClick = onToggleLock,
@@ -195,7 +170,6 @@ fun YoutubeStylePlayerControls(
                     onAudioTrackClick = onOpenAudioTracks,
                     onTogglePlaylist = { showPlaylistPanel = !showPlaylistPanel },
                     onSeekStart = { pos ->
-                        draggingJob?.cancel()
                         isSeeking = true
                         seekPreview = pos
                         lastDraggedPos = pos
@@ -205,17 +179,13 @@ fun YoutubeStylePlayerControls(
                         lastDraggedPos = pos
                     },
                     onSeekEnd = {
+                        isSeeking = false
                         onSeekTo(lastDraggedPos)
-                        draggingJob = scope.launch {
-                            delay(800)
-                            isSeeking = false
-                        }
                     }
                 )
             }
         }
 
-        // 5. Up-Next playlist panel (slides up from bottom)
         AnimatedVisibility(
             visible = showPlaylistPanel && playlist.isNotEmpty(),
             enter = slideInVertically { it } + fadeIn(),
@@ -234,8 +204,6 @@ fun YoutubeStylePlayerControls(
         }
     }
 }
-
-// Layout: Top bar + center play/pause + bottom bar 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -281,7 +249,6 @@ private fun YtControlsLayout(
             )
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
-        // Top bar: left Column (Back + Lock) | Title | Right actions
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -289,7 +256,6 @@ private fun YtControlsLayout(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Left column: back arrow on top, lock below
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -309,8 +275,6 @@ private fun YtControlsLayout(
                     )
                 }
             }
-
-            // Title (fills all remaining space)
             Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp).padding(top = 12.dp)) {
                 Text(
                     text = title,
@@ -321,8 +285,6 @@ private fun YtControlsLayout(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            // Right actions
             if (onPipToggle != null) {
                 IconButton(onClick = onPipToggle) {
                     Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "PIP", tint = Color.White)
@@ -339,7 +301,6 @@ private fun YtControlsLayout(
             }
         }
 
-        // Centre: prev / play-pause / next
         Row(
             modifier = Modifier.align(Alignment.Center),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -389,7 +350,6 @@ private fun YtControlsLayout(
             }
         }
 
-        // Bottom bar
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -397,7 +357,6 @@ private fun YtControlsLayout(
                 .padding(horizontal = 12.dp)
                 .padding(bottom = if (isLandscape) 8.dp else 16.dp)
         ) {
-            // Time row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -428,7 +387,6 @@ private fun YtControlsLayout(
                 }
             }
 
-            // Seek bar
             YtSeekBar(
                 position = displayedPosition,
                 duration = duration,
@@ -438,7 +396,6 @@ private fun YtControlsLayout(
                 onSeekEnd = onSeekEnd
             )
 
-            // Up-Next toggle arrow
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -478,8 +435,6 @@ private fun YtControlsLayout(
     }
 }
 
-//  Seek Bar 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun YtSeekBar(
@@ -490,28 +445,42 @@ private fun YtSeekBar(
     onSeekChange: (Long) -> Unit,
     onSeekEnd: () -> Unit
 ) {
-    val safeDuration = duration.coerceAtLeast(1L)
-    // internalFraction drives the Slider; only synced from position when NOT dragging
-    var internalFraction by remember { mutableStateOf(0f) }
+    val safeDuration = duration.coerceAtLeast(1L).toFloat()
 
-    // Sync external position -> slider ONLY when the user is not dragging
+    // FIX: Decouple local slider state to stop the visual slider jumping backwards while dragging
+    var sliderPosition by remember { mutableFloatStateOf(position.toFloat()) }
+    var isDragging by remember { mutableStateOf(false) }
+    var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(position) {
-        if (!isSeeking) {
-            internalFraction = (position.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+        if (!isDragging) {
+            sliderPosition = position.toFloat()
         }
     }
 
+    // Safely enforce bounds
+    val safeSliderPos = sliderPosition.coerceIn(0f, safeDuration)
+
     Slider(
-        value = internalFraction,
-        onValueChange = { f ->
-            internalFraction = f
-            val newPos = (f * safeDuration).toLong()
+        value = safeSliderPos,
+        onValueChange = { newVal ->
+            draggingJob?.cancel()
+            isDragging = true
+            sliderPosition = newVal
+            val newPos = newVal.toLong()
             if (!isSeeking) onSeekStart(newPos)
             else onSeekChange(newPos)
         },
         onValueChangeFinished = {
             onSeekEnd()
+            // Provide ExoPlayer an 800ms debounce buffer to actually update the position
+            draggingJob = scope.launch {
+                delay(800)
+                isDragging = false
+            }
         },
+        valueRange = 0f..safeDuration,
         modifier = Modifier.fillMaxWidth(),
         colors = SliderDefaults.colors(
             thumbColor = Color(0xFFFF0000),
@@ -521,13 +490,14 @@ private fun YtSeekBar(
         thumb = {
             Box(
                 modifier = Modifier
-                    .size(if (isSeeking) 18.dp else 14.dp)
+                    .size(if (isDragging || isSeeking) 18.dp else 14.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFFF0000))
             )
         },
         track = { sliderState ->
-            val frac = sliderState.value.coerceIn(0f, 1f)
+            val rawFraction = ((sliderState.value - 0f) / safeDuration)
+            val safeFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -543,7 +513,7 @@ private fun YtSeekBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(frac.coerceIn(0.001f, 1f))
+                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
                             .height(4.dp)
                             .background(Color(0xFFFF0000))
                     )
@@ -552,8 +522,6 @@ private fun YtSeekBar(
         }
     )
 }
-
-//  Up-Next Panel 
 
 @Composable
 private fun UpNextPanel(
@@ -581,7 +549,6 @@ private fun UpNextPanel(
             )
     ) {
         Column {
-            // Pill drag handle
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -597,7 +564,6 @@ private fun UpNextPanel(
                 )
             }
 
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -620,7 +586,6 @@ private fun UpNextPanel(
                 }
             }
 
-            // Carousel
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 24.dp)
@@ -648,7 +613,6 @@ private fun VideoCarouselItem(
             .width(160.dp)
             .clickable(enabled = !isCurrent, onClick = onClick)
     ) {
-        // Thumbnail Box
         Box(
             modifier = Modifier
                 .width(160.dp)
@@ -675,8 +639,7 @@ private fun VideoCarouselItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            
-            // Duration Badge
+
             if (video.duration > 0L) {
                 Box(
                     modifier = Modifier
@@ -693,8 +656,7 @@ private fun VideoCarouselItem(
                     )
                 }
             }
-            
-            // Current Video Overlay
+
             if (isCurrent) {
                 Box(
                     modifier = Modifier
@@ -711,10 +673,9 @@ private fun VideoCarouselItem(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
-        // Title
+
         Text(
             text = video.title,
             color = MaterialTheme.colorScheme.onSurface,
@@ -725,7 +686,6 @@ private fun VideoCarouselItem(
     }
 }
 
-//  Double-tap seek ripple indicator 
 private enum class SeekSide { Left, Right }
 
 @Composable
@@ -769,7 +729,6 @@ private fun SeekIndicator(
     }
 }
 
-//  Time formatter 
 private fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000
     val hours = totalSeconds / 3600
