@@ -321,9 +321,10 @@ fun PlayerControls(
                     var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
                     var isDragging by remember { mutableStateOf(false) }
                     var showRemainingTime by remember { mutableStateOf(false) }
+                    var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
                     // Sync live position into slider ONLY when not dragging
-                    LaunchedEffect(currentPosition, isDragging) {
+                    LaunchedEffect(currentPosition) {
                         if (!isDragging) sliderPosition = currentPosition.toFloat()
                     }
 
@@ -345,12 +346,16 @@ fun PlayerControls(
                                 value = sliderPosition,
                                 valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
                                 onValueChange = {
+                                    draggingJob?.cancel()
                                     isDragging = true
                                     sliderPosition = it
                                 },
                                 onValueChangeFinished = {
-                                    isDragging = false
                                     onSeekTo(sliderPosition.toLong())
+                                    draggingJob = scope.launch {
+                                        kotlinx.coroutines.delay(800)
+                                        isDragging = false
+                                    }
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -359,12 +364,16 @@ fun PlayerControls(
                             Slider(
                                 value = sliderPosition,
                                 onValueChange = {
+                                    draggingJob?.cancel()
                                     isDragging = true
                                     sliderPosition = it
                                 },
                                 onValueChangeFinished = {
-                                    isDragging = false
                                     onSeekTo(sliderPosition.toLong())
+                                    draggingJob = scope.launch {
+                                        kotlinx.coroutines.delay(800)
+                                        isDragging = false
+                                    }
                                 },
                                 valueRange = 0f..if (duration > 0) duration.toFloat() else 100f,
                                 modifier = Modifier.weight(1f),
@@ -573,7 +582,7 @@ private fun FlatSeekBar(
         onValueChangeFinished = onValueChangeFinished,
         valueRange = valueRange,
         modifier = modifier,
-        thumb = { /* no thumb */ },
+        thumb = { Spacer(modifier = Modifier.size(1.dp)) },
         track = { sliderState ->
             val fraction = (sliderState.value - valueRange.start) /
                     (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f)
@@ -592,7 +601,7 @@ private fun FlatSeekBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                            .fillMaxWidth(fraction.coerceIn(0.001f, 1f))
                             .height(3.dp)
                             .background(Color.White)
                     )

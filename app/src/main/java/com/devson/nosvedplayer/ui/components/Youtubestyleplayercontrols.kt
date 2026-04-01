@@ -44,6 +44,7 @@ import coil.request.CachePolicy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.ColorPainter
+import kotlinx.coroutines.launch
 
 /**
  * A YouTube-inspired player controls overlay.
@@ -112,6 +113,8 @@ fun YoutubeStylePlayerControls(
     var isSeeking by remember { mutableStateOf(false) }
     var seekPreview by remember { mutableStateOf(0L) }
     var lastDraggedPos by remember { mutableStateOf(0L) }
+    var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val scope = rememberCoroutineScope()
 
     // Displayed position: use seekPreview while dragging, else live position
     val displayedPosition = if (isSeeking) seekPreview else currentPosition
@@ -192,6 +195,7 @@ fun YoutubeStylePlayerControls(
                     onAudioTrackClick = onOpenAudioTracks,
                     onTogglePlaylist = { showPlaylistPanel = !showPlaylistPanel },
                     onSeekStart = { pos ->
+                        draggingJob?.cancel()
                         isSeeking = true
                         seekPreview = pos
                         lastDraggedPos = pos
@@ -201,8 +205,11 @@ fun YoutubeStylePlayerControls(
                         lastDraggedPos = pos
                     },
                     onSeekEnd = {
-                        isSeeking = false
                         onSeekTo(lastDraggedPos)
+                        draggingJob = scope.launch {
+                            delay(800)
+                            isSeeking = false
+                        }
                     }
                 )
             }
@@ -488,7 +495,7 @@ private fun YtSeekBar(
     var internalFraction by remember { mutableStateOf(0f) }
 
     // Sync external position -> slider ONLY when the user is not dragging
-    LaunchedEffect(position, isSeeking) {
+    LaunchedEffect(position) {
         if (!isSeeking) {
             internalFraction = (position.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
         }
@@ -536,7 +543,7 @@ private fun YtSeekBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(frac)
+                            .fillMaxWidth(frac.coerceIn(0.001f, 1f))
                             .height(4.dp)
                             .background(Color(0xFFFF0000))
                     )
