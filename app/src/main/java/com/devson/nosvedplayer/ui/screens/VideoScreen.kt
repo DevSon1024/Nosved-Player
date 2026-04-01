@@ -278,7 +278,7 @@ fun VideoScreen(
                     ytShowSeekRight = true
                 }
             },
-            onSeekCommit = { deltaMs -> viewModel.seekTo((currentPosition + deltaMs).coerceAtLeast(0L)) },
+            onSeekCommit = { deltaMs -> viewModel.seekByOffset(deltaMs) },
             onFastForwardToggle = { active ->
                 ytIsFastForwarding = active
                 if (active) viewModel.setPlaybackSpeed(fastplaySpeed)
@@ -355,6 +355,7 @@ fun VideoScreen(
                 showSeekLeft = ytShowSeekLeft,
                 showSeekRight = ytShowSeekRight,
                 isFastForwarding = ytIsFastForwarding,
+                showSeekButtons = showSeekButtons,
                 onPlayPauseToggle = {
                     viewModel.togglePlayPause()
                     viewModel.showControlsAndDelayHide()

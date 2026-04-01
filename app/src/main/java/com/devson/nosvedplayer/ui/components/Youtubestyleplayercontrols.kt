@@ -90,7 +90,8 @@ fun YoutubeStylePlayerControls(
     onOpenSubtitles: () -> Unit = {},
     showSeekLeft: Boolean = false,
     showSeekRight: Boolean = false,
-    isFastForwarding: Boolean = false
+    isFastForwarding: Boolean = false,
+    showSeekButtons: Boolean = true
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
@@ -158,8 +159,11 @@ fun YoutubeStylePlayerControls(
                     currentPlaybackSpeed = currentPlaybackSpeed,
                     showPlaylistPanel = showPlaylistPanel,
                     isLocked = isLocked,
+                    showSeekButtons = showSeekButtons,
                     onBack = onBack,
                     onPlayPauseToggle = onPlayPauseToggle,
+                    onSeekForward = onSeekForward,
+                    onSeekBackward = onSeekBackward,
                     onPlayPrevious = onPlayPrevious,
                     onPlayNext = onPlayNext,
                     onToggleLock = onToggleLock,
@@ -220,8 +224,11 @@ private fun YtControlsLayout(
     currentPlaybackSpeed: Float,
     showPlaylistPanel: Boolean,
     isLocked: Boolean,
+    showSeekButtons: Boolean,
     onBack: () -> Unit,
     onPlayPauseToggle: () -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit,
     onPlayPrevious: () -> Unit,
     onPlayNext: () -> Unit,
     onToggleLock: () -> Unit,
@@ -319,6 +326,20 @@ private fun YtControlsLayout(
                 )
             }
 
+            if (showSeekButtons) {
+                IconButton(
+                    onClick = onSeekBackward,
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Replay10,
+                        contentDescription = "Rewind",
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -332,6 +353,20 @@ private fun YtControlsLayout(
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = Color.White,
                         modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+
+            if (showSeekButtons) {
+                IconButton(
+                    onClick = onSeekForward,
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Forward10,
+                        contentDescription = "Fast Forward",
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
             }

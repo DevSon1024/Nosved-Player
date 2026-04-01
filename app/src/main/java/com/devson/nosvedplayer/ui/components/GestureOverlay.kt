@@ -234,13 +234,22 @@ fun GestureOverlay(
                                 val dx   = change.position.x - lastTapX
                                 val dy   = change.position.y - lastTapY
                                 val dist = sqrt(dx * dx + dy * dy)
+                                val tapX = change.position.x
 
-                                if (dt < 400 && dist < 100f) {
+                                val isLeftTap = tapX < size.width * 0.33f
+                                val isRightTap = tapX > size.width * 0.66f
+
+                                val continuingLeftSeek = showLeftSeek && isLeftTap && (now - lastTapTime < 800)
+                                val continuingRightSeek = showRightSeek && isRightTap && (now - lastTapTime < 800)
+
+                                if (continuingLeftSeek || continuingRightSeek || (dt < 400 && dist < 100f)) {
                                     singleTapJob?.cancel()
-                                    lastTapTime = 0L
-                                    val tapX = change.position.x
+                                    lastTapTime = now
+                                    lastTapX    = change.position.x
+                                    lastTapY    = change.position.y
+
                                     when {
-                                        tapX < size.width * 0.33f -> {
+                                        isLeftTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedLeftMs += stepMs
@@ -255,7 +264,7 @@ fun GestureOverlay(
                                                 showLeftSeek = false
                                             }
                                         }
-                                        tapX > size.width * 0.66f -> {
+                                        isRightTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val stepMs = seekDurationSeconds * 1000L
                                             accumulatedRightMs += stepMs
@@ -271,10 +280,13 @@ fun GestureOverlay(
                                             }
                                         }
                                         else -> {
-                                            centerWasPlaying = isPlaying
-                                            showCenterRipple = true
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDoubleTapCenter()
+                                            // Ensure center tap is actually a double tap (dt < 400 && dist < 100f)
+                                            if (dt < 400 && dist < 100f) {
+                                                centerWasPlaying = isPlaying
+                                                showCenterRipple = true
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                onDoubleTapCenter()
+                                            }
                                         }
                                     }
                                 } else {

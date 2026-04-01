@@ -254,9 +254,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun seekByOffset(offsetMs: Long) {
-        val player = playerManager ?: return
-        val current = player.currentPosition.value
-        val total = player.duration.value
+        val player = playerManager?.exoPlayer ?: return
+        val current = player.currentPosition
+        val total = player.duration.coerceAtLeast(0L)
         val newPos = (current + offsetMs).coerceIn(0L, total)
         player.seekTo(newPos)
     }
