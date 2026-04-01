@@ -92,6 +92,7 @@ class PlayerManager(private val context: Context) {
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
                 .build().apply {
+                    setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
                     addListener(object : Player.Listener {
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             _isPlaying.value = isPlaying
@@ -176,7 +177,17 @@ class PlayerManager(private val context: Context) {
                                     error.cause?.cause is IllegalStateException ||
                                     error.cause is Loader.UnexpectedLoaderException
 
+                            // Graceful recovery for MediaCodecVideoRenderer / decoder errors to prevent freezing
+                            val isMediaCodecRendererError = error.message?.contains("MediaCodecVideoRenderer") == true ||
+                                    error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED
+
                             when {
+                                isMediaCodecRendererError -> {
+                                    AppLogger.log("Recovering from MediaCodecVideoRenderer crash...")
+                                    val lastPos = exoPlayer?.currentPosition ?: 0L
+                                    exoPlayer?.prepare()
+                                    exoPlayer?.seekTo(lastPos)
+                                }
                                 isFormatUnsupported || isDecoderFailed -> {
                                     _playerError.value = "Hardware unsupported: Your device cannot decode this video format (e.g., HEVC 10-bit)."
                                 }

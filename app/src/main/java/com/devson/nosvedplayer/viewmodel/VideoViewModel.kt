@@ -242,23 +242,40 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun seekTo(positionMs: Long) {
+        seekJob?.cancel()
+        accumulatedSeekTarget = null
         playerManager?.seekTo(positionMs)
     }
 
     fun seekForward() {
-        playerManager?.seekForward(_seekDurationSeconds.value * 1000L)
+        debounceSeekByOffset(_seekDurationSeconds.value * 1000L)
     }
 
     fun seekBackward() {
-        playerManager?.seekBackward(_seekDurationSeconds.value * 1000L)
+        debounceSeekByOffset(-(_seekDurationSeconds.value * 1000L))
     }
 
     fun seekByOffset(offsetMs: Long) {
+        debounceSeekByOffset(offsetMs)
+    }
+
+    private fun debounceSeekByOffset(offsetMs: Long) {
         val player = playerManager?.exoPlayer ?: return
-        val current = player.currentPosition
-        val total = player.duration.coerceAtLeast(0L)
-        val newPos = (current + offsetMs).coerceIn(0L, total)
-        player.seekTo(newPos)
+        
+        val startPos = accumulatedSeekTarget ?: player.currentPosition
+        val totalDuration = player.duration.coerceAtLeast(0L)
+        val newPos = (startPos + offsetMs).coerceIn(0L, totalDuration)
+        
+        accumulatedSeekTarget = newPos
+        
+        seekJob?.cancel()
+        seekJob = viewModelScope.launch {
+            delay(400)
+            accumulatedSeekTarget?.let { target ->
+                playerManager?.seekTo(target)
+            }
+            accumulatedSeekTarget = null
+        }
     }
 
     fun toggleStats() {
@@ -335,6 +352,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var hideJob: kotlinx.coroutines.Job? = null
+    private var seekJob: kotlinx.coroutines.Job? = null
+    private var accumulatedSeekTarget: Long? = null
 
     fun toggleControlsVisibility() {
         if (_controlsVisible.value) {

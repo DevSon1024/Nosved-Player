@@ -1291,6 +1291,10 @@ private fun VideoListTopAppBar(
         )
     } else {
         TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background,
+                scrolledContainerColor = MaterialTheme.colorScheme.background
+            ),
             title = {
                 Text(
                     titleText ?: "Nosved Player",
