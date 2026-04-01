@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -58,9 +57,17 @@ import com.devson.nosvedplayer.model.ViewSettings
 import com.devson.nosvedplayer.util.formatDate
 import com.devson.nosvedplayer.util.formatSize
 import com.devson.nosvedplayer.ui.components.FolderShape
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.scale
 
 // FOLDER MEDIA PREVIEW
-
 @Composable
 fun FolderMediaPreview(
     videos: List<Video>,
@@ -68,8 +75,8 @@ fun FolderMediaPreview(
     settings: ViewSettings,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-
+    val bgColor = MaterialTheme.colorScheme.secondaryContainer
+ 
     Box(
         modifier = modifier
             .clip(FolderShape())
@@ -78,30 +85,57 @@ fun FolderMediaPreview(
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
             VideoThumbnail(
-                uri = videos.first().uri,
-                modifier = Modifier.fillMaxSize(),
+                uri         = videos.first().uri,
+                modifier    = Modifier.fillMaxSize(),
                 showPlayIcon = false
+            )
+            // Subtle bottom scrim so folder looks layered
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.55f to Color.Transparent,
+                            1.0f  to Color.Black.copy(alpha = 0.28f)
+                        )
+                    )
+            )
+        } else {
+            // No thumbnail — show a tinted icon
+            Icon(
+                imageVector  = Icons.Filled.FolderOpen,
+                contentDescription = null,
+                tint         = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
+                modifier     = Modifier.size(28.dp)
             )
         }
     }
 }
 
 @Composable
-fun BoxScope.SelectionCheckmarkOverlay() {
+fun BoxScope.SelectionCheckmarkOverlay(visible: Boolean = true) {
+    val scale by animateFloatAsState(
+        targetValue  = if (visible) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness    = Spring.StiffnessMedium
+        ),
+        label = "checkScale"
+    )
     Box(
         modifier = Modifier
             .align(Alignment.TopEnd)
             .padding(8.dp)
+            .scale(scale)
             .size(24.dp)
-            .background(MaterialTheme.colorScheme.onPrimary, CircleShape)
-            .padding(2.dp),
+            .background(MaterialTheme.colorScheme.primary, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Filled.Check,
+            imageVector  = Icons.Filled.Check,
             contentDescription = "Selected",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
+            tint         = MaterialTheme.colorScheme.onPrimary,
+            modifier     = Modifier.size(14.dp)
         )
     }
 }
@@ -117,23 +151,35 @@ fun FolderListItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
-    val bgColor = if (isSelected)
-        MaterialTheme.colorScheme.primaryContainer
-    else
-        MaterialTheme.colorScheme.surfaceContainerLow
-
+    val bgColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "folderListBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "folderListBorder"
+    )
+ 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 0.dp else 1.dp
+        ),
+        border = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -142,32 +188,41 @@ fun FolderListItem(
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Folder thumbnail
                 FolderMediaPreview(
-                    videos = videos,
+                    videos   = videos,
                     isSelected = false,
                     settings = settings,
-                    modifier = Modifier.size(width = 70.dp, height = 52.dp)
+                    modifier = Modifier.size(width = 72.dp, height = 54.dp)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+ 
+                Spacer(modifier = Modifier.width(14.dp))
+ 
+                // Folder name + metadata
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = folder.name,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text       = folder.name,
+                        style      = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis,
+                        color      = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    FolderMetadataRow(videos, settings)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FolderMetadataChips(videos, settings)
                 }
             }
-            if (isSelected) SelectionCheckmarkOverlay()
+ 
+            // Animated checkmark in top-right
+            SelectionCheckmarkOverlay(visible = isSelected)
         }
     }
 }
 
-// FOLDER GRID ITEM
-
+//  FOLDER GRID ITEM  (replace your existing FolderGridItem)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderGridItem(
@@ -179,173 +234,250 @@ fun FolderGridItem(
     onLongClick: () -> Unit = {}
 ) {
     val isDense = settings.gridColumns >= 3
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
-
-    when (settings.gridColumns) {
-        1 -> {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = bgColor),
-                border = if (isSelected) androidx.compose.foundation.BorderStroke(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary
-                ) else null
-            ) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FolderMediaPreview(
-                            videos = videos,
-                            isSelected = false,
-                            settings = settings,
-                            modifier = Modifier.size(width = 120.dp, height = 80.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = folder.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            FolderMetadataRow(videos, settings, isGrid = false)
-                        }
-                    }
-                    if (isSelected) SelectionCheckmarkOverlay()
-                }
-            }
-        }
-        2 -> {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = bgColor),
-                border = if (isSelected) androidx.compose.foundation.BorderStroke(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary
-                ) else null
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        FolderMediaPreview(
-                            videos = videos,
-                            isSelected = false,
-                            settings = settings,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        )
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                        ) {
-                            Text(
-                                text = folder.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            FolderMetadataRow(videos, settings, isGrid = true)
-                        }
-                    }
-                    if (isSelected) SelectionCheckmarkOverlay()
-                }
-            }
-        }
-        else -> {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = bgColor),
-                border = if (isSelected) androidx.compose.foundation.BorderStroke(
-                    2.dp,
-                    MaterialTheme.colorScheme.primary
-                ) else null
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+ 
+    val bgColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "folderGridBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "folderGridBorder"
+    )
+ 
+    // 1-column: wide landscape card
+    if (settings.gridColumns == 1) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            shape     = RoundedCornerShape(18.dp),
+            colors    = CardDefaults.cardColors(containerColor = bgColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+            border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     FolderMediaPreview(
-                        videos = videos,
+                        videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.size(width = 124.dp, height = 82.dp)
                     )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.6f))
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = folder.name,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${videos.size} items",
-                                color = Color.White.copy(alpha = 0.8f),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text       = folder.name,
+                            style      = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines   = 2,
+                            overflow   = TextOverflow.Ellipsis,
+                            color      = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        FolderMetadataChips(videos, settings, isGrid = false)
                     }
-                    if (isSelected) SelectionCheckmarkOverlay()
                 }
+                SelectionCheckmarkOverlay(visible = isSelected)
             }
+        }
+        return
+    }
+ 
+    // 2-column: thumbnail + label strip
+    if (settings.gridColumns == 2) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.88f)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            shape     = RoundedCornerShape(14.dp),
+            colors    = CardDefaults.cardColors(containerColor = bgColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+            border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    FolderMediaPreview(
+                        videos   = videos,
+                        isSelected = false,
+                        settings = settings,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text       = folder.name,
+                            style      = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis,
+                            color      = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        FolderMetadataChips(videos, settings, isGrid = true)
+                    }
+                }
+                SelectionCheckmarkOverlay(visible = isSelected)
+            }
+        }
+        return
+    }
+ 
+    // 3+ columns: full-bleed thumbnail with overlay label
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape     = RoundedCornerShape(10.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+        border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            FolderMediaPreview(
+                videos   = videos,
+                isSelected = false,
+                settings = settings,
+                modifier = Modifier.fillMaxSize()
+            )
+ 
+            // Gradient scrim for label legibility
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.40f to Color.Transparent,
+                            1.0f  to Color.Black.copy(alpha = 0.72f)
+                        )
+                    )
+            )
+ 
+            // Selected tint
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
+                )
+            }
+ 
+            // Label strip at bottom
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text       = folder.name,
+                    color      = Color.White,
+                    style      = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                Text(
+                    text  = "${videos.size} videos",
+                    color = Color.White.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.5.sp
+                )
+            }
+ 
+            SelectionCheckmarkOverlay(visible = isSelected)
         }
     }
 }
 
 // FOLDER METADATA ROW
-
 @Composable
 fun FolderMetadataRow(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
-    val metaItems = mutableListOf<String>()
-
-    metaItems.add("${videos.size} videos")
-    
-    if (settings.showSize) {
-        val totalSize = videos.sumOf { it.size }
-        metaItems.add(formatSize(totalSize))
+    // Alias kept for backward compat
+    FolderMetadataChips(videos, settings, isGrid)
+}
+ 
+@Composable
+fun FolderMetadataChips(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
+    val tokens = buildList {
+        add(Pair("${videos.size} videos", true))   // count → primary chip
+        if (settings.showSize) {
+            val totalSize = videos.sumOf { it.size }
+            add(Pair(formatSize(totalSize), false))
+        }
+        if (settings.showDate) {
+            val oldest = videos.minOfOrNull { it.dateAdded } ?: 0L
+            if (oldest > 0) add(Pair(formatDate(oldest), false))
+        }
+    }.filter { it.first.isNotBlank() }
+ 
+    if (tokens.isEmpty()) return
+ 
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment     = Alignment.CenterVertically
+    ) {
+        tokens.take(if (isGrid) 2 else 3).forEach { (text, isPrimary) ->
+            FolderMetaChip(text = text, isPrimary = isPrimary)
+        }
     }
-    if (settings.showDate) {
-        val oldestVideoDate = videos.minOfOrNull { it.dateAdded } ?: 0L
-        if (oldestVideoDate > 0) metaItems.add(formatDate(oldestVideoDate))
-    }
-
-    if (metaItems.isNotEmpty()) {
-        val text = metaItems.filter { it.isNotEmpty() }.joinToString(" • ")
+}
+ 
+@Composable
+private fun FolderMetaChip(text: String, isPrimary: Boolean) {
+    val bgColor   = if (isPrimary)
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+ 
+    val textColor = if (isPrimary)
+        MaterialTheme.colorScheme.onSecondaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+ 
+    Box(
+        modifier = Modifier
+            .background(bgColor, RoundedCornerShape(5.dp))
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+    ) {
         Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = if (isGrid) 2 else 1,
-            overflow = TextOverflow.Ellipsis
+            text       = text,
+            style      = MaterialTheme.typography.labelSmall,
+            fontSize   = 10.5.sp,
+            fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
+            color      = textColor,
+            maxLines   = 1
         )
     }
 }
 
 // FOLDER INFO DIALOG
-
 @Composable
 fun FolderInfoDialog(
     selectedFolders: Set<VideoFolder>,

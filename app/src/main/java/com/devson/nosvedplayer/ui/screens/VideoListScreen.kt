@@ -69,7 +69,20 @@ import com.devson.nosvedplayer.util.formatDuration
 import com.devson.nosvedplayer.util.formatRelativeTime
 import com.devson.nosvedplayer.util.formatResolutionCompact
 import com.devson.nosvedplayer.util.formatSize
-
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun VideoListScreen(
@@ -687,8 +700,7 @@ fun VideoThumbnail(
     showPlayIcon: Boolean = true
 ) {
     Box(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -696,29 +708,130 @@ fun VideoThumbnail(
                 .size(512, 512)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
-                .crossfade(false)
+                .crossfade(true)           // subtle crossfade instead of hard pop
                 .build(),
             placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
-            error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+            error       = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             contentDescription = "Video Thumbnail",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
         if (showPlayIcon) {
+            // Gradient scrim so icon is legible over any thumbnail colour
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.2f)),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Transparent
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                // Frosted-glass pill button
+                Surface(
+                    shape  = CircleShape,
+                    color  = Color.White.copy(alpha = 0.18f),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailSelectionOverlay(isSelected: Boolean, isDense: Boolean = false) {
+    val iconSize = if (isDense) 20.dp else 26.dp
+    val circleSize = if (isDense) 32.dp else 40.dp
+ 
+    // Animated background scrim
+    val scrimAlpha by animateFloatAsState(
+        targetValue  = if (isSelected) 0.45f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "scrimAlpha"
+    )
+    // Animated check scale for a satisfying "pop"
+    val checkScale by animateFloatAsState(
+        targetValue  = if (isSelected) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "checkScale"
+    )
+ 
+    if (scrimAlpha > 0f || isSelected) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = scrimAlpha)),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .scale(checkScale)
+                    .size(circleSize)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(32.dp)
+                    Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint  = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun BoxScope.DurationBadge(duration: Long, isGrid: Boolean = false) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(if (isGrid) 6.dp else 4.dp)
+            .background(
+                color = Color.Black.copy(alpha = 0.72f),
+                shape = RoundedCornerShape(5.dp)
+            )
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = formatDuration(duration),
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = if (isGrid) 11.sp else 10.sp
+        )
+    }
+}
+
+//  SHARED: Watch-progress bar at the bottom of the thumbnail
+ 
+@Composable
+private fun BoxScope.WatchProgressBar(lastPositionMs: Long, duration: Long) {
+    if (lastPositionMs > 0L && duration > 0L) {
+        val progress = (lastPositionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        LinearProgressIndicator(
+            progress         = { progress },
+            modifier         = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(3.dp),
+            color            = MaterialTheme.colorScheme.primary,
+            trackColor       = Color.Transparent,
+            drawStopIndicator = {}
+        )
     }
 }
 
@@ -734,24 +847,47 @@ fun VideoListItem(
     onClick: (Video) -> Unit,
     onLongClick: (Video) -> Unit
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
-
+    val haptic = LocalHapticFeedback.current
+ 
+    // Smooth background colour transition on select
+    val bgColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "listItemBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "listItemBorder"
+    )
+ 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 3.dp)
             .combinedClickable(
-                onClick = { onClick(video) },
+                onClick    = { onClick(video) },
                 onLongClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick(video)
                 }
             ),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation  = if (isSelected) 0.dp else 1.dp,
+            pressedElevation  = 0.dp
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 0.dp,
+            color = borderColor
+        )
     ) {
         Row(
             modifier = Modifier
@@ -759,100 +895,72 @@ fun VideoListItem(
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(width = 96.dp, height = 56.dp)) {
+            // ── Thumbnail ──────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .size(width = 100.dp, height = 60.dp)
+                    .clip(RoundedCornerShape(10.dp))
+            ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri = video.uri,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(12.dp))
+                        uri         = video.uri,
+                        modifier    = Modifier.fillMaxSize(),
+                        showPlayIcon = !isSelected
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.PlayCircle,
+                            imageVector = Icons.Filled.Movie,
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                         )
                     }
                 }
-                
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-                // Duration badge overlay
+ 
+                // Duration badge (shown only when displayLengthOverThumbnail is true)
                 if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 6.dp, end = 6.dp)
-                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = formatDuration(video.duration), 
-                            color = Color.White, 
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    DurationBadge(video.duration, isGrid = false)
                 }
-                
-                if (lastPositionMs > 0L && video.duration > 0L) {
-                    val progress = (lastPositionMs.toFloat() / video.duration.toFloat()).coerceIn(0f, 1f)
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.Transparent
-                    )
-                }
+ 
+                // Watch-progress bar
+                WatchProgressBar(lastPositionMs, video.duration)
+ 
+                // Selection overlay (animated)
+                ThumbnailSelectionOverlay(isSelected, isDense = true)
             }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-
+ 
+            Spacer(modifier = Modifier.width(14.dp))
+ 
+            // ── Text section ───────────────────────────────────────────────
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    text = if (settings.showFileExtension) video.title
+                           else video.title.substringBeforeLast("."),
+                    style     = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines  = 2,
+                    overflow  = TextOverflow.Ellipsis,
+                    color     = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                VideoMetadataRow(video, settings, lastPositionMs = lastPositionMs)
+ 
+                Spacer(modifier = Modifier.height(5.dp))
+ 
+                VideoMetadataChips(video, settings, lastPositionMs)
             }
         }
     }
 }
 
-// VIDEO GRID ITEM
-
+//  VIDEO GRID ITEM  (replace your existing VideoGridItem) 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoGridItem(
@@ -863,289 +971,257 @@ fun VideoGridItem(
     onClick: (Video) -> Unit,
     onLongClick: (Video) -> Unit
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic  = LocalHapticFeedback.current
     val isDense = settings.gridColumns >= 3
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
-    
+ 
+    val bgColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "gridItemBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue  = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            Color.Transparent,
+        animationSpec = tween(180),
+        label = "gridItemBorder"
+    )
+ 
+    // Single-column (full-width cinema card) 
     if (settings.gridColumns == 1) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
+                .padding(bottom = 10.dp)
                 .combinedClickable(
-                    onClick = { onClick(video) },
+                    onClick    = { onClick(video) },
                     onLongClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongClick(video)
                     }
                 ),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = bgColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+            shape     = RoundedCornerShape(18.dp),
+            colors    = CardDefaults.cardColors(containerColor = bgColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+            border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Top Section (Thumbnail, 16:9)
+                // Wide thumbnail
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                 ) {
                     if (settings.showThumbnail) {
-                        VideoThumbnail(
-                            uri = video.uri,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        VideoThumbnail(uri = video.uri, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
                     } else {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.PlayCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Icon(Icons.Filled.Movie, null, Modifier.size(56.dp),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                         }
                     }
-
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Duration badge overlay
-                    if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = formatDuration(video.duration), 
-                                color = Color.White, 
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                    
-                    if (lastPositionMs > 0L && video.duration > 0L) {
-                        val progress = (lastPositionMs.toFloat() / video.duration.toFloat()).coerceIn(0f, 1f)
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = Color.Transparent
-                        )
-                    }
+                    if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
+                        DurationBadge(video.duration, isGrid = true)
+                    WatchProgressBar(lastPositionMs, video.duration)
+                    ThumbnailSelectionOverlay(isSelected)
                 }
-
-                // Bottom Section
+ 
+                // Info strip
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
-                            style = MaterialTheme.typography.titleMedium,
+                            text = if (settings.showFileExtension) video.title
+                                   else video.title.substringBeforeLast("."),
+                            style      = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines   = 2,
+                            overflow   = TextOverflow.Ellipsis,
+                            color      = if (isSelected)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        VideoMetadataRow(video, settings, isGrid = false, lastPositionMs = lastPositionMs)
+                        VideoMetadataChips(video, settings, lastPositionMs)
                     }
                 }
             }
         }
-    } else {
-        Card(
+        return
+    }
+ 
+    // Multi-column compact card
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(if (isDense) 1f else 0.85f)
+            .aspectRatio(if (isDense) 1f else 0.82f)
             .combinedClickable(
-                onClick = { onClick(video) },
+                onClick    = { onClick(video) },
                 onLongClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick(video)
                 }
             ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+        shape     = RoundedCornerShape(14.dp),
+        colors    = CardDefaults.cardColors(containerColor = bgColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
+        border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Thumbnail Section
+            // Thumbnail fills most of the card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(if (isDense) 0.dp else 8.dp) 
             ) {
-                val clipShape = if (isDense) RoundedCornerShape(0.dp) else RoundedCornerShape(12.dp)
-                
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri = video.uri,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(clipShape)
+                        uri          = video.uri,
+                        modifier     = Modifier.fillMaxSize(),
+                        showPlayIcon = !isSelected && !isDense  // hide play icon in dense mode
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(clipShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(if (isDense) 32.dp else 48.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Filled.Movie, null, Modifier.size(if (isDense) 28.dp else 36.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                     }
                 }
-
-                // Selection Overlay
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(if (isDense) 32.dp else 48.dp)
-                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(if (isDense) 20.dp else 28.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Duration badge overlay
-                if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = formatDuration(video.duration), 
-                            color = Color.White, 
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                
-                if (lastPositionMs > 0L && video.duration > 0L) {
-                    val progress = (lastPositionMs.toFloat() / video.duration.toFloat()).coerceIn(0f, 1f)
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.Transparent
-                    )
-                }
+ 
+                // Duration badge
+                if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
+                    DurationBadge(video.duration, isGrid = true)
+ 
+                // Watch-progress bar
+                WatchProgressBar(lastPositionMs, video.duration)
+ 
+                // Selection overlay
+                ThumbnailSelectionOverlay(isSelected, isDense)
             }
-
+ 
+            // Bottom label (hidden in dense ≥3 columns — too cramped)
             if (!isDense) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // Changed to use start, top, end, and bottom explicitly
-                        .padding(start = 12.dp, top = 4.dp, end = 12.dp, bottom = 12.dp)
+                        .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 10.dp)
                 ) {
                     Text(
-                        text = if (settings.showFileExtension) video.title else video.title.substringBeforeLast("."),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = if (settings.showFileExtension) video.title
+                               else video.title.substringBeforeLast("."),
+                        style      = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis,
+                        color      = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    VideoMetadataRow(video, settings, isGrid = true, lastPositionMs = lastPositionMs)
+                    Spacer(modifier = Modifier.height(3.dp))
+                    VideoMetadataChips(video, settings, lastPositionMs, isGrid = true)
                 }
             }
         }
     }
 }
-}
 
 // VIDEO METADATA ROW
 
 @Composable
-fun VideoMetadataRow(video: Video, settings: ViewSettings, isGrid: Boolean = false, lastPositionMs: Long = 0L) {
-    val metaItems = mutableListOf<String>()
-    
-    // if (lastPositionMs > 0L) metaItems.add("At ${formatDuration(lastPositionMs)}")
-
-    if (settings.showLength && !settings.displayLengthOverThumbnail) metaItems.add(formatDuration(video.duration))
-    // lastPlayedAt = wall-clock timestamp → formatRelativeTime gives "Played 2h Ago"
-    if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
-        metaItems.add(formatRelativeTime(video.lastPlayedAt))
-    if (settings.showResolution && !video.resolution.isNullOrEmpty()) metaItems.add(formatResolutionCompact(video.resolution) ?: video.resolution!!)
-    if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f) metaItems.add("${video.frameRate.toInt()} fps")
-    if (settings.showFileExtension) metaItems.add(video.title.substringAfterLast('.', video.uri.substringAfterLast('.', "")).uppercase())
-    if (settings.showSize) metaItems.add(formatSize(video.size))
-    if (settings.showDate && video.dateAdded > 0) metaItems.add(formatDate(video.dateAdded))
-    if (settings.showPath) metaItems.add(video.path)
-
-    if (metaItems.isNotEmpty()) {
-        val text = metaItems.filter { it.isNotEmpty() }.joinToString(" • ")
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+fun VideoMetadataRow(
+    video: Video,
+    settings: ViewSettings,
+    isGrid: Boolean = false,
+    lastPositionMs: Long = 0L
+) {
+    // Alias so callers that still use the old name keep working
+    VideoMetadataChips(video, settings, lastPositionMs, isGrid)
+}
+ 
+@Composable
+fun VideoMetadataChips(
+    video: Video,
+    settings: ViewSettings,
+    lastPositionMs: Long = 0L,
+    isGrid: Boolean = false
+) {
+    // Build ordered token list
+    data class MetaToken(val text: String, val isPrimary: Boolean = false)
+ 
+    val tokens = buildList {
+        if (settings.showLength && !settings.displayLengthOverThumbnail)
+            add(MetaToken(formatDuration(video.duration), isPrimary = true))
+        if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
+            add(MetaToken(formatRelativeTime(video.lastPlayedAt)))
+        if (settings.showResolution && !video.resolution.isNullOrEmpty())
+            add(MetaToken(formatResolutionCompact(video.resolution) ?: video.resolution!!))
+        if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f)
+            add(MetaToken("${video.frameRate.toInt()} fps"))
+        if (settings.showFileExtension)
+            add(MetaToken(video.title.substringAfterLast('.', video.uri.substringAfterLast('.', "")).uppercase()))
+        if (settings.showSize)
+            add(MetaToken(formatSize(video.size)))
+        if (settings.showDate && video.dateAdded > 0)
+            add(MetaToken(formatDate(video.dateAdded)))
+        if (settings.showPath)
+            add(MetaToken(video.path))
+    }.filter { it.text.isNotBlank() }
+ 
+    if (tokens.isEmpty()) return
+ 
+    Row(
+        modifier          = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        tokens.take(if (isGrid) 2 else 4).forEach { token ->
+            MetadataChip(text = token.text, isPrimary = token.isPrimary, isGrid = isGrid)
         }
+    }
+}
+ 
+@Composable
+private fun MetadataChip(text: String, isPrimary: Boolean, isGrid: Boolean = false) {
+    val bgColor   = if (isPrimary)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+ 
+    val textColor = if (isPrimary)
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+ 
+    val fontSize = if (isGrid) 9.5.sp else 10.5.sp
+ 
+    Box(
+        modifier = Modifier
+            .background(bgColor, RoundedCornerShape(5.dp))
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text       = text,
+            style      = MaterialTheme.typography.labelSmall,
+            fontSize   = fontSize,
+            fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Normal,
+            color      = textColor,
+            maxLines   = 1
+        )
     }
 }
 
