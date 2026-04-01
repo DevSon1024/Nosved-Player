@@ -38,6 +38,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
         val YOUTUBE_PLAYER_STYLE = booleanPreferencesKey("youtube_player_style")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -76,10 +77,23 @@ class PlaybackSettingsRepository(private val context: Context) {
         prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] ?: false
     }
 
+    /** false = use custom Nosved palette; true = use Material You wallpaper colours (SDK 31+) */
+    val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false
+    }
+
     suspend fun setDarkTheme(isDark: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DARK_THEME] = isDark
             prefs[PreferencesKeys.DARK_THEME_SET] = true
+        }
+    }
+
+    /** Clears the explicit dark/light override — theme follows the system setting. */
+    suspend fun resetDarkTheme() {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.DARK_THEME_SET] = false
+            prefs.remove(PreferencesKeys.DARK_THEME)
         }
     }
 
@@ -92,6 +106,12 @@ class PlaybackSettingsRepository(private val context: Context) {
     suspend fun setYoutubePlayerStyle(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] = enabled
+        }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.DYNAMIC_COLOR] = enabled
         }
     }
 

@@ -1,0 +1,448 @@
+package com.devson.nosvedplayer.ui.screens.settings
+
+import android.os.Build
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.nosvedplayer.ui.theme.*
+import com.devson.nosvedplayer.viewmodel.SettingsViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppearanceSettingsScreen(
+    onNavigateBack: () -> Unit,
+    settingsViewModel: SettingsViewModel = viewModel()
+) {
+    val isDark        by settingsViewModel.isDarkTheme.collectAsState()
+    val dynamicColor  by settingsViewModel.dynamicColor.collectAsState()
+
+    // Theme mode: null = system, true = dark, false = light
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    //  Dark theme picker dialog 
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.DarkMode,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text("Dark theme", style = MaterialTheme.typography.titleMedium)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.selectableGroup()) {
+                    ThemeOption(
+                        text       = "Light",
+                        description = "Always use light colours",
+                        selected   = isDark == false,
+                        icon       = Icons.Default.LightMode,
+                        onClick    = {
+                            settingsViewModel.setDarkTheme(false)
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOption(
+                        text       = "Dark",
+                        description = "Always use dark colours",
+                        selected   = isDark == true,
+                        icon       = Icons.Default.DarkMode,
+                        onClick    = {
+                            settingsViewModel.setDarkTheme(true)
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOption(
+                        text       = "System default",
+                        description = "Follow system light / dark setting",
+                        selected   = isDark == null,
+                        icon       = Icons.Default.SettingsBrightness,
+                        onClick    = {
+                            settingsViewModel.resetDarkTheme()
+                            showThemeDialog = false
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    //  Main scaffold 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Display",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Spacer(Modifier.height(4.dp))
+
+            //  Colour preview strip 
+            ColorPreviewStrip()
+
+            Spacer(Modifier.height(20.dp))
+
+            //  THEME section 
+            AppearanceSectionLabel("Theme")
+            AppearanceCard {
+                // Dark / light mode row
+                AppearanceNavRow(
+                    icon     = when (isDark) {
+                        true -> Icons.Default.DarkMode
+                        false -> Icons.Default.LightMode
+                        else -> Icons.Default.SettingsBrightness
+                    },
+                    title    = "Dark theme",
+                    subtitle = when (isDark) {
+                        true  -> "Dark"
+                        false -> "Light"
+                        null  -> "System default"
+                    },
+                    onClick  = { showThemeDialog = true }
+                )
+
+                // Dynamic colour (Material You) - only on SDK 31+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    AppearanceDivider()
+                    AppearanceToggleRow(
+                        icon      = Icons.Default.Palette,
+                        title     = "Dynamic colour",
+                        subtitle  = "Extract accent colours from your wallpaper",
+                        checked   = dynamicColor,
+                        onCheckedChange = { settingsViewModel.setDynamicColor(it) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            //  LANGUAGE section 
+            AppearanceSectionLabel("Language")
+            AppearanceCard {
+                AppearanceNavRow(
+                    icon    = Icons.Default.Language,
+                    title   = "Display language",
+                    subtitle = "English (default) • More languages coming soon",
+                    onClick  = { /* TODO: in-app language picker */ }
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            //  INFO chip 
+            Surface(
+                modifier        = Modifier.fillMaxWidth(),
+                shape           = RoundedCornerShape(12.dp),
+                color           = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                tonalElevation  = 0.dp
+            ) {
+                Row(
+                    modifier            = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment   = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint     = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text  = "Some theme changes take effect immediately; others require restarting the app.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+//  Colour swatch preview strip 
+
+@Composable
+private fun ColorPreviewStrip() {
+    val swatches = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.outline,
+    )
+
+    Surface(
+        modifier       = Modifier.fillMaxWidth(),
+        shape          = RoundedCornerShape(16.dp),
+        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text  = "Current palette",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier            = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                swatches.forEach { raw ->
+                    val animColor by animateColorAsState(
+                        targetValue    = raw,
+                        animationSpec  = tween(400),
+                        label          = "swatchAnim"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(animColor)
+                    )
+                }
+            }
+        }
+    }
+}
+
+//  Section label 
+
+@Composable
+private fun AppearanceSectionLabel(label: String) {
+    Text(
+        text      = label,
+        style     = MaterialTheme.typography.labelLarge,
+        color     = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+        modifier  = Modifier.padding(start = 4.dp, bottom = 6.dp)
+    )
+}
+
+//  Card wrapper 
+
+@Composable
+private fun AppearanceCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier       = Modifier.fillMaxWidth(),
+        shape          = RoundedCornerShape(16.dp),
+        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun AppearanceDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp),
+        color    = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+//  Clickable row (navigates somewhere) 
+
+@Composable
+private fun AppearanceNavRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier            = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment   = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier          = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment  = Alignment.Center
+        ) {
+            Icon(
+                imageVector     = icon,
+                contentDescription = null,
+                modifier        = Modifier.size(20.dp),
+                tint            = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text  = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Icon(
+            imageVector     = Icons.Default.ChevronRight,
+            contentDescription = null,
+            modifier        = Modifier.size(18.dp),
+            tint            = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+//  Toggle row 
+
+@Composable
+private fun AppearanceToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier            = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment   = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier          = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment  = Alignment.Center
+        ) {
+            Icon(
+                imageVector     = icon,
+                contentDescription = null,
+                modifier        = Modifier.size(20.dp),
+                tint            = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text  = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Switch(
+            checked         = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+//  Radio option inside ThemeDialog 
+
+@Composable
+private fun ThemeOption(
+    text: String,
+    description: String,
+    selected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier          = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick  = onClick,
+                role     = Role.RadioButton
+            )
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector     = icon,
+            contentDescription = null,
+            modifier        = Modifier.size(20.dp),
+            tint            = if (selected) MaterialTheme.colorScheme.primary
+                              else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = text, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text  = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        RadioButton(selected = selected, onClick = null)
+    }
+}

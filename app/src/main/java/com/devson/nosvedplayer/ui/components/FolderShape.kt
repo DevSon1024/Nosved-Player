@@ -18,28 +18,33 @@ class FolderShape : Shape {
 
                 // Top-left of the tab
                 moveTo(0f, cornerRadius)
-                quadraticBezierTo(0f, 0f, cornerRadius, 0f)
-                
+                quadraticTo(0f, 0f, cornerRadius, 0f)
+
                 // Top-right of the tab
                 lineTo(tabWidth - cornerRadius, 0f)
-                quadraticBezierTo(tabWidth, 0f, tabWidth + cornerRadius * 0.5f, cornerRadius * 0.5f)
-                
+                quadraticTo(tabWidth, 0f, tabWidth + cornerRadius * 0.5f, cornerRadius * 0.5f)
+
                 // Slant down to the main folder body
                 lineTo(tabWidth + cornerRadius, tabHeight - cornerRadius * 0.5f)
-                quadraticBezierTo(tabWidth + cornerRadius * 1.5f, tabHeight, tabWidth + cornerRadius * 2.5f, tabHeight)
-                
+                quadraticTo(
+                    tabWidth + cornerRadius * 1.5f,
+                    tabHeight,
+                    tabWidth + cornerRadius * 2.5f,
+                    tabHeight
+                )
+
                 // Top-right of the main folder body
                 lineTo(size.width - cornerRadius, tabHeight)
-                quadraticBezierTo(size.width, tabHeight, size.width, tabHeight + cornerRadius)
-                
+                quadraticTo(size.width, tabHeight, size.width, tabHeight + cornerRadius)
+
                 // Bottom-right
                 lineTo(size.width, size.height - cornerRadius)
-                quadraticBezierTo(size.width, size.height, size.width - cornerRadius, size.height)
-                
+                quadraticTo(size.width, size.height, size.width - cornerRadius, size.height)
+
                 // Bottom-left
                 lineTo(cornerRadius, size.height)
-                quadraticBezierTo(0f, size.height, 0f, size.height - cornerRadius)
-                
+                quadraticTo(0f, size.height, 0f, size.height - cornerRadius)
+
                 close()
             }
         )

@@ -139,7 +139,7 @@ fun VideoScreen(
     var showBrightnessFeedback by remember { mutableStateOf(false) }
     var brightnessFeedbackTrigger by remember { mutableStateOf(0) }
 
-    // YT-style seek indicators and fast-forward — driven by GestureOverlay, consumed by YoutubeStylePlayerControls
+    // YT-style seek indicators and fast-forward - driven by GestureOverlay, consumed by YoutubeStylePlayerControls
     var ytShowSeekLeft by remember { mutableStateOf(false) }
     var ytShowSeekRight by remember { mutableStateOf(false) }
     var ytIsFastForwarding by remember { mutableStateOf(false) }
@@ -259,7 +259,7 @@ fun VideoScreen(
             )
         }
 
-        //  Gesture overlay (volume / brightness swipe — always active) 
+        //  Gesture overlay (volume / brightness swipe - always active) 
         GestureOverlay(
             modifier = Modifier.fillMaxSize(),
             seekDurationSeconds = seekDurationSeconds,
@@ -327,7 +327,7 @@ fun VideoScreen(
             modifier = Modifier.align(androidx.compose.ui.Alignment.CenterEnd)
         )
 
-        //  Player controls — switch between Default and YouTube style 
+        //  Player controls - switch between Default and YouTube style 
         val hasPrevious = currentPlaylist.isNotEmpty() && currentPlaylistIndex > 0
         val hasNext = currentPlaylist.isNotEmpty() && currentPlaylistIndex in 0 until currentPlaylist.lastIndex
 
@@ -478,7 +478,7 @@ fun VideoScreen(
         }
     }
 
-    //  Modals — shared between both player styles 
+    //  Modals - shared between both player styles 
 
     @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     AudioTrackSheet(

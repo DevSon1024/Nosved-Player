@@ -118,7 +118,7 @@ class VideoRepository(private val context: Context) {
 
                 // Frame rate is NOT extracted at list-load time.
                 // Opening a MediaMetadataRetriever for every video is O(n) file I/O
-                // and causes 50-200 ms per video — unacceptably slow for large libraries.
+                // and causes 50-200 ms per video - unacceptably slow for large libraries.
                 // frameRate stays null here; the detail screen extracts it on demand.
 
                 val contentUri = ContentUris.withAppendedId(collection, id)
@@ -137,7 +137,7 @@ class VideoRepository(private val context: Context) {
                         dateAdded = dateAdded * 1000L,
                         path = path,
                         resolution = resolutionStr,
-                        // frameRate left null — extracted on demand in the detail view
+                        // frameRate left null - extracted on demand in the detail view
                         playedTime = playedTime,
                         lastPlayedAt = historyTimestampMap[contentUri.toString()]
                     )

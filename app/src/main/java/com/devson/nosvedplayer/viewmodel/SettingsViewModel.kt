@@ -29,8 +29,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val useYoutubePlayerStyle: StateFlow<Boolean> = settingsRepo.useYoutubePlayerStyleFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /**
+     * true = use Material You (wallpaper-based) colours, false = Nosved custom palette.
+     * Only takes visual effect on API 31+.
+     */
+    val dynamicColor: StateFlow<Boolean> = settingsRepo.dynamicColorFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun setDarkTheme(isDark: Boolean) {
         viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
+    }
+
+    /** Clears any explicit dark/light override — theme follows the device system setting. */
+    fun resetDarkTheme() {
+        viewModelScope.launch { settingsRepo.resetDarkTheme() }
     }
 
     fun enableDeveloperMode() {
@@ -40,4 +52,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setYoutubePlayerStyle(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.setYoutubePlayerStyle(enabled) }
     }
-}
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.setDynamicColor(enabled) }
+    }
+}

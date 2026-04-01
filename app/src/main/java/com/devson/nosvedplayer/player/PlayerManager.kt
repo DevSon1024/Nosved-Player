@@ -288,7 +288,7 @@ class PlayerManager(private val context: Context) {
 
     fun seekForward(ms: Long = 10000L) {
         val player = exoPlayer ?: return
-        // Always read currentPosition fresh — critical for rapid consecutive double-taps
+        // Always read currentPosition fresh - critical for rapid consecutive double-taps
         val currentPos = player.currentPosition
         val newPos = (currentPos + ms).coerceAtMost(player.duration.coerceAtLeast(0L))
         player.seekTo(newPos)
@@ -296,7 +296,7 @@ class PlayerManager(private val context: Context) {
 
     fun seekBackward(ms: Long = 10000L) {
         val player = exoPlayer ?: return
-        // Always read currentPosition fresh — critical for rapid consecutive double-taps
+        // Always read currentPosition fresh - critical for rapid consecutive double-taps
         val currentPos = player.currentPosition
         val newPos = (currentPos - ms).coerceAtLeast(0L)
         player.seekTo(newPos)

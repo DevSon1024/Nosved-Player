@@ -86,7 +86,7 @@ fun formatRelativeTime(epochMs: Long): String {
 
 /**
  * Converts a "WIDTHxHEIGHT" resolution string (e.g. "1280x720") into a compact
- * "Xp" label (e.g. "720p") using the smaller dimension — works for both landscape
+ * "Xp" label (e.g. "720p") using the smaller dimension - works for both landscape
  * and portrait videos. Returns null if the string can't be parsed.
  */
 fun formatResolutionCompact(resolution: String?): String? {

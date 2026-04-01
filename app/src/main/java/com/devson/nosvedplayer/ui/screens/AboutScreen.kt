@@ -194,7 +194,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (BuildConfig.DEBUG) "DEBUG BUILD" else "RELEASE BUILD",
+                            text = if (BuildConfig.DEBUG) "DEBUG BUILD" else "Stable Release",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (BuildConfig.DEBUG)

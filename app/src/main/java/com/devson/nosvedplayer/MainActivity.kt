@@ -40,8 +40,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val forceDark by settingsViewModel.isDarkTheme.collectAsState()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
 
-            NosvedPlayerTheme(forceDark = forceDark) {
+            NosvedPlayerTheme(forceDark = forceDark, dynamicColor = dynamicColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

@@ -13,6 +13,7 @@ import com.devson.nosvedplayer.ui.screens.LogScreen
 import com.devson.nosvedplayer.ui.screens.PrivacyPolicyScreen
 import com.devson.nosvedplayer.ui.screens.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.VideoListScreen
+import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
@@ -53,43 +54,51 @@ fun NavGraph(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(
-                onVideoSelected = onVideoSelected,
+                onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToVideos = { navController.navigate(Screen.Videos.route) }
+                onNavigateToVideos   = { navController.navigate(Screen.Videos.route) }
             )
         }
-        
+
         composable(Screen.Videos.route) {
             VideoListScreen(
-                onVideoSelected = onVideoSelected,
+                onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onBack = { navController.popBackStack() }
+                onBack               = { navController.popBackStack() }
             )
         }
-        
+
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onBack = { navController.popBackStack() },
-                onNavigateToAbout = { navController.navigate(Screen.About.route) },
-                onNavigateToLogs = { navController.navigate(Screen.Logs.route) },
+                onBack                  = { navController.popBackStack() },
+                onNavigateToAbout       = { navController.navigate(Screen.About.route) },
+                onNavigateToLogs        = { navController.navigate(Screen.Logs.route) },
                 onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onNavigateToAppearance  = { navController.navigate(Screen.Appearance.route) },
+                settingsViewModel       = settingsViewModel
+            )
+        }
+
+        composable(Screen.Appearance.route) {
+            AppearanceSettingsScreen(
+                onNavigateBack    = { navController.popBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }
-        
+
         composable(Screen.About.route) {
             AboutScreen(
-                onBack = { navController.popBackStack() },
-                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
+                onBack                 = { navController.popBackStack() },
+                onEnableDeveloperMode  = { settingsViewModel.enableDeveloperMode() }
             )
         }
-        
+
         composable(Screen.Logs.route) {
             LogScreen(
                 onBack = { navController.popBackStack() }
             )
         }
-        
+
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
                 onBack = { navController.popBackStack() }
@@ -97,3 +106,5 @@ fun NavGraph(
         }
     }
 }
+
+
