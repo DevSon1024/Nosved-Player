@@ -89,7 +89,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         }
     }
 
-    /** Clears the explicit dark/light override — theme follows the system setting. */
+    /** Clears the explicit dark/light override - theme follows the system setting. */
     suspend fun resetDarkTheme() {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DARK_THEME_SET] = false

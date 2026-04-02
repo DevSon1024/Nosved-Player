@@ -40,7 +40,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
     }
 
-    /** Clears any explicit dark/light override — theme follows the device system setting. */
+    /** Clears any explicit dark/light override - theme follows the device system setting. */
     fun resetDarkTheme() {
         viewModelScope.launch { settingsRepo.resetDarkTheme() }
     }
@@ -56,4 +56,4 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.setDynamicColor(enabled) }
     }
-}
+}

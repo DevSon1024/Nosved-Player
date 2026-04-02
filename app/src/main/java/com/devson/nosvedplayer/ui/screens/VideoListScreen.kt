@@ -895,7 +895,7 @@ fun VideoListItem(
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── Thumbnail ──────────────────────────────────────────────────
+            //  Thumbnail 
             Box(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
@@ -937,7 +937,7 @@ fun VideoListItem(
  
             Spacer(modifier = Modifier.width(14.dp))
  
-            // ── Text section ───────────────────────────────────────────────
+            //  Text section 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (settings.showFileExtension) video.title
@@ -1113,7 +1113,7 @@ fun VideoGridItem(
                 ThumbnailSelectionOverlay(isSelected, isDense)
             }
  
-            // Bottom label (hidden in dense ≥3 columns — too cramped)
+            // Bottom label (hidden in dense ≥3 columns - too cramped)
             if (!isDense) {
                 Column(
                     modifier = Modifier

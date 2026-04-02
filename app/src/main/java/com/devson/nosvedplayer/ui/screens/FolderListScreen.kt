@@ -101,7 +101,7 @@ fun FolderMediaPreview(
                     )
             )
         } else {
-            // No thumbnail — show a tinted icon
+            // No thumbnail - show a tinted icon
             Icon(
                 imageVector  = Icons.Filled.FolderOpen,
                 contentDescription = null,

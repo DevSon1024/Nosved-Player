@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -133,7 +134,10 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { padding ->
@@ -258,10 +262,10 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
 
                 AboutItemRow(
                     title = "Telegram Channel",
-                    description = "https://t.me/Nosved",
+                    description = "https://t.me/Nosved_Player",
                     icon = Icons.AutoMirrored.Filled.Send,
                     onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://t.me/Nosved".toUri()))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://t.me/Nosved_Player".toUri()))
                     }
                 )
 
@@ -328,7 +332,11 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+
             )
         }
     ) { padding ->
