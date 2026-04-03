@@ -325,7 +325,6 @@ fun GestureOverlay(
 
                         if (isSwiping) {
                             change.consume()
-                            // Prevent swiping while holding normal fast-forward or locked fast-forward
                             if (isLongPressActive || isFastForwardLocked) continue
 
                             when (swipeAxis) {

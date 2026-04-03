@@ -30,7 +30,6 @@ class PlayerManager(private val context: Context) {
 
     var onVideoEnded: (() -> Unit)? = null
 
-    /** Called when a non-fatal source/parse error occurs (e.g. corrupt MKV). The video should be skipped. */
     var onPlaybackError: ((String) -> Unit)? = null
 
     private val _isPlaying = MutableStateFlow(false)
@@ -45,7 +44,6 @@ class PlayerManager(private val context: Context) {
     private val _bufferedPosition = MutableStateFlow(0L)
     val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
 
-    // null = not yet determined, true = portrait, false = landscape
     private val _isPortraitVideo = MutableStateFlow<Boolean?>(null)
     val isPortraitVideo: StateFlow<Boolean?> = _isPortraitVideo.asStateFlow()
 
@@ -79,14 +77,9 @@ class PlayerManager(private val context: Context) {
 
     fun initializePlayer() {
         if (exoPlayer == null) {
-            // 1. Use Nextlib's factory instead of ExoPlayer's DefaultRenderersFactory
-            // (If it shows in red, click it and press Alt+Enter to import it)
             val renderersFactory = NextRenderersFactory(context)
-                // 2. Tell it to prefer FFmpeg over hardware decoders
                 .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-                // 3. Fallback to hardware if FFmpeg doesn't support the format
                 .setEnableDecoderFallback(true)
-                // 4. Stop the MediaTek hardware crash!
                 .forceDisableMediaCodecAsynchronousQueueing()
 
             exoPlayer = ExoPlayer.Builder(context)
@@ -171,13 +164,10 @@ class PlayerManager(private val context: Context) {
                             val isFormatUnsupported = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
                             val isDecoderFailed    = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
 
-                            // Source / container parse errors (e.g. corrupt MKV "varint" crash)
-                            // are not fatal format errors – skip to the next video instead.
                             val isSourceError = error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
                                     error.cause?.cause is IllegalStateException ||
                                     error.cause is Loader.UnexpectedLoaderException
 
-                            // Graceful recovery for MediaCodecVideoRenderer / decoder errors to prevent freezing
                             val isMediaCodecRendererError = error.message?.contains("MediaCodecVideoRenderer") == true ||
                                     error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED
 
@@ -261,7 +251,7 @@ class PlayerManager(private val context: Context) {
 
     fun playVideo(video: Video) {
         val player = exoPlayer ?: return
-        _playerError.value = null // Clear previous errors
+        _playerError.value = null
         val mediaItem = MediaItem.fromUri(video.uri)
         player.setMediaItem(mediaItem)
         player.prepare()
@@ -300,7 +290,6 @@ class PlayerManager(private val context: Context) {
 
     fun seekForward(ms: Long = 10000L) {
         val player = exoPlayer ?: return
-        // Always read currentPosition fresh - critical for rapid consecutive double-taps
         val currentPos = player.currentPosition
         val newPos = (currentPos + ms).coerceAtMost(player.duration.coerceAtLeast(0L))
         player.seekTo(newPos)
@@ -308,7 +297,6 @@ class PlayerManager(private val context: Context) {
 
     fun seekBackward(ms: Long = 10000L) {
         val player = exoPlayer ?: return
-        // Always read currentPosition fresh - critical for rapid consecutive double-taps
         val currentPos = player.currentPosition
         val newPos = (currentPos - ms).coerceAtLeast(0L)
         player.seekTo(newPos)
@@ -363,7 +351,6 @@ class PlayerManager(private val context: Context) {
         val player = exoPlayer ?: return
 
         if (index == -1) {
-            // Disable subtitles
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, true)
@@ -418,7 +405,6 @@ class PlayerManager(private val context: Context) {
         player.seekTo(currentPos)
         player.playWhenReady = isPlaying
 
-        // Force text tracks enabled so the new external sub shows
         player.trackSelectionParameters = player.trackSelectionParameters
             .buildUpon()
             .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, false)

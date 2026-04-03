@@ -54,16 +54,14 @@ fun RotarySortWheelDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false   // we handle insets ourselves
+            decorFitsSystemWindows = false
         )
     ) {
-        // Fix nav-bar icon appearance inside the dialog window
         DialogNavigationBarThemeFix()
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // Richer Material You scrim: deep primary-tinted dark overlay
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
@@ -80,10 +78,8 @@ fun RotarySortWheelDialog(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Prevent click-through to backdrop from the wheel content
             Box(
                 modifier = Modifier
-                    // Respect status bar at top, nav bar at bottom
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .clickable(
