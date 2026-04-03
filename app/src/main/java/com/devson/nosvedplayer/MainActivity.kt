@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.ui.screens.MainScreen
+import com.devson.nosvedplayer.ui.theme.AppThemePalette
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
@@ -39,10 +40,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
-            val forceDark by settingsViewModel.isDarkTheme.collectAsState()
-            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
+            val forceDark      by settingsViewModel.isDarkTheme.collectAsState()
+            val dynamicColor   by settingsViewModel.dynamicColor.collectAsState()
+            val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
 
-            NosvedPlayerTheme(forceDark = forceDark, dynamicColor = dynamicColor) {
+            NosvedPlayerTheme(
+                forceDark    = forceDark,
+                dynamicColor = dynamicColor,
+                palette      = selectedPalette
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

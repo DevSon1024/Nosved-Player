@@ -66,6 +66,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.scale
+import androidx.compose.material.icons.filled.VideoLibrary
+import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
 
 // FOLDER MEDIA PREVIEW
 @Composable
@@ -562,6 +564,18 @@ fun FolderListContent(
 ) {
     val haptic = LocalHapticFeedback.current
     val sortedFolders = remember(folders) { folders.keys.toList().sortedBy { it.name.lowercase() } }
+
+    if (sortedFolders.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CustomEmptyStateView(
+                icon    = Icons.Filled.VideoLibrary,
+                heading = "No Folders Found",
+                subtext = "No video folders were detected on your device. Tap below to trigger a fresh scan.",
+                ctaLabel = "Scan Device for Videos"
+            )
+        }
+        return
+    }
 
     if (settings.layoutMode == LayoutMode.GRID) {
         LazyVerticalGrid(

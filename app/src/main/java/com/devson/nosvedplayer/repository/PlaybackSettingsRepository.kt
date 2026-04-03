@@ -39,6 +39,10 @@ class PlaybackSettingsRepository(private val context: Context) {
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
         val YOUTUBE_PLAYER_STYLE = booleanPreferencesKey("youtube_player_style")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        // Onboarding
+        val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
+        // Theme palette
+        val SELECTED_PALETTE = stringPreferencesKey("selected_palette")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -74,12 +78,28 @@ class PlaybackSettingsRepository(private val context: Context) {
     }
 
     val useYoutubePlayerStyleFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] ?: false
+        // Defaults to TRUE so YouTube-style controls are shown on first launch,
+        // immediately showcasing the custom player UI to app-store reviewers.
+        prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] ?: true
+    }
+
+    /** Emits false until the user completes (or skips) the onboarding flow. */
+    val hasSeenOnboardingFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.HAS_SEEN_ONBOARDING] ?: false
     }
 
     /** false = use custom Nosved palette; true = use Material You wallpaper colours (SDK 31+) */
     val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false
+    }
+
+    /**
+     * Emits the persisted palette name string (e.g. "CINEMATIC", "BLUE").
+     * Defaults to "CINEMATIC" on first launch.
+     * Use [com.devson.nosvedplayer.ui.theme.AppThemePaletteHelper.fromKey] to map back to the enum.
+     */
+    val selectedPaletteFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.SELECTED_PALETTE] ?: "BLUE"
     }
 
     suspend fun setDarkTheme(isDark: Boolean) {
@@ -109,9 +129,21 @@ class PlaybackSettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun setHasSeenOnboarding(seen: Boolean = true) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.HAS_SEEN_ONBOARDING] = seen
+        }
+    }
+
     suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DYNAMIC_COLOR] = enabled
+        }
+    }
+
+    suspend fun setSelectedPalette(paletteName: String) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.SELECTED_PALETTE] = paletteName
         }
     }
 

@@ -336,7 +336,6 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
-
             )
         }
     ) { padding ->

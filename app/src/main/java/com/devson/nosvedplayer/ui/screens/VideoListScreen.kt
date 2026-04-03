@@ -83,6 +83,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun VideoListScreen(
@@ -651,6 +652,16 @@ fun VideoListContent(
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState()
 ) {
+    if (videos.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CustomEmptyStateView(
+                heading  = "No Videos Here",
+                subtext  = "This folder appears to be empty. Try pulling down to refresh.",
+                ctaLabel = "Scan Device for Videos"
+            )
+        }
+        return
+    }
     if (settings.layoutMode == LayoutMode.GRID) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.gridColumns),

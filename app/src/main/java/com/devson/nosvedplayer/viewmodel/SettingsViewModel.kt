@@ -4,8 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.repository.PlaybackSettingsRepository
+import com.devson.nosvedplayer.ui.theme.AppThemePalette
+import com.devson.nosvedplayer.ui.theme.AppThemePaletteHelper
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -27,7 +30,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Persisted via PlaybackSettingsRepository / DataStore.
      */
     val useYoutubePlayerStyle: StateFlow<Boolean> = settingsRepo.useYoutubePlayerStyleFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /**
+     * null  = DataStore not yet loaded (show blank splash)
+     * false = first launch, show onboarding
+     * true  = already seen onboarding, go straight to Home
+     */
+    val hasSeenOnboarding: StateFlow<Boolean?> = settingsRepo.hasSeenOnboardingFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * true = use Material You (wallpaper-based) colours, false = Nosved custom palette.
@@ -35,6 +46,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     val dynamicColor: StateFlow<Boolean> = settingsRepo.dynamicColorFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** The currently selected built-in colour palette (defaults to BLUE / Nosved Blue). */
+    val selectedPalette: StateFlow<AppThemePalette> = settingsRepo.selectedPaletteFlow
+        .map { key -> AppThemePaletteHelper.fromKey(key) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppThemePalette.BLUE)
 
     fun setDarkTheme(isDark: Boolean) {
         viewModelScope.launch { settingsRepo.setDarkTheme(isDark) }
@@ -55,5 +71,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.setDynamicColor(enabled) }
+    }
+
+    fun setSelectedPalette(palette: AppThemePalette) {
+        viewModelScope.launch { settingsRepo.setSelectedPalette(palette.name) }
+    }
+
+    /** Call when the user finishes or skips the onboarding screen. */
+    fun markOnboardingComplete() {
+        viewModelScope.launch { settingsRepo.setHasSeenOnboarding(true) }
     }
 }

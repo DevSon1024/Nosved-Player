@@ -2,6 +2,9 @@ package com.devson.nosvedplayer.ui.screens.settings
 
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,12 +24,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.nosvedplayer.ui.theme.AppThemePalette
 import com.devson.nosvedplayer.ui.theme.*
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 
@@ -38,11 +44,11 @@ fun AppearanceSettingsScreen(
 ) {
     val isDark        by settingsViewModel.isDarkTheme.collectAsState()
     val dynamicColor  by settingsViewModel.dynamicColor.collectAsState()
+    val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
 
-    // Theme mode: null = system, true = dark, false = light
     var showThemeDialog by remember { mutableStateOf(false) }
 
-    //  Dark theme picker dialog 
+    //  Dark theme picker dialog
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
@@ -64,31 +70,31 @@ fun AppearanceSettingsScreen(
             text = {
                 Column(modifier = Modifier.selectableGroup()) {
                     ThemeOption(
-                        text       = "Light",
+                        text        = "Light",
                         description = "Always use light colours",
-                        selected   = isDark == false,
-                        icon       = Icons.Default.LightMode,
-                        onClick    = {
+                        selected    = isDark == false,
+                        icon        = Icons.Default.LightMode,
+                        onClick     = {
                             settingsViewModel.setDarkTheme(false)
                             showThemeDialog = false
                         }
                     )
                     ThemeOption(
-                        text       = "Dark",
+                        text        = "Dark",
                         description = "Always use dark colours",
-                        selected   = isDark == true,
-                        icon       = Icons.Default.DarkMode,
-                        onClick    = {
+                        selected    = isDark == true,
+                        icon        = Icons.Default.DarkMode,
+                        onClick     = {
                             settingsViewModel.setDarkTheme(true)
                             showThemeDialog = false
                         }
                     )
                     ThemeOption(
-                        text       = "System default",
+                        text        = "System default",
                         description = "Follow system light / dark setting",
-                        selected   = isDark == null,
-                        icon       = Icons.Default.SettingsBrightness,
-                        onClick    = {
+                        selected    = isDark == null,
+                        icon        = Icons.Default.SettingsBrightness,
+                        onClick     = {
                             settingsViewModel.resetDarkTheme()
                             showThemeDialog = false
                         }
@@ -96,14 +102,12 @@ fun AppearanceSettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Close")
-                }
+                TextButton(onClick = { showThemeDialog = false }) { Text("Close") }
             }
         )
     }
 
-    //  Main scaffold 
+    //  Main scaffold
     Scaffold(
         topBar = {
             TopAppBar(
@@ -116,10 +120,7 @@ fun AppearanceSettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -144,15 +145,24 @@ fun AppearanceSettingsScreen(
 
             Spacer(Modifier.height(20.dp))
 
+            //  COLOUR PALETTE section
+            AppearanceSectionLabel("Colour Palette")
+            PalettePickerGrid(
+                selected    = selectedPalette,
+                isDark      = isDark ?: false,
+                onSelect    = { settingsViewModel.setSelectedPalette(it) }
+            )
+
+            Spacer(Modifier.height(16.dp))
+
             //  THEME section 
             AppearanceSectionLabel("Theme")
             AppearanceCard {
-                // Dark / light mode row
                 AppearanceNavRow(
                     icon     = when (isDark) {
-                        true -> Icons.Default.DarkMode
+                        true  -> Icons.Default.DarkMode
                         false -> Icons.Default.LightMode
-                        else -> Icons.Default.SettingsBrightness
+                        else  -> Icons.Default.SettingsBrightness
                     },
                     title    = "Dark theme",
                     subtitle = when (isDark) {
@@ -163,7 +173,6 @@ fun AppearanceSettingsScreen(
                     onClick  = { showThemeDialog = true }
                 )
 
-                // Dynamic colour (Material You) - only on SDK 31+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     AppearanceDivider()
                     AppearanceToggleRow(
@@ -182,8 +191,8 @@ fun AppearanceSettingsScreen(
             AppearanceSectionLabel("Language")
             AppearanceCard {
                 AppearanceNavRow(
-                    icon    = Icons.Default.Language,
-                    title   = "Display language",
+                    icon     = Icons.Default.Language,
+                    title    = "Display language",
                     subtitle = "English (default) • More languages coming soon",
                     onClick  = { /* TODO: in-app language picker */ }
                 )
@@ -191,16 +200,16 @@ fun AppearanceSettingsScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            //  INFO chip 
+            //  INFO chip
             Surface(
-                modifier        = Modifier.fillMaxWidth(),
-                shape           = RoundedCornerShape(12.dp),
-                color           = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                tonalElevation  = 0.dp
+                modifier       = Modifier.fillMaxWidth(),
+                shape          = RoundedCornerShape(12.dp),
+                color          = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                tonalElevation = 0.dp
             ) {
                 Row(
-                    modifier            = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment   = Alignment.CenterVertically,
+                    modifier              = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
@@ -210,7 +219,7 @@ fun AppearanceSettingsScreen(
                         tint     = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text  = "Some theme changes take effect immediately; others require restarting the app.",
+                        text  = "Some changes take effect immediately; others require restarting the app.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -220,7 +229,144 @@ fun AppearanceSettingsScreen(
     }
 }
 
-//  Colour swatch preview strip 
+//  Palette Picker Grid
+
+@Composable
+private fun PalettePickerGrid(
+    selected: AppThemePalette,
+    isDark: Boolean,
+    onSelect: (AppThemePalette) -> Unit
+) {
+    // Lay out in rows of 2
+    val palettes = AppThemePalette.entries
+    val rows = palettes.chunked(2)
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        rows.forEach { row ->
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                row.forEach { palette ->
+                    PaletteCard(
+                        palette  = palette,
+                        isDark   = isDark,
+                        isSelected = palette == selected,
+                        modifier   = Modifier.weight(1f),
+                        onClick    = { onSelect(palette) }
+                    )
+                }
+                // Fill blank slot in last row if odd count
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaletteCard(
+    palette: AppThemePalette,
+    isDark: Boolean,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val primary   = if (isDark) palette.darkPrimary   else palette.lightPrimary
+    val secondary = if (isDark) palette.darkSecondary else palette.lightSecondary
+
+    val borderWidth by animateDpAsState(
+        targetValue   = if (isSelected) 2.5.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label         = "paletteBorder"
+    )
+    val borderColor by animateColorAsState(
+        targetValue   = if (isSelected) primary else Color.Transparent,
+        animationSpec = tween(250),
+        label         = "paletteBorderColor"
+    )
+
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .border(borderWidth, borderColor, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        shape          = RoundedCornerShape(14.dp),
+        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = if (isSelected) 4.dp else 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Swatch row: gradient bar of primary + secondary
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        Brush.horizontalGradient(listOf(primary, secondary))
+                    )
+            ) {
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint     = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 8.dp)
+                            .size(18.dp)
+                    )
+                }
+            }
+
+            // Palette name row (emoji removed, dot accent used instead)
+            Row(
+                verticalAlignment      = Alignment.CenterVertically,
+                horizontalArrangement  = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(primary)
+                )
+                Text(
+                    text  = palette.displayName,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isSelected) primary
+                            else MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Dot accents row
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(primary)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(secondary)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(primary.copy(alpha = 0.4f))
+                )
+            }
+        }
+    }
+}
+
+//  Shared private composables
 
 @Composable
 private fun ColorPreviewStrip() {
@@ -250,14 +396,14 @@ private fun ColorPreviewStrip() {
             )
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier            = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 swatches.forEach { raw ->
                     val animColor by animateColorAsState(
-                        targetValue    = raw,
-                        animationSpec  = tween(400),
-                        label          = "swatchAnim"
+                        targetValue   = raw,
+                        animationSpec = tween(400),
+                        label         = "swatchAnim"
                     )
                     Box(
                         modifier = Modifier
@@ -272,20 +418,16 @@ private fun ColorPreviewStrip() {
     }
 }
 
-//  Section label 
-
 @Composable
 private fun AppearanceSectionLabel(label: String) {
     Text(
-        text      = label,
-        style     = MaterialTheme.typography.labelLarge,
-        color     = MaterialTheme.colorScheme.primary,
+        text       = label,
+        style      = MaterialTheme.typography.labelLarge,
+        color      = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.SemiBold,
-        modifier  = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        modifier   = Modifier.padding(start = 4.dp, bottom = 6.dp)
     )
 }
-
-//  Card wrapper 
 
 @Composable
 private fun AppearanceCard(content: @Composable ColumnScope.() -> Unit) {
@@ -307,8 +449,6 @@ private fun AppearanceDivider() {
     )
 }
 
-//  Clickable row (navigates somewhere) 
-
 @Composable
 private fun AppearanceNavRow(
     icon: ImageVector,
@@ -317,25 +457,25 @@ private fun AppearanceNavRow(
     onClick: () -> Unit
 ) {
     Row(
-        modifier            = Modifier
+        modifier              = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment   = Alignment.CenterVertically,
+        verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
-            modifier          = Modifier
+            modifier         = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment  = Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector     = icon,
+                imageVector        = icon,
                 contentDescription = null,
-                modifier        = Modifier.size(20.dp),
-                tint            = MaterialTheme.colorScheme.onSecondaryContainer
+                modifier           = Modifier.size(20.dp),
+                tint               = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
 
@@ -349,15 +489,13 @@ private fun AppearanceNavRow(
         }
 
         Icon(
-            imageVector     = Icons.Default.ChevronRight,
+            imageVector        = Icons.Default.ChevronRight,
             contentDescription = null,
-            modifier        = Modifier.size(18.dp),
-            tint            = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier           = Modifier.size(18.dp),
+            tint               = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
-
-//  Toggle row 
 
 @Composable
 private fun AppearanceToggleRow(
@@ -368,25 +506,25 @@ private fun AppearanceToggleRow(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier            = Modifier
+        modifier              = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment   = Alignment.CenterVertically,
+        verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
-            modifier          = Modifier
+            modifier         = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment  = Alignment.Center
+            contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector     = icon,
+                imageVector        = icon,
                 contentDescription = null,
-                modifier        = Modifier.size(20.dp),
-                tint            = MaterialTheme.colorScheme.onSecondaryContainer
+                modifier           = Modifier.size(20.dp),
+                tint               = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
 
@@ -399,14 +537,9 @@ private fun AppearanceToggleRow(
             )
         }
 
-        Switch(
-            checked         = checked,
-            onCheckedChange = onCheckedChange
-        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
-
-//  Radio option inside ThemeDialog 
 
 @Composable
 private fun ThemeOption(
@@ -419,21 +552,17 @@ private fun ThemeOption(
     Row(
         modifier          = Modifier
             .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                onClick  = onClick,
-                role     = Role.RadioButton
-            )
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Icon(
-            imageVector     = icon,
+            imageVector        = icon,
             contentDescription = null,
-            modifier        = Modifier.size(20.dp),
-            tint            = if (selected) MaterialTheme.colorScheme.primary
-                              else MaterialTheme.colorScheme.onSurfaceVariant
+            modifier           = Modifier.size(20.dp),
+            tint               = if (selected) MaterialTheme.colorScheme.primary
+                                 else MaterialTheme.colorScheme.onSurfaceVariant
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(text = text, style = MaterialTheme.typography.bodyLarge)

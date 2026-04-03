@@ -42,7 +42,10 @@ fun LogScreen(onBack: () -> Unit) {
                     IconButton(onClick = { AppLogger.clear() }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Clear Logs")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { padding ->
