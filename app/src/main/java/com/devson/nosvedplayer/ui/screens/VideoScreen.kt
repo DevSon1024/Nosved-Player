@@ -322,9 +322,11 @@ fun VideoScreen(
         //  Device stats overlay 
         DeviceStatsOverlay(
             visible = showStats,
+            player = player,
             videoFps = videoFps,
             videoDecoderName = videoDecoderName,
-            modifier = Modifier.align(androidx.compose.ui.Alignment.CenterEnd)
+            onDismiss = { viewModel.setShowStats(false) },
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart)
         )
 
         //  Player controls - switch between Default and YouTube style 
@@ -530,7 +532,9 @@ fun VideoScreen(
         onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
         onYoutubeStyleChange = { settingsViewModel.setYoutubePlayerStyle(it) },
         onShowSeekButtonsChange = { viewModel.setShowSeekButtons(it) },
-        onFastplaySpeedChange = { viewModel.setFastplaySpeed(it) }
+        onFastplaySpeedChange = { viewModel.setFastplaySpeed(it) },
+        showStats = showStats,
+        onShowStatsChange = { viewModel.setShowStats(it) }
     )
 
     if (showInfoSheet) {

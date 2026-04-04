@@ -280,6 +280,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         _showStats.value = !_showStats.value
     }
 
+    fun setShowStats(show: Boolean) {
+        _showStats.value = show
+    }
+
     fun clearError() {
         playerManager?.clearError()
     }

@@ -57,7 +57,9 @@ fun PlaybackSettingsSheet(
     onAutoPlayChange: (Boolean) -> Unit,
     onYoutubeStyleChange: (Boolean) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit = {},
-    onFastplaySpeedChange: (Float) -> Unit = {}
+    onFastplaySpeedChange: (Float) -> Unit = {},
+    showStats: Boolean = false,
+    onShowStatsChange: (Boolean) -> Unit = {}
 ) {
     // In-sheet page state: false = main, true = seek settings
     var showSeekPage by remember(showSettingsSheet) { mutableStateOf(false) }
@@ -81,6 +83,8 @@ fun PlaybackSettingsSheet(
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
                     onFastplaySpeedChange = onFastplaySpeedChange,
+                    showStats = showStats,
+                    onShowStatsChange = onShowStatsChange,
                     onOpenSeekPage = { showSeekPage = true },
                     onBackToMain = { showSeekPage = false }
                 )
@@ -111,6 +115,8 @@ fun PlaybackSettingsSheet(
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
                     onFastplaySpeedChange = onFastplaySpeedChange,
+                    showStats = showStats,
+                    onShowStatsChange = onShowStatsChange,
                     onOpenSeekPage = { showSeekPage = true },
                     onBackToMain = { showSeekPage = false }
                 )
@@ -138,6 +144,8 @@ private fun SheetPageContent(
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit,
     onFastplaySpeedChange: (Float) -> Unit,
+    showStats: Boolean,
+    onShowStatsChange: (Boolean) -> Unit,
     onOpenSeekPage: () -> Unit,
     onBackToMain: () -> Unit
 ) {
@@ -173,9 +181,11 @@ private fun SheetPageContent(
                 controlIconSize = controlIconSize,
                 autoPlayEnabled = autoPlayEnabled,
                 useYoutubeStyle = useYoutubeStyle,
+                showStats = showStats,
                 onControlIconSizeChange = onControlIconSizeChange,
                 onAutoPlayChange = onAutoPlayChange,
                 onYoutubeStyleChange = onYoutubeStyleChange,
+                onShowStatsChange = onShowStatsChange,
                 onOpenSeekPage = onOpenSeekPage
             )
         }
@@ -189,9 +199,11 @@ private fun MainSettingsPage(
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
     useYoutubeStyle: Boolean,
+    showStats: Boolean,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
     onYoutubeStyleChange: (Boolean) -> Unit,
+    onShowStatsChange: (Boolean) -> Unit,
     onOpenSeekPage: () -> Unit
 ) {
     Column(
@@ -313,6 +325,30 @@ private fun MainSettingsPage(
                 Switch(
                     checked = useYoutubeStyle,
                     onCheckedChange = { onYoutubeStyleChange(it) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // Device Stats
+        SettingsSection(title = "Developer") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Show device stats overlay",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Switch(
+                    checked = showStats,
+                    onCheckedChange = { onShowStatsChange(it) }
                 )
             }
         }

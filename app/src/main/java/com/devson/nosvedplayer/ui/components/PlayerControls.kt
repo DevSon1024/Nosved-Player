@@ -225,19 +225,19 @@ fun PlayerControls(
                             )
                         }
                     }
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                        tooltip = { PlainTooltip { Text("Device Stats") } },
-                        state = rememberTooltipState()
-                    ) {
-                        IconButton(onClick = { onToggleStats?.invoke() }) {
-                            Icon(
-                                imageVector = Icons.Filled.Speed,
-                                contentDescription = "Device Stats",
-                                tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
-                            )
-                        }
-                    }
+                    // TooltipBox(
+                    //     positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    //     tooltip = { PlainTooltip { Text("Device Stats") } },
+                    //     state = rememberTooltipState()
+                    // ) {
+                    //     IconButton(onClick = { onToggleStats?.invoke() }) {
+                    //         Icon(
+                    //             imageVector = Icons.Filled.Speed,
+                    //             contentDescription = "Device Stats",
+                    //             tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
+                    //         )
+                    //     }
+                    // }
                     if (onOpenAudioTracks != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),

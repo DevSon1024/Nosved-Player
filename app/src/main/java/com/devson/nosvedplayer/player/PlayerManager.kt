@@ -212,6 +212,29 @@ class PlayerManager(private val context: Context) {
                             _videoDecoderName.value = decoderName
                         }
                     })
+
+                    // Dynamically calculate FPS for SW decoders which often lack format fps
+                    setVideoFrameMetadataListener(object : androidx.media3.exoplayer.video.VideoFrameMetadataListener {
+                        private var frameCount = 0
+                        private var lastTimeMs = System.currentTimeMillis()
+
+                        override fun onVideoFrameAboutToBeRendered(
+                            presentationTimeUs: Long,
+                            releaseTimeNs: Long,
+                            format: androidx.media3.common.Format,
+                            mediaFormat: android.media.MediaFormat?
+                        ) {
+                            frameCount++
+                            val now = System.currentTimeMillis()
+                            val diff = now - lastTimeMs
+                            if (diff >= 1000) {
+                                val currentFps = (frameCount * 1000f) / diff
+                                _videoFps.value = currentFps
+                                frameCount = 0
+                                lastTimeMs = now
+                            }
+                        }
+                    })
                 }
         }
     }
@@ -307,6 +330,12 @@ class PlayerManager(private val context: Context) {
         _currentPosition.value = player.currentPosition.coerceAtLeast(0L)
         _bufferedPosition.value = player.bufferedPosition.coerceAtLeast(0L)
         _duration.value = player.duration.coerceAtLeast(0L)
+        
+        player.videoFormat?.frameRate?.let { fps ->
+            if (fps > 0f) {
+                _videoFps.value = fps
+            }
+        }
     }
 
     fun releasePlayer() {
