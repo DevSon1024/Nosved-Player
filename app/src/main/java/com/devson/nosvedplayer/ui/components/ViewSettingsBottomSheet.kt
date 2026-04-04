@@ -45,8 +45,9 @@ fun ViewSettingsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp)
         ) {
             Text(
                 "View Settings",

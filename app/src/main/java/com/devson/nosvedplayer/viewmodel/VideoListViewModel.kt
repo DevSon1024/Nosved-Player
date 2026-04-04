@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
+import com.devson.nosvedplayer.model.applySort
 import com.devson.nosvedplayer.repository.VideoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,7 +61,7 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     val currentExplorerPath: StateFlow<String?> = _currentExplorerPath.asStateFlow()
 
     // Explorer nodes for the current path: Pair(Folders, Videos)
-    val explorerNodes = combine(videosByFolder, _currentExplorerPath) { folders, currentPath ->
+    val explorerNodes = combine(videosByFolder, _currentExplorerPath, _viewSettings) { folders, currentPath, settings ->
         val allVideos = folders.values.flatten()
         if (allVideos.isEmpty()) return@combine Pair(emptyList<com.devson.nosvedplayer.model.VideoFolder>(), emptyList<Video>())
 
@@ -89,7 +90,10 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
             com.devson.nosvedplayer.model.VideoFolder(id = base + folderName + "/", name = folderName)
         }.sortedBy { it.name.lowercase() }
 
-        Pair(mappedFolders, childVideos)
+        // Apply user's sort settings to the child videos
+        val sortedVideos = childVideos.applySort(settings.sortField, settings.sortDirection)
+
+        Pair(mappedFolders, sortedVideos)
     }.stateIn(viewModelScope, SharingStarted.Lazily, Pair(emptyList(), emptyList()))
 
 

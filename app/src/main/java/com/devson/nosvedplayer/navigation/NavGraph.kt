@@ -1,5 +1,8 @@
 package com.devson.nosvedplayer.navigation
 
+import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -7,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -21,6 +25,7 @@ import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
+import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 
 @OptIn(UnstableApi::class)
@@ -85,10 +90,13 @@ fun NavGraph(
         }
 
         composable(Screen.Videos.route) {
+            val activity = LocalActivity.current as ComponentActivity
+            val videoListViewModel: VideoListViewModel = viewModel(activity)
             VideoListScreen(
                 onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onBack               = { navController.popBackStack() }
+                onBack               = { navController.popBackStack() },
+                viewModel            = videoListViewModel
             )
         }
 

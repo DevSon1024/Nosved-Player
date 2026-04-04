@@ -198,8 +198,8 @@ private fun MainSettingsPage(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .padding(bottom = 32.dp)
             .verticalScroll(rememberScrollState())
+            .padding(bottom = 32.dp)
     ) {
         Text(
             text = "Playback Settings",

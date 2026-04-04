@@ -21,8 +21,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +46,7 @@ import coil.request.CachePolicy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.foundation.Canvas
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,8 +257,9 @@ private fun YtControlsLayout(
                     )
                 )
             )
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Vertical))
     ) {
+        var showRemainingTime by remember { mutableStateOf(false) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -397,10 +401,16 @@ private fun YtControlsLayout(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${formatTime(displayedPosition)} / ${formatTime(duration)}",
+                    text = if (showRemainingTime) {
+                        val remaining = (duration - displayedPosition).coerceAtLeast(0L)
+                        "${formatTime(displayedPosition)} / -${formatTime(remaining)}"
+                    } else {
+                        "${formatTime(displayedPosition)} / ${formatTime(duration)}"
+                    },
                     color = Color.White,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
                 )
                 Spacer(Modifier.weight(1f))
                 if (currentPlaybackSpeed != 1f) {
