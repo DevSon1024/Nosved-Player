@@ -201,7 +201,6 @@ fun ViewSettingsBottomSheet(
                 Triple("File Ext.", settings.showFileExtension) { viewModel.updateShowFileExtension(it) },
                 Triple("Played Time", settings.showPlayedTime) { viewModel.updateShowPlayedTime(it) },
                 Triple("Resolution", settings.showResolution) { viewModel.updateShowResolution(it) },
-                Triple("Frame Rate", settings.showFrameRate) { viewModel.updateShowFrameRate(it) },
                 Triple("Path", settings.showPath) { viewModel.updateShowPath(it) },
                 Triple("Size", settings.showSize) { viewModel.updateShowSize(it) },
                 Triple("Date", settings.showDate) { viewModel.updateShowDate(it) },

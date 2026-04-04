@@ -224,6 +224,14 @@ fun VideoListScreen(
         }
     }
 
+    val needsRefresh by fileOpsViewModel.needsRefresh.collectAsState()
+    LaunchedEffect(needsRefresh) {
+        if (needsRefresh) {
+            viewModel.loadVideos(forceRefresh = true)
+            fileOpsViewModel.onRefreshHandled()
+        }
+    }
+
     // Drives progress bar visibility
     val opInProgress by fileOpsViewModel.operationInProgress.collectAsState()
 

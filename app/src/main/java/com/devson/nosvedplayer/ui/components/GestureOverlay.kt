@@ -296,6 +296,14 @@ fun GestureOverlay(
                             continue
                         }
 
+                        // If long-press fast-forward is active, consume movement and skip all
+                        // swipe logic. The fast-forward only stops when the finger is lifted.
+                        if (isLongPressActive) {
+                            change.consume()
+                            isSwiping = true   // prevents swipe callbacks below
+                            continue
+                        }
+
                         val dx = change.position.x - change.previousPosition.x
                         val dy = change.position.y - change.previousPosition.y
                         totalDx += dx
@@ -304,19 +312,12 @@ fun GestureOverlay(
                         if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                             isSwiping = true
                             longPressJob.cancel()
-                            if (isLongPressActive) {
-                                isLongPressActive = false
-                                if (!isFastForwardLocked) {
-                                    isFastForwarding = false
-                                    onFastForwardToggle(false)
-                                }
-                            }
                             swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
                         }
 
                         if (isSwiping) {
                             change.consume()
-                            if (isLongPressActive || isFastForwardLocked) continue
+                            if (isFastForwardLocked) continue
 
                             when (swipeAxis) {
                                 "VERTICAL" -> {

@@ -144,7 +144,6 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             playerManager?.onPlaybackError = {
-                // A source/parse error (e.g. corrupt MKV) - skip to next video silently
                 playNextVideo()
             }
 

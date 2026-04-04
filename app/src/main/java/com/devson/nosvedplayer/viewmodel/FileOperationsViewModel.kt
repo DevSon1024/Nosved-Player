@@ -93,18 +93,28 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    private val _needsRefresh = MutableStateFlow(false)
+    val needsRefresh: StateFlow<Boolean> = _needsRefresh.asStateFlow()
+
+    fun onRefreshHandled() { _needsRefresh.value = false }
+
     /** Called by the screen when the ActivityResult from the delete IntentSender returns RESULT_OK. */
     fun onDeletePermissionGranted(context: Context) {
         val action = pendingAction as? PendingFileAction.Delete ?: return
         pendingAction = null
         viewModelScope.launch {
             try {
-                val deletedCount = withContext(Dispatchers.IO) {
-                    action.uris.count { uri ->
-                        try { context.contentResolver.delete(uri, null, null) > 0 } catch (e: Exception) { false }
+                val deletedCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    action.uris.size 
+                } else {
+                    withContext(Dispatchers.IO) {
+                        action.uris.count { uri ->
+                            try { context.contentResolver.delete(uri, null, null) > 0 } catch (e: Exception) { false }
+                        }
                     }
                 }
-                _operationResult.value = "Successfully deleted ${deletedCount} videos."
+                _operationResult.value = "Successfully deleted $deletedCount videos."
+                _needsRefresh.value = true
             } catch (e: Exception) {
                 _operationResult.value = "Delete failed: ${e.localizedMessage}"
             } finally {
@@ -114,7 +124,6 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     }
 
     //  RENAME 
-
     fun renameVideo(context: Context, uri: Uri, newName: String) {
         viewModelScope.launch {
             _operationInProgress.value = true

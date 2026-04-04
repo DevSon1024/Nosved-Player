@@ -78,14 +78,14 @@ class PlayerManager(private val context: Context) {
     fun initializePlayer() {
         if (exoPlayer == null) {
             val renderersFactory = NextRenderersFactory(context)
-                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 .setEnableDecoderFallback(true)
                 .forceDisableMediaCodecAsynchronousQueueing()
 
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
                 .build().apply {
-                    setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
+                    setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
                     addListener(object : Player.Listener {
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             _isPlaying.value = isPlaying
