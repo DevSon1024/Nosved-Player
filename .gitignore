@@ -21,3 +21,4 @@ nosvedplayer-keystore
 *.sh
 mxplayer_openSource_license.md
 update_details.md
+.vscode
