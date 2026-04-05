@@ -593,8 +593,22 @@ fun VideoListScreen(
 
     // ---- INFORMATION BOTTOM SHEET ----
     if (showInfoBottomSheet && isSelectionActive) {
-        val videosToShow = if (selectedFolder != null) selectedVideos else {
-            selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.toSet()
+        val videosToShow = when (viewSettings.viewMode) {
+            ViewMode.FILES -> selectedVideos
+            ViewMode.ALL_FOLDERS -> {
+                if (selectedFolder != null) {
+                    selectedVideos
+                } else {
+                    selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.toSet()
+                }
+            }
+            ViewMode.FOLDERS -> {
+                val allVideosFlat = videosByFolder.values.flatten()
+                val fromFolders = selectedFolders.flatMap { f -> 
+                    allVideosFlat.filter { it.path.startsWith(f.id) } 
+                }
+                (selectedVideos + fromFolders).toSet()
+            }
         }
         InformationBottomSheet(
             selectedVideos = videosToShow,
