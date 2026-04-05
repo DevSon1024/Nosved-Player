@@ -39,6 +39,7 @@ fun InformationBottomSheet(
     val context = LocalContext.current
     val database = remember { NosvedDatabase.getInstance(context) }
     val dao = remember { database.watchHistoryDao() }
+    val metadataDao = remember { database.videoMetadataDao() }
 
     var metadata by remember { mutableStateOf<DetailedVideoMetadata?>(null) }
     var isLoading by remember { mutableStateOf(selectedVideos.size == 1) }
@@ -46,7 +47,7 @@ fun InformationBottomSheet(
     LaunchedEffect(selectedVideos) {
         if (selectedVideos.size == 1) {
             isLoading = true
-            metadata = getVideoMetadata(context, selectedVideos.first(), dao)
+            metadata = getVideoMetadata(context, selectedVideos.first(), dao, metadataDao)
             isLoading = false
         }
     }

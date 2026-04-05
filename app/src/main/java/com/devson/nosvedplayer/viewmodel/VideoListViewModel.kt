@@ -141,9 +141,32 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
                 lastLoadedShowHidden = settings.showHiddenFiles
                 lastLoadedRecognizeNoMedia = settings.recognizeNoMedia
                 _allVideosCache.value = videos
+                
+                // Trigger background metadata extraction for untracked items
+                runBackgroundExtraction(videos)
             } finally {
                 _isLoading.value = false
                 _isRefreshing.value = false
+            }
+        }
+    }
+
+    private fun runBackgroundExtraction(videos: List<Video>) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val context = getApplication<Application>()
+            val db = com.devson.nosvedplayer.data.NosvedDatabase.getInstance(context)
+            val metadataDao = db.videoMetadataDao()
+            val watchHistoryDao = db.watchHistoryDao()
+            
+            val cachedUris = metadataDao.getAllUris().toSet()
+            val missingVideos = videos.filter { it.uri !in cachedUris }
+            
+            for (video in missingVideos) {
+                try {
+                    com.devson.nosvedplayer.util.getVideoMetadata(context, video, watchHistoryDao, metadataDao)
+                    // Sleep tiny bit to avoid blocking DB repeatedly
+                    kotlinx.coroutines.delay(10)
+                } catch (_: Exception) {}
             }
         }
     }

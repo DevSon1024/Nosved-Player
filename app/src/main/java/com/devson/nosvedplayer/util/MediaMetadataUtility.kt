@@ -43,9 +43,25 @@ enum class TrackType { VIDEO, AUDIO, SUBTITLE, OTHER }
 suspend fun getVideoMetadata(
     context: Context,
     video: Video,
-    dao: WatchHistoryDao
+    dao: WatchHistoryDao,
+    metadataDao: com.devson.nosvedplayer.data.VideoMetadataDao
 ): DetailedVideoMetadata = coroutineScope {
     val history = async(Dispatchers.IO) { dao.getHistoryByUri(video.uri) }
+    
+    // Check Cache
+    val cached = withContext(Dispatchers.IO) { metadataDao.getMetadata(video.uri) }
+    if (cached != null) {
+        val tracks = deserializeTracks(cached.tracksJson)
+        return@coroutineScope DetailedVideoMetadata(
+            video = video,
+            history = history.await(),
+            format = cached.format,
+            resolution = cached.resolution,
+            encodingSW = cached.encodingSW,
+            tracks = tracks
+        )
+    }
+
     
     // Resolve path early for display and external sub check
     val resolvedPath = withContext(Dispatchers.IO) {
@@ -99,7 +115,7 @@ suspend fun getVideoMetadata(
                     else -> mime.substringAfterLast('/').uppercase()
                 }
 
-                val language = format.language?.let { Locale(it).displayLanguage }
+                val language = format.language?.let { Locale.forLanguageTag(it).displayLanguage }
                 val extra = mutableMapOf<String, String>()
                 
                 format.label?.let { extra["Title"] = it }
@@ -170,12 +186,71 @@ suspend fun getVideoMetadata(
     val (containerFormat, encodingSW) = retrieverJob.await()
     val externalTracks = externalSubJob.await()
 
+    val finalTracks = extractorTracks + externalTracks
+    val finalRes = if (video.resolution != null && resolution == "Unknown") video.resolution else resolution
+
+    // Save to Cache
+    withContext(Dispatchers.IO) {
+        metadataDao.insert(
+            com.devson.nosvedplayer.data.CachedVideoMetadata(
+                uri = video.uri,
+                format = containerFormat,
+                resolution = finalRes,
+                encodingSW = encodingSW,
+                tracksJson = serializeTracks(finalTracks)
+            )
+        )
+    }
+
     DetailedVideoMetadata(
         video = video.copy(uri = resolvedPath),
         history = history.await(),
         format = containerFormat,
-        resolution = resolution,
+        resolution = finalRes,
         encodingSW = encodingSW,
-        tracks = extractorTracks + externalTracks
+        tracks = finalTracks
     )
+}
+
+fun serializeTracks(tracks: List<TrackMetadata>): String {
+    val array = org.json.JSONArray()
+    for (t in tracks) {
+        val obj = org.json.JSONObject()
+        obj.put("type", t.type.name)
+        obj.put("codec", t.codec)
+        obj.put("language", t.language)
+        val extraArray = org.json.JSONArray()
+        for ((k, v) in t.extra) {
+            val exObj = org.json.JSONObject()
+            exObj.put("key", k)
+            exObj.put("val", v)
+            extraArray.put(exObj)
+        }
+        obj.put("extra", extraArray)
+        array.put(obj)
+    }
+    return array.toString()
+}
+
+fun deserializeTracks(json: String): List<TrackMetadata> {
+    val result = mutableListOf<TrackMetadata>()
+    try {
+        val array = org.json.JSONArray(json)
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val type = TrackType.valueOf(obj.getString("type"))
+            val codec = if (obj.has("codec") && !obj.isNull("codec")) obj.getString("codec") else null
+            val language = if (obj.has("language") && !obj.isNull("language")) obj.getString("language") else null
+            val extra = mutableMapOf<String, String>()
+            if (obj.has("extra")) {
+                val extrasArray = obj.getJSONArray("extra")
+                for (j in 0 until extrasArray.length()) {
+                    val exObj = extrasArray.getJSONObject(j)
+                    extra[exObj.getString("key")] = exObj.getString("val")
+                }
+            }
+            result.add(TrackMetadata(type, codec, language, extra))
+        }
+    } catch (_: Exception) { }
+    return result
 }

@@ -6,14 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.devson.nosvedplayer.model.WatchHistory
 
+import com.devson.nosvedplayer.data.CachedVideoMetadata
+import com.devson.nosvedplayer.data.VideoMetadataDao
+
 @Database(
-    entities = [WatchHistory::class],
-    version = 1,
+    entities = [WatchHistory::class, CachedVideoMetadata::class],
+    version = 2,
     exportSchema = false
 )
 abstract class NosvedDatabase : RoomDatabase() {
 
     abstract fun watchHistoryDao(): WatchHistoryDao
+    abstract fun videoMetadataDao(): VideoMetadataDao
 
     companion object {
         @Volatile
@@ -25,7 +29,7 @@ abstract class NosvedDatabase : RoomDatabase() {
                     context.applicationContext,
                     NosvedDatabase::class.java,
                     "nosved_db"
-                ).build()
+                ).fallbackToDestructiveMigration(dropAllTables = true).build()
                 INSTANCE = instance
                 instance
             }

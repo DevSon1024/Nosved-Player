@@ -29,9 +29,9 @@ fun InformationBottomSheet(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
-    // Database access for history
     val database = remember { NosvedDatabase.getInstance(context) }
     val watchHistoryDao = remember { database.watchHistoryDao() }
+    val videoMetadataDao = remember { database.videoMetadataDao() }
 
     var metadataList by remember { mutableStateOf<List<DetailedVideoMetadata>>(emptyList()) }
     var isLoading by remember { mutableStateOf(selectedVideos.size == 1) }
@@ -39,7 +39,7 @@ fun InformationBottomSheet(
     LaunchedEffect(selectedVideos) {
         if (selectedVideos.size == 1) {
             isLoading = true
-            val meta = getVideoMetadata(context, selectedVideos.first(), watchHistoryDao)
+            val meta = getVideoMetadata(context, selectedVideos.first(), watchHistoryDao, videoMetadataDao)
             metadataList = listOf(meta)
             isLoading = false
         }

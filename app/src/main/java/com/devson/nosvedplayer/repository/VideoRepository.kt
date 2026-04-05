@@ -42,7 +42,8 @@ class VideoRepository(private val context: Context) {
             MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Video.Media.DATE_ADDED,
             MediaStore.Video.Media.DATA,
-            "resolution" // Works from API 21
+            "resolution", // Works from API 21
+            MediaStore.Video.Media.MIME_TYPE
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -66,6 +67,7 @@ class VideoRepository(private val context: Context) {
             val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
             val resolutionColumn = cursor.getColumnIndex("resolution")
+            val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -116,6 +118,11 @@ class VideoRepository(private val context: Context) {
                     }
                 }
 
+                var mimeTypeStr: String? = null
+                if (mimeTypeColumn != -1) {
+                    mimeTypeStr = cursor.getString(mimeTypeColumn)
+                }
+
                 // Frame rate is NOT extracted at list-load time.
                 // Opening a MediaMetadataRetriever for every video is O(n) file I/O
                 // and causes 50-200 ms per video - unacceptably slow for large libraries.
@@ -137,6 +144,7 @@ class VideoRepository(private val context: Context) {
                         dateAdded = dateAdded * 1000L,
                         path = path,
                         resolution = resolutionStr,
+                        mimeType = mimeTypeStr,
                         // frameRate left null - extracted on demand in the detail view
                         playedTime = playedTime,
                         lastPlayedAt = historyTimestampMap[contentUri.toString()]
@@ -209,6 +217,7 @@ class VideoRepository(private val context: Context) {
                                 dateAdded = child.lastModified(),
                                 path = child.absolutePath,
                                 resolution = res,
+                                mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(child.extension.lowercase()),
                                 frameRate = fr,
                                 playedTime = historyMap[fileUri],
                                 lastPlayedAt = historyTimestampMap[fileUri]
