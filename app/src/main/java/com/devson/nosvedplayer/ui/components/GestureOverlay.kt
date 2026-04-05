@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,8 @@ fun GestureOverlay(
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
+    // Always read the freshest seekDurationSeconds inside gesture lambdas
+    val updatedSeekDuration by rememberUpdatedState(seekDurationSeconds)
 
     //  Center ripple
     var showCenterRipple by remember { mutableStateOf(false) }
@@ -242,7 +245,7 @@ fun GestureOverlay(
                                     when {
                                         isLeftTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            val stepMs = seekDurationSeconds * 1000L
+                                            val stepMs = updatedSeekDuration * 1000L
                                             accumulatedLeftMs += stepMs
                                             showLeftSeek = true
                                             // Increment tick BEFORE seek so animation fires on every tap
@@ -257,7 +260,7 @@ fun GestureOverlay(
                                         }
                                         isRightTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            val stepMs = seekDurationSeconds * 1000L
+                                            val stepMs = updatedSeekDuration * 1000L
                                             accumulatedRightMs += stepMs
                                             showRightSeek = true
                                             // Increment tick BEFORE seek so animation fires on every tap

@@ -225,19 +225,6 @@ fun PlayerControls(
                             )
                         }
                     }
-                    // TooltipBox(
-                    //     positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                    //     tooltip = { PlainTooltip { Text("Device Stats") } },
-                    //     state = rememberTooltipState()
-                    // ) {
-                    //     IconButton(onClick = { onToggleStats?.invoke() }) {
-                    //         Icon(
-                    //             imageVector = Icons.Filled.Speed,
-                    //             contentDescription = "Device Stats",
-                    //             tint = if (showStats) MaterialTheme.colorScheme.primary else Color.White
-                    //         )
-                    //     }
-                    // }
                     if (onOpenAudioTracks != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -542,6 +529,7 @@ fun PlayerControls(
         showSeekButtons = showSeekButtons,
         fastplaySpeed = fastplaySpeed,
         isLandscape = isLandscape,
+        showStats = showStats,
         onDismissRequest = { showSettingsSheet = false },
         onSeekDurationChange = { onSeekDurationChange?.invoke(it) },
         onSeekBarStyleChange = { onSeekBarStyleChange?.invoke(it) },
@@ -549,7 +537,8 @@ fun PlayerControls(
         onAutoPlayChange = { onAutoPlayChange?.invoke(it) },
         onYoutubeStyleChange = { onYoutubeStyleChange?.invoke(it) },
         onShowSeekButtonsChange = { onShowSeekButtonsChange?.invoke(it) },
-        onFastplaySpeedChange = { onFastplaySpeedChange?.invoke(it) }
+        onFastplaySpeedChange = { onFastplaySpeedChange?.invoke(it) },
+        onShowStatsChange = { onToggleStats?.invoke() }
     )
 }
 

@@ -27,6 +27,12 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Forward5
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.Replay5
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Replay30
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -163,6 +169,7 @@ fun YoutubeStylePlayerControls(
                     showPlaylistPanel = showPlaylistPanel,
                     isLocked = isLocked,
                     showSeekButtons = showSeekButtons,
+                    seekDurationSeconds = seekDurationSeconds,
                     onBack = onBack,
                     onPlayPauseToggle = onPlayPauseToggle,
                     onSeekForward = onSeekForward,
@@ -212,6 +219,22 @@ fun YoutubeStylePlayerControls(
     }
 }
 
+@Composable
+fun getRewindIcon(seconds: Int) = when (seconds) {
+    5  -> Icons.Filled.Replay5
+    10 -> Icons.Filled.Replay10
+    30 -> Icons.Filled.Replay30
+    else -> Icons.Filled.FastRewind
+}
+
+@Composable
+fun getForwardIcon(seconds: Int) = when (seconds) {
+    5  -> Icons.Filled.Forward5
+    10 -> Icons.Filled.Forward10
+    30 -> Icons.Filled.Forward30
+    else -> Icons.Filled.FastForward
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun YtControlsLayout(
@@ -228,6 +251,7 @@ private fun YtControlsLayout(
     showPlaylistPanel: Boolean,
     isLocked: Boolean,
     showSeekButtons: Boolean,
+    seekDurationSeconds: Int,
     onBack: () -> Unit,
     onPlayPauseToggle: () -> Unit,
     onSeekForward: () -> Unit,
@@ -336,7 +360,7 @@ private fun YtControlsLayout(
                     modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
-                        Icons.Filled.Replay10,
+                        getRewindIcon(seekDurationSeconds),
                         contentDescription = "Rewind",
                         tint = Color.White,
                         modifier = Modifier.size(36.dp)
@@ -367,7 +391,7 @@ private fun YtControlsLayout(
                     modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
-                        Icons.Filled.Forward10,
+                        getForwardIcon(seekDurationSeconds),
                         contentDescription = "Fast Forward",
                         tint = Color.White,
                         modifier = Modifier.size(36.dp)
