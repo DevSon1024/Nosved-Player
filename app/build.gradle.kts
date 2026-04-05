@@ -122,7 +122,7 @@ dependencies {
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
 
-    implementation(files("libs/lib-decoder-ffmpeg-release.aar"))
+//    implementation(files("libs/lib-decoder-ffmpeg-release.aar"))
 
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
