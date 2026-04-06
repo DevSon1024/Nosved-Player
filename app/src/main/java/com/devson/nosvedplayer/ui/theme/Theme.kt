@@ -47,7 +47,9 @@ fun NosvedPlayerTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as android.app.Activity).window
+            @Suppress("DEPRECATION")
             window.statusBarColor     = Color.Transparent.toArgb()
+            @Suppress("DEPRECATION")
             window.navigationBarColor = Color.Transparent.toArgb()
 
             val insetsController = WindowCompat.getInsetsController(window, view)
@@ -72,6 +74,7 @@ fun DialogNavigationBarThemeFix() {
         SideEffect {
             val window = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
             if (window != null) {
+                @Suppress("DEPRECATION")
                 window.navigationBarColor = Color.Transparent.toArgb()
                 val insetsController = WindowCompat.getInsetsController(window, view)
                 insetsController.isAppearanceLightNavigationBars = !darkTheme

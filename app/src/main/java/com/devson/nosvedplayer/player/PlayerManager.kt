@@ -127,7 +127,7 @@ class PlayerManager(private val context: Context) {
                                 } else if (group.type == androidx.media3.common.C.TRACK_TYPE_AUDIO) {
                                     val format = group.getTrackFormat(0)
                                     val trackIndex = newAudioTracks.size
-                                    val langName = format.language?.let { java.util.Locale(it).displayLanguage }
+                                    val langName = format.language?.let { java.util.Locale.forLanguageTag(it).displayLanguage }
                                     val label = if (audioGroupCount == 1) {
                                         langName ?: "Default"
                                     } else {
@@ -138,7 +138,7 @@ class PlayerManager(private val context: Context) {
                                 } else if (group.type == androidx.media3.common.C.TRACK_TYPE_TEXT) {
                                     val format = group.getTrackFormat(0)
                                     val trackIndex = newSubtitleTracks.size
-                                    val langName = format.language?.let { java.util.Locale(it).displayLanguage }
+                                    val langName = format.language?.let { java.util.Locale.forLanguageTag(it).displayLanguage }
                                     val label = if (subtitleGroupCount == 1) {
                                         langName ?: "Default"
                                     } else {

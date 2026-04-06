@@ -1202,7 +1202,7 @@ fun VideoMetadataChips(
         if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
             add(MetaToken(formatRelativeTime(video.lastPlayedAt)))
         if (settings.showResolution && !video.resolution.isNullOrEmpty())
-            add(MetaToken(formatResolutionCompact(video.resolution) ?: video.resolution!!))
+            add(MetaToken(formatResolutionCompact(video.resolution) ?: video.resolution))
         if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f)
             add(MetaToken("${video.frameRate.toInt()} fps"))
         if (settings.showFileExtension)

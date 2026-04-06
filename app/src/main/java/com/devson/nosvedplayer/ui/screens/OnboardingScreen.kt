@@ -9,6 +9,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -178,7 +179,7 @@ fun OnboardingScreen(
                 if (!isLast) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
-                        imageVector        = Icons.Filled.ArrowForward,
+                        imageVector        = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         modifier           = Modifier.size(18.dp)
                     )

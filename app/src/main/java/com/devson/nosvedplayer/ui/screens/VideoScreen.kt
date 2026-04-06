@@ -161,6 +161,7 @@ fun VideoScreen(
     val originalWindowParams = remember {
         val window = activity?.window
         val insetsController = if (window != null) androidx.core.view.WindowCompat.getInsetsController(window, window.decorView) else null
+        @Suppress("DEPRECATION")
         object {
             val statusBarColor = window?.statusBarColor
             val navigationBarColor = window?.navigationBarColor
@@ -203,6 +204,7 @@ fun VideoScreen(
 
         if (window != null) {
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 window.isNavigationBarContrastEnforced = false
                 window.isStatusBarContrastEnforced = false
@@ -219,8 +221,11 @@ fun VideoScreen(
 
             if (window != null) {
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                @Suppress("DEPRECATION")
                 originalWindowParams.statusBarColor?.let { window.statusBarColor = it }
+                @Suppress("DEPRECATION")
                 originalWindowParams.navigationBarColor?.let { window.navigationBarColor = it }
+                @Suppress("DEPRECATION")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     originalWindowParams.isNavBarContrastEnforced?.let { window.isNavigationBarContrastEnforced = it }
                     originalWindowParams.isStatusBarContrastEnforced?.let { window.isStatusBarContrastEnforced = it }
