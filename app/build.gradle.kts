@@ -1,20 +1,25 @@
-import com.android.build.api.variant.FilterConfiguration
-import com.android.build.api.variant.impl.VariantOutputImpl
 import java.io.FileInputStream
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
 
-val keystorePropertiesFile= rootProject.file("keystore.properties")!!
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
+}
+
+val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
-
 val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskNames.any {
     it.contains("debug", ignoreCase = true)
 }
@@ -23,11 +28,7 @@ val appVersion = "1.2.0"
 
 android {
     namespace = "com.devson.nosvedplayer"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.devson.nosvedplayer"
@@ -57,7 +58,15 @@ android {
         }
     }
 
-   buildTypes {
+    buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            resValue("string", "app_name", "NosPlayer Beta")
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -65,13 +74,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            manifestPlaceholders["appLabel"] = "Nosved Player"
-        }
-        debug {
-            isMinifyEnabled = false
-            isDebuggable = true
-            applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "NosPlayer Beta"
+            resValue("string", "app_name", "Nosved Player")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -85,28 +91,47 @@ android {
             }
         }
     }
-
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            val abiName = outputImpl.filters.find { it.filterType == "ABI" }?.identifier ?: "universal"
+            outputFileName = "NosvedPlayer_v${variant.versionName}-${abiName}.apk"
+        }
+    }
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-        buildFeatures {
+
+
+    buildFeatures {
         compose = true
         buildConfig = true
+        viewBinding = true
+        resValues = true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "**/kotlin/**"
+            excludes += "**/*.kotlin_metadata"
+            excludes += "**/*.version"
+            excludes += "**/kotlin-tooling-metadata.json"
+        }
+        jniLibs.useLegacyPackaging = true
     }
     ndkVersion = "27.0.12077973"
 }
 
-androidComponents {
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            val abiName = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier ?: "Universal"
-            val buildType = variant.buildType?.replaceFirstChar { it.uppercase() } ?: "Unknown"
-            (output as VariantOutputImpl).outputFileName.set("NosvedPlayer_v${appVersion}_${buildType}_${abiName}.apk")
-        }
-    }
-}
+
 
 dependencies {
     implementation(libs.androidx.core.ktx)

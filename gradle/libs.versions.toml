@@ -1,23 +1,23 @@
 [versions]
-agp = "9.1.0"
+agp = "8.13.0"
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-lifecycleRuntimeKtx = "2.10.0"
-activityCompose = "1.12.4"
-kotlin = "2.2.10"
+lifecycleRuntimeKtx = "2.9.4"
+activityCompose = "1.11.0"
+kotlin = "2.3.0"
 composeBom = "2024.09.00"
 media3 = "1.5.1"
 lifecycleViewModelCompose = "2.8.7"
 room = "2.7.0"
-ksp = "2.2.10-2.0.2"
+ksp = "2.3.6"
 coil = "2.6.0"
 workManager = "2.10.0"
 nextlib = "1.9.1-0.10.1"
 composeMaterial = "1.5.6"
 foundation = "1.10.5"
-navigationCompose = "2.8.4"
+navigationCompose = "2.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,5 +52,6 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
