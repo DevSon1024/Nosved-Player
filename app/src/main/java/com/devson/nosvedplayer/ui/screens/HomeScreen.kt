@@ -55,6 +55,7 @@ fun HomeScreen(
     onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToVideos: () -> Unit,
+    onNavigateToHistory: () -> Unit = {},
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val history by homeViewModel.history.collectAsState()
@@ -176,13 +177,13 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 if (history.isNotEmpty()) {
                     TextButton(
-                        onClick = { homeViewModel.clearAllHistory() },
+                        onClick = onNavigateToHistory,
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Clear all",
+                            text = "Show all",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.ui.screens.settings.AboutScreen
+import com.devson.nosvedplayer.ui.screens.HistoryScreen
 import com.devson.nosvedplayer.ui.screens.HomeScreen
 import com.devson.nosvedplayer.ui.screens.OnboardingScreen
 import com.devson.nosvedplayer.ui.screens.settings.LogScreen
@@ -85,7 +86,8 @@ fun NavGraph(
             HomeScreen(
                 onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToVideos   = { navController.navigate(Screen.Videos.route) }
+                onNavigateToVideos   = { navController.navigate(Screen.Videos.route) },
+                onNavigateToHistory  = { navController.navigate(Screen.History.route) }
             )
         }
 
@@ -133,6 +135,13 @@ fun NavGraph(
 
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.History.route) {
+            HistoryScreen(
+                onVideoSelected = onVideoSelected,
                 onBack = { navController.popBackStack() }
             )
         }
