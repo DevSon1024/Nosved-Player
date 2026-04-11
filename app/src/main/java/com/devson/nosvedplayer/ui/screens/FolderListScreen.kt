@@ -77,7 +77,6 @@ fun BoxScope.NewCountBadge(count: Int) {
     Box(
         modifier = Modifier
             .align(Alignment.TopStart)
-            .padding(5.dp)
             .background(
                 color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(20.dp)
@@ -85,10 +84,10 @@ fun BoxScope.NewCountBadge(count: Int) {
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
-            text       = "$count new",
-            color      = androidx.compose.ui.graphics.Color.White,
+            text       = "$count New",
+            color      = MaterialTheme.colorScheme.onPrimary,
             style      = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             fontSize   = 9.sp
         )
     }

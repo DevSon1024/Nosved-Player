@@ -924,24 +924,31 @@ private fun BoxScope.WatchProgressBar(lastPositionMs: Long, duration: Long) {
 }
 
 @Composable
-fun WatchStateBadge(state: VideoWatchState) {
+fun WatchStateBadge(state: VideoWatchState, isLarge: Boolean = false) {
     val (label, bgColor, textColor) = when (state) {
-        is VideoWatchState.Unplayed  -> Triple("NEW",     MaterialTheme.colorScheme.primary,                          Color.White)
-        is VideoWatchState.InProgress -> Triple("Running", MaterialTheme.colorScheme.tertiary,                         Color.White)
+        is VideoWatchState.Unplayed  -> Triple("New",     MaterialTheme.colorScheme.primary,                          MaterialTheme.colorScheme.onPrimary)
+        is VideoWatchState.InProgress -> Triple("Running", MaterialTheme.colorScheme.tertiary,                         MaterialTheme.colorScheme.onTertiary)
         is VideoWatchState.Completed  -> Triple("Ended",   MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f), MaterialTheme.colorScheme.onSurfaceVariant)
     }
+
+    val fontSize = if (isLarge) 11.sp else 9.sp
+    val horizontalPadding = if (isLarge) 7.dp else 5.dp
+    val verticalPadding = if (isLarge) 3.dp else 2.dp
+    val cornerRadius = if (isLarge) 6.dp else 5.dp
+    val outerPadding = if (isLarge) 8.dp else 6.dp
+
     Box(
         modifier = Modifier
-            .padding(6.dp)
-            .background(color = bgColor, shape = RoundedCornerShape(5.dp))
-            .padding(horizontal = 5.dp, vertical = 2.dp)
+            .padding(outerPadding)
+            .background(color = bgColor, shape = RoundedCornerShape(cornerRadius))
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding)
     ) {
         Text(
             text       = label,
             color      = textColor,
             style      = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            fontSize   = 9.sp
+            fontWeight = FontWeight.ExtraBold,
+            fontSize   = fontSize
         )
     }
 }
@@ -1050,7 +1057,7 @@ fun VideoListItem(
 
                 // Watch state badge (top-left): NEW / Running / Ended
                 if (!isSelected) {
-                    WatchStateBadge(watchState)
+                    WatchStateBadge(watchState, isLarge = false)
                 }
 
                 // Duration badge (shown only when displayLengthOverThumbnail is true)
@@ -1165,7 +1172,7 @@ fun VideoGridItem(
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                         }
                     }
-                    if (!isSelected) WatchStateBadge(watchState)
+                    if (!isSelected) WatchStateBadge(watchState, isLarge = true)
                     if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
                         DurationBadge(video.duration, isGrid = true)
                     WatchProgressBar(lastPositionMs, video.duration)
@@ -1247,7 +1254,7 @@ fun VideoGridItem(
                     }
                 }
 
-                if (!isSelected) WatchStateBadge(watchState)
+                if (!isSelected) WatchStateBadge(watchState, isLarge = settings.gridColumns <= 2)
 
                 // Duration badge
                 if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
