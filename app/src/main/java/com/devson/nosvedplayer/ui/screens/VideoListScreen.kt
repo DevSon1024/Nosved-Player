@@ -204,6 +204,7 @@ fun VideoListScreen(
     //  Dialog state 
     var showRenameDialog by remember { mutableStateOf(false) }
     var renameInputText by remember { mutableStateOf("") }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     //  State change callbacks → MainScreen 
     //  Watch pendingIntentSender and launch it automatically 
@@ -367,8 +368,7 @@ fun VideoListScreen(
                         },
                         onDelete = {
                             if (selectedUris.isNotEmpty()) {
-                                fileOpsViewModel.deleteVideos(context, selectedUris)
-                                selectedFolders = emptySet()
+                                showDeleteConfirmation = true
                             }
                         },
                         onRename = {
@@ -409,9 +409,7 @@ fun VideoListScreen(
                         },
                         onDelete = {
                             if (selectedUris.isNotEmpty()) {
-                                fileOpsViewModel.deleteVideos(context, selectedUris)
-                                selectedVideos = emptySet()
-                                selectedFolders = emptySet()
+                                showDeleteConfirmation = true
                             }
                         },
                         onRename = {
@@ -658,6 +656,45 @@ fun VideoListScreen(
             isFolderView = selectedFolder == null,
             onDismiss = { showSettingsSheet = false },
             viewModel = viewModel
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        val isFolder = viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder == null && selectedFolders.isNotEmpty()
+        val selectedUrisForDelete: List<Uri> = when (viewSettings.viewMode) {
+            ViewMode.FILES -> selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+            ViewMode.ALL_FOLDERS -> {
+                if (selectedFolder != null) {
+                    selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                } else {
+                    selectedFolders.flatMap { folder -> videosByFolder[folder] ?: emptyList() }
+                        .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                }
+            }
+            ViewMode.FOLDERS -> {
+                val allVideosFlat = videosByFolder.values.flatten()
+                val fromFolders = selectedFolders.flatMap { f -> allVideosFlat.filter { it.path.startsWith(f.id) } }
+                (selectedVideos.toList() + fromFolders).distinctBy { it.uri }
+                    .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Video(s)") },
+            text = { Text("Are you sure you want to delete the selected video(s)? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        fileOpsViewModel.deleteVideos(context, selectedUrisForDelete)
+                        selectedFolders = emptySet()
+                        selectedVideos = emptySet()
+                        showDeleteConfirmation = false
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+            }
         )
     }
 }

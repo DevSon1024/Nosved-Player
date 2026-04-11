@@ -123,12 +123,26 @@ fun GestureOverlay(
     //  Accumulating double-tap seek 
     var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
     var accumulatedRightMs by remember { mutableLongStateOf(0L) }
-    var seekDebounceJob    by remember { mutableStateOf<Job?>(null) }
     var showLeftSeek       by remember { mutableStateOf(false) }
     var showRightSeek      by remember { mutableStateOf(false) }
-    // Ripple trigger counters (increment each tap to re-trigger animation)
     var leftRippleTick  by remember { mutableStateOf(0) }
     var rightRippleTick by remember { mutableStateOf(0) }
+
+    LaunchedEffect(leftRippleTick) {
+        if (leftRippleTick > 0) {
+            delay(1200)
+            accumulatedLeftMs = 0L
+            showLeftSeek = false
+        }
+    }
+
+    LaunchedEffect(rightRippleTick) {
+        if (rightRippleTick > 0) {
+            delay(1200)
+            accumulatedRightMs = 0L
+            showRightSeek = false
+        }
+    }
 
     Box(
         modifier = modifier
@@ -248,30 +262,16 @@ fun GestureOverlay(
                                             val stepMs = updatedSeekDuration * 1000L
                                             accumulatedLeftMs += stepMs
                                             showLeftSeek = true
-                                            // Increment tick BEFORE seek so animation fires on every tap
                                             leftRippleTick++
                                             onSeekCommit(-stepMs)
-                                            seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch {
-                                                delay(1800)
-                                                accumulatedLeftMs = 0L
-                                                showLeftSeek = false
-                                            }
                                         }
                                         isRightTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val stepMs = updatedSeekDuration * 1000L
                                             accumulatedRightMs += stepMs
                                             showRightSeek = true
-                                            // Increment tick BEFORE seek so animation fires on every tap
                                             rightRippleTick++
                                             onSeekCommit(stepMs)
-                                            seekDebounceJob?.cancel()
-                                            seekDebounceJob = coroutineScope.launch {
-                                                delay(1800)
-                                                accumulatedRightMs = 0L
-                                                showRightSeek = false
-                                            }
                                         }
                                         else -> {
                                             // Ensure center tap is actually a double tap (dt < 400 && dist < 100f)
