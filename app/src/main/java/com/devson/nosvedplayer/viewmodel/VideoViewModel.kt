@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.player.PlayerManager
 import com.devson.nosvedplayer.repository.WatchHistoryRepository
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
@@ -138,6 +139,11 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             _playerInstance.value = playerManager?.exoPlayer
 
             playerManager?.onVideoEnded = {
+                val uri = _currentVideo.value?.uri
+                val pos = resolvePositionToSave()
+                if (uri != null && pos > 0L) {
+                    viewModelScope.launch { historyRepo.savePosition(uri, pos) }
+                }
                 if (_autoPlayEnabled.value) {
                     playNextVideo()
                 }
@@ -150,12 +156,14 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             pendingVideo?.let { video ->
                 val resumeMs = pendingResumeMs
                 val playlist = pendingPlaylist
-                
+
                 _currentPlaylist.value = playlist
                 _currentPlaylistIndex.value = playlist.indexOfFirst { it.uri == video.uri }
-                
+
                 playerManager?.playVideo(video)
-                if (resumeMs > 0L) playerManager?.seekTo(resumeMs)
+                val dur = video.duration
+                val startPos = if (dur > 0 && resumeMs >= dur * 0.95f) 0L else resumeMs
+                if (startPos > 0L) playerManager?.seekTo(startPos)
                 _controlsVisible.value = false
                 pendingVideo = null
                 pendingPlaylist = emptyList()
@@ -168,15 +176,17 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playVideo(video: Video, playlist: List<Video> = emptyList(), resumePositionMs: Long = 0L) {
         _currentVideo.value = video
-        
+
         val actualPlaylist = if (playlist.isEmpty()) listOf(video) else playlist
         _currentPlaylist.value = actualPlaylist
         _currentPlaylistIndex.value = actualPlaylist.indexOfFirst { it.uri == video.uri }
-        
+
         viewModelScope.launch { historyRepo.recordPlay(video) }
         if (playerManager != null) {
             playerManager?.playVideo(video)
-            if (resumePositionMs > 0L) playerManager?.seekTo(resumePositionMs)
+            val dur = video.duration
+            val startPos = if (dur > 0 && resumePositionMs >= dur * 0.95f) 0L else resumePositionMs
+            if (startPos > 0L) playerManager?.seekTo(startPos)
             _controlsVisible.value = false
         } else {
             pendingVideo = video
@@ -211,23 +221,29 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.setPlaybackSpeed(speed)
     }
 
+    private fun resolvePositionToSave(): Long {
+        val player = playerManager?.exoPlayer ?: return 0L
+        val dur = player.duration.coerceAtLeast(0L)
+        return if (player.playbackState == Player.STATE_ENDED && dur > 0L) dur
+        else player.currentPosition.coerceAtLeast(0L)
+    }
+
     /** Always pauses - used when leaving the screen or app goes to background. */
     fun pauseVideo() {
         val uri = _currentVideo.value?.uri
-        val pos = playerManager?.currentPosition?.value ?: 0L
+        val pos = resolvePositionToSave()
         if (uri != null && pos > 0L) {
             viewModelScope.launch { historyRepo.savePosition(uri, pos) }
         }
         playerManager?.pause()
     }
+
     fun stopVideo() {
-        // Save history before stopping
         val uri = _currentVideo.value?.uri
-        val pos = playerManager?.currentPosition?.value ?: 0L
+        val pos = resolvePositionToSave()
         if (uri != null && pos > 0L) {
             viewModelScope.launch { historyRepo.savePosition(uri, pos) }
         }
-        // Fully stop and release the media item to prevent background audio
         playerManager?.exoPlayer?.stop()
         playerManager?.exoPlayer?.clearMediaItems()
     }
