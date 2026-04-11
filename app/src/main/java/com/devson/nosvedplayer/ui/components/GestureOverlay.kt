@@ -130,17 +130,19 @@ fun GestureOverlay(
 
     LaunchedEffect(leftRippleTick) {
         if (leftRippleTick > 0) {
-            delay(1200)
-            accumulatedLeftMs = 0L
-            showLeftSeek = false
+            delay(1200) // Wait for idle time after last tap
+            showLeftSeek = false // Trigger the fade-out animation first
+            delay(400) // Wait for the fadeOut(tween(350)) to complete
+            accumulatedLeftMs = 0L // Reset the counter invisibly
         }
     }
 
     LaunchedEffect(rightRippleTick) {
         if (rightRippleTick > 0) {
-            delay(1200)
-            accumulatedRightMs = 0L
-            showRightSeek = false
+            delay(1200) // Wait for idle time after last tap
+            showRightSeek = false // Trigger the fade-out animation first
+            delay(400) // Wait for the fadeOut(tween(350)) to complete
+            accumulatedRightMs = 0L // Reset the counter invisibly
         }
     }
 
