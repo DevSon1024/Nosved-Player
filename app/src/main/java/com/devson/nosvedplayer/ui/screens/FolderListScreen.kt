@@ -54,6 +54,7 @@ import com.devson.nosvedplayer.model.LayoutMode
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.VideoFolder
 import com.devson.nosvedplayer.model.ViewSettings
+import com.devson.nosvedplayer.model.WatchHistory
 import com.devson.nosvedplayer.util.formatDate
 import com.devson.nosvedplayer.util.formatSize
 import com.devson.nosvedplayer.ui.components.FolderShape
@@ -68,6 +69,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.filled.VideoLibrary
 import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
+
+/** Small pill badge showing the number of unplayed videos in a folder. */
+@Composable
+fun BoxScope.NewCountBadge(count: Int) {
+    if (count <= 0) return
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(5.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text       = "$count new",
+            color      = androidx.compose.ui.graphics.Color.White,
+            style      = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            fontSize   = 9.sp
+        )
+    }
+}
 
 // FOLDER MEDIA PREVIEW
 @Composable
@@ -150,9 +175,13 @@ fun FolderListItem(
     videos: List<Video>,
     settings: ViewSettings,
     isSelected: Boolean = false,
+    historyMap: Map<String, WatchHistory> = emptyMap(),
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
+    val newCount = remember(videos, historyMap) {
+        videos.count { v -> getWatchState(historyMap[v.uri]?.lastPositionMs ?: 0L, v.duration) is VideoWatchState.Unplayed }
+    }
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
             MaterialTheme.colorScheme.primaryContainer
@@ -191,12 +220,15 @@ fun FolderListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Folder thumbnail
-                FolderMediaPreview(
-                    videos   = videos,
-                    isSelected = false,
-                    settings = settings,
-                    modifier = Modifier.size(width = 72.dp, height = 54.dp)
-                )
+                Box {
+                    FolderMediaPreview(
+                        videos   = videos,
+                        isSelected = false,
+                        settings = settings,
+                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
+                    )
+                    NewCountBadge(newCount)
+                }
  
                 Spacer(modifier = Modifier.width(14.dp))
  
@@ -232,10 +264,14 @@ fun FolderGridItem(
     videos: List<Video>,
     settings: ViewSettings,
     isSelected: Boolean = false,
+    historyMap: Map<String, WatchHistory> = emptyMap(),
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
     val isDense = settings.gridColumns >= 3
+    val newCount = remember(videos, historyMap) {
+        videos.count { v -> getWatchState(historyMap[v.uri]?.lastPositionMs ?: 0L, v.duration) is VideoWatchState.Unplayed }
+    }
  
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
@@ -273,12 +309,15 @@ fun FolderGridItem(
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FolderMediaPreview(
-                        videos   = videos,
-                        isSelected = false,
-                        settings = settings,
-                        modifier = Modifier.size(width = 124.dp, height = 82.dp)
-                    )
+                    Box(modifier = Modifier.size(width = 124.dp, height = 82.dp)) {
+                        FolderMediaPreview(
+                            videos   = videos,
+                            isSelected = false,
+                            settings = settings,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        NewCountBadge(newCount)
+                    }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -316,14 +355,20 @@ fun FolderGridItem(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                    ) {
                     FolderMediaPreview(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .fillMaxSize()
                     )
+                    NewCountBadge(newCount)
+                    }
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -368,6 +413,7 @@ fun FolderGridItem(
                 settings = settings,
                 modifier = Modifier.fillMaxSize()
             )
+            NewCountBadge(newCount)
  
             // Gradient scrim for label legibility
             Box(
@@ -557,6 +603,7 @@ fun FolderListContent(
     folders: Map<VideoFolder, List<Video>>,
     settings: ViewSettings,
     selectedFolders: Set<VideoFolder>,
+    historyMap: Map<String, WatchHistory> = emptyMap(),
     onFolderClick: (VideoFolder) -> Unit,
     onFolderLongClick: (VideoFolder) -> Unit,
     listState: LazyListState = rememberLazyListState(),
@@ -592,6 +639,7 @@ fun FolderListContent(
                     videos = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
+                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -612,6 +660,7 @@ fun FolderListContent(
                     videos = folders[folder] ?: emptyList(),
                     settings = settings,
                     isSelected = folder in selectedFolders,
+                    historyMap = historyMap,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

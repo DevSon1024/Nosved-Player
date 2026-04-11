@@ -79,11 +79,28 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
+
+sealed class VideoWatchState {
+    object Unplayed : VideoWatchState()
+    object InProgress : VideoWatchState()
+    object Completed : VideoWatchState()
+}
+
+fun getWatchState(lastPositionMs: Long, duration: Long): VideoWatchState {
+    val progress = if (duration > 0) (lastPositionMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
+    return when {
+        progress == 0f -> VideoWatchState.Unplayed
+        progress > 0.95f -> VideoWatchState.Completed
+        else -> VideoWatchState.InProgress
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun VideoListScreen(
@@ -472,6 +489,7 @@ fun VideoListScreen(
                                 folders = videosByFolder,
                                 settings = viewSettings,
                                 selectedFolders = selectedFolders,
+                                historyMap = historyMap,
                                 onFolderClick = { folder ->
                                     if (isSelectionActive) {
                                         selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
@@ -905,6 +923,29 @@ private fun BoxScope.WatchProgressBar(lastPositionMs: Long, duration: Long) {
     }
 }
 
+@Composable
+fun WatchStateBadge(state: VideoWatchState) {
+    val (label, bgColor, textColor) = when (state) {
+        is VideoWatchState.Unplayed  -> Triple("NEW",     MaterialTheme.colorScheme.primary,                          Color.White)
+        is VideoWatchState.InProgress -> Triple("Running", MaterialTheme.colorScheme.tertiary,                         Color.White)
+        is VideoWatchState.Completed  -> Triple("Ended",   MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f), MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Box(
+        modifier = Modifier
+            .padding(6.dp)
+            .background(color = bgColor, shape = RoundedCornerShape(5.dp))
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text       = label,
+            color      = textColor,
+            style      = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            fontSize   = 9.sp
+        )
+    }
+}
+
 // VIDEO LIST ITEM 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -966,9 +1007,23 @@ fun VideoListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             //  Thumbnail 
-            Box(
+            val watchState = getWatchState(lastPositionMs, video.duration)
+            Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
+                    .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (watchState is VideoWatchState.InProgress)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                    else
+                        Color.Transparent
+                ),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(10.dp))
             ) {
                 if (settings.showThumbnail) {
@@ -992,7 +1047,12 @@ fun VideoListItem(
                         )
                     }
                 }
- 
+
+                // Watch state badge (top-left): NEW / Running / Ended
+                if (!isSelected) {
+                    WatchStateBadge(watchState)
+                }
+
                 // Duration badge (shown only when displayLengthOverThumbnail is true)
                 if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected) {
                     DurationBadge(video.duration, isGrid = false)
@@ -1003,6 +1063,7 @@ fun VideoListItem(
  
                 // Selection overlay (animated)
                 ThumbnailSelectionOverlay(isSelected, isDense = true)
+            }
             }
  
             Spacer(modifier = Modifier.width(14.dp))
@@ -1062,6 +1123,7 @@ fun VideoGridItem(
     )
  
     // Single-column (full-width cinema card) 
+    val watchState = getWatchState(lastPositionMs, video.duration)
     if (settings.gridColumns == 1) {
         Card(
             modifier = Modifier
@@ -1085,18 +1147,25 @@ fun VideoGridItem(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
+                        .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
                 ) {
                     if (settings.showThumbnail) {
                         VideoThumbnail(uri = video.uri, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
                     } else {
                         Box(
-                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                            Modifier.fillMaxSize().background(
+                                if (watchState is VideoWatchState.InProgress)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant
+                            ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Filled.Movie, null, Modifier.size(56.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                         }
                     }
+                    if (!isSelected) WatchStateBadge(watchState)
                     if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
                         DurationBadge(video.duration, isGrid = true)
                     WatchProgressBar(lastPositionMs, video.duration)
@@ -1155,23 +1224,31 @@ fun VideoGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
                         uri          = video.uri,
                         modifier     = Modifier.fillMaxSize(),
-                        showPlayIcon = !isSelected && !isDense  // hide play icon in dense mode
+                        showPlayIcon = !isSelected && !isDense
                     )
                 } else {
                     Box(
-                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                        Modifier.fillMaxSize().background(
+                            if (watchState is VideoWatchState.InProgress)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.Movie, null, Modifier.size(if (isDense) 28.dp else 36.dp),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                     }
                 }
- 
+
+                if (!isSelected) WatchStateBadge(watchState)
+
                 // Duration badge
                 if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
                     DurationBadge(video.duration, isGrid = true)
