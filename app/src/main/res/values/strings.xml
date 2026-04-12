@@ -1,3 +1,48 @@
 <resources>
     <string name="app_name">Nosved Player</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_display">Display</string>
+    <string name="settings_display_desc">Theme, dynamic colour &amp; language</string>
+    <string name="settings_player">Player</string>
+    <string name="settings_youtube_controls">YouTube-style controls</string>
+    <string name="settings_youtube_controls_active">Inline settings panel active</string>
+    <string name="settings_youtube_controls_inactive">Bottom sheet settings active</string>
+    <string name="settings_app">App</string>
+    <string name="settings_about">About Nosved Player</string>
+    <string name="settings_about_desc">Version, credits &amp; open-source libraries</string>
+    <string name="settings_privacy">Privacy Policy</string>
+    <string name="settings_privacy_desc">How we handle permissions &amp; your data</string>
+    <string name="settings_developer">Developer</string>
+    <string name="settings_error_logs">Error Logs</string>
+    <string name="settings_error_logs_desc">View app and playback errors</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_stable">Stable</string>
+    <string name="unknown">Unknown</string>
+    <string name="settings_back">Back</string>
+
+    <!-- Appearance Settings Screen -->
+    <string name="appearance_dark_theme">Dark theme</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_light_desc">Always use light colours</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_dark_desc">Always use dark colours</string>
+    <string name="appearance_system_default">System default</string>
+    <string name="appearance_system_default_desc">Follow system light / dark setting</string>
+    <string name="appearance_close">Close</string>
+    <string name="appearance_colour_palette">Colour Palette</string>
+    <string name="appearance_theme">Theme</string>
+    <string name="appearance_dynamic_colour">Dynamic colour</string>
+    <string name="appearance_dynamic_colour_desc">Extract accent colours from your wallpaper</string>
+    <string name="appearance_language">Language</string>
+    <string name="appearance_display_language">Display language</string>
+    <string name="appearance_lang_desc">%1$s</string>
+    <string name="appearance_restart_info">Some changes take effect immediately; others require restarting the app.</string>
+    <string name="appearance_current_palette">Current palette</string>
+    <string name="appearance_selected">Selected</string>
+    <string name="appearance_english">English</string>
+    <string name="appearance_marathi">मराठी</string>
+    <string name="appearance_marathi_full">मराठी (Marathi)</string>
 </resources>

@@ -32,6 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import com.devson.nosvedplayer.R
 import com.devson.nosvedplayer.ui.theme.AppThemePalette
 import com.devson.nosvedplayer.ui.theme.*
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
@@ -47,6 +52,7 @@ fun AppearanceSettingsScreen(
     val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
 
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     //  Dark theme picker dialog
     if (showThemeDialog) {
@@ -64,14 +70,14 @@ fun AppearanceSettingsScreen(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
-                    Text("Dark theme", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.appearance_dark_theme), style = MaterialTheme.typography.titleMedium)
                 }
             },
             text = {
                 Column(modifier = Modifier.selectableGroup()) {
                     ThemeOption(
-                        text        = "Light",
-                        description = "Always use light colours",
+                        text        = stringResource(R.string.appearance_light),
+                        description = stringResource(R.string.appearance_light_desc),
                         selected    = isDark == false,
                         icon        = Icons.Default.LightMode,
                         onClick     = {
@@ -80,8 +86,8 @@ fun AppearanceSettingsScreen(
                         }
                     )
                     ThemeOption(
-                        text        = "Dark",
-                        description = "Always use dark colours",
+                        text        = stringResource(R.string.appearance_dark),
+                        description = stringResource(R.string.appearance_dark_desc),
                         selected    = isDark == true,
                         icon        = Icons.Default.DarkMode,
                         onClick     = {
@@ -90,8 +96,8 @@ fun AppearanceSettingsScreen(
                         }
                     )
                     ThemeOption(
-                        text        = "System default",
-                        description = "Follow system light / dark setting",
+                        text        = stringResource(R.string.appearance_system_default),
+                        description = stringResource(R.string.appearance_system_default_desc),
                         selected    = isDark == null,
                         icon        = Icons.Default.SettingsBrightness,
                         onClick     = {
@@ -102,7 +108,58 @@ fun AppearanceSettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) { Text("Close") }
+                TextButton(onClick = { showThemeDialog = false }) { Text(stringResource(R.string.appearance_close)) }
+            }
+        )
+    }
+
+    //  Language picker dialog
+    if (showLanguageDialog) {
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val isMarathi = currentLocales.toLanguageTags().contains("mr")
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Language,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(stringResource(R.string.appearance_language), style = MaterialTheme.typography.titleMedium)
+                }
+            },
+            text = {
+                Column(modifier = Modifier.selectableGroup()) {
+                    ThemeOption(
+                        text        = stringResource(R.string.appearance_english),
+                        description = "",
+                        selected    = !isMarathi,
+                        icon        = Icons.Default.Check,
+                        onClick     = {
+                            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en"))
+                            showLanguageDialog = false
+                        }
+                    )
+                    ThemeOption(
+                        text        = stringResource(R.string.appearance_marathi_full),
+                        description = "",
+                        selected    = isMarathi,
+                        icon        = Icons.Default.Check,
+                        onClick     = {
+                            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("mr"))
+                            showLanguageDialog = false
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) { Text(stringResource(R.string.appearance_close)) }
             }
         )
     }
@@ -113,14 +170,14 @@ fun AppearanceSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Display",
+                        stringResource(R.string.settings_display),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -146,7 +203,7 @@ fun AppearanceSettingsScreen(
             Spacer(Modifier.height(20.dp))
 
             //  COLOUR PALETTE section
-            AppearanceSectionLabel("Colour Palette")
+            AppearanceSectionLabel(stringResource(R.string.appearance_colour_palette))
             PalettePickerGrid(
                 selected    = selectedPalette,
                 isDark      = isDark ?: false,
@@ -156,7 +213,7 @@ fun AppearanceSettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             //  THEME section 
-            AppearanceSectionLabel("Theme")
+            AppearanceSectionLabel(stringResource(R.string.appearance_theme))
             AppearanceCard {
                 AppearanceNavRow(
                     icon     = when (isDark) {
@@ -164,11 +221,11 @@ fun AppearanceSettingsScreen(
                         false -> Icons.Default.LightMode
                         else  -> Icons.Default.SettingsBrightness
                     },
-                    title    = "Dark theme",
+                    title    = stringResource(R.string.appearance_dark_theme),
                     subtitle = when (isDark) {
-                        true  -> "Dark"
-                        false -> "Light"
-                        null  -> "System default"
+                        true  -> stringResource(R.string.appearance_dark)
+                        false -> stringResource(R.string.appearance_light)
+                        null  -> stringResource(R.string.appearance_system_default)
                     },
                     onClick  = { showThemeDialog = true }
                 )
@@ -177,8 +234,8 @@ fun AppearanceSettingsScreen(
                     AppearanceDivider()
                     AppearanceToggleRow(
                         icon      = Icons.Default.Palette,
-                        title     = "Dynamic colour",
-                        subtitle  = "Extract accent colours from your wallpaper",
+                        title     = stringResource(R.string.appearance_dynamic_colour),
+                        subtitle  = stringResource(R.string.appearance_dynamic_colour_desc),
                         checked   = dynamicColor,
                         onCheckedChange = { settingsViewModel.setDynamicColor(it) }
                     )
@@ -188,13 +245,15 @@ fun AppearanceSettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             //  LANGUAGE section 
-            AppearanceSectionLabel("Language")
+            AppearanceSectionLabel(stringResource(R.string.appearance_language))
             AppearanceCard {
+                val currentLocales = AppCompatDelegate.getApplicationLocales()
+                val isMarathi = currentLocales.toLanguageTags().contains("mr")
                 AppearanceNavRow(
                     icon     = Icons.Default.Language,
-                    title    = "Display language",
-                    subtitle = "English (default) • More languages coming soon",
-                    onClick  = { /* TODO: in-app language picker */ }
+                    title    = stringResource(R.string.appearance_display_language),
+                    subtitle = if (isMarathi) stringResource(R.string.appearance_marathi) else stringResource(R.string.appearance_english),
+                    onClick  = { showLanguageDialog = true }
                 )
             }
 
@@ -219,7 +278,7 @@ fun AppearanceSettingsScreen(
                         tint     = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text  = "Some changes take effect immediately; others require restarting the app.",
+                        text  = stringResource(R.string.appearance_restart_info),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -311,7 +370,7 @@ private fun PaletteCard(
                 if (isSelected) {
                     Icon(
                         Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = stringResource(R.string.appearance_selected),
                         tint     = Color.White,
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
@@ -389,7 +448,7 @@ private fun ColorPreviewStrip() {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text  = "Current palette",
+                text  = stringResource(R.string.appearance_current_palette),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.SemiBold

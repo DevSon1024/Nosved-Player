@@ -1,7 +1,7 @@
 package com.devson.nosvedplayer
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +22,7 @@ import androidx.activity.SystemBarStyle
 import androidx.media3.common.util.UnstableApi
 
 @UnstableApi
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     private var videoViewModelRef: VideoViewModel? = null
 

@@ -21,8 +21,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.BuildConfig
+import com.devson.nosvedplayer.R
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,8 +50,8 @@ fun SettingsScreen(
     val versionName = remember(context) {
         runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            info.versionName ?: "Unknown"
-        }.getOrDefault("Unknown")
+            info.versionName ?: context.getString(R.string.unknown)
+        }.getOrDefault(context.getString(R.string.unknown))
     }
 
     Scaffold(
@@ -57,14 +59,14 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Settings",
+                        stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -103,12 +105,12 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
 
             //  APPEARANCE 
-            SettingsSectionLabel("Appearance")
+            SettingsSectionLabel(stringResource(R.string.settings_appearance))
             SettingsCard {
                 SettingsRow(
                     icon     = Icons.Default.Palette,
-                    title    = "Display",
-                    subtitle = "Theme, dynamic colour & language",
+                    title    = stringResource(R.string.settings_display),
+                    subtitle = stringResource(R.string.settings_display_desc),
                     onClick  = onNavigateToAppearance
                 )
             }
@@ -116,15 +118,15 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             //  PLAYER 
-            SettingsSectionLabel("Player")
+            SettingsSectionLabel(stringResource(R.string.settings_player))
             SettingsCard {
                 SettingsToggleRow(
                     icon     = Icons.Default.PlayCircleOutline,
-                    title    = "YouTube-style controls",
+                    title    = stringResource(R.string.settings_youtube_controls),
                     subtitle = if (useYoutubeStyle)
-                        "Inline settings panel active"
+                        stringResource(R.string.settings_youtube_controls_active)
                     else
-                        "Bottom sheet settings active",
+                        stringResource(R.string.settings_youtube_controls_inactive),
                     checked  = useYoutubeStyle,
                     onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
                 )
@@ -133,19 +135,19 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
 
             //  APP 
-            SettingsSectionLabel("App")
+            SettingsSectionLabel(stringResource(R.string.settings_app))
             SettingsCard {
                 SettingsRow(
                     icon     = Icons.Default.Info,
-                    title    = "About Nosved Player",
-                    subtitle = "Version, credits & open-source libraries",
+                    title    = stringResource(R.string.settings_about),
+                    subtitle = stringResource(R.string.settings_about_desc),
                     onClick  = onNavigateToAbout
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon     = Icons.Default.Policy,
-                    title    = "Privacy Policy",
-                    subtitle = "How we handle permissions & your data",
+                    title    = stringResource(R.string.settings_privacy),
+                    subtitle = stringResource(R.string.settings_privacy_desc),
                     onClick  = onNavigateToPrivacyPolicy
                 )
             }
@@ -153,12 +155,12 @@ fun SettingsScreen(
             //  DEVELOPER (hidden until unlocked) 
             if (isDeveloperMode) {
                 Spacer(Modifier.height(16.dp))
-                SettingsSectionLabel("Developer")
+                SettingsSectionLabel(stringResource(R.string.settings_developer))
                 SettingsCard {
                     SettingsRow(
                         icon     = Icons.Default.Code,
-                        title    = "Error Logs",
-                        subtitle = "View app and playback errors",
+                        title    = stringResource(R.string.settings_error_logs),
+                        subtitle = stringResource(R.string.settings_error_logs_desc),
                         onClick  = onNavigateToLogs
                     )
                 }
@@ -213,14 +215,14 @@ private fun AppIdentityCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text       = "Nosved Player",
+                    text       = stringResource(R.string.app_name),
                     style      = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color      = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    text  = "Version $versionName",
+                    text  = stringResource(R.string.settings_version, versionName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -233,7 +235,7 @@ private fun AppIdentityCard(
                 modifier = Modifier.padding(end = 2.dp)
             ) {
                 Text(
-                    text      = if (BuildConfig.DEBUG) "DEBUG" else "Stable",
+                    text      = if (BuildConfig.DEBUG) "DEBUG" else stringResource(R.string.settings_stable),
                     style     = MaterialTheme.typography.labelSmall,
                     color     = if (BuildConfig.DEBUG) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
@@ -244,7 +246,7 @@ private fun AppIdentityCard(
     }
 }
 
-//  Section label 
+// Section label 
 
 @Composable
 private fun SettingsSectionLabel(label: String) {
@@ -257,7 +259,7 @@ private fun SettingsSectionLabel(label: String) {
     )
 }
 
-//  Rounded card wrapper 
+// Rounded card wrapper 
 
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
@@ -281,7 +283,7 @@ private fun SettingsDivider() {
     )
 }
 
-//  Clickable row with chevron 
+// Clickable row with chevron 
 
 @Composable
 private fun SettingsRow(
