@@ -53,4 +53,41 @@
     <string name="logs_empty">कोणतेही लॉग उपलब्ध नाहीत.</string>
     <string name="logs_copied">लॉग कॉपी केला</string>
     <string name="logs_copy">लॉग कॉपी करा</string>
+
+    <!-- About Screen -->
+    <string name="about_title">बद्दल</string>
+    <string name="about_developer_mode_enabled">डेव्हलपर मोड सक्षम झाला</string>
+    <string name="about_debug_build">डीबग बिल्ड</string>
+    <string name="about_stable_release">स्थिर आवृत्ती</string>
+    <string name="about_summary">Jetpack Compose आणि ExoPlayer वापरून प्रेमाने तयार केलेले एक स्वच्छ, आधुनिक स्थानिक व्हिडिओ प्लेयर.</string>
+    <string name="about_links_info">दुवे आणि माहिती</string>
+    <string name="about_readme">Readme</string>
+    <string name="about_readme_desc">GitHub रिपॉझिटरी आणि Readme तपासा</string>
+    <string name="about_latest_release">नवीनतम आवृत्ती</string>
+    <string name="about_latest_release_desc">बदल आणि नवीन आवृत्त्या पहा</string>
+    <string name="about_github_issue">GitHub त्रुटी</string>
+    <string name="about_github_issue_desc">त्रुटी अहवाल किंवा नवीन वैशिष्ट्यासाठी विनंती सबमिट करा</string>
+    <string name="about_sponsor">प्रायोजक</string>
+    <string name="about_sponsor_desc">GitHub वर प्रायोजित करून या एपला समर्थन द्या (लवकरच येत आहे)</string>
+    <string name="about_coming_soon">लवकरच येत आहे!</string>
+    <string name="about_telegram_channel">टेलिग्राम चॅनेल</string>
+    <string name="about_credits">श्रेय</string>
+    <string name="about_credits_desc">या एपमध्ये वापरलेली ओपन सोर्स लायब्ररी</string>
+    <string name="about_auto_update">स्वयंचलित अपडेट</string>
+    <string name="about_auto_update_desc">लवकरच येत आहे</string>
+    <string name="about_app_version_info">एप आवृत्ती %1$s (%2$s)</string>
+    <string name="about_device_info">डिव्हाइस माहिती: Android %1$s (API %2$d)\nसमर्थित ABIs: [%3$s]</string>
+    <string name="about_made_with">DevSon द्वारे ♥ सह बनवले</string>
+    <string name="about_open_source_libraries">ओपन सोर्स लायब्ररी</string>
+    <string name="about_open">उघडा</string>
+
+    <!-- Libraries Descriptions -->
+    <string name="about_lib_exoplayer_desc">सर्व व्हिडिओ आणि ऑडिओ प्लेबॅकमागील शक्ती.</string>
+    <string name="about_lib_nextlib_desc">Nextlib ही Android साठी एक शक्तिशाली मीडिया प्लेयर लायब्ररी आहे जी हार्डवेअर प्रवेग, सानुकूल कोडेक्स आणि बरेच काही यासारखी प्रगत वैशिष्ट्ये प्रदान करते.</string>
+    <string name="about_lib_compose_desc">Android साठी आधुनिक डिक्लेरेटिव्ह UI टूलकिट.</string>
+    <string name="about_lib_material3_desc">Google चे नवीनतम डिझाइन सिस्टम घटक.</string>
+    <string name="about_lib_room_desc">पाहण्याच्या इतिहासाच्या स्टोरेजसाठी SQLite अ‍ॅब्स्ट्रॅक्शन लायब्ररी.</string>
+    <string name="about_lib_datastore_desc">सेटिंग्ज आणि थिम आवडीसाठी सतत की-व्हॅल्यू स्टोरेज.</string>
+    <string name="about_lib_coroutines_desc">गुळगुळीत UI आणि पार्श्वभूमी कार्यांसाठी असिंक्रोनस प्रोग्रामिंग.</string>
+    <string name="about_lib_kotlin_desc">या संपूर्ण अनुप्रयोगाला सामर्थ्य देणारी प्राथमिक भाषा.</string>
 </resources>

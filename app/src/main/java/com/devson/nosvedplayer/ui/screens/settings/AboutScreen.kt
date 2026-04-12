@@ -49,59 +49,60 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.devson.nosvedplayer.R
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.devson.nosvedplayer.BuildConfig
-import com.devson.nosvedplayer.R
 
 private data class LibraryInfo(
     val name: String,
-    val description: String,
+    val descriptionRes: Int,
     val url: String
 )
 
 private val libraries = listOf(
     LibraryInfo(
         name = "ExoPlayer / Media3",
-        description = "The powerhouse behind all video & audio playback.",
+        descriptionRes = R.string.about_lib_exoplayer_desc,
         url = "https://github.com/androidx/media"
     ),
     LibraryInfo(
         name = "Nextlib",
-        description = "Nextlib is a powerful media player library for Android that provides advanced features such as hardware acceleration, custom codecs, and more.",
+        descriptionRes = R.string.about_lib_nextlib_desc,
         url = "https://github.com/anilbeesetti/nextlib"
     ),
     LibraryInfo(
         name = "Jetpack Compose",
-        description = "Modern declarative UI toolkit for Android.",
+        descriptionRes = R.string.about_lib_compose_desc,
         url = "https://developer.android.com/jetpack/compose"
     ),
     LibraryInfo(
         name = "Material 3",
-        description = "Google's latest design system components.",
+        descriptionRes = R.string.about_lib_material3_desc,
         url = "https://m3.material.io"
     ),
     LibraryInfo(
         name = "Room",
-        description = "SQLite abstraction library for watch history storage.",
+        descriptionRes = R.string.about_lib_room_desc,
         url = "https://developer.android.com/training/data-storage/room"
     ),
     LibraryInfo(
         name = "DataStore Preferences",
-        description = "Persistent key-value storage for settings & theme preferences.",
+        descriptionRes = R.string.about_lib_datastore_desc,
         url = "https://developer.android.com/topic/libraries/architecture/datastore"
     ),
     LibraryInfo(
         name = "Kotlin Coroutines",
-        description = "Asynchronous programming for smooth UI and background tasks.",
+        descriptionRes = R.string.about_lib_coroutines_desc,
         url = "https://kotlinlang.org/docs/coroutines-overview.html"
     ),
     LibraryInfo(
         name = "Kotlin",
-        description = "The primary language powering this entire application.",
+        descriptionRes = R.string.about_lib_kotlin_desc,
         url = "https://kotlinlang.org"
     )
 )
@@ -129,10 +130,10 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -176,28 +177,28 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Nosved Player",
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Version $versionName ($versionCode)",
+                            text = stringResource(R.string.settings_version, versionName, versionCode),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                             modifier = Modifier.clickable {
                                 versionClicks++
                                 if (versionClicks >= 8) {
                                     onEnableDeveloperMode()
-                                    Toast.makeText(context, "Developer Mode Enabled", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.about_developer_mode_enabled), Toast.LENGTH_SHORT).show()
                                     versionClicks = 0
                                 }
                             }
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (BuildConfig.DEBUG) "DEBUG BUILD" else "Stable Release",
+                            text = if (BuildConfig.DEBUG) stringResource(R.string.about_debug_build) else stringResource(R.string.about_stable_release),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (BuildConfig.DEBUG)
@@ -207,7 +208,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "A clean, modern local video player built with love using Jetpack Compose and ExoPlayer.",
+                            text = stringResource(R.string.about_summary),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                             textAlign = TextAlign.Center
@@ -217,7 +218,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
 
                 // Links section
                 Text(
-                    text = "LINKS & INFO",
+                    text = stringResource(R.string.about_links_info),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -225,8 +226,8 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "Readme",
-                    description = "Check the GitHub repository and the readme",
+                    title = stringResource(R.string.about_readme),
+                    description = stringResource(R.string.about_readme_desc),
                     icon = Icons.Filled.Description,
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/DevSon1024/Nosved-Player".toUri()))
@@ -234,8 +235,8 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "Latest Release",
-                    description = "Look for changelogs and new versions",
+                    title = stringResource(R.string.about_latest_release),
+                    description = stringResource(R.string.about_latest_release_desc),
                     icon = Icons.Filled.NewReleases,
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/DevSon1024/Nosved-Player/releases".toUri()))
@@ -243,8 +244,8 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "GitHub Issue",
-                    description = "Submit an issue for bug report or feature request",
+                    title = stringResource(R.string.about_github_issue),
+                    description = stringResource(R.string.about_github_issue_desc),
                     icon = Icons.Filled.BugReport,
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/DevSon1024/Nosved-Player/issues".toUri()))
@@ -252,16 +253,16 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "Sponsor",
-                    description = "Support this app by sponsoring on GitHub (Coming Soon)",
+                    title = stringResource(R.string.about_sponsor),
+                    description = stringResource(R.string.about_sponsor_desc),
                     icon = Icons.Filled.FavoriteBorder,
                     onClick = {
-                        Toast.makeText(context, "Coming Soon!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.about_coming_soon), Toast.LENGTH_SHORT).show()
                     }
                 )
 
                 AboutItemRow(
-                    title = "Telegram Channel",
+                    title = stringResource(R.string.about_telegram_channel),
                     description = "https://t.me/Nosved_Player",
                     icon = Icons.AutoMirrored.Filled.Send,
                     onClick = {
@@ -270,8 +271,8 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "Credits",
-                    description = "Open source libraries used in this app",
+                    title = stringResource(R.string.about_credits),
+                    description = stringResource(R.string.about_credits_desc),
                     icon = Icons.Filled.Code,
                     onClick = {
                         showCredits = true
@@ -279,25 +280,25 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 )
 
                 AboutItemRow(
-                    title = "Auto Update",
-                    description = "Coming Soon",
+                    title = stringResource(R.string.about_auto_update),
+                    description = stringResource(R.string.about_auto_update_desc),
                     icon = Icons.Filled.Update,
                     onClick = {
-                        Toast.makeText(context, "Coming Soon!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.about_coming_soon), Toast.LENGTH_SHORT).show()
                     }
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 AboutItemRow(
-                    title = "App Version $versionName ($versionCode)",
-                    description = "Device Information: Android $androidVersion (API $apiLevel)\nSupported ABIs: [$supportedAbis]",
+                    title = stringResource(R.string.about_app_version_info, versionName, versionCode),
+                    description = stringResource(R.string.about_device_info, androidVersion, apiLevel, supportedAbis),
                     icon = Icons.Filled.Info,
                     onClick = {
                         versionClicks++
                         if (versionClicks >= 8) {
                             onEnableDeveloperMode()
-                            Toast.makeText(context, "Developer Mode Enabled", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.about_developer_mode_enabled), Toast.LENGTH_SHORT).show()
                             versionClicks = 0
                         }
                     }
@@ -307,7 +308,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
 
                 // Made with ♥ footer
                 Text(
-                    text = "Made with ♥ by DevSon",
+                    text = stringResource(R.string.about_made_with),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -327,10 +328,10 @@ fun CreditsSubScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Credits", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.about_credits), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -352,7 +353,7 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                     .widthIn(max = 600.dp)
             ) {
                 Text(
-                    text = "OPEN SOURCE LIBRARIES",
+                    text = stringResource(R.string.about_open_source_libraries),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -437,14 +438,14 @@ private fun LibraryRow(library: LibraryInfo, onClick: () -> Unit) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = library.description,
+                text = stringResource(library.descriptionRes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-            contentDescription = "Open",
+            contentDescription = stringResource(R.string.about_open),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )

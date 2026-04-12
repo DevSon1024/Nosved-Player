@@ -51,4 +51,41 @@
     <string name="logs_empty">No logs available.</string>
     <string name="logs_copied">Log copied</string>
     <string name="logs_copy">Copy Log</string>
+
+    <!-- About Screen -->
+    <string name="about_title">About</string>
+    <string name="about_developer_mode_enabled">Developer Mode Enabled</string>
+    <string name="about_debug_build">DEBUG BUILD</string>
+    <string name="about_stable_release">Stable Release</string>
+    <string name="about_summary">A clean, modern local video player built with love using Jetpack Compose and ExoPlayer.</string>
+    <string name="about_links_info">LINKS &amp; INFO</string>
+    <string name="about_readme">Readme</string>
+    <string name="about_readme_desc">Check the GitHub repository and the readme</string>
+    <string name="about_latest_release">Latest Release</string>
+    <string name="about_latest_release_desc">Look for changelogs and new versions</string>
+    <string name="about_github_issue">GitHub Issue</string>
+    <string name="about_github_issue_desc">Submit an issue for bug report or feature request</string>
+    <string name="about_sponsor">Sponsor</string>
+    <string name="about_sponsor_desc">Support this app by sponsoring on GitHub (Coming Soon)</string>
+    <string name="about_coming_soon">Coming Soon!</string>
+    <string name="about_telegram_channel">Telegram Channel</string>
+    <string name="about_credits">Credits</string>
+    <string name="about_credits_desc">Open source libraries used in this app</string>
+    <string name="about_auto_update">Auto Update</string>
+    <string name="about_auto_update_desc">Coming Soon</string>
+    <string name="about_app_version_info">App Version %1$s (%2$s)</string>
+    <string name="about_device_info">Device Information: Android %1$s (API %2$d)\nSupported ABIs: [%3$s]</string>
+    <string name="about_made_with">Made with ♥ by DevSon</string>
+    <string name="about_open_source_libraries">OPEN SOURCE LIBRARIES</string>
+    <string name="about_open">Open</string>
+
+    <!-- Libraries Descriptions -->
+    <string name="about_lib_exoplayer_desc">The powerhouse behind all video &amp; audio playback.</string>
+    <string name="about_lib_nextlib_desc">Nextlib is a powerful media player library for Android that provides advanced features such as hardware acceleration, custom codecs, and more.</string>
+    <string name="about_lib_compose_desc">Modern declarative UI toolkit for Android.</string>
+    <string name="about_lib_material3_desc">Google\'s latest design system components.</string>
+    <string name="about_lib_room_desc">SQLite abstraction library for watch history storage.</string>
+    <string name="about_lib_datastore_desc">Persistent key-value storage for settings &amp; theme preferences.</string>
+    <string name="about_lib_coroutines_desc">Asynchronous programming for smooth UI and background tasks.</string>
+    <string name="about_lib_kotlin_desc">The primary language powering this entire application.</string>
 </resources>
