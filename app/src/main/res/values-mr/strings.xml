@@ -5,6 +5,8 @@
     <!-- common -->
     <string name="unknown">अनोळखी</string>
     <string name="back">मागे</string>
+    <string name="ok">ठीक आहे</string>
+    <string name="information">माहिती</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">सेटिंग्ज</string>
@@ -90,4 +92,18 @@
     <string name="about_lib_datastore_desc">सेटिंग्ज आणि थिम आवडीसाठी सतत की-व्हॅल्यू स्टोरेज.</string>
     <string name="about_lib_coroutines_desc">गुळगुळीत UI आणि पार्श्वभूमी कार्यांसाठी असिंक्रोनस प्रोग्रामिंग.</string>
     <string name="about_lib_kotlin_desc">या संपूर्ण अनुप्रयोगाला सामर्थ्य देणारी प्राथमिक भाषा.</string>
+
+    <!-- Folder Screen -->
+    <string name="folder_new_badge">%1$d नवीन</string>
+    <string name="folder_videos_count">%1$d व्हिडिओ</string>
+    <string name="folder_selection_count">%1$d फोल्डर निवडले</string>
+    <string name="folder_no_folders_found">फोल्डर्स सापडले नाहीत</string>
+    <string name="folder_no_folders_desc">तुमच्या डिव्हाइसवर कोणतेही व्हिडिओ फोल्डर्स आढळले नाहीत. नवीन स्कॅन सुरू करण्यासाठी खाली टॅप करा.</string>
+    <string name="folder_scan_cta">व्हिडिओसाठी डिव्हाइस स्कॅन करा</string>
+    <string name="folder_selection_title">निवडलेले फोल्डर्स</string>
+    <string name="folder_info_total_videos">एकूण व्हिडिओ</string>
+    <string name="folder_info_total_size">एकूण आकार</string>
+    <string name="folder_info_location">स्थान</string>
+    <string name="folder_info_multiple_locations">एकाधिक ठिकाणे</string>
+    <string name="folder_info_creation_date">निर्मिती तारीख</string>
 </resources>

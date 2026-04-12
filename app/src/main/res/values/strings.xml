@@ -4,6 +4,8 @@
     <!-- common -->
     <string name="unknown">Unknown</string>
     <string name="back">Back</string>
+    <string name="ok">OK</string>
+    <string name="information">Information</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
@@ -88,4 +90,18 @@
     <string name="about_lib_datastore_desc">Persistent key-value storage for settings &amp; theme preferences.</string>
     <string name="about_lib_coroutines_desc">Asynchronous programming for smooth UI and background tasks.</string>
     <string name="about_lib_kotlin_desc">The primary language powering this entire application.</string>
+
+    <!-- Folder Screen -->
+    <string name="folder_new_badge">%1$d New</string>
+    <string name="folder_videos_count">%1$d videos</string>
+    <string name="folder_selection_count">%1$d folders selected</string>
+    <string name="folder_no_folders_found">No Folders Found</string>
+    <string name="folder_no_folders_desc">No video folders were detected on your device. Tap below to trigger a fresh scan.</string>
+    <string name="folder_scan_cta">Scan Device for Videos</string>
+    <string name="folder_selection_title">Selected Folders</string>
+    <string name="folder_info_total_videos">Total Videos</string>
+    <string name="folder_info_total_size">Total Size</string>
+    <string name="folder_info_location">Location</string>
+    <string name="folder_info_multiple_locations">Multiple Locations</string>
+    <string name="folder_info_creation_date">Creation Date</string>
 </resources>

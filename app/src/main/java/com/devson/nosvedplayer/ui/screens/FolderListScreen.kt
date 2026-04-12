@@ -39,8 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
+import com.devson.nosvedplayer.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,7 +84,7 @@ fun BoxScope.NewCountBadge(count: Int) {
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
-            text       = "$count New",
+            text       = stringResource(R.string.folder_new_badge, count),
             color      = MaterialTheme.colorScheme.onPrimary,
             style      = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.ExtraBold,
@@ -159,7 +159,7 @@ fun BoxScope.SelectionCheckmarkOverlay(visible: Boolean = true) {
     ) {
         Icon(
             imageVector  = Icons.Filled.Check,
-            contentDescription = "Selected",
+            contentDescription = stringResource(R.string.appearance_selected),
             tint         = MaterialTheme.colorScheme.onPrimary,
             modifier     = Modifier.size(14.dp)
         )
@@ -451,7 +451,7 @@ fun FolderGridItem(
                     overflow   = TextOverflow.Ellipsis
                 )
                 Text(
-                    text  = "${videos.size} videos",
+                    text  = stringResource(R.string.folder_videos_count, videos.size),
                     color = Color.White.copy(alpha = 0.75f),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.5.sp
@@ -473,7 +473,7 @@ fun FolderMetadataRow(videos: List<Video>, settings: ViewSettings, isGrid: Boole
 @Composable
 fun FolderMetadataChips(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
     val tokens = buildList {
-        add(Pair("${videos.size} videos", true))   // count → primary chip
+        add(Pair(stringResource(R.string.folder_videos_count, videos.size), true))   // count → primary chip
         if (settings.showSize) {
             val totalSize = videos.sumOf { it.size }
             add(Pair(formatSize(totalSize), false))
@@ -542,7 +542,7 @@ fun FolderInfoDialog(
             selectedFolders.first().name
         }
     } else {
-        "${selectedFolders.size} folders selected"
+        stringResource(R.string.folder_info_multiple_locations)
     }
     val oldestDate = if (selectedFolders.size == 1) {
         allVideos.minOfOrNull { it.dateAdded }
@@ -551,21 +551,21 @@ fun FolderInfoDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ok)) }
         },
         title = {
             Text(
-                if (selectedFolders.size == 1) selectedFolders.first().name else "Selected Folders",
+                if (selectedFolders.size == 1) selectedFolders.first().name else stringResource(R.string.folder_selection_title),
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoRow(label = "Total Videos", value = "$totalVideos")
-                InfoRow(label = "Total Size", value = formatSize(totalSize))
-                InfoRow(label = "Location", value = location)
+                InfoRow(label = stringResource(R.string.folder_info_total_videos), value = "$totalVideos")
+                InfoRow(label = stringResource(R.string.folder_info_total_size), value = formatSize(totalSize))
+                InfoRow(label = stringResource(R.string.folder_info_location), value = location)
                 if (oldestDate != null && oldestDate > 0L) {
-                    InfoRow(label = "Creation Date", value = formatDate(oldestDate))
+                    InfoRow(label = stringResource(R.string.folder_info_creation_date), value = formatDate(oldestDate))
                 }
             }
         }
@@ -615,9 +615,9 @@ fun FolderListContent(
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CustomEmptyStateView(
                 icon    = Icons.Filled.VideoLibrary,
-                heading = "No Folders Found",
-                subtext = "No video folders were detected on your device. Tap below to trigger a fresh scan.",
-                ctaLabel = "Scan Device for Videos"
+                heading = stringResource(R.string.folder_no_folders_found),
+                subtext = stringResource(R.string.folder_no_folders_desc),
+                ctaLabel = stringResource(R.string.folder_scan_cta)
             )
         }
         return
