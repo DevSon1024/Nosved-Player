@@ -1,6 +1,10 @@
 <resources>
     <string name="app_name">Nosved Player</string>
 
+    <!-- common -->
+    <string name="unknown">Unknown</string>
+    <string name="back">Back</string>
+
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
     <string name="settings_appearance">Appearance</string>
@@ -20,9 +24,7 @@
     <string name="settings_error_logs_desc">View app and playback errors</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_stable">Stable</string>
-    <string name="unknown">Unknown</string>
-    <string name="settings_back">Back</string>
-
+    
     <!-- Appearance Settings Screen -->
     <string name="appearance_dark_theme">Dark theme</string>
     <string name="appearance_light">Light</string>
@@ -45,4 +47,8 @@
     <string name="appearance_english">English</string>
     <string name="appearance_marathi">मराठी</string>
     <string name="appearance_marathi_full">मराठी (Marathi)</string>
+    <string name="logs_clear">Clear Logs</string>
+    <string name="logs_empty">No logs available.</string>
+    <string name="logs_copied">Log copied</string>
+    <string name="logs_copy">Copy Log</string>
 </resources>

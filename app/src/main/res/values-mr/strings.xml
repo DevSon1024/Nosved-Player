@@ -2,27 +2,30 @@
 <resources>
     <string name="app_name">नॉस्वेद प्लेअर</string>
 
+    <!-- common -->
+    <string name="unknown">अनोळखी</string>
+    <string name="back">मागे</string>
+
     <!-- Settings Screen -->
     <string name="settings_title">सेटिंग्ज</string>
     <string name="settings_appearance">देखावा</string>
     <string name="settings_display">प्रदर्शन</string>
     <string name="settings_display_desc">थिम, डायनॅमिक रंग आणि भाषा</string>
     <string name="settings_player">प्लेअर</string>
-    <string name="settings_youtube_controls">YouTube-सारखे नियंत्रणे</string>
+    <string name="settings_youtube_controls">YouTube सारखे नियंत्रणे</string>
     <string name="settings_youtube_controls_active">इनलाइन सेटिंग्ज पॅनेल सक्रिय</string>
     <string name="settings_youtube_controls_inactive">तळाशी शीट सेटिंग्ज सक्रिय</string>
     <string name="settings_app">एप</string>
-    <string name="settings_about">Nosved Player बद्दल</string>
+    <string name="settings_about">नॉस्वेद प्लेअर बद्दल</string>
     <string name="settings_about_desc">आवृत्ती, श्रेय आणि ओपन-सोर्स लायब्ररी</string>
     <string name="settings_privacy">गोपनीयता धोरण</string>
     <string name="settings_privacy_desc">आम्ही परवानग्या आणि आपला डेटा कसा हाताळतो</string>
     <string name="settings_developer">डेव्हलपर</string>
     <string name="settings_error_logs">त्रुटी लॉग</string>
-    <string name="settings_error_logs_desc">अॅप आणि प्लेबॅक त्रुटी पहा</string>
+    <string name="settings_error_logs_desc">एप आणि प्लेबॅक त्रुटी पहा</string>
     <string name="settings_version">आवृत्ती %1$s</string>
     <string name="settings_stable">स्थिर</string>
-    <string name="unknown">अनोळखी</string>
-    <string name="settings_back">मागे</string>
+    
 
     <!-- Appearance Settings Screen -->
     <string name="appearance_dark_theme">गडद थिम</string>
@@ -46,4 +49,8 @@
     <string name="appearance_english">English</string>
     <string name="appearance_marathi">मराठी</string>
     <string name="appearance_marathi_full">मराठी (Marathi)</string>
+    <string name="logs_clear">लॉग साफ करा</string>
+    <string name="logs_empty">कोणतेही लॉग उपलब्ध नाहीत.</string>
+    <string name="logs_copied">लॉग कॉपी केला</string>
+    <string name="logs_copy">लॉग कॉपी करा</string>
 </resources>

@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.devson.nosvedplayer.R
 import com.devson.nosvedplayer.util.AppLogger
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.filled.ContentCopy
@@ -32,15 +34,15 @@ fun LogScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Error Logs", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_error_logs), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { AppLogger.clear() }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Clear Logs")
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.logs_clear))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -57,7 +59,7 @@ fun LogScreen(onBack: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No logs available.",
+                    text = stringResource(R.string.logs_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,11 +103,11 @@ fun LogScreen(onBack: () -> Unit) {
                             }
                             IconButton(onClick = {
                                 clipboardManager.setText(AnnotatedString(logEntry.message))
-                                Toast.makeText(context, "Log copied", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.logs_copied), Toast.LENGTH_SHORT).show()
                             }) {
                                 Icon(
                                     imageVector = Icons.Filled.ContentCopy,
-                                    contentDescription = "Copy Log",
+                                    contentDescription = stringResource(R.string.logs_copy),
                                     tint = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             }
