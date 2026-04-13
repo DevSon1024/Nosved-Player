@@ -22,6 +22,10 @@ import androidx.media3.exoplayer.upstream.Loader
 import android.media.audiofx.LoudnessEnhancer
 import com.devson.nosvedplayer.util.AppLogger
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
+import androidx.media3.session.MediaSession
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -29,9 +33,16 @@ class PlayerManager(private val context: Context) {
     var exoPlayer: ExoPlayer? = null
         private set
 
+    var mediaSession: MediaSession? = null
+        private set
+
     var onVideoEnded: (() -> Unit)? = null
 
     var onPlaybackError: ((String) -> Unit)? = null
+
+    var onPlayNext: (() -> Unit)? = null
+
+    var onPlayPrevious: (() -> Unit)? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -92,9 +103,16 @@ class PlayerManager(private val context: Context) {
                 )
                 .build()
 
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build()
+
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
                 .setLoadControl(loadControl)
+                .setAudioAttributes(audioAttributes, true)
+                .setHandleAudioBecomingNoisy(true)
                 .build().apply {
                     setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
                     addListener(object : Player.Listener {
@@ -247,6 +265,32 @@ class PlayerManager(private val context: Context) {
                         }
                     })
                 }
+
+            val player = exoPlayer!!
+            val forwardingPlayer = object : ForwardingPlayer(player) {
+                override fun seekToNext() {
+                    onPlayNext?.invoke()
+                }
+                override fun seekToNextMediaItem() {
+                    onPlayNext?.invoke()
+                }
+                override fun seekToPrevious() {
+                    onPlayPrevious?.invoke()
+                }
+                override fun seekToPreviousMediaItem() {
+                    onPlayPrevious?.invoke()
+                }
+                override fun getAvailableCommands(): Player.Commands {
+                    return super.getAvailableCommands().buildUpon()
+                        .add(Player.COMMAND_SEEK_TO_NEXT)
+                        .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                        .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                        .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                        .build()
+                }
+            }
+
+            mediaSession = MediaSession.Builder(context, forwardingPlayer).build()
         }
     }
 
@@ -356,6 +400,8 @@ class PlayerManager(private val context: Context) {
     }
 
     fun releasePlayer() {
+        mediaSession?.release()
+        mediaSession = null
         exoPlayer?.release()
         exoPlayer = null
         try {

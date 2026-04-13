@@ -145,6 +145,13 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             playerManager?.initializePlayer()
             _playerInstance.value = playerManager?.exoPlayer
 
+            playerManager?.onPlayNext = {
+                playNextVideo()
+            }
+            playerManager?.onPlayPrevious = {
+                playPreviousVideo()
+            }
+
             playerManager?.onVideoEnded = {
                 val uri = _currentVideo.value?.uri
                 val pos = resolvePositionToSave()
