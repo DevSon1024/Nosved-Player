@@ -8,8 +8,17 @@ import android.os.Build
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyCode
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import android.view.KeyEvent
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -237,11 +246,34 @@ fun VideoScreen(
         }
     }
 
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     //  Player surface 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                val keyCode = event.key.nativeKeyCode
+                if (keyCode == KeyEvent.KEYCODE_MEDIA_NEXT || keyCode == KeyEvent.KEYCODE_MEDIA_PREVIOUS) {
+                    if (event.type == KeyEventType.KeyUp) {
+                        if (keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
+                            viewModel.playNextVideo()
+                        } else {
+                            viewModel.playPreviousVideo()
+                        }
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
     ) {
         key(player) {
             AndroidView(

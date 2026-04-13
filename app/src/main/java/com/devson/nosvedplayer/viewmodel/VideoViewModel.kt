@@ -145,6 +145,13 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             playerManager?.initializePlayer()
             _playerInstance.value = playerManager?.exoPlayer
 
+            playerManager?.onPlayNext = {
+                playNextVideo()
+            }
+            playerManager?.onPlayPrevious = {
+                playPreviousVideo()
+            }
+
             playerManager?.onVideoEnded = {
                 val uri = _currentVideo.value?.uri
                 val pos = resolvePositionToSave()
@@ -253,6 +260,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         }
         playerManager?.exoPlayer?.stop()
         playerManager?.exoPlayer?.clearMediaItems()
+        _currentVideo.value = null
     }
 
     /** Resumes only if there is an active video (prevents auto-play on cold start). */

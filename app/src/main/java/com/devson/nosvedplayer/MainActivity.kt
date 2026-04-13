@@ -16,10 +16,13 @@ import com.devson.nosvedplayer.ui.theme.AppThemePalette
 import com.devson.nosvedplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.media3.common.util.UnstableApi
+import com.devson.nosvedplayer.model.Video
 
 @UnstableApi
 class MainActivity : AppCompatActivity() {
@@ -56,7 +59,29 @@ class MainActivity : AppCompatActivity() {
                     val videoViewModel: VideoViewModel = viewModel()
                     videoViewModelRef = videoViewModel
                     MainScreen(videoViewModel = videoViewModel)
+
+                    LaunchedEffect(intent) {
+                        handleIntent(intent)
+                    }
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            intent.data?.let { uri ->
+                val video = Video(
+                    uri = uri.toString(),
+                    title = uri.lastPathSegment ?: "External Video"
+                )
+                videoViewModelRef?.playVideo(video)
             }
         }
     }

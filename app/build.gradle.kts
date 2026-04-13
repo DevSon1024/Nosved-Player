@@ -24,7 +24,7 @@ val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskN
     it.contains("debug", ignoreCase = true)
 }
 
-val appVersion = "1.2.0"
+val appVersion = "1.3.0"
 
 android {
     namespace = "com.devson.nosvedplayer"
@@ -34,7 +34,7 @@ android {
         applicationId = "com.devson.nosvedplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 120
+        versionCode = 130
         versionName = appVersion
 
         if (!splitApks) {
@@ -145,6 +145,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.iconsExtended)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.session)
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
 
