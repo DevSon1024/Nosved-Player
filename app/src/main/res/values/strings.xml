@@ -104,4 +104,8 @@
     <string name="folder_info_location">Location</string>
     <string name="folder_info_multiple_locations">Multiple Locations</string>
     <string name="folder_info_creation_date">Creation Date</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_short_label">Video Player</string>
+    <string name="shortcut_long_label">Nosved Video Player Anime</string>
 </resources>

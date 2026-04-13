@@ -1,12 +1,11 @@
-<!-- app/src/main/res/xml/shortcuts.xml -->
 <?xml version="1.0" encoding="utf-8"?>
+<!-- app/src/main/res/xml/shortcuts.xml -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- This shortcut explicitly uses the keyword in its label -->
     <shortcut
         android:shortcutId="video_player_search"
         android:enabled="true"
-        android:shortcutShortLabel="Video Player"
-        android:shortcutLongLabel="Nosved Video Player"
+        android:shortcutShortLabel="@string/shortcut_short_label"
+        android:shortcutLongLabel="@string/shortcut_long_label"
         android:icon="@mipmap/ic_launcher">
         <intent
             android:action="android.intent.action.MAIN"
