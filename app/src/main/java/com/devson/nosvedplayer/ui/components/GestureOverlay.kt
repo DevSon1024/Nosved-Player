@@ -80,6 +80,8 @@ fun GestureOverlay(
     isPlaying: Boolean = false,
     isLocked: Boolean = false,
     fastplaySpeed: Float = 2.0f,
+    currentPosition: Long = 0L,
+    duration: Long = 0L,
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -87,6 +89,8 @@ fun GestureOverlay(
     onSeekSwipe: (Float) -> Unit = {},
     onVolumeSwipe: (Float) -> Unit,
     onBrightnessSwipe: (Float) -> Unit,
+    onSeekStart: () -> Unit = {},
+    onSeekPreview: (Long) -> Unit = {},
     onSeekCommit: (Long) -> Unit = {},
     onFastForwardToggle: (Boolean) -> Unit = {},
     volumeLevel: Float,
@@ -97,26 +101,24 @@ fun GestureOverlay(
 ) {
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
-    // Always read the freshest seekDurationSeconds inside gesture lambdas
     val updatedSeekDuration by rememberUpdatedState(seekDurationSeconds)
+    val updatedCurrentPosition by rememberUpdatedState(currentPosition)
+    val updatedDuration by rememberUpdatedState(duration)
 
-    //  Center ripple
     var showCenterRipple by remember { mutableStateOf(false) }
     var centerWasPlaying by remember { mutableStateOf(false) }
     LaunchedEffect(showCenterRipple) {
         if (showCenterRipple) { delay(650); showCenterRipple = false }
     }
 
-    //  Double-tap tracking 
     var lastTapTime by remember { mutableStateOf(0L) }
     var lastTapX    by remember { mutableStateOf(0f) }
     var lastTapY    by remember { mutableStateOf(0f) }
     var singleTapJob by remember { mutableStateOf<Job?>(null) }
 
-    //  Horizontal scrub 
-    var scrubDeltaMs by remember { mutableStateOf<Long?>(null) }
+    var scrubPreviewMs by remember { mutableStateOf<Long?>(null) }
+    var scrubStartPosition by remember { mutableStateOf(0L) }
 
-    //  Long-press fast-forward 
     var isFastForwarding by remember { mutableStateOf(false) }
     var isFastForwardLocked by remember { mutableStateOf(false) }
 
@@ -231,10 +233,10 @@ fun GestureOverlay(
                             }
 
                             if (isSwiping && swipeAxis == "HORIZONTAL") {
-                                scrubDeltaMs?.let { delta ->
-                                    if (delta != 0L) onSeekCommit(delta)
+                                scrubPreviewMs?.let { previewPos ->
+                                    onSeekCommit(previewPos)
                                 }
-                                scrubDeltaMs = null
+                                scrubPreviewMs = null
                             }
 
                             if (!isSwiping) {
@@ -331,8 +333,21 @@ fun GestureOverlay(
                                     if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
                                 }
                                 "HORIZONTAL" -> {
-                                    val deltaMs = (totalDx / size.width.toFloat()) * 100_000L
-                                    scrubDeltaMs = deltaMs.toLong()
+                                    val dur = updatedDuration
+                                    if (dur > 0L) {
+                                        if (scrubPreviewMs == null) {
+                                            scrubStartPosition = updatedCurrentPosition
+                                            onSeekStart()
+                                        }
+                                        val newPreview = (scrubStartPosition + (totalDx / size.width.toFloat() * dur))
+                                            .toLong()
+                                            .coerceIn(0L, dur)
+                                        scrubPreviewMs = newPreview
+                                        onSeekPreview(newPreview)
+                                    } else {
+                                        val deltaMs = (totalDx / size.width.toFloat()) * 100_000L
+                                        scrubPreviewMs = deltaMs.toLong()
+                                    }
                                     onSeekSwipe(dx)
                                 }
                             }
@@ -363,13 +378,15 @@ fun GestureOverlay(
 
         //  Horizontal scrub overlay (center)
         AnimatedVisibility(
-            visible = scrubDeltaMs != null,
+            visible = scrubPreviewMs != null,
             enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.9f),
             exit  = fadeOut(tween(200)),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            scrubDeltaMs?.let { deltaMs ->
-                ScrubOverlay(deltaMs = deltaMs)
+            scrubPreviewMs?.let { previewMs ->
+                val dur = duration.coerceAtLeast(1L)
+                val deltaMs = previewMs - currentPosition
+                ScrubOverlay(deltaMs = deltaMs, previewMs = previewMs)
             }
         }
 
@@ -513,34 +530,53 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
 
 //  Horizontal-scrub overlay
 @Composable
-private fun ScrubOverlay(deltaMs: Long) {
-    val sign    = if (deltaMs >= 0) "+" else ""
-    val secs    = deltaMs / 1000L
+private fun ScrubOverlay(deltaMs: Long, previewMs: Long = 0L) {
+    val sign      = if (deltaMs >= 0) "+" else ""
+    val secs      = deltaMs / 1000L
     val isForward = deltaMs >= 0
+
+    val totalSec  = previewMs / 1000L
+    val ph        = totalSec / 3600
+    val pm        = (totalSec % 3600) / 60
+    val ps        = totalSec % 60
+    val timeLabel = if (ph > 0) "%d:%02d:%02d".format(ph, pm, ps) else "%02d:%02d".format(pm, ps)
 
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(36.dp))
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.70f))
             .padding(horizontal = 28.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment    = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = if (isForward) Icons.Filled.FastForward else Icons.Filled.FastRewind,
-                contentDescription = null,
-                tint     = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
-            Text(
-                text       = "$sign${secs}s",
-                color      = Color.White,
-                fontSize   = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (isForward) Icons.Filled.FastForward else Icons.Filled.FastRewind,
+                    contentDescription = null,
+                    tint     = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text       = "$sign${secs}s",
+                    color      = Color.White,
+                    fontSize   = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (previewMs > 0L) {
+                Text(
+                    text      = timeLabel,
+                    color     = Color.White.copy(alpha = 0.80f),
+                    fontSize  = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
