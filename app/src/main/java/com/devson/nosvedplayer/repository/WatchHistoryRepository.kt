@@ -37,6 +37,26 @@ class WatchHistoryRepository(context: Context) {
         )
     }
 
+    /** Set a custom watch status for a video */
+    suspend fun setWatchStatus(video: Video, positionMs: Long) {
+        val existing = dao.getHistoryByUri(video.uri)
+        if (existing != null) {
+            dao.updatePosition(video.uri, positionMs, System.currentTimeMillis())
+        } else {
+            dao.upsert(
+                WatchHistory(
+                    uri = video.uri,
+                    title = video.title,
+                    duration = video.duration,
+                    size = video.size,
+                    folderName = video.folderName,
+                    lastPositionMs = positionMs,
+                    lastPlayedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     /** Delete a single history item. */
     suspend fun delete(uri: String) = dao.delete(uri)
 

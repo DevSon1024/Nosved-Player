@@ -393,7 +393,21 @@ fun VideoListScreen(
                             renameInputText = folder.name
                             showRenameDialog = true
                         },
-                        onShowInfo = { showInfoBottomSheet = true }
+                        onShowInfo = { showInfoBottomSheet = true },
+                        onMarkNew = {
+                            selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.forEach { video ->
+                                homeViewModel.setWatchStatus(video, 0L)
+                            }
+                            selectedFolders = emptySet()
+                            selectedVideos = emptySet()
+                        },
+                        onMarkEnded = {
+                            selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.forEach { video ->
+                                homeViewModel.setWatchStatus(video, video.duration)
+                            }
+                            selectedFolders = emptySet()
+                            selectedVideos = emptySet()
+                        }
                     )
                 } else {
                     // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
@@ -436,7 +450,21 @@ fun VideoListScreen(
                                 showRenameDialog = true
                             }
                         },
-                        onShowInfo = { showInfoBottomSheet = true }
+                        onShowInfo = { showInfoBottomSheet = true },
+                        onMarkNew = {
+                            selectedVideos.forEach { video ->
+                                homeViewModel.setWatchStatus(video, 0L)
+                            }
+                            selectedVideos = emptySet()
+                            selectedFolders = emptySet()
+                        },
+                        onMarkEnded = {
+                            selectedVideos.forEach { video ->
+                                homeViewModel.setWatchStatus(video, video.duration)
+                            }
+                            selectedVideos = emptySet()
+                            selectedFolders = emptySet()
+                        }
                     )
                 }
             }
@@ -1086,6 +1114,8 @@ fun VideoListItem(
                     overflow  = TextOverflow.Ellipsis,
                     color     = if (isSelected)
                         MaterialTheme.colorScheme.onPrimaryContainer
+                    else if (watchState is VideoWatchState.Completed)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     else
                         MaterialTheme.colorScheme.onSurface
                 )
@@ -1196,6 +1226,8 @@ fun VideoGridItem(
                             overflow   = TextOverflow.Ellipsis,
                             color      = if (isSelected)
                                 MaterialTheme.colorScheme.onPrimaryContainer
+                            else if (watchState is VideoWatchState.Completed)
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             else
                                 MaterialTheme.colorScheme.onSurface
                         )
@@ -1283,6 +1315,8 @@ fun VideoGridItem(
                         overflow   = TextOverflow.Ellipsis,
                         color      = if (isSelected)
                             MaterialTheme.colorScheme.onPrimaryContainer
+                        else if (watchState is VideoWatchState.Completed)
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         else
                             MaterialTheme.colorScheme.onSurface
                     )
@@ -1573,7 +1607,9 @@ fun VideoSelectionBottomAppBar(
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onShowInfo: () -> Unit
+    onShowInfo: () -> Unit,
+    onMarkNew: () -> Unit,
+    onMarkEnded: () -> Unit
 ) {
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -1609,6 +1645,8 @@ fun VideoSelectionBottomAppBar(
             }
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
+            ActionColumn(icon = Icons.Filled.FiberNew, label = "Mark New", onClick = onMarkNew)
+            ActionColumn(icon = Icons.Filled.DoneAll, label = "Mark Ended", onClick = onMarkEnded)
         }
     }
 }

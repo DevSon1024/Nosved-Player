@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.FiberNew
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,7 +119,9 @@ fun SelectionBottomAppBar(
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onShowInfo: () -> Unit
+    onShowInfo: () -> Unit,
+    onMarkNew: () -> Unit,
+    onMarkEnded: () -> Unit
 ) {
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -165,6 +169,9 @@ fun SelectionBottomAppBar(
 
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
+
+            ActionColumn(icon = Icons.Filled.FiberNew, label = "Mark New", onClick = onMarkNew)
+            ActionColumn(icon = Icons.Filled.DoneAll, label = "Mark Ended", onClick = onMarkEnded)
         }
     }
 }

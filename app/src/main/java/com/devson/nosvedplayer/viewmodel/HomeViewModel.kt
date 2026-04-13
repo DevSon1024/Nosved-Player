@@ -35,4 +35,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun clearAllHistory() {
         viewModelScope.launch { historyRepo.clearAll() }
     }
+
+    fun setWatchStatus(video: Video, positionMs: Long) {
+        viewModelScope.launch { historyRepo.setWatchStatus(video, positionMs) }
+    }
 }
