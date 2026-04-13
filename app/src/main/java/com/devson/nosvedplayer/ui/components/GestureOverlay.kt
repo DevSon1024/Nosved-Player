@@ -267,7 +267,7 @@ fun GestureOverlay(
                                             accumulatedLeftMs += stepMs
                                             showLeftSeek = true
                                             leftRippleTick++
-                                            onSeekCommit(-stepMs)
+                                            onDoubleTapLeft()
                                         }
                                         isRightTap -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -275,7 +275,7 @@ fun GestureOverlay(
                                             accumulatedRightMs += stepMs
                                             showRightSeek = true
                                             rightRippleTick++
-                                            onSeekCommit(stepMs)
+                                            onDoubleTapRight()
                                         }
                                         else -> {
                                             // Ensure center tap is actually a double tap (dt < 400 && dist < 100f)
@@ -339,13 +339,16 @@ fun GestureOverlay(
                                             scrubStartPosition = updatedCurrentPosition
                                             onSeekStart()
                                         }
-                                        val newPreview = (scrubStartPosition + (totalDx / size.width.toFloat() * dur))
+                                        val deltaMs = (totalDx / size.width.toFloat()) * 120_000L
+                                        
+                                        val newPreview = (scrubStartPosition + deltaMs)
                                             .toLong()
                                             .coerceIn(0L, dur)
+                                            
                                         scrubPreviewMs = newPreview
                                         onSeekPreview(newPreview)
                                     } else {
-                                        val deltaMs = (totalDx / size.width.toFloat()) * 100_000L
+                                        val deltaMs = (totalDx / size.width.toFloat()) * 120_000L
                                         scrubPreviewMs = deltaMs.toLong()
                                     }
                                     onSeekSwipe(dx)

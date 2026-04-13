@@ -143,17 +143,8 @@ fun VideoScreen(
     var showBrightnessFeedback by remember { mutableStateOf(false) }
     var brightnessFeedbackTrigger by remember { mutableStateOf(0) }
 
-    // YT-style seek indicators and fast-forward - driven by GestureOverlay, consumed by YoutubeStylePlayerControls
-    var ytShowSeekLeft by remember { mutableStateOf(false) }
-    var ytShowSeekRight by remember { mutableStateOf(false) }
+    // YT-style fast-forward - driven by GestureOverlay
     var ytIsFastForwarding by remember { mutableStateOf(false) }
-
-    LaunchedEffect(ytShowSeekLeft) {
-        if (ytShowSeekLeft) { delay(800); ytShowSeekLeft = false }
-    }
-    LaunchedEffect(ytShowSeekRight) {
-        if (ytShowSeekRight) { delay(800); ytShowSeekRight = false }
-    }
 
     LaunchedEffect(volumeFeedbackTrigger) {
         if (volumeFeedbackTrigger > 0) { delay(1000); showVolumeFeedback = false }
@@ -279,16 +270,10 @@ fun VideoScreen(
             duration = duration,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapLeft = {
-                if (useYoutubeStyle) {
-                    ytShowSeekLeft = true
-                }
                 viewModel.seekBackward()
             },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
             onDoubleTapRight = {
-                if (useYoutubeStyle) {
-                    ytShowSeekRight = true
-                }
                 viewModel.seekForward()
             },
             onSeekStart = { viewModel.beginSeek() },
@@ -369,8 +354,6 @@ fun VideoScreen(
                 selectedSubtitleIndex = selectedSubtitleIndex,
                 playlist = currentPlaylist,
                 currentPlaylistIndex = currentPlaylistIndex,
-                showSeekLeft = ytShowSeekLeft,
-                showSeekRight = ytShowSeekRight,
                 isFastForwarding = ytIsFastForwarding,
                 showSeekButtons = showSeekButtons,
                 onPlayPauseToggle = {
