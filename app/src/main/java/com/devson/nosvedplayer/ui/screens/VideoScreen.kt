@@ -78,6 +78,10 @@ fun VideoScreen(
     val fastplaySpeed by viewModel.fastplaySpeed.collectAsState()
     val currentPlaylist by viewModel.currentPlaylist.collectAsState()
     val currentPlaylistIndex by viewModel.currentPlaylistIndex.collectAsState()
+    val isSeeking by viewModel.isSeeking.collectAsState()
+    val seekPreviewPosition by viewModel.seekPreviewPosition.collectAsState()
+
+    val displayedPosition = if (isSeeking) seekPreviewPosition else currentPosition
 
     //  Player style preference 
     // Reads the player UI style set in SettingsScreen (default = false = default style)
@@ -139,17 +143,8 @@ fun VideoScreen(
     var showBrightnessFeedback by remember { mutableStateOf(false) }
     var brightnessFeedbackTrigger by remember { mutableStateOf(0) }
 
-    // YT-style seek indicators and fast-forward - driven by GestureOverlay, consumed by YoutubeStylePlayerControls
-    var ytShowSeekLeft by remember { mutableStateOf(false) }
-    var ytShowSeekRight by remember { mutableStateOf(false) }
+    // YT-style fast-forward - driven by GestureOverlay
     var ytIsFastForwarding by remember { mutableStateOf(false) }
-
-    LaunchedEffect(ytShowSeekLeft) {
-        if (ytShowSeekLeft) { delay(800); ytShowSeekLeft = false }
-    }
-    LaunchedEffect(ytShowSeekRight) {
-        if (ytShowSeekRight) { delay(800); ytShowSeekRight = false }
-    }
 
     LaunchedEffect(volumeFeedbackTrigger) {
         if (volumeFeedbackTrigger > 0) { delay(1000); showVolumeFeedback = false }
@@ -271,19 +266,19 @@ fun VideoScreen(
             isPlaying = isPlaying,
             isLocked = isLocked,
             fastplaySpeed = fastplaySpeed,
+            currentPosition = currentPosition,
+            duration = duration,
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapLeft = {
-                if (useYoutubeStyle) {
-                    ytShowSeekLeft = true
-                }
+                viewModel.seekBackward()
             },
             onDoubleTapCenter = { viewModel.togglePlayPause() },
             onDoubleTapRight = {
-                if (useYoutubeStyle) {
-                    ytShowSeekRight = true
-                }
+                viewModel.seekForward()
             },
-            onSeekCommit = { deltaMs -> viewModel.seekByOffset(deltaMs) },
+            onSeekStart = { viewModel.beginSeek() },
+            onSeekPreview = { pos -> viewModel.updateSeekPreview(pos) },
+            onSeekCommit = { absPos -> viewModel.updateSeekPreview(absPos); viewModel.commitSeek() },
             onFastForwardToggle = { active ->
                 ytIsFastForwarding = active
                 if (active) viewModel.setPlaybackSpeed(fastplaySpeed)
@@ -344,7 +339,7 @@ fun VideoScreen(
                 isVisible = controlsVisible,
                 isPlaying = isPlaying,
                 title = currentVideo?.title ?: "",
-                currentPosition = currentPosition,
+                currentPosition = displayedPosition,
                 duration = duration,
                 seekDurationSeconds = seekDurationSeconds,
                 seekBarStyle = seekBarStyle,
@@ -359,8 +354,6 @@ fun VideoScreen(
                 selectedSubtitleIndex = selectedSubtitleIndex,
                 playlist = currentPlaylist,
                 currentPlaylistIndex = currentPlaylistIndex,
-                showSeekLeft = ytShowSeekLeft,
-                showSeekRight = ytShowSeekRight,
                 isFastForwarding = ytIsFastForwarding,
                 showSeekButtons = showSeekButtons,
                 onPlayPauseToggle = {
@@ -368,7 +361,8 @@ fun VideoScreen(
                     viewModel.showControlsAndDelayHide()
                 },
                 onSeekTo = { pos ->
-                    viewModel.seekTo(pos)
+                    viewModel.updateSeekPreview(pos)
+                    viewModel.commitSeek()
                     viewModel.showControlsAndDelayHide()
                 },
                 onSeekForward = {
@@ -419,7 +413,7 @@ fun VideoScreen(
                 isVisible = controlsVisible,
                 isPlaying = isPlaying,
                 title = currentVideo?.title ?: "",
-                currentPosition = currentPosition,
+                currentPosition = displayedPosition,
                 duration = duration,
                 showStats = showStats,
                 hasPrevious = hasPrevious,
@@ -431,7 +425,8 @@ fun VideoScreen(
                     viewModel.showControlsAndDelayHide()
                 },
                 onSeekTo = { pos ->
-                    viewModel.seekTo(pos)
+                    viewModel.updateSeekPreview(pos)
+                    viewModel.commitSeek()
                     viewModel.showControlsAndDelayHide()
                 },
                 onSeekForward = {

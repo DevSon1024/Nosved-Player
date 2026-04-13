@@ -21,6 +21,7 @@ import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import androidx.media3.exoplayer.upstream.Loader
 import android.media.audiofx.LoudnessEnhancer
 import com.devson.nosvedplayer.util.AppLogger
+import androidx.media3.exoplayer.DefaultLoadControl
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -82,10 +83,20 @@ class PlayerManager(private val context: Context) {
                 .setEnableDecoderFallback(true)
                 .forceDisableMediaCodecAsynchronousQueueing()
 
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                    DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                    500,
+                    1000
+                )
+                .build()
+
             exoPlayer = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
+                .setLoadControl(loadControl)
                 .build().apply {
-                    setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
+                    setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
                     addListener(object : Player.Listener {
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             _isPlaying.value = isPlaying
@@ -309,6 +320,12 @@ class PlayerManager(private val context: Context) {
 
     fun seekTo(positionMs: Long) {
         exoPlayer?.seekTo(positionMs)
+    }
+
+    fun seekSmooth(positionMs: Long) {
+        val player = exoPlayer ?: return
+        val duration = player.duration.coerceAtLeast(0L)
+        player.seekTo(positionMs.coerceIn(0L, duration))
     }
 
     fun seekForward(ms: Long = 10000L) {

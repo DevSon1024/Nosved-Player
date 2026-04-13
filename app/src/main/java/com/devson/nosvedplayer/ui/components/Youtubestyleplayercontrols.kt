@@ -97,8 +97,6 @@ fun YoutubeStylePlayerControls(
     onOpenPlaybackSettings: () -> Unit = {},
     onOpenAudioTracks: () -> Unit = {},
     onOpenSubtitles: () -> Unit = {},
-    showSeekLeft: Boolean = false,
-    showSeekRight: Boolean = false,
     isFastForwarding: Boolean = false,
     showSeekButtons: Boolean = true
 ) {
@@ -110,19 +108,6 @@ fun YoutubeStylePlayerControls(
     val displayedPosition = if (isSeeking) seekPreview else currentPosition
 
     Box(modifier = modifier.fillMaxSize()) {
-        SeekIndicator(
-            side = SeekSide.Left,
-            visible = showSeekLeft,
-            seconds = seekDurationSeconds,
-            modifier = Modifier.align(Alignment.CenterStart)
-        )
-        SeekIndicator(
-            side = SeekSide.Right,
-            visible = showSeekRight,
-            seconds = seekDurationSeconds,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        )
-
         AnimatedVisibility(
             visible = isVisible && !isFastForwarding,
             enter = fadeIn(),
@@ -752,49 +737,6 @@ private fun VideoCarouselItem(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-private enum class SeekSide { Left, Right }
-
-@Composable
-private fun SeekIndicator(
-    side: SeekSide,
-    visible: Boolean,
-    seconds: Int,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .width(120.dp)
-                .fillMaxHeight()
-                .clip(
-                    if (side == SeekSide.Left) RoundedCornerShape(topEnd = 120.dp, bottomEnd = 120.dp)
-                    else RoundedCornerShape(topStart = 120.dp, bottomStart = 120.dp)
-                )
-                .background(Color.White.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = if (side == SeekSide.Left) Icons.Filled.FastRewind else Icons.Filled.FastForward,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    text = "$seconds seconds",
-                    color = Color.White,
-                    fontSize = 12.sp
-                )
-            }
-        }
     }
 }
 

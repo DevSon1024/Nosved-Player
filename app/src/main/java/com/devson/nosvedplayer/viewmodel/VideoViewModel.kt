@@ -58,6 +58,13 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     val isAudioBoostEnabled get() = playerManager?.isAudioBoostEnabled
 
+    // --- Seek Preview State (MX-style 3-phase seek) ---
+    private val _isSeeking = MutableStateFlow(false)
+    val isSeeking: StateFlow<Boolean> = _isSeeking.asStateFlow()
+
+    private val _seekPreviewPosition = MutableStateFlow(0L)
+    val seekPreviewPosition: StateFlow<Long> = _seekPreviewPosition.asStateFlow()
+
     fun toggleAudioBoost(enabled: Boolean) {
         playerManager?.toggleAudioBoost(enabled)
     }
@@ -261,6 +268,27 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.seekTo(positionMs)
     }
 
+    fun beginSeek() {
+        val player = playerManager?.exoPlayer ?: return
+        _isSeeking.value = true
+        _seekPreviewPosition.value = player.currentPosition.coerceAtLeast(0L)
+        playerManager?.pause()
+    }
+
+    fun updateSeekPreview(positionMs: Long) {
+        val duration = playerManager?.exoPlayer?.duration?.coerceAtLeast(0L) ?: 0L
+        _seekPreviewPosition.value = positionMs.coerceIn(0L, if (duration > 0L) duration else Long.MAX_VALUE)
+    }
+
+    fun commitSeek() {
+        val target = _seekPreviewPosition.value
+        _isSeeking.value = false
+        playerManager?.seekSmooth(target)
+        if (_currentVideo.value != null) {
+            playerManager?.resume()
+        }
+    }
+
     fun seekForward() {
         debounceSeekByOffset(_seekDurationSeconds.value * 1000L)
     }
@@ -401,10 +429,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private fun startProgressUpdate() {
         viewModelScope.launch {
             while (true) {
-                if (playerManager?.isPlaying?.value == true) {
+                if (!_isSeeking.value && playerManager?.isPlaying?.value == true) {
                     playerManager?.updateProgress()
                 }
-                delay(1000) // Update every second
+                delay(500)
             }
         }
     }
