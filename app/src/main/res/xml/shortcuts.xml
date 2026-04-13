@@ -1,0 +1,20 @@
+<!-- app/src/main/res/xml/shortcuts.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- This shortcut explicitly uses the keyword in its label -->
+    <shortcut
+        android:shortcutId="video_player_search"
+        android:enabled="true"
+        android:shortcutShortLabel="Video Player"
+        android:shortcutLongLabel="Nosved Video Player"
+        android:icon="@mipmap/ic_launcher">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.devson.nosvedplayer"
+            android:targetClass="com.devson.nosvedplayer.MainActivity" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding android:key="feature" android:value="Video, Anime, Player" />
+        </capability-binding>
+    </shortcut>
+</shortcuts>

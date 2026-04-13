@@ -260,6 +260,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         }
         playerManager?.exoPlayer?.stop()
         playerManager?.exoPlayer?.clearMediaItems()
+        _currentVideo.value = null
     }
 
     /** Resumes only if there is an active video (prevents auto-play on cold start). */

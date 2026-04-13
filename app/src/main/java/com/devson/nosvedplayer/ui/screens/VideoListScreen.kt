@@ -60,6 +60,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material3.Scaffold
 import com.devson.nosvedplayer.model.applySort
 import com.devson.nosvedplayer.ui.components.ViewSettingsBottomSheet
@@ -393,17 +394,22 @@ fun VideoListScreen(
                             renameInputText = folder.name
                             showRenameDialog = true
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
-                        onMarkNew = {
-                            selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.forEach { video ->
-                                homeViewModel.setWatchStatus(video, 0L)
-                            }
+                        onShare = {
+                            val videos = selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }
+                            shareVideos(context, videos)
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
                         },
-                        onMarkEnded = {
+                        onShowInfo = { showInfoBottomSheet = true },
+                        onMarkStatus = { status ->
                             selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.forEach { video ->
-                                homeViewModel.setWatchStatus(video, video.duration)
+                                val position = when(status) {
+                                    "NEW" -> 0L
+                                    "RUNNING" -> video.duration / 2
+                                    "ENDED" -> video.duration
+                                    else -> 0L
+                                }
+                                homeViewModel.setWatchStatus(video, position)
                             }
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
@@ -450,17 +456,21 @@ fun VideoListScreen(
                                 showRenameDialog = true
                             }
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
-                        onMarkNew = {
-                            selectedVideos.forEach { video ->
-                                homeViewModel.setWatchStatus(video, 0L)
-                            }
+                        onShare = {
+                            shareVideos(context, selectedVideos.toList())
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
                         },
-                        onMarkEnded = {
+                        onShowInfo = { showInfoBottomSheet = true },
+                        onMarkStatus = { status ->
                             selectedVideos.forEach { video ->
-                                homeViewModel.setWatchStatus(video, video.duration)
+                                val position = when(status) {
+                                    "NEW" -> 0L
+                                    "RUNNING" -> video.duration / 2
+                                    "ENDED" -> video.duration
+                                    else -> 0L
+                                }
+                                homeViewModel.setWatchStatus(video, position)
                             }
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
@@ -1608,9 +1618,21 @@ fun VideoSelectionBottomAppBar(
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onShowInfo: () -> Unit,
-    onMarkNew: () -> Unit,
-    onMarkEnded: () -> Unit
+    onShare: () -> Unit,
+    onMarkStatus: (String) -> Unit
 ) {
+    var showTagDialog by remember { mutableStateOf(false) }
+
+    if (showTagDialog) {
+        com.devson.nosvedplayer.util.TagStatusDialog(
+            onDismiss = { showTagDialog = false },
+            onConfirm = { status ->
+                showTagDialog = false
+                onMarkStatus(status)
+            }
+        )
+    }
+
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1643,10 +1665,12 @@ fun VideoSelectionBottomAppBar(
                     onClick = onRename
                 )
             }
+            // Share
+            ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
-            ActionColumn(icon = Icons.Filled.FiberNew, label = "Mark New", onClick = onMarkNew)
-            ActionColumn(icon = Icons.Filled.DoneAll, label = "Mark Ended", onClick = onMarkEnded)
+            // Tagging
+            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
         }
     }
 }
@@ -1687,4 +1711,25 @@ private fun List<VideoFolder>.applyFolderSort(
         SortField.TYPE -> sortedBy { it.name.lowercase() }
     }
     return if (direction == SortDirection.DESCENDING) sorted.reversed() else sorted
+}
+
+fun shareVideos(context: android.content.Context, videos: List<com.devson.nosvedplayer.model.Video>) {
+    if (videos.isEmpty()) return
+    val uris = videos.map { android.net.Uri.parse(it.uri) }
+    
+    val intent = if (uris.size == 1) {
+        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "video/*"
+            putExtra(android.content.Intent.EXTRA_STREAM, uris.first())
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    } else {
+        android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "video/*"
+            putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, java.util.ArrayList(uris))
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+    
+    context.startActivity(android.content.Intent.createChooser(intent, "Share Video"))
 }

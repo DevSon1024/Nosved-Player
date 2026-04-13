@@ -21,8 +21,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.FiberNew
-import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,9 +124,21 @@ fun SelectionBottomAppBar(
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onShowInfo: () -> Unit,
-    onMarkNew: () -> Unit,
-    onMarkEnded: () -> Unit
+    onShare: () -> Unit,
+    onMarkStatus: (String) -> Unit
 ) {
+    var showTagDialog by remember { mutableStateOf(false) }
+
+    if (showTagDialog) {
+        TagStatusDialog(
+            onDismiss = { showTagDialog = false },
+            onConfirm = { status ->
+                showTagDialog = false
+                onMarkStatus(status)
+            }
+        )
+    }
+
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -167,13 +183,58 @@ fun SelectionBottomAppBar(
                 ActionColumn(icon = Icons.Filled.DriveFileRenameOutline, label = "Rename", onClick = onRename)
             }
 
+            // Share
+            ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
+
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
 
-            ActionColumn(icon = Icons.Filled.FiberNew, label = "Mark New", onClick = onMarkNew)
-            ActionColumn(icon = Icons.Filled.DoneAll, label = "Mark Ended", onClick = onMarkEnded)
+            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
         }
     }
+}
+
+@Composable
+fun TagStatusDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var selectedStatus by remember { mutableStateOf("NEW") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Update Status") },
+        text = {
+            Column {
+                listOf("NEW" to "Mark as New", "RUNNING" to "Mark as Running", "ENDED" to "Mark as Ended").forEach { (status, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedStatus = status }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedStatus == status,
+                            onClick = { selectedStatus = status }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(selectedStatus) }) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

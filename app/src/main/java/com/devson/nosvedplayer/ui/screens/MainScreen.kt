@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,7 +21,7 @@ import com.devson.nosvedplayer.viewmodel.VideoViewModel
 fun MainScreen(
     videoViewModel: VideoViewModel = viewModel()
 ) {
-    var currentVideo by remember { mutableStateOf<Video?>(null) }
+    val currentVideo by videoViewModel.currentVideo.collectAsState()
     var resumePositionMs by remember { mutableStateOf(0L) }
     val settingsViewModel: SettingsViewModel = viewModel()
     
@@ -35,15 +36,13 @@ fun MainScreen(
             settingsViewModel = settingsViewModel,
             onVideoSelected = { video, playlist, position ->
                 resumePositionMs = position
-                currentVideo = video
                 videoViewModel.playVideo(video, playlist, position)
             }
         )
         
-        if (isPlayerVisible) {
+            if (isPlayerVisible) {
             BackHandler {
                 videoViewModel.stopVideo()
-                currentVideo = null
                 resumePositionMs = 0L
             }
             VideoScreen(viewModel = videoViewModel)
