@@ -1,5 +1,7 @@
 package com.devson.nosvedplayer.ui.screens
 
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -7,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -15,10 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberNew
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
@@ -31,14 +36,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.devson.nosvedplayer.R
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -46,6 +57,7 @@ import coil.request.videoFrameMillis
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.WatchHistory
 import com.devson.nosvedplayer.viewmodel.HomeViewModel
+import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import com.devson.nosvedplayer.util.formatDate
 import com.devson.nosvedplayer.util.formatDuration
 import com.devson.nosvedplayer.util.formatRelativeTime
@@ -58,34 +70,121 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToVideos: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
+    onNavigateToSearch: (String) -> Unit = {},
     homeViewModel: HomeViewModel = viewModel()
 ) {
+    val activity = LocalActivity.current as ComponentActivity
+    val videoListViewModel: VideoListViewModel = viewModel(activity)
+    val searchSuggestions by videoListViewModel.searchSuggestions.collectAsState()
+    var searchActive by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(searchActive) {
+        if (searchActive) focusRequester.requestFocus()
+    }
     val history by homeViewModel.history.collectAsState()
     val latestVideos by homeViewModel.latestVideos.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+            Box {
+                TopAppBar(
+                    title = {
+                        if (searchActive) {
+                            OutlinedTextField(
+                                value = searchText,
+                                onValueChange = { searchText = it; videoListViewModel.onSearchQueryChanged(it) },
+                                placeholder = { Text("Search videos...") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    imeAction = ImeAction.Search
+                                ),
+                                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                    onSearch = {
+                                        keyboard?.hide()
+                                        if (searchText.isNotBlank()) {
+                                            videoListViewModel.clearSearch()
+                                            searchActive = false
+                                            onNavigateToSearch(searchText)
+                                            searchText = ""
+                                        }
+                                    }
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent
+                                )
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.app_name),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    actions = {
+                        if (searchActive) {
+                            IconButton(onClick = {
+                                searchActive = false
+                                searchText = ""
+                                videoListViewModel.clearSearch()
+                            }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Close Search")
+                            }
+                        } else {
+                            IconButton(onClick = { searchActive = true }) {
+                                Icon(Icons.Filled.Search, contentDescription = "Search")
+                            }
+                            IconButton(onClick = onNavigateToSettings) {
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = stringResource(R.string.cd_settings)
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background
                     )
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.cd_settings)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
                 )
-            )
+                if (searchActive && searchSuggestions.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .align(Alignment.BottomStart)
+                            .zIndex(10f),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                    ) {
+                        LazyColumn {
+                            items(searchSuggestions) { video ->
+                                ListItem(
+                                    headlineContent = {
+                                        Text(video.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    },
+                                    leadingContent = {
+                                        Icon(Icons.Filled.Search, contentDescription = null)
+                                    },
+                                    modifier = Modifier.clickable {
+                                        keyboard?.hide()
+                                        videoListViewModel.clearSearch()
+                                        searchActive = false
+                                        onNavigateToSearch(video.title)
+                                        searchText = ""
+                                    }
+                                )
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(

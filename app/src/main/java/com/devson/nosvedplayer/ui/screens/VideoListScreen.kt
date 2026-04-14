@@ -32,14 +32,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -108,6 +113,7 @@ fun VideoListScreen(
     onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onNavigateToSettings: () -> Unit,
     onBack: () -> Unit = {},
+    onNavigateToSearch: (String) -> Unit = {},
     viewModel: VideoListViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -150,6 +156,16 @@ fun VideoListScreen(
     val viewSettings by viewModel.viewSettings.collectAsState()
     val explorerNodes by viewModel.explorerNodes.collectAsState()
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsState()
+
+    val searchSuggestions by viewModel.searchSuggestions.collectAsState()
+    var searchActive by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(searchActive) {
+        if (searchActive) searchFocusRequester.requestFocus()
+    }
 
     var showSettingsSheet by remember { mutableStateOf(false) }
 
@@ -315,6 +331,20 @@ fun VideoListScreen(
                 onBack = onBack,
                 onNavigateToSettings = onNavigateToSettings,
                 onShowSettings = { showSettingsSheet = true },
+                onSearch = onNavigateToSearch,
+                searchActive = searchActive,
+                searchText = searchText,
+                onSearchActiveChange = { active ->
+                    searchActive = active
+                    if (!active) { searchText = ""; viewModel.clearSearch() }
+                },
+                onSearchTextChange = { text ->
+                    searchText = text
+                    viewModel.onSearchQueryChanged(text)
+                },
+                searchSuggestions = searchSuggestions,
+                searchFocusRequester = searchFocusRequester,
+                keyboard = keyboard,
                 onBackToFolders = { 
                     if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null) {
                         viewModel.navigateExplorerUp()
@@ -1532,7 +1562,15 @@ private fun VideoListTopAppBar(
     onBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onShowSettings: () -> Unit,
-    onBackToFolders: () -> Unit
+    onBackToFolders: () -> Unit,
+    onSearch: (String) -> Unit = {},
+    searchActive: Boolean = false,
+    searchText: String = "",
+    onSearchActiveChange: (Boolean) -> Unit = {},
+    onSearchTextChange: (String) -> Unit = {},
+    searchSuggestions: List<Video> = emptyList(),
+    searchFocusRequester: FocusRequester = remember { FocusRequester() },
+    keyboard: androidx.compose.ui.platform.SoftwareKeyboardController? = null
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -1564,47 +1602,106 @@ private fun VideoListTopAppBar(
             }
         )
     } else {
-        TopAppBar(
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-                scrolledContainerColor = MaterialTheme.colorScheme.background
-            ),
-            title = {
-                Text(
-                    titleText ?: "Nosved Player",
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            navigationIcon = {
-                if (showBackButton) {
-                    IconButton(onClick = onBackToFolders) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+        Box {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                ),
+                title = {
+                    if (searchActive) {
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = onSearchTextChange,
+                            placeholder = { Text("Search videos...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = {
+                                    keyboard?.hide()
+                                    if (searchText.isNotBlank()) {
+                                        onSearchActiveChange(false)
+                                        onSearch(searchText)
+                                    }
+                                }
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(
+                            titleText ?: "Nosved Player",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Home"
-                        )
+                },
+                navigationIcon = {
+                    if (showBackButton) {
+                        IconButton(onClick = onBackToFolders) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
+                        }
+                    }
+                },
+                actions = {
+                    if (searchActive) {
+                        IconButton(onClick = { onSearchActiveChange(false) }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close Search")
+                        }
+                    } else {
+                        IconButton(onClick = { onSearchActiveChange(true) }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = onShowSettings) {
+                            Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
+                        }
                     }
                 }
-            },
-            actions = {
-                var isMenuExpanded by remember { mutableStateOf(false) }
-
-                IconButton(onClick = onShowSettings) {
-                    Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
-                }
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
+            )
+            if (searchActive && searchSuggestions.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .align(Alignment.BottomStart)
+                        .zIndex(10f),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                ) {
+                    LazyColumn {
+                        items(searchSuggestions) { video ->
+                            ListItem(
+                                headlineContent = {
+                                    Text(video.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                },
+                                leadingContent = {
+                                    Icon(Icons.Filled.Search, contentDescription = null)
+                                },
+                                modifier = Modifier.clickable {
+                                    keyboard?.hide()
+                                    onSearchActiveChange(false)
+                                    onSearch(video.title)
+                                }
+                            )
+                            HorizontalDivider()
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
 

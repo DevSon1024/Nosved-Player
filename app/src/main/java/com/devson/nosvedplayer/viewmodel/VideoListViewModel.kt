@@ -237,4 +237,32 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     fun updateDisplayLengthOverThumbnail(display: Boolean) = viewModelScope.launch { settingsRepository.updateDisplayLengthOverThumbnail(display) }
     fun updateShowHiddenFiles(show: Boolean) = viewModelScope.launch { settingsRepository.updateShowHiddenFiles(show) }
     fun updateRecognizeNoMedia(recognize: Boolean) = viewModelScope.launch { settingsRepository.updateRecognizeNoMedia(recognize) }
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchSuggestions = MutableStateFlow<List<Video>>(emptyList())
+    val searchSuggestions: StateFlow<List<Video>> = _searchSuggestions.asStateFlow()
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        val q = query.trim().lowercase()
+        _searchSuggestions.value = if (q.isEmpty()) emptyList()
+        else _allVideosCache.value.filter { it.title.lowercase().contains(q) }.take(8)
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        _searchSuggestions.value = emptyList()
+    }
+
+    fun getSearchResults(query: String): List<Video> {
+        val q = query.trim().lowercase()
+        val settings = _viewSettings.value
+        val all = _allVideosCache.value.let { cache ->
+            if (settings.showHiddenFiles) cache
+            else cache.filter { !it.path.split('/').any { seg -> seg.startsWith(".") && seg.isNotEmpty() } }
+        }
+        return if (q.isEmpty()) all else all.filter { it.title.lowercase().contains(q) }
+    }
 }

@@ -22,9 +22,12 @@ import com.devson.nosvedplayer.ui.screens.HomeScreen
 import com.devson.nosvedplayer.ui.screens.OnboardingScreen
 import com.devson.nosvedplayer.ui.screens.settings.LogScreen
 import com.devson.nosvedplayer.ui.screens.settings.PrivacyPolicyScreen
+import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
@@ -84,10 +87,11 @@ fun NavGraph(
 
         composable(Screen.Home.route) {
             HomeScreen(
-                onVideoSelected      = onVideoSelected,
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onNavigateToVideos   = { navController.navigate(Screen.Videos.route) },
-                onNavigateToHistory  = { navController.navigate(Screen.History.route) }
+                onVideoSelected       = onVideoSelected,
+                onNavigateToSettings  = { navController.navigate(Screen.Settings.route) },
+                onNavigateToVideos    = { navController.navigate(Screen.Videos.route) },
+                onNavigateToHistory   = { navController.navigate(Screen.History.route) },
+                onNavigateToSearch    = { query -> navController.navigate(Screen.SearchResults.createRoute(query)) }
             )
         }
 
@@ -98,6 +102,7 @@ fun NavGraph(
                 onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onBack               = { navController.popBackStack() },
+                onNavigateToSearch   = { query -> navController.navigate(Screen.SearchResults.createRoute(query)) },
                 viewModel            = videoListViewModel
             )
         }
@@ -141,6 +146,19 @@ fun NavGraph(
 
         composable(Screen.History.route) {
             HistoryScreen(
+                onVideoSelected = onVideoSelected,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.SearchResults.route,
+            arguments = listOf(navArgument("query") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val raw = backStackEntry.arguments?.getString("query") ?: ""
+            val query = java.net.URLDecoder.decode(raw, "UTF-8")
+            SearchResultsScreen(
+                query = query,
                 onVideoSelected = onVideoSelected,
                 onBack = { navController.popBackStack() }
             )

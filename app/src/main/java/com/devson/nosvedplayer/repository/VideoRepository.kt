@@ -232,6 +232,16 @@ class VideoRepository(private val context: Context) {
         return@withContext videos
     }
 
+    suspend fun searchVideos(
+        query: String,
+        showHiddenFiles: Boolean = false,
+        recognizeNoMedia: Boolean = false
+    ): List<Video> {
+        val all = getAllVideos(showHiddenFiles, recognizeNoMedia)
+        val q = query.trim().lowercase()
+        return if (q.isEmpty()) all else all.filter { it.title.lowercase().contains(q) }
+    }
+
     suspend fun getFoldersWithVideos(): Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>> {
         val allVideos = getAllVideos()
         return allVideos.groupBy { com.devson.nosvedplayer.model.VideoFolder(it.folderId, it.folderName) }
