@@ -22,7 +22,8 @@ import kotlinx.coroutines.withContext
  * Tracks which file action is waiting for a system permission grant (IntentSender result).
  */
 sealed class PendingFileAction {
-    data class Delete(val uris: List<Uri>) : PendingFileAction()
+    data class Delete(val uris: List<Uri>, val trash: Boolean = false) : PendingFileAction()
+    data class Restore(val uris: List<Uri>) : PendingFileAction()
     data class Rename(val uri: Uri, val newName: String) : PendingFileAction()
 }
 
@@ -58,19 +59,17 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
 
     //  DELETE 
 
-    fun deleteVideos(context: Context, uris: List<Uri>) {
+    fun deleteVideos(context: Context, uris: List<Uri>, trash: Boolean = false) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
             _operationInProgress.value = true
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    // API 30+: create a batch delete request - one system dialog for all
-                    val pi = MediaStore.createDeleteRequest(context.contentResolver, uris)
-                    pendingAction = PendingFileAction.Delete(uris)
+                    val pi = if (trash) MediaStore.createTrashRequest(context.contentResolver, uris, true)
+                             else MediaStore.createDeleteRequest(context.contentResolver, uris)
+                    pendingAction = PendingFileAction.Delete(uris, trash)
                     _pendingIntentSender.value = pi.intentSender
-                    // Result is handled in onPermissionGranted(context)
                 } else {
-                    // API 29: try direct delete, catch RecoverableSecurityException per file
                     executeDeleteApi29(context, uris)
                 }
             } catch (e: Exception) {
@@ -88,9 +87,33 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     fun onPermissionGranted(context: Context) {
         when (pendingAction) {
             is PendingFileAction.Delete -> onDeletePermissionGranted(context)
+            is PendingFileAction.Restore -> onRestorePermissionGranted(context)
             is PendingFileAction.Rename -> onRenamePermissionGranted(context)
             null -> {}
         }
+    }
+
+    fun restoreVideos(context: Context, uris: List<Uri>) {
+        if (uris.isEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        viewModelScope.launch {
+            _operationInProgress.value = true
+            try {
+                val pi = MediaStore.createTrashRequest(context.contentResolver, uris, false)
+                pendingAction = PendingFileAction.Restore(uris)
+                _pendingIntentSender.value = pi.intentSender
+            } catch (e: Exception) {
+                _operationResult.value = "Restore failed: ${e.localizedMessage}"
+                _operationInProgress.value = false
+            }
+        }
+    }
+
+    fun onRestorePermissionGranted(context: Context) {
+        val action = pendingAction as? PendingFileAction.Restore ?: return
+        pendingAction = null
+        _operationResult.value = "Successfully restored ${action.uris.size} videos."
+        _needsRefresh.value = true
+        _operationInProgress.value = false
     }
 
     private val _needsRefresh = MutableStateFlow(false)

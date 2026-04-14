@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     object Logs       : Screen("logs")
     object PrivacyPolicy : Screen("privacy_policy")
     object History    : Screen("history")
+    object RecycleBin : Screen("recycle_bin")
     object SearchResults : Screen("search_results/{query}") {
         fun createRoute(query: String) = "search_results/${java.net.URLEncoder.encode(query, "UTF-8")}"
     }

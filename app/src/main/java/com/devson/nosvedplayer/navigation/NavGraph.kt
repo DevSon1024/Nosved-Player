@@ -91,7 +91,8 @@ fun NavGraph(
                 onNavigateToSettings  = { navController.navigate(Screen.Settings.route) },
                 onNavigateToVideos    = { navController.navigate(Screen.Videos.route) },
                 onNavigateToHistory   = { navController.navigate(Screen.History.route) },
-                onNavigateToSearch    = { query -> navController.navigate(Screen.SearchResults.createRoute(query)) }
+                onNavigateToSearch    = { query -> navController.navigate(Screen.SearchResults.createRoute(query)) },
+                onNavigateToRecycleBin = { navController.navigate(Screen.RecycleBin.route) }
             )
         }
 
@@ -147,6 +148,12 @@ fun NavGraph(
         composable(Screen.History.route) {
             HistoryScreen(
                 onVideoSelected = onVideoSelected,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.RecycleBin.route) {
+            com.devson.nosvedplayer.ui.screens.RecycleBinScreen(
                 onBack = { navController.popBackStack() }
             )
         }

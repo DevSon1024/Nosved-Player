@@ -25,7 +25,8 @@ data class Video(
     val playedTime: Long? = null,
     /** Wall-clock epoch millis of when this video was last played (for "Played X Ago"). */
     val lastPlayedAt: Long? = null,
-    val status: String? = null
+    val status: String? = null,
+    val dateExpires: Long? = null
 )
 
 fun List<Video>.applySort(field: SortField, direction: SortDirection): List<Video> {

@@ -290,4 +290,16 @@
     <string name="info_streams">Streams</string>
     <string name="info_stream_label">Stream %d</string>
     <string name="info_aggregated_total_videos">Total Videos</string>
+
+    <!-- Recycle Bin -->
+    <string name="recycle_bin_title">Recycle Bin</string>
+    <string name="recycle_bin_empty">Recycle bin is empty</string>
+    <string name="recycle_bin_info_desc">Items in the recycle bin will be permanently deleted after 30 days by the Android OS automatically. You can restore them or delete them permanently before that time.</string>
+    <string name="recycle_bin_delete_confirm_title">Delete Permanently?</string>
+    <string name="recycle_bin_delete_confirm_desc">These videos will be permanently removed from your device. This action cannot be undone.</string>
+    <string name="recycle_bin_days_left">%1$d days left</string>
+    <string name="recycle_bin_select_prompt">Select video to restore or delete permanently.</string>
+    <string name="action_all">ALL</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_delete_permanently">Delete Permanently</string>
 </resources>

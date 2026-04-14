@@ -768,19 +768,29 @@ fun VideoListScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Delete Video(s)") },
-            text = { Text("Are you sure you want to delete the selected video(s)? This action cannot be undone.") },
+            text = { Text("Choose how you want to delete the selected video(s).") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        fileOpsViewModel.deleteVideos(context, selectedUrisForDelete)
+                        fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = true)
                         selectedFolders = emptySet()
                         selectedVideos = emptySet()
                         showDeleteConfirmation = false
                     }
-                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                ) { Text("Move to Recycle Bin") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+                Row {
+                    TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+                    TextButton(
+                        onClick = {
+                            fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = false)
+                            selectedFolders = emptySet()
+                            selectedVideos = emptySet()
+                            showDeleteConfirmation = false
+                        }
+                    ) { Text("Delete Permanently", color = MaterialTheme.colorScheme.error) }
+                }
             }
         )
     }

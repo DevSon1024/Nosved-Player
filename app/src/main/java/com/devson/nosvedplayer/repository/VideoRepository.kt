@@ -228,7 +228,62 @@ class VideoRepository(private val context: Context) {
                 videos.addAll(hiddenVideos)
             }
         }
+        videos
+    }
 
+    suspend fun getTrashedVideos(): List<Video> = withContext(Dispatchers.IO) {
+        val videos = mutableListOf<Video>()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@withContext videos
+
+        val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.BUCKET_ID,
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Video.Media.DATE_ADDED,
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.MIME_TYPE,
+            MediaStore.Video.Media.DATE_EXPIRES
+        )
+
+        val args = android.os.Bundle().apply {
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+            putString(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION, "${MediaStore.Video.Media.IS_TRASHED} == 1")
+        }
+
+        context.contentResolver.query(collection, projection, args, null)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+            val nameCol = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME).takeIf { it >= 0 }
+            val durCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION).takeIf { it >= 0 }
+            val sizeCol = cursor.getColumnIndex(MediaStore.Video.Media.SIZE).takeIf { it >= 0 }
+            val bIdCol = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_ID).takeIf { it >= 0 }
+            val bNameCol = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME).takeIf { it >= 0 }
+            val dateAddedCol = cursor.getColumnIndex(MediaStore.Video.Media.DATE_ADDED).takeIf { it >= 0 }
+            val dataCol = cursor.getColumnIndex(MediaStore.Video.Media.DATA).takeIf { it >= 0 }
+            val mimeCol = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE).takeIf { it >= 0 }
+            val expireCol = cursor.getColumnIndex(MediaStore.Video.Media.DATE_EXPIRES).takeIf { it >= 0 }
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                videos.add(
+                    Video(
+                        uri = ContentUris.withAppendedId(collection, id).toString(),
+                        title = nameCol?.let { cursor.getString(it) } ?: "Unknown",
+                        duration = durCol?.let { cursor.getLong(it) } ?: 0L,
+                        size = sizeCol?.let { cursor.getLong(it) } ?: 0L,
+                        folderId = bIdCol?.let { cursor.getString(it) } ?: "Unknown",
+                        folderName = bNameCol?.let { cursor.getString(it) } ?: "Unknown",
+                        dateAdded = (dateAddedCol?.let { cursor.getLong(it) } ?: 0L) * 1000L,
+                        path = dataCol?.let { cursor.getString(it) } ?: "",
+                        mimeType = mimeCol?.let { cursor.getString(it) },
+                        dateExpires = (expireCol?.let { cursor.getLong(it) } ?: 0L) * 1000L
+                    )
+                )
+            }
+        }
         return@withContext videos
     }
 

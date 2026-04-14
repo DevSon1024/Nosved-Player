@@ -71,6 +71,7 @@ fun HomeScreen(
     onNavigateToVideos: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
     onNavigateToSearch: (String) -> Unit = {},
+    onNavigateToRecycleBin: () -> Unit = {},
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val activity = LocalActivity.current as ComponentActivity
@@ -139,6 +140,12 @@ fun HomeScreen(
                     } else {
                         IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Filled.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = onNavigateToRecycleBin) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Recycle Bin"
+                            )
                         }
                         IconButton(onClick = onNavigateToSettings) {
                             Icon(

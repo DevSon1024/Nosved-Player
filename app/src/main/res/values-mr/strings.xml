@@ -288,4 +288,16 @@
     <string name="info_streams">स्ट्रीम्स</string>
     <string name="info_stream_label">स्ट्रीम %d</string>
     <string name="info_aggregated_total_videos">एकूण व्हिडिओ</string>
+
+    <!-- Recycle Bin -->
+    <string name="recycle_bin_title">रीसायकल बिन</string>
+    <string name="recycle_bin_empty">रीसायकल बिन रिकामी आहे</string>
+    <string name="recycle_bin_info_desc">रीसायकल बिन मधील आयटम्स 30 दिवसांनंतर Android OS आपोआप कायमचे हटवेल. त्याआधी तुम्ही ते रिस्टोअर करू शकता किंवा कायमचे हटवू शकता.</string>
+    <string name="recycle_bin_delete_confirm_title">कायमचे हटवायचे?</string>
+    <string name="recycle_bin_delete_confirm_desc">हे व्हिडिओ तुमच्या डिव्हाइसवरून कायमचे काढले जातील. ही कृती पूर्ववत केली जाऊ शकत नाही.</string>
+    <string name="recycle_bin_days_left">%1$d दिवस बाकी</string>
+    <string name="recycle_bin_select_prompt">रिस्टोअर करण्यासाठी किंवा कायमचे हटवण्यासाठी व्हिडिओ निवडा.</string>
+    <string name="action_all">सर्व</string>
+    <string name="action_restore">रिस्टोअर करा</string>
+    <string name="action_delete_permanently">कायमचे हटवा</string>
 </resources>
