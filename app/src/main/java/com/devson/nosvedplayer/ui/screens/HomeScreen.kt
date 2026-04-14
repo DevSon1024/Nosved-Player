@@ -35,8 +35,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.devson.nosvedplayer.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -66,7 +68,7 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Nosved Player",
+                        text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -75,7 +77,7 @@ fun HomeScreen(
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings"
+                            contentDescription = stringResource(R.string.cd_settings)
                         )
                     }
                 },
@@ -110,12 +112,12 @@ fun HomeScreen(
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Your Video Library",
+                        text = stringResource(R.string.home_video_library),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Explore all your local videos and folders in one place.",
+                        text = stringResource(R.string.home_video_library_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
@@ -129,11 +131,11 @@ fun HomeScreen(
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Text("Browse Now", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.home_browse_now), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Browse Videos",
+                            contentDescription = stringResource(R.string.cd_browse_videos),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -157,7 +159,7 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Continue Watching",
+                    text = stringResource(R.string.home_continue_watching),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -168,7 +170,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Show all",
+                            text = stringResource(R.string.home_show_all),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -234,7 +236,7 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Recently Added",
+                    text = stringResource(R.string.home_recently_added),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -287,12 +289,12 @@ private fun EmptyHistoryCard(onNavigateToVideos: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No recent videos",
+                text = stringResource(R.string.home_no_recent_videos),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Tap here to start exploring",
+                text = stringResource(R.string.home_start_exploring),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -329,7 +331,7 @@ private fun VideoCard(
                         .videoFrameMillis(1000)
                         .crossfade(true)
                         .build(),
-                    contentDescription = "Video Thumbnail",
+                    contentDescription = stringResource(R.string.cd_video_thumbnail),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -342,7 +344,7 @@ private fun VideoCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Play",
+                        contentDescription = stringResource(R.string.cd_play),
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -483,7 +485,7 @@ private fun HistoryCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.cd_delete),
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -537,13 +539,13 @@ private fun HistoryCard(
                 ) {
                     if (item.lastPositionMs > 0L) {
                         Text(
-                            text = "At ${formatDuration(item.lastPositionMs)}",
+                            text = stringResource(R.string.home_at_position, formatDuration(item.lastPositionMs)),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Text(
-                        text = formatRelativeTime(item.lastPlayedAt),
+                        text = formatRelativeTime(LocalContext.current, item.lastPlayedAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

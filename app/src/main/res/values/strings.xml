@@ -108,4 +108,186 @@
     <!-- App Shortcuts -->
     <string name="shortcut_short_label">Video Player</string>
     <string name="shortcut_long_label">Nosved Video Player Anime</string>
+    <!-- Home Screen -->
+    <string name="home_video_library">Your Video Library</string>
+    <string name="home_video_library_desc">Explore all your local videos and folders in one place.</string>
+    <string name="home_browse_now">Browse Now</string>
+    <string name="home_continue_watching">Continue Watching</string>
+    <string name="home_show_all">Show all</string>
+    <string name="home_recently_added">Recently Added</string>
+    <string name="home_no_recent_videos">No recent videos</string>
+    <string name="home_start_exploring">Tap here to start exploring</string>
+    <string name="home_at_position">At %1$s</string>
+    
+    <!-- History Screen -->
+    <string name="history_title">Watch History</string>
+    <string name="history_clear_all">Clear History</string>
+    <string name="history_no_history">No watch history yet.</string>
+    <string name="history_clear_confirm_title">Clear History</string>
+    <string name="history_clear_confirm_desc">Remove all watch history? This cannot be undone.</string>
+    <string name="history_clear_button">Clear</string>
+    <string name="history_cancel_button">Cancel</string>
+
+    <!-- Content Descriptions -->
+    <string name="cd_settings">Settings</string>
+    <string name="cd_browse_videos">Browse Videos</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_delete">Delete</string>
+    <string name="cd_video_thumbnail">Video Thumbnail</string>
+    <!-- Information Bottom Sheet -->
+    <string name="info_general">General</string>
+    <string name="info_selected">Selected</string>
+    <string name="info_about_file">About File</string>
+    <string name="info_file_name">Name</string>
+    <string name="info_file_size">Size</string>
+    <string name="info_file_date">Date</string>
+    <string name="info_media">Media</string>
+    <string name="info_media_format">Format</string>
+    <string name="info_media_resolution">Resolution</string>
+    <string name="info_media_duration">Duration</string>
+    <string name="info_media_encoded_by">Encoded by</string>
+    <string name="info_playback_history">Playback History</string>
+    <string name="info_playback_not_played">Not Played</string>
+    <string name="info_playback_finished">Finished</string>
+    <string name="info_playback_not_finished">Not Finished</string>
+    <string name="info_playback_state">State</string>
+    <string name="info_playback_last_played">Last Played</string>
+    <string name="info_playback_position">Position</string>
+    <string name="info_track_video">Video Track %1$d</string>
+    <string name="info_track_audio">Audio Track %1$d</string>
+    <string name="info_track_subtitle">Subtitle Track %1$d</string>
+    <string name="info_track_other">Other Track %1$d</string>
+    <string name="info_track_codec">Codec</string>
+    <string name="info_track_language">Language</string>
+    <string name="info_track_type">Type</string>
+
+    <!-- Metadata Labels -->
+    <string name="info_label_title">Title</string>
+    <string name="info_label_resolution">Resolution</string>
+    <string name="info_label_frame_rate">Frame Rate</string>
+    <string name="info_label_sample_rate">Sample Rate</string>
+    <string name="info_label_channels">Channels</string>
+    <string name="info_label_bitrate">Bitrate</string>
+    <string name="info_label_type">Type</string>
+    <string name="info_label_mime">MIME</string>
+    <string name="info_label_source">Source</string>
+    <string name="info_label_external">External</string>
+    <string name="info_value_forced">Forced</string>
+    <string name="info_value_external_file">External File</string>
+
+    <!-- Watch States -->
+    <string name="watch_state_new">NEW</string>
+    <string name="watch_state_running">RUNNING</string>
+    <string name="watch_state_ended">ENDED</string>
+
+    <!-- Sort Fields -->
+    <string name="sort_field_title">Title</string>
+    <string name="sort_field_date">Date Added</string>
+    <string name="sort_field_played_time">Played Time</string>
+    <string name="sort_field_status">Status</string>
+    <string name="sort_field_length">Length</string>
+    <string name="sort_field_size">Size</string>
+    <string name="sort_field_path">Path</string>
+
+    <!-- Selection Actions -->
+    <string name="action_play_all">Play All</string>
+    <string name="action_move">Move</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_info">Info</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_share">Share</string>
+    <string name="action_tag">Tag</string>
+
+    <!-- Resize Modes -->
+    <string name="resize_mode_fit">Fit (100%)</string>
+    <string name="resize_mode_fill">Wide (Stretch)</string>
+    <string name="resize_mode_zoom">Zoom (Cropped)</string>
+    <string name="resize_mode_original">Original</string>
+
+    <!-- Relative Time -->
+    <string name="relative_time_just_now">Played Just Now</string>
+    <string name="relative_time_m_ago">Played %1$d m Ago</string>
+    <string name="relative_time_h_ago">Played %1$d h Ago</string>
+    <string name="relative_time_days_ago">Played %1$d Days Ago</string>
+    <string name="relative_time_months_ago">Played %1$d Months Ago</string>
+    <string name="relative_time_years_ago">Played %1$d Years Ago</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_update_status">Update Status</string>
+    <string name="dialog_mark_as_new">Mark as New</string>
+    <string name="dialog_mark_as_running">Mark as Running</string>
+    <string name="dialog_mark_as_ended">Mark as Ended</string>
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+
+    <!-- Selection Bar -->
+    <string name="selection_items_count">%1$d / %2$d selected</string>
+    <string name="cd_clear_selection">Clear Selection</string>
+    <string name="cd_select_all">Select All</string>
+
+    <!-- Storage Explorer -->
+    <string name="storage_move">move</string>
+    <string name="storage_copy">copy</string>
+    <string name="storage_permission_required">Storage management permission is required to %1$s items.</string>
+    <string name="storage_grant_permission">Grant Permission</string>
+    <string name="storage_internal_storage">Internal Storage</string>
+    <string name="storage_moving">Moving</string>
+    <string name="storage_copying">Copying</string>
+    <string name="storage_items_count">%1$d items</string>
+    <string name="storage_paste_here">Paste Here</string>
+    <string name="storage_empty_folder">Empty Folder</string>
+    <string name="storage_new_folder">New Folder</string>
+    <string name="cd_create_new_folder">Create New Folder</string>
+    <string name="cd_folder">Folder</string>
+
+    <!-- YouTube Style Player Controls -->
+    <string name="cd_unlock">Unlock</string>
+    <string name="cd_lock_screen">Lock screen</string>
+    <string name="cd_pip">Picture in Picture</string>
+    <string name="cd_cc_subtitles">Captions / Subtitles</string>
+    <string name="cd_audio_track">Audio Track</string>
+    <string name="cd_previous">Previous</string>
+    <string name="cd_rewind">Rewind</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_fast_forward">Fast Forward</string>
+    <string name="cd_next">Next</string>
+    <string name="cd_resize">Resize</string>
+    <string name="cd_close_playlist">Close playlist</string>
+    <string name="up_next_label">Up Next</string>
+
+    <!-- Playback Settings Sheet -->
+    <string name="playback_settings_title">Playback Settings</string>
+    <string name="seek_playback_section">Seek &amp; Playback</string>
+    <string name="seek_speed_settings_entry">Seek &amp; Speed Settings</string>
+    <string name="control_icon_size_section">Control Icon Size</string>
+    <string name="size_small">Small</string>
+    <string name="size_medium">Medium</string>
+    <string name="size_large">Large</string>
+    <string name="auto_play_section">Auto Play</string>
+    <string name="auto_play_desc">Next video plays automatically</string>
+    <string name="player_style_section">Player Style</string>
+    <string name="player_style_desc">Custom YouTube UI with double tap seek</string>
+    <string name="show_stats_label">Show Stats</string>
+    <string name="show_stats_desc">Display playback information</string>
+    <string name="seek_duration_section">Seek Duration</string>
+    <string name="custom_label">Custom</string>
+    <string name="seconds_unit">seconds</string>
+    <string name="seek_bar_style_section">Seek Bar Style</string>
+    <string name="style_default">Default</string>
+    <string name="style_flat_slim">Flat &amp; Slim</string>
+    <string name="seek_buttons_section">Seek Buttons</string>
+    <string name="show_seek_buttons_desc">Show buttons for 10s seek</string>
+    <string name="fastplay_speed_section">FastPlay Speed</string>
+
+    <!-- Information Bottom Sheet Additional -->
+    <string name="info_location">Location</string>
+    <string name="info_subtitle">Subtitle</string>
+    <string name="none">None</string>
+    <string name="embedded">Embedded</string>
+    <string name="info_encoding_sw">Encoding SW</string>
+    <string name="info_playback_in_progress">In Progress</string>
+    <string name="info_streams">Streams</string>
+    <string name="info_stream_label">Stream %d</string>
+    <string name="info_aggregated_total_videos">Total Videos</string>
 </resources>

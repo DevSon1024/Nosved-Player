@@ -8,8 +8,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.devson.nosvedplayer.R
 import com.devson.nosvedplayer.data.NosvedDatabase
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.util.DetailedVideoMetadata
@@ -60,7 +62,7 @@ fun InformationBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Information",
+                text = stringResource(R.string.information),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -85,9 +87,9 @@ fun InformationBottomSheet(
 private fun MultiSelectionInfo(videos: Set<Video>) {
     val totalSize = videos.sumOf { it.size }
     
-    InfoSection(title = "General") {
-        InfoRow(label = "Selected", value = "${videos.size} videos")
-        InfoRow(label = "Total Size", value = formatSize(totalSize))
+    InfoSection(title = stringResource(R.string.info_general)) {
+        InfoRow(label = stringResource(R.string.info_selected), value = stringResource(R.string.folder_videos_count, videos.size))
+        InfoRow(label = stringResource(R.string.folder_info_total_size), value = formatSize(totalSize))
     }
 }
 
@@ -96,33 +98,33 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
     val video = metadata.video
 
     // Section 1: About File
-    InfoSection(title = "About File") {
-        InfoRow(label = "Name", value = video.title)
-        InfoRow(label = "Location", value = video.uri)
-        InfoRow(label = "Size", value = formatSize(video.size))
-        InfoRow(label = "Date", value = formatDate(video.dateAdded))
+    InfoSection(title = stringResource(R.string.info_about_file)) {
+        InfoRow(label = stringResource(R.string.info_file_name), value = video.title)
+        InfoRow(label = stringResource(R.string.folder_info_location), value = video.uri)
+        InfoRow(label = stringResource(R.string.info_file_size), value = formatSize(video.size))
+        InfoRow(label = stringResource(R.string.info_file_date), value = formatDate(video.dateAdded))
     }
 
     // Section 2: Media
-    InfoSection(title = "Media") {
-        InfoRow(label = "Format", value = metadata.format)
-        InfoRow(label = "Resolution", value = metadata.resolution)
-        InfoRow(label = "Duration", value = formatDuration(video.duration))
-        metadata.encodingSW?.let { InfoRow(label = "Encoded by", value = it) }
+    InfoSection(title = stringResource(R.string.info_media)) {
+        InfoRow(label = stringResource(R.string.info_media_format), value = metadata.format)
+        InfoRow(label = stringResource(R.string.info_media_resolution), value = metadata.resolution)
+        InfoRow(label = stringResource(R.string.info_media_duration), value = formatDuration(video.duration))
+        metadata.encodingSW?.let { InfoRow(label = stringResource(R.string.info_media_encoded_by), value = it) }
     }
 
     // Section 3: Playback History
-    InfoSection(title = "Playback History") {
+    InfoSection(title = stringResource(R.string.info_playback_history)) {
         val history = metadata.history
         val playbackState = when {
-            history == null -> "Not Played"
-            history.lastPositionMs >= history.duration - 5000 -> "Finished"
-            else -> "Not Finished"
+            history == null -> stringResource(R.string.info_playback_not_played)
+            history.lastPositionMs >= history.duration - 5000 -> stringResource(R.string.info_playback_finished)
+            else -> stringResource(R.string.info_playback_not_finished)
         }
-        InfoRow(label = "State", value = playbackState)
+        InfoRow(label = stringResource(R.string.info_playback_state), value = playbackState)
         if (history != null) {
-            InfoRow(label = "Last Played", value = formatDate(history.lastPlayedAt))
-            InfoRow(label = "Position", value = formatDuration(history.lastPositionMs))
+            InfoRow(label = stringResource(R.string.info_playback_last_played), value = formatDate(history.lastPlayedAt))
+            InfoRow(label = stringResource(R.string.info_playback_position), value = formatDuration(history.lastPositionMs))
         }
     }
 
@@ -134,11 +136,13 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
 
     if (videoTracks.isNotEmpty()) {
         videoTracks.forEachIndexed { index, track ->
-            InfoSection(title = "Video Track ${index + 1}") {
-                InfoRow(label = "Codec", value = track.codec ?: "Unknown")
-                track.language?.let { InfoRow(label = "Language", value = it) }
+            InfoSection(title = stringResource(R.string.info_track_video, index + 1)) {
+                InfoRow(label = stringResource(R.string.info_track_codec), value = track.codec ?: stringResource(R.string.unknown))
+                track.language?.let { InfoRow(label = stringResource(R.string.info_track_language), value = it) }
                 track.extra.forEach { (key, value) ->
-                    InfoRow(label = key, value = value)
+                    if (key != "Resolution") {
+                        InfoRow(label = localizeMetadataKey(key), value = localizeMetadataValue(key, value))
+                    }
                 }
             }
         }
@@ -146,13 +150,11 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
 
     if (audioTracks.isNotEmpty()) {
         audioTracks.forEachIndexed { index, track ->
-            InfoSection(title = "Audio Track ${index + 1}") {
-                InfoRow(label = "Codec", value = track.codec ?: "Unknown")
-                track.language?.let { InfoRow(label = "Language", value = it) }
+            InfoSection(title = stringResource(R.string.info_track_audio, index + 1)) {
+                InfoRow(label = stringResource(R.string.info_track_codec), value = track.codec ?: stringResource(R.string.unknown))
+                track.language?.let { InfoRow(label = stringResource(R.string.info_track_language), value = it) }
                 track.extra.forEach { (key, value) ->
-                    if (key != "Resolution") { // Clean up potential mis-categorization
-                        InfoRow(label = key, value = value)
-                    }
+                    InfoRow(label = localizeMetadataKey(key), value = localizeMetadataValue(key, value))
                 }
             }
         }
@@ -160,11 +162,11 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
 
     if (subtitleTracks.isNotEmpty()) {
         subtitleTracks.forEachIndexed { index, track ->
-            InfoSection(title = "Subtitle Track ${index + 1}") {
-                InfoRow(label = "Format", value = track.codec ?: "Unknown")
-                track.language?.let { InfoRow(label = "Language", value = it) }
+            InfoSection(title = stringResource(R.string.info_track_subtitle, index + 1)) {
+                InfoRow(label = stringResource(R.string.info_media_format), value = track.codec ?: stringResource(R.string.unknown))
+                track.language?.let { InfoRow(label = stringResource(R.string.info_track_language), value = it) }
                 track.extra.forEach { (key, value) ->
-                    InfoRow(label = key, value = value)
+                    InfoRow(label = localizeMetadataKey(key), value = localizeMetadataValue(key, value))
                 }
             }
         }
@@ -172,14 +174,41 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
 
     if (otherTracks.isNotEmpty()) {
         otherTracks.forEachIndexed { index, track ->
-            InfoSection(title = "Other Track ${index + 1}") {
-                InfoRow(label = "Type", value = track.codec ?: "Unknown")
-                track.language?.let { InfoRow(label = "Language", value = it) }
+            InfoSection(title = stringResource(R.string.info_track_other, index + 1)) {
+                InfoRow(label = stringResource(R.string.info_track_type), value = track.codec ?: stringResource(R.string.unknown))
+                track.language?.let { InfoRow(label = stringResource(R.string.info_track_language), value = it) }
                 track.extra.forEach { (key, value) ->
-                    InfoRow(label = key, value = value)
+                    InfoRow(label = localizeMetadataKey(key), value = localizeMetadataValue(key, value))
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun localizeMetadataKey(key: String): String {
+    return when (key) {
+        "Title" -> stringResource(R.string.info_label_title)
+        "Resolution" -> stringResource(R.string.info_label_resolution)
+        "Frame Rate" -> stringResource(R.string.info_label_frame_rate)
+        "Sample Rate" -> stringResource(R.string.info_label_sample_rate)
+        "Channels" -> stringResource(R.string.info_label_channels)
+        "Bitrate" -> stringResource(R.string.info_label_bitrate)
+        "Type" -> stringResource(R.string.info_label_type)
+        "MIME" -> stringResource(R.string.info_label_mime)
+        "Source" -> stringResource(R.string.info_label_source)
+        "External" -> stringResource(R.string.info_label_external)
+        else -> key
+    }
+}
+
+@Composable
+private fun localizeMetadataValue(key: String, value: String): String {
+    return when {
+        key == "Type" && value == "Forced" -> stringResource(R.string.info_value_forced)
+        value == "External" -> stringResource(R.string.info_label_external)
+        value == "External File" -> stringResource(R.string.info_value_external_file)
+        else -> value
     }
 }
 

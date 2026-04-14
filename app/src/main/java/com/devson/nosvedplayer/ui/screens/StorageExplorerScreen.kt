@@ -22,7 +22,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.devson.nosvedplayer.R
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.ui.components.CustomRenameDialog
@@ -86,7 +88,8 @@ fun StorageExplorerScreen(
     if (!hasManageStoragePermission) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                Text("Storage management permission is required to $operationType items.", style = MaterialTheme.typography.bodyLarge)
+                val opName = if (operationType == "MOVE") stringResource(R.string.storage_move) else stringResource(R.string.storage_copy)
+                Text(stringResource(R.string.storage_permission_required, opName), style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -103,11 +106,11 @@ fun StorageExplorerScreen(
                         permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     }
                 }) {
-                    Text("Grant Permission")
+                    Text(stringResource(R.string.storage_grant_permission))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onCancel) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.history_cancel_button))
                 }
             }
         }
@@ -144,10 +147,10 @@ fun StorageExplorerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(currentDirectory.name.ifEmpty { "Internal Storage" }) },
+                title = { Text(currentDirectory.name.ifEmpty { stringResource(R.string.storage_internal_storage) }) },
                 actions = {
                     IconButton(onClick = { showCreateFolderDialog = true }) {
-                        Icon(Icons.Filled.CreateNewFolder, contentDescription = "Create New Folder")
+                        Icon(Icons.Filled.CreateNewFolder, contentDescription = stringResource(R.string.cd_create_new_folder))
                     }
                 }
             )
@@ -159,10 +162,11 @@ fun StorageExplorerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("${if (operationType == "MOVE") "Moving" else "Copying"} ${sourceUris.size} items")
+                    val opStatus = if (operationType == "MOVE") stringResource(R.string.storage_moving) else stringResource(R.string.storage_copying)
+                    Text("$opStatus ${stringResource(R.string.storage_items_count, sourceUris.size)}")
                     Row {
                         TextButton(onClick = onCancel, enabled = !operationInProgress) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.history_cancel_button))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -175,7 +179,7 @@ fun StorageExplorerScreen(
                             },
                             enabled = !operationInProgress
                         ) {
-                            Text("Paste Here")
+                            Text(stringResource(R.string.storage_paste_here))
                         }
                     }
                 }
@@ -199,7 +203,7 @@ fun StorageExplorerScreen(
                     currentPath += "/$segment"
                     val pathSnapshot = currentPath
                     
-                    val displayName = if (index == 0 && segment == Environment.getExternalStorageDirectory().name) "Internal Storage" else segment
+                    val displayName = if (index == 0 && segment == Environment.getExternalStorageDirectory().name) stringResource(R.string.storage_internal_storage) else segment
                     
                     Text(
                         text = displayName,
@@ -232,7 +236,7 @@ fun StorageExplorerScreen(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Folder, contentDescription = "Folder", tint = MaterialTheme.colorScheme.secondary)
+                        Icon(Icons.Filled.Folder, contentDescription = stringResource(R.string.cd_folder), tint = MaterialTheme.colorScheme.secondary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(folder.name, style = MaterialTheme.typography.bodyLarge)
                     }
@@ -240,7 +244,7 @@ fun StorageExplorerScreen(
                 if (folders.isEmpty()) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            Text("Empty Folder", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.storage_empty_folder), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -250,8 +254,8 @@ fun StorageExplorerScreen(
 
     if (showCreateFolderDialog) {
         CustomRenameDialog(
-            initialName = "New Folder",
-            title = "New Folder",
+            initialName = stringResource(R.string.storage_new_folder),
+            title = stringResource(R.string.storage_new_folder),
             onConfirm = { name ->
                 val newFolder = File(currentDirectory, name)
                 if (!newFolder.exists()) {

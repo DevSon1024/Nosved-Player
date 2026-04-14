@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.model.TrackInfo
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.foundation.Canvas
+import com.devson.nosvedplayer.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,7 +133,7 @@ fun YoutubeStylePlayerControls(
                             ) {
                                 Icon(
                                     Icons.Filled.Lock,
-                                    contentDescription = "Unlock",
+                                    contentDescription = stringResource(R.string.cd_unlock),
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -280,7 +282,7 @@ private fun YtControlsLayout(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back), tint = Color.White)
                 }
                 IconButton(
                     onClick = onToggleLock,
@@ -289,7 +291,7 @@ private fun YtControlsLayout(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LockOpen,
-                        contentDescription = "Lock screen",
+                        contentDescription = stringResource(R.string.cd_lock_screen),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -307,17 +309,17 @@ private fun YtControlsLayout(
             }
             if (onPipToggle != null) {
                 IconButton(onClick = onPipToggle) {
-                    Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "PIP", tint = Color.White)
+                    Icon(Icons.Filled.PictureInPictureAlt, contentDescription = stringResource(R.string.cd_pip), tint = Color.White)
                 }
             }
             IconButton(onClick = onSubtitleClick) {
-                Icon(Icons.Filled.ClosedCaption, contentDescription = "CC / Subtitles", tint = Color.White)
+                Icon(Icons.Filled.ClosedCaption, contentDescription = stringResource(R.string.cd_cc_subtitles), tint = Color.White)
             }
             IconButton(onClick = onAudioTrackClick) {
-                Icon(Icons.Filled.Audiotrack, contentDescription = "Audio Track", tint = Color.White)
+                Icon(Icons.Filled.Audiotrack, contentDescription = stringResource(R.string.cd_audio_track), tint = Color.White)
             }
             IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
+                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings), tint = Color.White)
             }
         }
 
@@ -333,7 +335,7 @@ private fun YtControlsLayout(
             ) {
                 Icon(
                     Icons.Filled.SkipPrevious,
-                    contentDescription = "Previous",
+                    contentDescription = stringResource(R.string.cd_previous),
                     tint = if (hasPrevious) Color.White else Color.White.copy(0.35f),
                     modifier = Modifier.size(36.dp)
                 )
@@ -346,7 +348,7 @@ private fun YtControlsLayout(
                 ) {
                     Icon(
                         getRewindIcon(seekDurationSeconds),
-                        contentDescription = "Rewind",
+                        contentDescription = stringResource(R.string.cd_rewind),
                         tint = Color.White,
                         modifier = Modifier.size(36.dp)
                     )
@@ -363,7 +365,7 @@ private fun YtControlsLayout(
                 IconButton(onClick = onPlayPauseToggle, modifier = Modifier.size(64.dp)) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
                         tint = Color.White,
                         modifier = Modifier.size(44.dp)
                     )
@@ -377,7 +379,7 @@ private fun YtControlsLayout(
                 ) {
                     Icon(
                         getForwardIcon(seekDurationSeconds),
-                        contentDescription = "Fast Forward",
+                        contentDescription = stringResource(R.string.cd_fast_forward),
                         tint = Color.White,
                         modifier = Modifier.size(36.dp)
                     )
@@ -391,7 +393,7 @@ private fun YtControlsLayout(
             ) {
                 Icon(
                     Icons.Filled.SkipNext,
-                    contentDescription = "Next",
+                    contentDescription = stringResource(R.string.cd_next),
                     tint = if (hasNext) Color.White else Color.White.copy(0.35f),
                     modifier = Modifier.size(36.dp)
                 )
@@ -436,7 +438,7 @@ private fun YtControlsLayout(
                 }
                 if (onToggleResizeMode != null) {
                     IconButton(onClick = onToggleResizeMode, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Filled.Crop, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Crop, contentDescription = stringResource(R.string.cd_resize), tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -473,7 +475,7 @@ private fun YtControlsLayout(
             ) {
                 Icon(
                     imageVector = if (showPlaylistPanel) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
-                    contentDescription = if (showPlaylistPanel) "Close playlist" else "Up Next",
+                    contentDescription = if (showPlaylistPanel) stringResource(R.string.cd_close_playlist) else stringResource(R.string.up_next_label),
                     tint = Color.White.copy(alpha = 0.75f),
                     modifier = Modifier.size(18.dp)
                 )
@@ -634,7 +636,7 @@ private fun UpNextPanel(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Filled.KeyboardArrowDown,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.appearance_close),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -689,7 +691,7 @@ private fun VideoCarouselItem(
                     .build(),
                 placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
                 error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
-                contentDescription = "Video Thumbnail",
+                contentDescription = stringResource(R.string.cd_video_thumbnail),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
