@@ -10,6 +10,9 @@ import com.devson.nosvedplayer.model.SortField
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.VideoFolder
 import com.devson.nosvedplayer.model.ViewSettings
+import com.devson.nosvedplayer.R
+import androidx.compose.ui.res.stringResource
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -38,7 +41,6 @@ import java.util.TimeZone
 import kotlin.math.log10
 import kotlin.math.pow
 
-
 fun formatSize(sizeBytes: Long): String {
     if (sizeBytes <= 0) return "0 B"
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
@@ -46,47 +48,53 @@ fun formatSize(sizeBytes: Long): String {
     return String.format(Locale.getDefault(), "%.1f %s", sizeBytes / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
 }
 
+fun formatDuration(durationMs: Long): String {
+    val totalSeconds = durationMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+
+    return if (hours > 0) {
+        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+    }
+}
+
+@Composable
+fun formatSortField(field: SortField): String {
+    return stringResource(getSortFieldStringRes(field))
+}
+
 fun formatDate(epochMs: Long): String {
     val df = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     return df.format(Date(epochMs))
 }
 
-fun formatDuration(durationMs: Long): String {
-    val df = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    df.timeZone = TimeZone.getTimeZone("UTC")
-    return if (durationMs >= 3600000) {
-        df.format(Date(durationMs))
-    } else {
-        val dfShort = SimpleDateFormat("mm:ss", Locale.getDefault())
-        dfShort.timeZone = TimeZone.getTimeZone("UTC")
-        dfShort.format(Date(durationMs))
-    }
-}
-
-fun formatSortField(field: SortField): String {
+fun getSortFieldStringRes(field: SortField): Int {
     return when (field) {
-        SortField.TITLE -> "Title"
-        SortField.DATE -> "Date Added"
-        SortField.PLAYED_TIME -> "Played Time"
-        SortField.STATUS -> "Status"
-        SortField.LENGTH -> "Length"
-        SortField.SIZE -> "Size"
-        SortField.RESOLUTION -> "Resolution"
-        SortField.PATH -> "Path"
-        SortField.FRAME_RATE -> "Frame Rate"
-        SortField.TYPE -> "Type"
+        SortField.TITLE -> R.string.sort_field_title
+        SortField.DATE -> R.string.sort_field_date
+        SortField.PLAYED_TIME -> R.string.sort_field_played_time
+        SortField.STATUS -> R.string.sort_field_status
+        SortField.LENGTH -> R.string.sort_field_length
+        SortField.SIZE -> R.string.sort_field_size
+        SortField.RESOLUTION -> R.string.info_label_resolution
+        SortField.PATH -> R.string.sort_field_path
+        SortField.FRAME_RATE -> R.string.info_label_frame_rate
+        SortField.TYPE -> R.string.info_label_type
     }
 }
 
-fun formatRelativeTime(epochMs: Long): String {
+fun formatRelativeTime(context: Context, epochMs: Long): String {
     val diff = System.currentTimeMillis() - epochMs
     return when {
-        diff < 60_000L                  -> "Played Just Now"
-        diff < 3_600_000L               -> "Played ${diff / 60_000}m Ago"
-        diff < 86_400_000L              -> "Played ${diff / 3_600_000}h Ago"
-        diff < 2_592_000_000L           -> "Played ${diff / 86_400_000} Days Ago"
-        diff < 31_536_000_000L          -> "Played ${diff / 2_592_000_000} Months Ago"
-        else                            -> "Played ${diff / 31_536_000_000} Years Ago"
+        diff < 60_000L                  -> context.getString(R.string.relative_time_just_now)
+        diff < 3_600_000L               -> context.getString(R.string.relative_time_m_ago, (diff / 60_000).toInt())
+        diff < 86_400_000L              -> context.getString(R.string.relative_time_h_ago, (diff / 3_600_000).toInt())
+        diff < 2_592_000_000L           -> context.getString(R.string.relative_time_days_ago, (diff / 86_400_000).toInt())
+        diff < 31_536_000_000L          -> context.getString(R.string.relative_time_months_ago, (diff / 2_592_000_000).toInt())
+        else                            -> context.getString(R.string.relative_time_years_ago, (diff / 31_536_000_000).toInt())
     }
 }
 
@@ -167,29 +175,29 @@ fun SelectionBottomAppBar(
                     }
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Play All")
-                Text("Play All", fontSize = 10.sp)
+                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.action_play_all))
+                Text(stringResource(R.string.action_play_all), fontSize = 10.sp)
             }
 
             // Move
-            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)
+            ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = stringResource(R.string.action_move), onClick = onMove)
             // Copy
-            ActionColumn(icon = Icons.Filled.ContentCopy, label = "Copy", onClick = onCopy)
+            ActionColumn(icon = Icons.Filled.ContentCopy, label = stringResource(R.string.action_copy), onClick = onCopy)
             // Delete
-            ActionColumn(icon = Icons.Filled.Delete, label = "Delete", onClick = onDelete)
+            ActionColumn(icon = Icons.Filled.Delete, label = stringResource(R.string.action_delete), onClick = onDelete)
 
             // Rename
             if (selectedFolders.size == 1) {
-                ActionColumn(icon = Icons.Filled.DriveFileRenameOutline, label = "Rename", onClick = onRename)
+                ActionColumn(icon = Icons.Filled.DriveFileRenameOutline, label = stringResource(R.string.action_rename), onClick = onRename)
             }
 
             // Share
-            ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
+            ActionColumn(icon = Icons.Filled.Share, label = stringResource(R.string.action_share), onClick = onShare)
 
             // Info
-            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
+            ActionColumn(icon = Icons.Filled.Info, label = stringResource(R.string.action_info).substringBefore(" "), onClick = onShowInfo)
 
-            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
+            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = stringResource(R.string.action_tag), onClick = { showTagDialog = true })
         }
     }
 }
@@ -203,10 +211,14 @@ fun TagStatusDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Update Status") },
+        title = { Text(stringResource(R.string.dialog_update_status)) },
         text = {
             Column {
-                listOf("NEW" to "Mark as New", "RUNNING" to "Mark as Running", "ENDED" to "Mark as Ended").forEach { (status, label) ->
+                listOf(
+                    "NEW" to stringResource(R.string.dialog_mark_as_new),
+                    "RUNNING" to stringResource(R.string.dialog_mark_as_running),
+                    "ENDED" to stringResource(R.string.dialog_mark_as_ended)
+                ).forEach { (status, label) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -226,12 +238,12 @@ fun TagStatusDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(selectedStatus) }) {
-                Text("Confirm")
+                Text(stringResource(R.string.dialog_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.dialog_cancel))
             }
         }
     )

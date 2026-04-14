@@ -1365,7 +1365,7 @@ fun VideoMetadataChips(
         if (settings.showLength && !settings.displayLengthOverThumbnail)
             add(MetaToken(formatDuration(video.duration), isPrimary = true))
         if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
-            add(MetaToken(formatRelativeTime(video.lastPlayedAt)))
+            add(MetaToken(formatRelativeTime(LocalContext.current, video.lastPlayedAt)))
         if (settings.showResolution && !video.resolution.isNullOrEmpty())
             add(MetaToken(formatResolutionCompact(video.resolution) ?: video.resolution))
         if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f)
