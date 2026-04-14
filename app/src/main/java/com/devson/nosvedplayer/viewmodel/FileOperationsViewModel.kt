@@ -136,7 +136,11 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                         }
                     }
                 }
-                _operationResult.value = "Successfully deleted $deletedCount videos."
+                _operationResult.value = if (action.trash) {
+                    "Thrown $deletedCount video(s) to Recycle Bin"
+                } else {
+                    "Successfully deleted $deletedCount videos."
+                }
                 _needsRefresh.value = true
             } catch (e: Exception) {
                 _operationResult.value = "Delete failed: ${e.localizedMessage}"
