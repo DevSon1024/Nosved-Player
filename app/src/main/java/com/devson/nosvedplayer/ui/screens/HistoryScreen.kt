@@ -9,9 +9,9 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.devson.nosvedplayer.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.ViewSettings
@@ -31,16 +31,16 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Watch History", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (history.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
-                            Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear History",
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = stringResource(R.string.history_clear_all),
                                 tint = MaterialTheme.colorScheme.error)
                         }
                     }
@@ -50,7 +50,7 @@ fun HistoryScreen(
     ) { padding ->
         if (history.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No watch history yet.", style = MaterialTheme.typography.bodyLarge,
+                Text(stringResource(R.string.history_no_history), style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
@@ -82,16 +82,16 @@ fun HistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear History") },
-            text = { Text("Remove all watch history? This cannot be undone.") },
+            title = { Text(stringResource(R.string.history_clear_confirm_title)) },
+            text = { Text(stringResource(R.string.history_clear_confirm_desc)) },
             confirmButton = {
                 TextButton(onClick = {
                     homeViewModel.clearAllHistory()
                     showClearDialog = false
-                }) { Text("Clear", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.history_clear_button), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showClearDialog = false }) { Text(stringResource(R.string.history_cancel_button)) }
             }
         )
     }

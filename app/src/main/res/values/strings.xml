@@ -108,4 +108,30 @@
     <!-- App Shortcuts -->
     <string name="shortcut_short_label">Video Player</string>
     <string name="shortcut_long_label">Nosved Video Player Anime</string>
+    <!-- Home Screen -->
+    <string name="home_video_library">Your Video Library</string>
+    <string name="home_video_library_desc">Explore all your local videos and folders in one place.</string>
+    <string name="home_browse_now">Browse Now</string>
+    <string name="home_continue_watching">Continue Watching</string>
+    <string name="home_show_all">Show all</string>
+    <string name="home_recently_added">Recently Added</string>
+    <string name="home_no_recent_videos">No recent videos</string>
+    <string name="home_start_exploring">Tap here to start exploring</string>
+    <string name="home_at_position">At %1$s</string>
+    
+    <!-- History Screen -->
+    <string name="history_title">Watch History</string>
+    <string name="history_clear_all">Clear History</string>
+    <string name="history_no_history">No watch history yet.</string>
+    <string name="history_clear_confirm_title">Clear History</string>
+    <string name="history_clear_confirm_desc">Remove all watch history? This cannot be undone.</string>
+    <string name="history_clear_button">Clear</string>
+    <string name="history_cancel_button">Cancel</string>
+
+    <!-- Content Descriptions -->
+    <string name="cd_settings">Settings</string>
+    <string name="cd_browse_videos">Browse Videos</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_delete">Delete</string>
+    <string name="cd_video_thumbnail">Video Thumbnail</string>
 </resources>

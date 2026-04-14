@@ -106,4 +106,30 @@
     <string name="folder_info_location">स्थान</string>
     <string name="folder_info_multiple_locations">एकाधिक ठिकाणे</string>
     <string name="folder_info_creation_date">निर्मिती तारीख</string>
+    <!-- Home Screen -->
+    <string name="home_video_library">तुमची व्हिडिओ लायब्ररी</string>
+    <string name="home_video_library_desc">तुमचे सर्व स्थानिक व्हिडिओ आणि फोल्डर्स एकाच ठिकाणी पहा.</string>
+    <string name="home_browse_now">आत्ताच पहा</string>
+    <string name="home_continue_watching">पाहत राहा</string>
+    <string name="home_show_all">सर्व पहा</string>
+    <string name="home_recently_added">अलीकडे जोडलेले</string>
+    <string name="home_no_recent_videos">कोणतेही अलीकडील व्हिडिओ नाहीत</string>
+    <string name="home_start_exploring">एक्सप्लोर करणे सुरू करण्यासाठी येथे टॅप करा</string>
+    <string name="home_at_position">%1$s वर</string>
+    
+    <!-- History Screen -->
+    <string name="history_title">पाहण्याचा इतिहास</string>
+    <string name="history_clear_all">इतिहास साफ करा</string>
+    <string name="history_no_history">अद्याप कोणताही पाहण्याचा इतिहास नाही.</string>
+    <string name="history_clear_confirm_title">इतिहास साफ करा</string>
+    <string name="history_clear_confirm_desc">सर्व पाहण्याचा इतिहास काढून टाकायचा? हे परत करता येणार नाही.</string>
+    <string name="history_clear_button">साफ करा</string>
+    <string name="history_cancel_button">रद्द करा</string>
+
+    <!-- Content Descriptions -->
+    <string name="cd_settings">सेटिंग्ज</string>
+    <string name="cd_browse_videos">व्हिडिओ पहा</string>
+    <string name="cd_play">प्ले करा</string>
+    <string name="cd_delete">हटवा</string>
+    <string name="cd_video_thumbnail">व्हिडिओ थंबनेल</string>
 </resources>
