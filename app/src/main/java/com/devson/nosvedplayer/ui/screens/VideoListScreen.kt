@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.devson.nosvedplayer.ui.components.SearchSuggestionsPopup
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -1602,105 +1603,83 @@ private fun VideoListTopAppBar(
             }
         )
     } else {
-        Box {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
-                ),
-                title = {
-                    if (searchActive) {
-                        OutlinedTextField(
-                            value = searchText,
-                            onValueChange = onSearchTextChange,
-                            placeholder = { Text("Search videos...") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                imeAction = ImeAction.Search
-                            ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                onSearch = {
-                                    keyboard?.hide()
-                                    if (searchText.isNotBlank()) {
-                                        onSearchActiveChange(false)
-                                        onSearch(searchText)
-                                    }
+        TopAppBar(
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background,
+                scrolledContainerColor = MaterialTheme.colorScheme.background
+            ),
+            title = {
+                if (searchActive) {
+                    OutlinedTextField(
+                        value = searchText,
+                        onValueChange = onSearchTextChange,
+                        placeholder = { Text("Search videos...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = ImeAction.Search
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSearch = {
+                                keyboard?.hide()
+                                if (searchText.isNotBlank()) {
+                                    onSearchActiveChange(false)
+                                    onSearch(searchText)
                                 }
-                            ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = Color.Transparent
-                            )
+                            }
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent
                         )
-                    } else {
-                        Text(
-                            titleText ?: "Nosved Player",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    )
+                } else {
+                    Text(
+                        titleText ?: "Nosved Player",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            },
+            navigationIcon = {
+                if (showBackButton) {
+                    IconButton(onClick = onBackToFolders) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                },
-                navigationIcon = {
-                    if (showBackButton) {
-                        IconButton(onClick = onBackToFolders) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    } else {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
-                        }
-                    }
-                },
-                actions = {
-                    if (searchActive) {
-                        IconButton(onClick = { onSearchActiveChange(false) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close Search")
-                        }
-                    } else {
-                        IconButton(onClick = { onSearchActiveChange(true) }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Search")
-                        }
-                        IconButton(onClick = onShowSettings) {
-                            Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
-                        }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
-                        }
+                } else {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
                     }
                 }
-            )
-            if (searchActive && searchSuggestions.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .align(Alignment.BottomStart)
-                        .zIndex(10f),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                ) {
-                    LazyColumn {
-                        items(searchSuggestions) { video ->
-                            ListItem(
-                                headlineContent = {
-                                    Text(video.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                },
-                                leadingContent = {
-                                    Icon(Icons.Filled.Search, contentDescription = null)
-                                },
-                                modifier = Modifier.clickable {
-                                    keyboard?.hide()
-                                    onSearchActiveChange(false)
-                                    onSearch(video.title)
-                                }
-                            )
-                            HorizontalDivider()
-                        }
+            },
+            actions = {
+                if (searchActive) {
+                    IconButton(onClick = { onSearchActiveChange(false) }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close Search")
+                    }
+                } else {
+                    IconButton(onClick = { onSearchActiveChange(true) }) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search")
+                    }
+                    IconButton(onClick = onShowSettings) {
+                        Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
                     }
                 }
             }
+        )
+        if (searchActive && searchSuggestions.isNotEmpty()) {
+            SearchSuggestionsPopup(
+                suggestions = searchSuggestions,
+                keyboard = keyboard,
+                onSuggestionClick = { title ->
+                    onSearchActiveChange(false)
+                    onSearch(title)
+                }
+            )
         }
     }
 }

@@ -244,7 +244,7 @@ fun ViewSettingsBottomSheet(
 //  HELPER COMPONENTS 
 
 @Composable
-private fun SettingsSectionLabel(text: String) {
+fun SettingsSectionLabel(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.labelMedium,
@@ -254,7 +254,7 @@ private fun SettingsSectionLabel(text: String) {
 }
 
 @Composable
-private fun IconToggleButton(
+fun IconToggleButton(
     label: String,
     selected: Boolean,
     selectedIcon: ImageVector,

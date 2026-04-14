@@ -47,7 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import com.devson.nosvedplayer.ui.components.SearchSuggestionsPopup
 import com.devson.nosvedplayer.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -87,103 +87,83 @@ fun HomeScreen(
     val history by homeViewModel.history.collectAsState()
     val latestVideos by homeViewModel.latestVideos.collectAsState()
 
+    LaunchedEffect(Unit) { videoListViewModel.loadVideos() }
+
     Scaffold(
         topBar = {
-            Box {
-                TopAppBar(
-                    title = {
-                        if (searchActive) {
-                            OutlinedTextField(
-                                value = searchText,
-                                onValueChange = { searchText = it; videoListViewModel.onSearchQueryChanged(it) },
-                                placeholder = { Text("Search videos...") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                    imeAction = ImeAction.Search
-                                ),
-                                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                    onSearch = {
-                                        keyboard?.hide()
-                                        if (searchText.isNotBlank()) {
-                                            videoListViewModel.clearSearch()
-                                            searchActive = false
-                                            onNavigateToSearch(searchText)
-                                            searchText = ""
-                                        }
-                                    }
-                                ),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedBorderColor = Color.Transparent,
-                                    focusedBorderColor = Color.Transparent
-                                )
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.app_name),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    },
-                    actions = {
-                        if (searchActive) {
-                            IconButton(onClick = {
-                                searchActive = false
-                                searchText = ""
-                                videoListViewModel.clearSearch()
-                            }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Close Search")
-                            }
-                        } else {
-                            IconButton(onClick = { searchActive = true }) {
-                                Icon(Icons.Filled.Search, contentDescription = "Search")
-                            }
-                            IconButton(onClick = onNavigateToSettings) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = stringResource(R.string.cd_settings)
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        scrolledContainerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-                if (searchActive && searchSuggestions.isNotEmpty()) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                            .align(Alignment.BottomStart)
-                            .zIndex(10f),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                    ) {
-                        LazyColumn {
-                            items(searchSuggestions) { video ->
-                                ListItem(
-                                    headlineContent = {
-                                        Text(video.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    },
-                                    leadingContent = {
-                                        Icon(Icons.Filled.Search, contentDescription = null)
-                                    },
-                                    modifier = Modifier.clickable {
-                                        keyboard?.hide()
+            TopAppBar(
+                title = {
+                    if (searchActive) {
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = { searchText = it; videoListViewModel.onSearchQueryChanged(it) },
+                            placeholder = { Text("Search videos...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = {
+                                    keyboard?.hide()
+                                    if (searchText.isNotBlank()) {
                                         videoListViewModel.clearSearch()
                                         searchActive = false
-                                        onNavigateToSearch(video.title)
+                                        onNavigateToSearch(searchText)
                                         searchText = ""
                                     }
-                                )
-                                HorizontalDivider()
-                            }
+                                }
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                actions = {
+                    if (searchActive) {
+                        IconButton(onClick = {
+                            searchActive = false
+                            searchText = ""
+                            videoListViewModel.clearSearch()
+                        }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close Search")
+                        }
+                    } else {
+                        IconButton(onClick = { searchActive = true }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.cd_settings)
+                            )
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
+            )
+            if (searchActive && searchSuggestions.isNotEmpty()) {
+                SearchSuggestionsPopup(
+                    suggestions = searchSuggestions,
+                    keyboard = keyboard,
+                    onSuggestionClick = { title ->
+                        videoListViewModel.clearSearch()
+                        searchActive = false
+                        onNavigateToSearch(title)
+                        searchText = ""
+                    }
+                )
             }
         }
     ) { padding ->
