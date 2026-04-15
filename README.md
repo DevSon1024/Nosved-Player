@@ -51,7 +51,7 @@
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### 🎬 Dual Player UI
 
