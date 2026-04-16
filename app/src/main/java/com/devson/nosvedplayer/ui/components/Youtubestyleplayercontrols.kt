@@ -100,7 +100,9 @@ fun YoutubeStylePlayerControls(
     onOpenAudioTracks: () -> Unit = {},
     onOpenSubtitles: () -> Unit = {},
     isFastForwarding: Boolean = false,
-    showSeekButtons: Boolean = true
+    showSeekButtons: Boolean = true,
+    showScreenRotationButton: Boolean = true,
+    onToggleScreenRotation: (() -> Unit)? = null
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
@@ -138,6 +140,20 @@ fun YoutubeStylePlayerControls(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                            if (showScreenRotationButton && onToggleScreenRotation != null) {
+                                IconButton(
+                                    onClick = onToggleScreenRotation,
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(0.5f), RoundedCornerShape(8.dp))
+                                ) {
+                                    Icon(
+                                        Icons.Filled.ScreenRotation,
+                                        contentDescription = "Rotate Screen",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -170,6 +186,8 @@ fun YoutubeStylePlayerControls(
                     onSubtitleClick = onOpenSubtitles,
                     onAudioTrackClick = onOpenAudioTracks,
                     onTogglePlaylist = { showPlaylistPanel = !showPlaylistPanel },
+                    showScreenRotationButton = showScreenRotationButton,
+                    onToggleScreenRotation = onToggleScreenRotation,
                     onSeekStart = { pos ->
                         isSeeking = true
                         seekPreview = pos
@@ -254,7 +272,9 @@ private fun YtControlsLayout(
     onTogglePlaylist: () -> Unit,
     onSeekStart: (Long) -> Unit,
     onSeekChange: (Long) -> Unit,
-    onSeekEnd: () -> Unit
+    onSeekEnd: () -> Unit,
+    showScreenRotationButton: Boolean = true,
+    onToggleScreenRotation: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -296,6 +316,21 @@ private fun YtControlsLayout(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+                if (showScreenRotationButton && onToggleScreenRotation != null) {
+                    IconButton(
+                        onClick = onToggleScreenRotation,
+                        modifier = Modifier
+                            .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(
+                            Icons.Filled.ScreenRotation,
+                            contentDescription = "Rotate Screen",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp).padding(top = 12.dp)) {
                 Text(

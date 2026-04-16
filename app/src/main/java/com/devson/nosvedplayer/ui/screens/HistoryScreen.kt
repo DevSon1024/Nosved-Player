@@ -104,5 +104,6 @@ private fun WatchHistory.toVideo() = Video(
     title = title,
     duration = duration,
     size = size,
-    folderName = folderName
+    folderName = folderName,
+    path = path
 )

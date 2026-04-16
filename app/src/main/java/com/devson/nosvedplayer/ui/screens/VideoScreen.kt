@@ -11,6 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
@@ -32,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.ui.PlayerView
@@ -43,6 +47,7 @@ import com.devson.nosvedplayer.ui.components.AudioTrackSheet
 import com.devson.nosvedplayer.ui.components.SubtitleSheet
 import com.devson.nosvedplayer.ui.components.InformationBottomSheet
 import com.devson.nosvedplayer.ui.components.PlaybackSettingsSheet
+import com.devson.nosvedplayer.util.formatDuration
 import com.devson.nosvedplayer.viewmodel.VideoViewModel
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 
@@ -91,6 +96,17 @@ fun VideoScreen(
     val seekPreviewPosition by viewModel.seekPreviewPosition.collectAsState()
 
     val displayedPosition = if (isSeeking) seekPreviewPosition else currentPosition
+
+    val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+    val orientationMode = playbackSettings.orientationMode
+    val fullScreenMode = playbackSettings.fullScreenMode
+    val softButtonMode = playbackSettings.softButtonMode
+    val isCustomBrightnessEnabled = playbackSettings.isCustomBrightnessEnabled
+    val customBrightnessLevel = playbackSettings.customBrightnessLevel
+    val showElapsedTimeOverlay = playbackSettings.showElapsedTimeOverlay
+    val showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay
+    val showScreenRotationButton = playbackSettings.showScreenRotationButton
+    val pauseWhenObstructed = playbackSettings.pauseWhenObstructed
 
     //  Player style preference 
     // Reads the player UI style set in SettingsScreen (default = false = default style)
@@ -193,13 +209,78 @@ fun VideoScreen(
         }
     }
 
-    LaunchedEffect(isPortrait) {
+    LaunchedEffect(orientationMode, isPortrait) {
         activity ?: return@LaunchedEffect
-        val portrait = isPortrait ?: return@LaunchedEffect
-        activity.requestedOrientation = if (portrait)
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        else
-            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        when (orientationMode) {
+            com.devson.nosvedplayer.repository.OrientationMode.SYSTEM_DEFAULT,
+            com.devson.nosvedplayer.repository.OrientationMode.VIDEO_ORIENTATION -> {
+                val portrait = isPortrait ?: return@LaunchedEffect
+                activity.requestedOrientation = if (portrait)
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                else
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+            com.devson.nosvedplayer.repository.OrientationMode.LANDSCAPE -> {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+            com.devson.nosvedplayer.repository.OrientationMode.REVERSE_LANDSCAPE -> {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            }
+            com.devson.nosvedplayer.repository.OrientationMode.AUTO_ROTATION -> {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+            }
+        }
+    }
+
+    LaunchedEffect(isCustomBrightnessEnabled, customBrightnessLevel) {
+        if (isCustomBrightnessEnabled) {
+            val window = activity?.window
+            if (window != null) {
+                val lp = window.attributes
+                lp.screenBrightness = customBrightnessLevel
+                window.attributes = lp
+                brightnessLevel = customBrightnessLevel
+            }
+        }
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, pauseWhenObstructed) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (pauseWhenObstructed && event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+                if (player?.isPlaying == true) {
+                    player?.pause()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(fullScreenMode, softButtonMode) {
+        val window = activity?.window
+        if (window != null) {
+            androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (fullScreenMode == com.devson.nosvedplayer.repository.FullScreenMode.ON) {
+                    hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                } else if (fullScreenMode == com.devson.nosvedplayer.repository.FullScreenMode.OFF) {
+                    show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                } else {
+                    hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                }
+                
+                if (softButtonMode == com.devson.nosvedplayer.repository.SoftButtonMode.HIDE) {
+                    hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                } else if (softButtonMode == com.devson.nosvedplayer.repository.SoftButtonMode.SHOW) {
+                    show(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                } else {
+                    hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                }
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -217,7 +298,7 @@ fun VideoScreen(
                 androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController.isAppearanceLightStatusBars = false
             insetsController.isAppearanceLightNavigationBars = false
-            hideSystemUI(activity)
+            // hideSystemUI(activity) // Handled by LaunchedEffect now
         }
 
         onDispose {
@@ -358,8 +439,51 @@ fun VideoScreen(
             videoFps = videoFps,
             videoDecoderName = videoDecoderName,
             onDismiss = { viewModel.setShowStats(false) },
-            modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart)
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 16.dp, start = 16.dp)
         )
+
+        if (showElapsedTimeOverlay) {
+            Text(
+                text = formatDuration(displayedPosition),
+                color = Color.White,
+                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 4.dp)
+            )
+        }
+
+        if (showBatteryClockOverlay) {
+            val batteryManager = remember { context.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager }
+            val sdf = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+            var currentTime by remember { mutableStateOf(sdf.format(java.util.Date())) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1000)
+                    currentTime = sdf.format(java.util.Date())
+                }
+            }
+            
+            // Re-fetch battery percentage on re-compose (can also use a broadcast receiver for real updates)
+            var currentBattery by remember { mutableStateOf(batteryManager.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(60000)
+                    currentBattery = batteryManager.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                }
+            }
+
+            Text(
+                text = "$currentTime  $currentBattery%",
+                color = Color.White,
+                style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 8.dp)
+            )
+        }
 
         //  Player controls - switch between Default and YouTube style 
         val hasPrevious = currentPlaylist.isNotEmpty() && currentPlaylistIndex > 0
@@ -437,7 +561,17 @@ fun VideoScreen(
                 onOpenPlaybackSettings = { showPlaybackSettingsSheet = true },
                 onOpenAudioTracks = { showAudioSheet = true },
                 onOpenSubtitles = { showSubtitleSheet = true },
-                currentPlaybackSpeed = 1f   // Replace with viewModel.playbackSpeed if available
+                currentPlaybackSpeed = 1f,   // Replace with viewModel.playbackSpeed if available
+                showScreenRotationButton = showScreenRotationButton,
+                onToggleScreenRotation = {
+                    val currentMode = activity?.requestedOrientation
+                    if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                    viewModel.showControlsAndDelayHide()
+                }
             )
         } else {
             //  Default controls 
@@ -508,6 +642,16 @@ fun VideoScreen(
                         val pipParams = android.app.PictureInPictureParams.Builder().build()
                         activity?.enterPictureInPictureMode(pipParams)
                     }
+                },
+                showScreenRotationButton = showScreenRotationButton,
+                onToggleScreenRotation = {
+                    val currentMode = activity?.requestedOrientation
+                    if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                    viewModel.showControlsAndDelayHide()
                 }
             )
         }
