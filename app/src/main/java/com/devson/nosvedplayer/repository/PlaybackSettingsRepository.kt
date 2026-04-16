@@ -15,13 +15,26 @@ import kotlinx.coroutines.flow.map
 // Extension property to get DataStore instance via Context
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "playback_settings")
 
+enum class OrientationMode { VIDEO_ORIENTATION, LANDSCAPE, REVERSE_LANDSCAPE, AUTO_ROTATION, SYSTEM_DEFAULT }
+enum class FullScreenMode { ON, OFF, AUTO_SWITCH }
+enum class SoftButtonMode { SHOW, HIDE, AUTO_HIDE }
+
 data class PlaybackSettings(
     val seekDurationSeconds: Int,
     val seekBarStyle: String,
     val controlIconSize: String,
     val autoPlayEnabled: Boolean,
     val showSeekButtons: Boolean = true,
-    val fastplaySpeed: Float = 2.0f
+    val fastplaySpeed: Float = 2.0f,
+    val orientationMode: OrientationMode = OrientationMode.SYSTEM_DEFAULT,
+    val fullScreenMode: FullScreenMode = FullScreenMode.AUTO_SWITCH,
+    val softButtonMode: SoftButtonMode = SoftButtonMode.AUTO_HIDE,
+    val isCustomBrightnessEnabled: Boolean = false,
+    val customBrightnessLevel: Float = 0.5f,
+    val showElapsedTimeOverlay: Boolean = false,
+    val showBatteryClockOverlay: Boolean = false,
+    val showScreenRotationButton: Boolean = true,
+    val pauseWhenObstructed: Boolean = true
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -43,6 +56,15 @@ class PlaybackSettingsRepository(private val context: Context) {
         val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
         // Theme palette
         val SELECTED_PALETTE = stringPreferencesKey("selected_palette")
+        val ORIENTATION_MODE = stringPreferencesKey("orientation_mode")
+        val FULL_SCREEN_MODE = stringPreferencesKey("full_screen_mode")
+        val SOFT_BUTTON_MODE = stringPreferencesKey("soft_button_mode")
+        val IS_CUSTOM_BRIGHTNESS_ENABLED = booleanPreferencesKey("is_custom_brightness_enabled")
+        val CUSTOM_BRIGHTNESS_LEVEL = floatPreferencesKey("custom_brightness_level")
+        val SHOW_ELAPSED_TIME_OVERLAY = booleanPreferencesKey("show_elapsed_time_overlay")
+        val SHOW_BATTERY_CLOCK_OVERLAY = booleanPreferencesKey("show_battery_clock_overlay")
+        val SHOW_SCREEN_ROTATION_BUTTON = booleanPreferencesKey("show_screen_rotation_button")
+        val PAUSE_WHEN_OBSTRUCTED = booleanPreferencesKey("pause_when_obstructed")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -59,7 +81,16 @@ class PlaybackSettingsRepository(private val context: Context) {
                 controlIconSize = controlIconSize,
                 autoPlayEnabled = autoPlay,
                 showSeekButtons = showSeekButtons,
-                fastplaySpeed = fastplaySpeed
+                fastplaySpeed = fastplaySpeed,
+                orientationMode = try { OrientationMode.valueOf(preferences[PreferencesKeys.ORIENTATION_MODE] ?: OrientationMode.SYSTEM_DEFAULT.name) } catch (e: Exception) { OrientationMode.SYSTEM_DEFAULT },
+                fullScreenMode = try { FullScreenMode.valueOf(preferences[PreferencesKeys.FULL_SCREEN_MODE] ?: FullScreenMode.AUTO_SWITCH.name) } catch (e: Exception) { FullScreenMode.AUTO_SWITCH },
+                softButtonMode = try { SoftButtonMode.valueOf(preferences[PreferencesKeys.SOFT_BUTTON_MODE] ?: SoftButtonMode.AUTO_HIDE.name) } catch (e: Exception) { SoftButtonMode.AUTO_HIDE },
+                isCustomBrightnessEnabled = preferences[PreferencesKeys.IS_CUSTOM_BRIGHTNESS_ENABLED] ?: false,
+                customBrightnessLevel = preferences[PreferencesKeys.CUSTOM_BRIGHTNESS_LEVEL] ?: 0.5f,
+                showElapsedTimeOverlay = preferences[PreferencesKeys.SHOW_ELAPSED_TIME_OVERLAY] ?: false,
+                showBatteryClockOverlay = preferences[PreferencesKeys.SHOW_BATTERY_CLOCK_OVERLAY] ?: false,
+                showScreenRotationButton = preferences[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] ?: true,
+                pauseWhenObstructed = preferences[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] ?: true
             )
         }
 
@@ -181,5 +212,41 @@ class PlaybackSettingsRepository(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.FASTPLAY_SPEED] = speed
         }
+    }
+
+    suspend fun updateOrientationMode(mode: OrientationMode) {
+        context.dataStore.edit { it[PreferencesKeys.ORIENTATION_MODE] = mode.name }
+    }
+
+    suspend fun updateFullScreenMode(mode: FullScreenMode) {
+        context.dataStore.edit { it[PreferencesKeys.FULL_SCREEN_MODE] = mode.name }
+    }
+
+    suspend fun updateSoftButtonMode(mode: SoftButtonMode) {
+        context.dataStore.edit { it[PreferencesKeys.SOFT_BUTTON_MODE] = mode.name }
+    }
+
+    suspend fun updateIsCustomBrightnessEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.IS_CUSTOM_BRIGHTNESS_ENABLED] = enabled }
+    }
+
+    suspend fun updateCustomBrightnessLevel(level: Float) {
+        context.dataStore.edit { it[PreferencesKeys.CUSTOM_BRIGHTNESS_LEVEL] = level }
+    }
+
+    suspend fun updateShowElapsedTimeOverlay(show: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_ELAPSED_TIME_OVERLAY] = show }
+    }
+
+    suspend fun updateShowBatteryClockOverlay(show: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_BATTERY_CLOCK_OVERLAY] = show }
+    }
+
+    suspend fun updateShowScreenRotationButton(show: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] = show }
+    }
+
+    suspend fun updatePauseWhenObstructed(pause: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] = pause }
     }
 }
