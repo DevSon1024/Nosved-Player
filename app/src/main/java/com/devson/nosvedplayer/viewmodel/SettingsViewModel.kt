@@ -105,4 +105,62 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateScanFoldersList(folders: Set<String>) {
         viewModelScope.launch { viewSettingsRepo.updateScanFoldersList(folders) }
     }
+    val playbackSettings = settingsRepo.playbackSettingsFlow
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            com.devson.nosvedplayer.repository.PlaybackSettings(
+                seekDurationSeconds = 10,
+                seekBarStyle = "line",
+                controlIconSize = "medium",
+                autoPlayEnabled = false,
+                showSeekButtons = true,
+                fastplaySpeed = 2.0f,
+                orientationMode = com.devson.nosvedplayer.repository.OrientationMode.SYSTEM_DEFAULT,
+                fullScreenMode = com.devson.nosvedplayer.repository.FullScreenMode.AUTO_SWITCH,
+                softButtonMode = com.devson.nosvedplayer.repository.SoftButtonMode.AUTO_HIDE,
+                isCustomBrightnessEnabled = false,
+                customBrightnessLevel = 0.5f,
+                showElapsedTimeOverlay = false,
+                showBatteryClockOverlay = false,
+                showScreenRotationButton = true,
+                pauseWhenObstructed = true
+            )
+        )
+
+    fun updateOrientationMode(mode: com.devson.nosvedplayer.repository.OrientationMode) {
+        viewModelScope.launch { settingsRepo.updateOrientationMode(mode) }
+    }
+
+    fun updateFullScreenMode(mode: com.devson.nosvedplayer.repository.FullScreenMode) {
+        viewModelScope.launch { settingsRepo.updateFullScreenMode(mode) }
+    }
+
+    fun updateSoftButtonMode(mode: com.devson.nosvedplayer.repository.SoftButtonMode) {
+        viewModelScope.launch { settingsRepo.updateSoftButtonMode(mode) }
+    }
+
+    fun updateIsCustomBrightnessEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateIsCustomBrightnessEnabled(enabled) }
+    }
+
+    fun updateCustomBrightnessLevel(level: Float) {
+        viewModelScope.launch { settingsRepo.updateCustomBrightnessLevel(level) }
+    }
+
+    fun updateShowElapsedTimeOverlay(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowElapsedTimeOverlay(show) }
+    }
+
+    fun updateShowBatteryClockOverlay(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowBatteryClockOverlay(show) }
+    }
+
+    fun updateShowScreenRotationButton(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowScreenRotationButton(show) }
+    }
+
+    fun updatePauseWhenObstructed(pause: Boolean) {
+        viewModelScope.launch { settingsRepo.updatePauseWhenObstructed(pause) }
+    }
 }

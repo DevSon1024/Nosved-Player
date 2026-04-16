@@ -39,6 +39,7 @@ fun SettingsScreen(
     onNavigateToListOption: () -> Unit = {},
     onNavigateToScanFolders: () -> Unit = {},
     onNavigateToTool: () -> Unit = {},
+    onNavigateToPlayerInterface: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -139,10 +140,10 @@ fun SettingsScreen(
                     onClick  = onNavigateToScanFolders
                 )
                 SettingsRow(
-                    icon     = Icons.Default.Build,
-                    title    = "Timestamp Tool",
-                    subtitle = "Convert between millis and date string",
-                    onClick  = onNavigateToTool
+                    icon     = Icons.Default.Tune,
+                    title    = "Interface",
+                    subtitle = "Manage player layout and visibility",
+                    onClick  = onNavigateToPlayerInterface
                 )
                 SettingsCard {
                     SettingsToggleRow(
@@ -156,6 +157,18 @@ fun SettingsScreen(
                         onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
                     )
                 }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            //  TOOL
+            SettingsSectionLabel("Tools")
+            SettingsCard {
+                SettingsRow(
+                    icon     = Icons.Default.Schedule,
+                    title    = "Timestamp Tool",
+                    subtitle = "Convert between millis and date string",
+                    onClick  = onNavigateToTool
+                )
             }
 
             Spacer(Modifier.height(16.dp))

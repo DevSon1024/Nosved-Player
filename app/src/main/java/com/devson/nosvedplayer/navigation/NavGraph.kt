@@ -25,6 +25,7 @@ import com.devson.nosvedplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.settings.ToolScreen
+import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
 import com.devson.nosvedplayer.ui.screens.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import androidx.navigation.NavType
@@ -146,6 +147,13 @@ fun NavGraph(
 
         composable(Screen.Tool.route) {
             ToolScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.PlayerInterface.route) {
+            PlayerScreen(
+                onBack = { navController.popBackStack() },
+                settingsViewModel = settingsViewModel
+            )
         }
 
         composable(Screen.About.route) {
