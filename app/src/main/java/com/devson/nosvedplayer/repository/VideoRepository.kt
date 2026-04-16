@@ -18,7 +18,8 @@ class VideoRepository(private val context: Context) {
 
     suspend fun getAllVideos(
         showHiddenFiles: Boolean = false,
-        recognizeNoMedia: Boolean = false
+        recognizeNoMedia: Boolean = false,
+        scanFoldersList: Set<String> = emptySet()
     ): List<Video> = withContext(Dispatchers.IO) {
         val videos = mutableListOf<Video>()
 
@@ -47,6 +48,10 @@ class VideoRepository(private val context: Context) {
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+
+        // Pre-calculate roots to filter against
+        val allowedRoots = scanFoldersList.filter { !it.startsWith("HIDDEN:") }
+        val hiddenRoots = scanFoldersList.filter { it.startsWith("HIDDEN:") }.map { it.removePrefix("HIDDEN:") }
 
         // Track paths to avoid duplicates during hidden-file scan
         val seenPaths = mutableSetOf<String>()
@@ -78,6 +83,14 @@ class VideoRepository(private val context: Context) {
                 val folderName = cursor.getString(bucketColumn) ?: "Unknown"
                 val dateAdded = cursor.getLong(dateAddedColumn)
                 val path = cursor.getString(dataColumn) ?: ""
+
+                // Filter by scanFoldersList
+                if (allowedRoots.isNotEmpty() && allowedRoots.none { path.startsWith(it) }) {
+                    continue
+                }
+                if (hiddenRoots.any { path.startsWith(it) }) {
+                    continue
+                }
 
                 var finalDuration = duration
                 var finalSize = size
@@ -173,8 +186,13 @@ class VideoRepository(private val context: Context) {
                         collectHiddenDir(child)
                     } else if (child.isFile) {
                         val ext = child.extension.lowercase()
-                        if (ext in videoExtensions && child.absolutePath !in seenPaths) {
-                            seenPaths.add(child.absolutePath)
+                        val childPath = child.absolutePath
+                        
+                        if (allowedRoots.isNotEmpty() && allowedRoots.none { childPath.startsWith(it) }) return@forEach
+                        if (hiddenRoots.any { childPath.startsWith(it) }) return@forEach
+
+                        if (ext in videoExtensions && childPath !in seenPaths) {
+                            seenPaths.add(childPath)
                             candidateFiles.add(child)
                         }
                     }

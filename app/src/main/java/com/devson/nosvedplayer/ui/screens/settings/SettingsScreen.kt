@@ -35,11 +35,14 @@ fun SettingsScreen(
     onNavigateToLogs: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit,
     onNavigateToAppearance: () -> Unit = {},
+    onNavigateToListOption: () -> Unit = {},
+    onNavigateToScanFolders: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
     val useYoutubeStyle  by settingsViewModel.useYoutubePlayerStyle.collectAsState()
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
+    val viewSettings     by settingsViewModel.viewSettings.collectAsState()
 
     // Version tap easter-egg for developer mode
     var tapCount      by remember { mutableIntStateOf(0) }
@@ -117,19 +120,33 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            //  PLAYER 
+            // Player 
             SettingsSectionLabel(stringResource(R.string.settings_player))
             SettingsCard {
-                SettingsToggleRow(
-                    icon     = Icons.Default.PlayCircleOutline,
-                    title    = stringResource(R.string.settings_youtube_controls),
-                    subtitle = if (useYoutubeStyle)
-                        stringResource(R.string.settings_youtube_controls_active)
-                    else
-                        stringResource(R.string.settings_youtube_controls_inactive),
-                    checked  = useYoutubeStyle,
-                    onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
+                SettingsRow(
+                    icon     = Icons.Default.List,
+                    title    = stringResource(R.string.settings_list),
+                    subtitle = stringResource(R.string.settings_about_list),
+                    onClick  = onNavigateToListOption
                 )
+                SettingsRow(
+                    icon     = Icons.Default.Folder,
+                    title    = stringResource(R.string.settings_folders),
+                    subtitle = stringResource(R.string.settings_about_folders),
+                    onClick  = onNavigateToScanFolders
+                )
+                SettingsCard {
+                    SettingsToggleRow(
+                        icon     = Icons.Default.PlayCircleOutline,
+                        title    = stringResource(R.string.settings_youtube_controls),
+                        subtitle = if (useYoutubeStyle)
+                            stringResource(R.string.settings_youtube_controls_active)
+                        else
+                            stringResource(R.string.settings_youtube_controls_inactive),
+                        checked  = useYoutubeStyle,
+                        onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
+                    )
+                }
             }
 
             Spacer(Modifier.height(16.dp))

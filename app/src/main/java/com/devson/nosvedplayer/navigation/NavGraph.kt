@@ -115,6 +115,8 @@ fun NavGraph(
                 onNavigateToLogs          = { navController.navigate(Screen.Logs.route) },
                 onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
                 onNavigateToAppearance    = { navController.navigate(Screen.Appearance.route) },
+                onNavigateToListOption    = { navController.navigate(Screen.ListOption.route) },
+                onNavigateToScanFolders   = { navController.navigate(Screen.ScanFolders.route) },
                 settingsViewModel         = settingsViewModel
             )
         }
@@ -122,6 +124,20 @@ fun NavGraph(
         composable(Screen.Appearance.route) {
             AppearanceSettingsScreen(
                 onNavigateBack    = { navController.popBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.ListOption.route) {
+            com.devson.nosvedplayer.ui.screens.settings.ListOptionScreen(
+                onBack = { navController.popBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.ScanFolders.route) {
+            com.devson.nosvedplayer.ui.screens.settings.ScanFoldersScreen(
+                onBack = { navController.popBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }

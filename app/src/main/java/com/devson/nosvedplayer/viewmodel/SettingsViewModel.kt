@@ -15,6 +15,10 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
+    private val viewSettingsRepo = com.devson.nosvedplayer.repository.ViewSettingsRepository(application.applicationContext)
+
+    val viewSettings = viewSettingsRepo.viewSettingsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.devson.nosvedplayer.model.ViewSettings())
 
     /**
      * Emits null = follow system, true = force dark, false = force light.
@@ -80,5 +84,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Call when the user finishes or skips the onboarding screen. */
     fun markOnboardingComplete() {
         viewModelScope.launch { settingsRepo.setHasSeenOnboarding(true) }
+    }
+
+    fun updateRecognizeNoMedia(recognize: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateRecognizeNoMedia(recognize) }
+    }
+
+    fun updateShowHiddenFiles(show: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateShowHiddenFiles(show) }
+    }
+
+    fun updateShowFloatingButton(show: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateShowFloatingButton(show) }
+    }
+
+    fun updateSelectByThumbnail(select: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateSelectByThumbnail(select) }
+    }
+
+    fun updateScanFoldersList(folders: Set<String>) {
+        viewModelScope.launch { viewSettingsRepo.updateScanFoldersList(folders) }
     }
 }

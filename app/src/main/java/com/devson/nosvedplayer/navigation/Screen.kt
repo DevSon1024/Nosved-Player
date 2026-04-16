@@ -14,4 +14,6 @@ sealed class Screen(val route: String) {
     object SearchResults : Screen("search_results/{query}") {
         fun createRoute(query: String) = "search_results/${java.net.URLEncoder.encode(query, "UTF-8")}"
     }
+    object ListOption : Screen("list_option")
+    object ScanFolders : Screen("scan_folders")
 }

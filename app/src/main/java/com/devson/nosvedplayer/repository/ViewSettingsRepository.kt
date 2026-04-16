@@ -36,6 +36,9 @@ class ViewSettingsRepository(private val context: Context) {
         val DISPLAY_LENGTH_OVER_THUMBNAIL = booleanPreferencesKey("display_length_over_thumbnail")
         val SHOW_HIDDEN_FILES = booleanPreferencesKey("show_hidden_files")
         val RECOGNIZE_NOMEDIA = booleanPreferencesKey("recognize_nomedia")
+        val SHOW_FLOATING_BUTTON = booleanPreferencesKey("show_floating_button")
+        val SELECT_BY_THUMBNAIL = booleanPreferencesKey("select_by_thumbnail")
+        val SCAN_FOLDERS_LIST = stringSetPreferencesKey("scan_folders_list")
     }
 
     val viewSettingsFlow: Flow<ViewSettings> = context.viewSettingsDataStore.data.map { preferences ->
@@ -56,7 +59,10 @@ class ViewSettingsRepository(private val context: Context) {
             showDate = preferences[SHOW_DATE] ?: false,
             displayLengthOverThumbnail = preferences[DISPLAY_LENGTH_OVER_THUMBNAIL] ?: false,
             showHiddenFiles = preferences[SHOW_HIDDEN_FILES] ?: false,
-            recognizeNoMedia = preferences[RECOGNIZE_NOMEDIA] ?: false
+            recognizeNoMedia = preferences[RECOGNIZE_NOMEDIA] ?: false,
+            showFloatingButton = preferences[SHOW_FLOATING_BUTTON] ?: true,
+            selectByThumbnail = preferences[SELECT_BY_THUMBNAIL] ?: false,
+            scanFoldersList = preferences[SCAN_FOLDERS_LIST] ?: setOf("/storage", "/storage/emulated/0")
         )
     }
 
@@ -126,5 +132,17 @@ class ViewSettingsRepository(private val context: Context) {
 
     suspend fun updateRecognizeNoMedia(recognize: Boolean) {
         context.viewSettingsDataStore.edit { it[RECOGNIZE_NOMEDIA] = recognize }
+    }
+
+    suspend fun updateShowFloatingButton(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_FLOATING_BUTTON] = show }
+    }
+
+    suspend fun updateSelectByThumbnail(select: Boolean) {
+        context.viewSettingsDataStore.edit { it[SELECT_BY_THUMBNAIL] = select }
+    }
+
+    suspend fun updateScanFoldersList(folders: Set<String>) {
+        context.viewSettingsDataStore.edit { it[SCAN_FOLDERS_LIST] = folders }
     }
 }

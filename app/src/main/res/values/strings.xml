@@ -13,6 +13,13 @@
     <string name="settings_display">Display</string>
     <string name="settings_display_desc">Theme, dynamic colour &amp; language</string>
     <string name="settings_player">Player</string>
+    
+    <string name="settings_list">List</string>
+    <string name="settings_about_list">List viewing options</string>
+
+    <string name="settings_folders">Folders</string>
+    <string name="settings_about_folders">Select folders to be included in the media library</string>
+
     <string name="settings_youtube_controls">YouTube-style controls</string>
     <string name="settings_youtube_controls_active">Inline settings panel active</string>
     <string name="settings_youtube_controls_inactive">Bottom sheet settings active</string>

@@ -35,6 +35,7 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
     // Avoids repeating the expensive file-walk scan every time the screen opens.
     private var lastLoadedShowHidden: Boolean? = null
     private var lastLoadedRecognizeNoMedia: Boolean? = null
+    private var lastLoadedScanFoldersList: Set<String>? = null
 
     val videosByFolder: StateFlow<Map<com.devson.nosvedplayer.model.VideoFolder, List<Video>>> = combine(
         _allVideosCache,
@@ -106,7 +107,8 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
                 // Re-run hidden-file scan only when the relevant toggles actually change
                 val hiddenSettingsChanged =
                     settings.showHiddenFiles != lastLoadedShowHidden ||
-                    settings.recognizeNoMedia != lastLoadedRecognizeNoMedia
+                    settings.recognizeNoMedia != lastLoadedRecognizeNoMedia ||
+                    settings.scanFoldersList != lastLoadedScanFoldersList
                 if (settingsChanged && hiddenSettingsChanged && lastLoadedShowHidden != null) {
                     loadVideos()
                 }
@@ -123,6 +125,7 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
                 // Skip expensive hidden scan if nothing has changed since last load
                 if (settings.showHiddenFiles == lastLoadedShowHidden &&
                     settings.recognizeNoMedia == lastLoadedRecognizeNoMedia &&
+                    settings.scanFoldersList == lastLoadedScanFoldersList &&
                     _allVideosCache.value.isNotEmpty()) {
                     _isLoading.value = false
                     return@launch
@@ -135,11 +138,13 @@ class VideoListViewModel(application: Application) : AndroidViewModel(applicatio
                 val videos = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     repository.getAllVideos(
                         showHiddenFiles = settings.showHiddenFiles,
-                        recognizeNoMedia = settings.recognizeNoMedia
+                        recognizeNoMedia = settings.recognizeNoMedia,
+                        scanFoldersList = settings.scanFoldersList
                     )
                 }
                 lastLoadedShowHidden = settings.showHiddenFiles
                 lastLoadedRecognizeNoMedia = settings.recognizeNoMedia
+                lastLoadedScanFoldersList = settings.scanFoldersList
                 _allVideosCache.value = videos
                 
                 // Trigger background metadata extraction for untracked items

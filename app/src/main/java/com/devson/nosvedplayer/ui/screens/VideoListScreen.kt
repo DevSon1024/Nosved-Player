@@ -509,6 +509,54 @@ fun VideoListScreen(
                     )
                 }
             }
+        },
+        floatingActionButton = {
+            if (viewSettings.showFloatingButton && !isSelectionActive) {
+                // Determine the last played video
+                val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+                
+                val lastPlayedVideo = remember(history, selectedFolder, viewSettings.viewMode, currentExplorerPath, allVideosFlat) {
+                    if (viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) {
+                        val folderVideos = videosByFolder[selectedFolder] ?: emptyList()
+                        val folderUris = folderVideos.map { it.uri }.toSet()
+                        val lastHistory = history.firstOrNull { it.uri in folderUris }
+                        if (lastHistory != null) folderVideos.find { it.uri == lastHistory.uri } else null
+                    } else if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null) {
+                        val pathVideos = allVideosFlat.filter { it.path.startsWith(currentExplorerPath!!) }
+                        val pathUris = pathVideos.map { it.uri }.toSet()
+                        val lastHistory = history.firstOrNull { it.uri in pathUris }
+                        if (lastHistory != null) pathVideos.find { it.uri == lastHistory.uri } else null
+                    } else {
+                        val lastHistory = history.firstOrNull()
+                        if (lastHistory != null) allVideosFlat.find { it.uri == lastHistory.uri } else null
+                    }
+                }
+
+                if (lastPlayedVideo != null) {
+                    FloatingActionButton(
+                        onClick = {
+                            val playlist = when (viewSettings.viewMode) {
+                                ViewMode.FILES -> allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
+                                    (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                } else {
+                                    allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                }
+                                ViewMode.FOLDERS -> if (currentExplorerPath != null) {
+                                    allVideosFlat.filter { it.path.startsWith(currentExplorerPath!!) }.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                } else {
+                                    allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                }
+                            }
+                            onVideoSelected(lastPlayedVideo, playlist, historyMap[lastPlayedVideo.uri]?.lastPositionMs ?: 0L)
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = "Play Last Played Video")
+                    }
+                }
+            }
         }
     ) { padding ->
         Box(
@@ -567,7 +615,7 @@ fun VideoListScreen(
                                     }
                                 },
                                 onFolderLongClick = { folder ->
-                                    selectedFolders = selectedFolders + folder
+                                    selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                                 },
                                 listState = folderListState,
                                 gridState = folderGridState
@@ -582,14 +630,14 @@ fun VideoListScreen(
                                 settings = viewSettings,
                                 selectedVideos = selectedVideos,
                                 onVideoClick = { video ->
-                                    if (selectedVideos.isNotEmpty()) {
+                                    if (isSelectionActive) {
                                         selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                                     } else {
                                         onVideoSelected(video, sortedVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
                                     }
                                 },
                                 onVideoLongClick = { video ->
-                                    selectedVideos = selectedVideos + video
+                                    selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                                 },
                                 listState = videoListState,
                                 gridState = videoGridState,
@@ -607,14 +655,14 @@ fun VideoListScreen(
                             settings = viewSettings,
                             selectedVideos = selectedVideos,
                             onVideoClick = { video ->
-                                if (selectedVideos.isNotEmpty()) {
+                                if (isSelectionActive) {
                                     selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                                 } else {
                                     onVideoSelected(video, sortedVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
                                 }
                             },
                             onVideoLongClick = { video ->
-                                selectedVideos = selectedVideos + video
+                                selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                             },
                             listState = videoListState,
                             gridState = videoGridState,
@@ -654,7 +702,7 @@ fun VideoListScreen(
                                 }
                             },
                             onFolderLongClick = { folder ->
-                                selectedFolders = selectedFolders + folder
+                                selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                             },
                             onVideoClick = { video ->
                                 if (isSelectionActive) {
@@ -664,7 +712,7 @@ fun VideoListScreen(
                                 }
                             },
                             onVideoLongClick = { video ->
-                                selectedVideos = selectedVideos + video
+                                selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                             },
                             listState = folderListState,
                             gridState = folderGridState
@@ -1097,6 +1145,7 @@ fun VideoListItem(
             Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
+                    .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(
@@ -1235,6 +1284,7 @@ fun VideoGridItem(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
+                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                         .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
                 ) {
                     if (settings.showThumbnail) {
@@ -1314,6 +1364,7 @@ fun VideoGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
             ) {
                 if (settings.showThumbnail) {

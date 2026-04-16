@@ -14,6 +14,12 @@
     <string name="settings_display">प्रदर्शन</string>
     <string name="settings_display_desc">थिम, डायनॅमिक रंग आणि भाषा</string>
     <string name="settings_player">प्लेअर</string>
+
+    <string name="settings_list">यादी</string>
+    <string name="settings_about_list">यादी पाहण्याचे पर्याय</string>
+    <string name="settings_folders">फोल्डर्स</string>
+    <string name="settings_about_folders">मीडिया लायब्ररीमध्ये समाविष्ट करण्यासाठी फोल्डर्स निवडा</string>
+
     <string name="settings_youtube_controls">YouTube सारखे नियंत्रणे</string>
     <string name="settings_youtube_controls_active">इनलाइन सेटिंग्ज पॅनेल सक्रिय</string>
     <string name="settings_youtube_controls_inactive">तळाशी शीट सेटिंग्ज सक्रिय</string>

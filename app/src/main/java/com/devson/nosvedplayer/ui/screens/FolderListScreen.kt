@@ -64,6 +64,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.scale
@@ -219,7 +220,7 @@ fun FolderListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Folder thumbnail
-                Box {
+                Box(modifier = Modifier.then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)) {
                     FolderMediaPreview(
                         videos   = videos,
                         isSelected = false,
@@ -308,7 +309,7 @@ fun FolderGridItem(
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(width = 124.dp, height = 82.dp)) {
+                    Box(modifier = Modifier.size(width = 124.dp, height = 82.dp).then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)) {
                         FolderMediaPreview(
                             videos   = videos,
                             isSelected = false,
@@ -357,6 +358,7 @@ fun FolderGridItem(
                     Box(modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)
                     ) {
                     FolderMediaPreview(
                         videos   = videos,
@@ -405,7 +407,7 @@ fun FolderGridItem(
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
         border    = BorderStroke(if (isSelected) 1.5.dp else 0.dp, borderColor)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)) {
             FolderMediaPreview(
                 videos   = videos,
                 isSelected = false,
