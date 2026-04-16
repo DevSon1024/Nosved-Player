@@ -16,4 +16,5 @@ sealed class Screen(val route: String) {
     }
     object ListOption : Screen("list_option")
     object ScanFolders : Screen("scan_folders")
+    object Tool : Screen("tool_screen")
 }
