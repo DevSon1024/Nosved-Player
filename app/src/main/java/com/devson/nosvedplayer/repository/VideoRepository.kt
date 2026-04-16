@@ -50,8 +50,7 @@ class VideoRepository(private val context: Context) {
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
         // Pre-calculate roots to filter against
-        val allowedRoots = scanFoldersList.filter { !it.startsWith("HIDDEN:") }
-        val hiddenRoots = scanFoldersList.filter { it.startsWith("HIDDEN:") }.map { it.removePrefix("HIDDEN:") }
+        val hasAllowedFolders = scanFoldersList.any { !it.startsWith("HIDDEN:") }
 
         // Track paths to avoid duplicates during hidden-file scan
         val seenPaths = mutableSetOf<String>()
@@ -85,10 +84,17 @@ class VideoRepository(private val context: Context) {
                 val path = cursor.getString(dataColumn) ?: ""
 
                 // Filter by scanFoldersList
-                if (allowedRoots.isNotEmpty() && allowedRoots.none { path.startsWith(it) }) {
-                    continue
+                val matchingRoots = scanFoldersList.filter { root ->
+                    val cleanRoot = root.removePrefix("HIDDEN:")
+                    path.startsWith(cleanRoot)
                 }
-                if (hiddenRoots.any { path.startsWith(it) }) {
+
+                if (matchingRoots.isNotEmpty()) {
+                    val longestMatch = matchingRoots.maxByOrNull { it.removePrefix("HIDDEN:").length }
+                    if (longestMatch?.startsWith("HIDDEN:") == true) {
+                        continue
+                    }
+                } else if (hasAllowedFolders) {
                     continue
                 }
 
@@ -188,8 +194,18 @@ class VideoRepository(private val context: Context) {
                         val ext = child.extension.lowercase()
                         val childPath = child.absolutePath
                         
-                        if (allowedRoots.isNotEmpty() && allowedRoots.none { childPath.startsWith(it) }) return@forEach
-                        if (hiddenRoots.any { childPath.startsWith(it) }) return@forEach
+                        val matchingRoots = scanFoldersList.filter { root ->
+                            val cleanRoot = root.removePrefix("HIDDEN:")
+                            childPath.startsWith(cleanRoot)
+                        }
+                        if (matchingRoots.isNotEmpty()) {
+                            val longestMatch = matchingRoots.maxByOrNull { it.removePrefix("HIDDEN:").length }
+                            if (longestMatch?.startsWith("HIDDEN:") == true) {
+                                return@forEach
+                            }
+                        } else if (hasAllowedFolders) {
+                            return@forEach
+                        }
 
                         if (ext in videoExtensions && childPath !in seenPaths) {
                             seenPaths.add(childPath)
@@ -308,9 +324,10 @@ class VideoRepository(private val context: Context) {
     suspend fun searchVideos(
         query: String,
         showHiddenFiles: Boolean = false,
-        recognizeNoMedia: Boolean = false
+        recognizeNoMedia: Boolean = false,
+        scanFoldersList: Set<String> = emptySet()
     ): List<Video> {
-        val all = getAllVideos(showHiddenFiles, recognizeNoMedia)
+        val all = getAllVideos(showHiddenFiles, recognizeNoMedia, scanFoldersList)
         val q = query.trim().lowercase()
         return if (q.isEmpty()) all else all.filter { it.title.lowercase().contains(q) }
     }

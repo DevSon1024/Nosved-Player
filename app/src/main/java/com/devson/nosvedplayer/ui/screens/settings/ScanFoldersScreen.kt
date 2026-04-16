@@ -31,7 +31,7 @@ fun ScanFoldersScreen(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             val newSet = viewSettings.scanFoldersList.toMutableSet()
-            newSet.add(uri.toString())
+            newSet.add(resolveDocumentUriToPath(uri))
             settingsViewModel.updateScanFoldersList(newSet)
         }
     }
@@ -102,5 +102,18 @@ fun ScanFoldersScreen(
                 HorizontalDivider()
             }
         }
+    }
+}
+
+private fun resolveDocumentUriToPath(uri: android.net.Uri): String {
+    val path = uri.path ?: return uri.toString()
+    val parts = path.split(":")
+    if (parts.size < 2) return uri.toString()
+    val volumeId = parts[0].substringAfterLast("/tree/")
+    val folderPath = parts[1]
+    return if (volumeId == "primary") {
+        "/storage/emulated/0/$folderPath"
+    } else {
+        "/storage/$volumeId/$folderPath"
     }
 }

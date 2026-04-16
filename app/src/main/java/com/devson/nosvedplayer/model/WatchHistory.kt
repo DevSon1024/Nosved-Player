@@ -14,6 +14,7 @@ data class WatchHistory(
     val duration: Long = 0L,
     val size: Long = 0L,
     val folderName: String = "Unknown",
+    val path: String = "",
     /** Last resume position in milliseconds. */
     val lastPositionMs: Long = 0L,
     /** Epoch millis when the video was last played (for ordering). */

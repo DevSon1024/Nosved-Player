@@ -22,6 +22,7 @@ class WatchHistoryRepository(context: Context) {
                 duration = video.duration,
                 size = video.size,
                 folderName = video.folderName,
+                path = video.path,
                 lastPositionMs = 0L,
                 lastPlayedAt = System.currentTimeMillis()
             )
@@ -50,6 +51,7 @@ class WatchHistoryRepository(context: Context) {
                     duration = video.duration,
                     size = video.size,
                     folderName = video.folderName,
+                    path = video.path,
                     lastPositionMs = positionMs,
                     lastPlayedAt = System.currentTimeMillis()
                 )
