@@ -133,9 +133,11 @@ fun RecycleBinScreen(
                             Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.action_info))
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (isSelectionActive) {
                 BottomAppBar(

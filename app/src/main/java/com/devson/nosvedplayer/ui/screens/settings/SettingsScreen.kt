@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,11 +52,12 @@ fun SettingsScreen(
 
     // Read real version from PackageManager
     val context = LocalContext.current
-    val versionName = remember(context) {
+    val unknownText = stringResource(R.string.unknown)
+    val versionName = remember(context, unknownText) {
         runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            info.versionName ?: context.getString(R.string.unknown)
-        }.getOrDefault(context.getString(R.string.unknown))
+            info.versionName ?: unknownText
+        }.getOrDefault(unknownText)
     }
 
     Scaffold(
@@ -125,7 +127,7 @@ fun SettingsScreen(
             SettingsSectionLabel(stringResource(R.string.settings_player))
             SettingsCard {
                 SettingsRow(
-                    icon     = Icons.Default.List,
+                    icon     = Icons.AutoMirrored.Filled.List,
                     title    = stringResource(R.string.settings_list),
                     subtitle = stringResource(R.string.settings_about_list),
                     onClick  = onNavigateToListOption
