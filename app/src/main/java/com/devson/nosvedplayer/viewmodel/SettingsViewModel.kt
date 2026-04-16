@@ -124,7 +124,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 showElapsedTimeOverlay = false,
                 showBatteryClockOverlay = false,
                 showScreenRotationButton = true,
-                pauseWhenObstructed = true
+                pauseWhenObstructed = true,
+                showRemainingTime = false
             )
         )
 
@@ -162,5 +163,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updatePauseWhenObstructed(pause: Boolean) {
         viewModelScope.launch { settingsRepo.updatePauseWhenObstructed(pause) }
+    }
+
+    fun updateShowRemainingTime(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowRemainingTime(show) }
     }
 }

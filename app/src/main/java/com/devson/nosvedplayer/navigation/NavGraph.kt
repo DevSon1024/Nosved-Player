@@ -112,15 +112,16 @@ fun NavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onBack                    = { navController.popBackStack() },
-                onNavigateToAbout         = { navController.navigate(Screen.About.route) },
-                onNavigateToLogs          = { navController.navigate(Screen.Logs.route) },
-                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
-                onNavigateToAppearance    = { navController.navigate(Screen.Appearance.route) },
-                onNavigateToListOption    = { navController.navigate(Screen.ListOption.route) },
-                onNavigateToScanFolders   = { navController.navigate(Screen.ScanFolders.route) },
-                onNavigateToTool          = { navController.navigate(Screen.Tool.route) },
-                settingsViewModel         = settingsViewModel
+                onBack                        = { navController.popBackStack() },
+                onNavigateToAbout             = { navController.navigate(Screen.About.route) },
+                onNavigateToLogs              = { navController.navigate(Screen.Logs.route) },
+                onNavigateToPrivacyPolicy     = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onNavigateToAppearance        = { navController.navigate(Screen.Appearance.route) },
+                onNavigateToListOption        = { navController.navigate(Screen.ListOption.route) },
+                onNavigateToScanFolders       = { navController.navigate(Screen.ScanFolders.route) },
+                onNavigateToTool              = { navController.navigate(Screen.Tool.route) },
+                onNavigateToPlayerInterface   = { navController.navigate(Screen.PlayerInterface.route) },
+                settingsViewModel             = settingsViewModel
             )
         }
 

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SkipNext
@@ -56,6 +57,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -139,7 +141,11 @@ fun PlayerControls(
     onPlayNext: (() -> Unit)? = null,
     isLandscape: Boolean = false,
     useYoutubeStyle: Boolean = false,
-    onYoutubeStyleChange: ((Boolean) -> Unit)? = null
+    onYoutubeStyleChange: ((Boolean) -> Unit)? = null,
+    showScreenRotationButton: Boolean = true,
+    onToggleScreenRotation: (() -> Unit)? = null,
+    showRemainingTime: Boolean = false,
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -153,22 +159,27 @@ fun PlayerControls(
     ) {
         if (isLocked) {
             Box(modifier = Modifier.fillMaxSize()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(start = 32.dp)
+                        .padding(start = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                        tooltip = { PlainTooltip { Text("Unlock Controls") } },
-                        state = rememberTooltipState()
+                    IconButton(
+                        onClick = onToggleLock,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                     ) {
+                        Icon(Icons.Filled.Lock, contentDescription = "Unlock Controls", tint = Color.White)
+                    }
+                    if (showScreenRotationButton && onToggleScreenRotation != null) {
                         IconButton(
-                            onClick = onToggleLock,
+                            onClick = onToggleScreenRotation,
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                         ) {
-                            Icon(Icons.Filled.Lock, contentDescription = "Unlock Controls", tint = Color.White)
+                            Icon(Icons.Filled.ScreenRotation, contentDescription = "Rotate Screen", tint = Color.White)
                         }
                     }
                 }
@@ -177,6 +188,32 @@ fun PlayerControls(
             Box(
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Side Controls: Rotate
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 12.dp, top = 52.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    if (showScreenRotationButton && onToggleScreenRotation != null) {
+                        IconButton(
+                            onClick = onToggleScreenRotation,
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                .size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ScreenRotation,
+                                contentDescription = "Rotate Screen",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
             //  Top gradient 
             Box(
                 modifier = Modifier
@@ -203,7 +240,7 @@ fun PlayerControls(
                         }
                     } else {
                         Spacer(Modifier.width(8.dp))
-                    }
+                    }                    
                     Text(
                         text = title,
                         color = Color.White,
@@ -247,6 +284,7 @@ fun PlayerControls(
                             }
                         }
                     }
+
                     if (onPipToggle != null) {
                         TooltipBox(
                             positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -295,7 +333,6 @@ fun PlayerControls(
                 ) {
                     var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
                     var isDragging by remember { mutableStateOf(false) }
-                    var showRemainingTime by remember { mutableStateOf(false) }
                     var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
                     LaunchedEffect(currentPosition) {
@@ -367,7 +404,7 @@ fun PlayerControls(
                             text = if (showRemainingTime) "-" + formatTime(remaining) else formatTime(duration),
                             color = Color.White,
                             style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
+                            modifier = Modifier.clickable { onShowRemainingTimeChange?.invoke(!showRemainingTime) }
                         )
                     }
 
@@ -381,7 +418,7 @@ fun PlayerControls(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(modifier = Modifier.weight(0.15f), contentAlignment = Alignment.CenterStart) {
-                            TooltipBox(
+                             TooltipBox(
                                 positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                                 tooltip = { PlainTooltip { Text("Lock Controls") } },
                                 state = rememberTooltipState()

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.filled.Forward5
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Forward30
@@ -100,7 +101,11 @@ fun YoutubeStylePlayerControls(
     onOpenAudioTracks: () -> Unit = {},
     onOpenSubtitles: () -> Unit = {},
     isFastForwarding: Boolean = false,
-    showSeekButtons: Boolean = true
+    showSeekButtons: Boolean = true,
+    showScreenRotationButton: Boolean = true,
+    onToggleScreenRotation: (() -> Unit)? = null,
+    showRemainingTime: Boolean = false,
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
@@ -138,6 +143,20 @@ fun YoutubeStylePlayerControls(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                            if (showScreenRotationButton && onToggleScreenRotation != null) {
+                                IconButton(
+                                    onClick = onToggleScreenRotation,
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(0.5f), RoundedCornerShape(8.dp))
+                                ) {
+                                    Icon(
+                                        Icons.Filled.ScreenRotation,
+                                        contentDescription = "Rotate Screen",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -170,6 +189,8 @@ fun YoutubeStylePlayerControls(
                     onSubtitleClick = onOpenSubtitles,
                     onAudioTrackClick = onOpenAudioTracks,
                     onTogglePlaylist = { showPlaylistPanel = !showPlaylistPanel },
+                    showScreenRotationButton = showScreenRotationButton,
+                    onToggleScreenRotation = onToggleScreenRotation,
                     onSeekStart = { pos ->
                         isSeeking = true
                         seekPreview = pos
@@ -182,7 +203,9 @@ fun YoutubeStylePlayerControls(
                     onSeekEnd = {
                         isSeeking = false
                         onSeekTo(lastDraggedPos)
-                    }
+                    },
+                    showRemainingTime = showRemainingTime,
+                    onShowRemainingTimeChange = onShowRemainingTimeChange
                 )
             }
         }
@@ -254,7 +277,11 @@ private fun YtControlsLayout(
     onTogglePlaylist: () -> Unit,
     onSeekStart: (Long) -> Unit,
     onSeekChange: (Long) -> Unit,
-    onSeekEnd: () -> Unit
+    onSeekEnd: () -> Unit,
+    showScreenRotationButton: Boolean = true,
+    onToggleScreenRotation: (() -> Unit)? = null,
+    showRemainingTime: Boolean = false,
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -270,7 +297,6 @@ private fun YtControlsLayout(
             )
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Vertical))
     ) {
-        var showRemainingTime by remember { mutableStateOf(false) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -296,6 +322,21 @@ private fun YtControlsLayout(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+                if (showScreenRotationButton && onToggleScreenRotation != null) {
+                    IconButton(
+                        onClick = onToggleScreenRotation,
+                        modifier = Modifier
+                            .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(
+                            Icons.Filled.ScreenRotation,
+                            contentDescription = "Rotate Screen",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                
             }
             Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp).padding(top = 12.dp)) {
                 Text(
@@ -421,7 +462,7 @@ private fun YtControlsLayout(
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
+                    modifier = Modifier.clickable { onShowRemainingTimeChange?.invoke(!showRemainingTime) }
                 )
                 Spacer(Modifier.weight(1f))
                 if (currentPlaybackSpeed != 1f) {

@@ -15,6 +15,8 @@ class WatchHistoryRepository(context: Context) {
 
     /** Call when a video starts playing to record/update it in history. */
     suspend fun recordPlay(video: Video) {
+        // Preserve existing path & position so DB entry is never lost by path-based filtering
+        val existing = dao.getHistoryByUri(video.uri)
         dao.upsert(
             WatchHistory(
                 uri = video.uri,
@@ -22,8 +24,8 @@ class WatchHistoryRepository(context: Context) {
                 duration = video.duration,
                 size = video.size,
                 folderName = video.folderName,
-                path = video.path,
-                lastPositionMs = 0L,
+                path = video.path.ifBlank { existing?.path ?: "" },
+                lastPositionMs = existing?.lastPositionMs ?: 0L,
                 lastPlayedAt = System.currentTimeMillis()
             )
         )
