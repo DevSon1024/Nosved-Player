@@ -37,6 +37,7 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit = {},
     onNavigateToListOption: () -> Unit = {},
     onNavigateToScanFolders: () -> Unit = {},
+    onNavigateToTool: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -134,6 +135,12 @@ fun SettingsScreen(
                     title    = stringResource(R.string.settings_folders),
                     subtitle = stringResource(R.string.settings_about_folders),
                     onClick  = onNavigateToScanFolders
+                )
+                SettingsRow(
+                    icon     = Icons.Default.Build,
+                    title    = "Timestamp Tool",
+                    subtitle = "Convert between millis and date string",
+                    onClick  = onNavigateToTool
                 )
                 SettingsCard {
                     SettingsToggleRow(
