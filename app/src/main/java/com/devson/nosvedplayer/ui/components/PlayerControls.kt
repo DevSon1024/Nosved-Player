@@ -57,6 +57,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -142,7 +143,9 @@ fun PlayerControls(
     useYoutubeStyle: Boolean = false,
     onYoutubeStyleChange: ((Boolean) -> Unit)? = null,
     showScreenRotationButton: Boolean = true,
-    onToggleScreenRotation: (() -> Unit)? = null
+    onToggleScreenRotation: (() -> Unit)? = null,
+    showRemainingTime: Boolean = false,
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -330,7 +333,6 @@ fun PlayerControls(
                 ) {
                     var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
                     var isDragging by remember { mutableStateOf(false) }
-                    var showRemainingTime by remember { mutableStateOf(false) }
                     var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
                     LaunchedEffect(currentPosition) {
@@ -402,7 +404,7 @@ fun PlayerControls(
                             text = if (showRemainingTime) "-" + formatTime(remaining) else formatTime(duration),
                             color = Color.White,
                             style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.clickable { showRemainingTime = !showRemainingTime }
+                            modifier = Modifier.clickable { onShowRemainingTimeChange?.invoke(!showRemainingTime) }
                         )
                     }
 

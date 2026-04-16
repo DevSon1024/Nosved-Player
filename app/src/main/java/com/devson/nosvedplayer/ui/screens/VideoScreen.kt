@@ -107,6 +107,7 @@ fun VideoScreen(
     val showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay
     val showScreenRotationButton = playbackSettings.showScreenRotationButton
     val pauseWhenObstructed = playbackSettings.pauseWhenObstructed
+    val showRemainingTime = playbackSettings.showRemainingTime
 
     //  Player style preference 
     // Reads the player UI style set in SettingsScreen (default = false = default style)
@@ -563,10 +564,12 @@ fun VideoScreen(
                 onOpenSubtitles = { showSubtitleSheet = true },
                 currentPlaybackSpeed = 1f,   // Replace with viewModel.playbackSpeed if available
                 showScreenRotationButton = showScreenRotationButton,
+                showRemainingTime = showRemainingTime,
+                onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
-                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     } else {
                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
@@ -644,10 +647,12 @@ fun VideoScreen(
                     }
                 },
                 showScreenRotationButton = showScreenRotationButton,
+                showRemainingTime = showRemainingTime,
+                onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
-                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     } else {
                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }

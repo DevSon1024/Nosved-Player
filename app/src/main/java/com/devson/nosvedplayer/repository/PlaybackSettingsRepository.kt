@@ -34,7 +34,8 @@ data class PlaybackSettings(
     val showElapsedTimeOverlay: Boolean = false,
     val showBatteryClockOverlay: Boolean = false,
     val showScreenRotationButton: Boolean = true,
-    val pauseWhenObstructed: Boolean = true
+    val pauseWhenObstructed: Boolean = true,
+    val showRemainingTime: Boolean = false
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -65,6 +66,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val SHOW_BATTERY_CLOCK_OVERLAY = booleanPreferencesKey("show_battery_clock_overlay")
         val SHOW_SCREEN_ROTATION_BUTTON = booleanPreferencesKey("show_screen_rotation_button")
         val PAUSE_WHEN_OBSTRUCTED = booleanPreferencesKey("pause_when_obstructed")
+        val SHOW_REMAINING_TIME = booleanPreferencesKey("show_remaining_time")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -90,7 +92,8 @@ class PlaybackSettingsRepository(private val context: Context) {
                 showElapsedTimeOverlay = preferences[PreferencesKeys.SHOW_ELAPSED_TIME_OVERLAY] ?: false,
                 showBatteryClockOverlay = preferences[PreferencesKeys.SHOW_BATTERY_CLOCK_OVERLAY] ?: false,
                 showScreenRotationButton = preferences[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] ?: true,
-                pauseWhenObstructed = preferences[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] ?: true
+                pauseWhenObstructed = preferences[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] ?: true,
+                showRemainingTime = preferences[PreferencesKeys.SHOW_REMAINING_TIME] ?: false
             )
         }
 
@@ -248,5 +251,9 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updatePauseWhenObstructed(pause: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] = pause }
+    }
+
+    suspend fun updateShowRemainingTime(show: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_REMAINING_TIME] = show }
     }
 }
