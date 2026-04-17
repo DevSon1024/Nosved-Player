@@ -101,8 +101,6 @@ fun VideoScreen(
     val orientationMode = playbackSettings.orientationMode
     val fullScreenMode = playbackSettings.fullScreenMode
     val softButtonMode = playbackSettings.softButtonMode
-    val isCustomBrightnessEnabled = playbackSettings.isCustomBrightnessEnabled
-    val customBrightnessLevel = playbackSettings.customBrightnessLevel
     val showElapsedTimeOverlay = playbackSettings.showElapsedTimeOverlay
     val showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay
     val showScreenRotationButton = playbackSettings.showScreenRotationButton
@@ -229,18 +227,6 @@ fun VideoScreen(
             }
             com.devson.nosvedplayer.repository.OrientationMode.AUTO_ROTATION -> {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-            }
-        }
-    }
-
-    LaunchedEffect(isCustomBrightnessEnabled, customBrightnessLevel) {
-        if (isCustomBrightnessEnabled) {
-            val window = activity?.window
-            if (window != null) {
-                val lp = window.attributes
-                lp.screenBrightness = customBrightnessLevel
-                window.attributes = lp
-                brightnessLevel = customBrightnessLevel
             }
         }
     }

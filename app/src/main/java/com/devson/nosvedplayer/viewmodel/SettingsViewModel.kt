@@ -119,8 +119,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 orientationMode = com.devson.nosvedplayer.repository.OrientationMode.SYSTEM_DEFAULT,
                 fullScreenMode = com.devson.nosvedplayer.repository.FullScreenMode.AUTO_SWITCH,
                 softButtonMode = com.devson.nosvedplayer.repository.SoftButtonMode.AUTO_HIDE,
-                isCustomBrightnessEnabled = false,
-                customBrightnessLevel = 0.5f,
                 showElapsedTimeOverlay = false,
                 showBatteryClockOverlay = false,
                 showScreenRotationButton = true,
@@ -139,14 +137,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateSoftButtonMode(mode: com.devson.nosvedplayer.repository.SoftButtonMode) {
         viewModelScope.launch { settingsRepo.updateSoftButtonMode(mode) }
-    }
-
-    fun updateIsCustomBrightnessEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepo.updateIsCustomBrightnessEnabled(enabled) }
-    }
-
-    fun updateCustomBrightnessLevel(level: Float) {
-        viewModelScope.launch { settingsRepo.updateCustomBrightnessLevel(level) }
     }
 
     fun updateShowElapsedTimeOverlay(show: Boolean) {

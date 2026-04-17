@@ -63,7 +63,7 @@ fun PlayerScreen(
         ) {
             item { Spacer(Modifier.height(8.dp)) }
 
-            // Section A: Control Settings
+            // Control Settings
             item { SettingsSectionLabel("Control Settings") }
             item {
                 SettingsCard {
@@ -97,36 +97,7 @@ fun PlayerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            // Section B: Brightness
-            item { SettingsSectionLabel("Brightness") }
-            item {
-                SettingsCard {
-                    SettingsToggleRow(
-                        icon = Icons.Default.BrightnessMedium,
-                        title = "Override System Brightness",
-                        subtitle = "Use custom brightness for player",
-                        checked = playbackSettings.isCustomBrightnessEnabled,
-                        onCheckedChange = { settingsViewModel.updateIsCustomBrightnessEnabled(it) }
-                    )
-                    AnimatedVisibility(visible = playbackSettings.isCustomBrightnessEnabled) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Text(
-                                text = "Brightness Level",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Slider(
-                                value = playbackSettings.customBrightnessLevel,
-                                onValueChange = { settingsViewModel.updateCustomBrightnessLevel(it) },
-                                valueRange = 0f..1f
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // Section C: Video Player Overlays
+            // Video Player Overlays
             item { SettingsSectionLabel("Video Player Overlays") }
             item {
                 SettingsCard {
@@ -149,7 +120,7 @@ fun PlayerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            // Section D: Playback Behavior
+            // Playback Behavior
             item { SettingsSectionLabel("Playback Behavior") }
             item {
                 SettingsCard {
