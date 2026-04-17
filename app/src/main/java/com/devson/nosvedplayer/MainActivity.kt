@@ -19,7 +19,6 @@ import com.devson.nosvedplayer.viewmodel.VideoViewModel
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
-import androidx.activity.SystemBarStyle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.media3.common.util.UnstableApi
 import com.devson.nosvedplayer.model.Video
@@ -31,12 +30,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            navigationBarStyle = SystemBarStyle.auto(
-                Color.TRANSPARENT,
-                Color.TRANSPARENT
-            )
-        )
+        enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }

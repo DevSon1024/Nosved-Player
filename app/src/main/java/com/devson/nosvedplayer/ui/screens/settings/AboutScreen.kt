@@ -128,6 +128,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
     val supportedAbis = Build.SUPPORTED_ABIS.joinToString(", ")
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold) },
@@ -145,8 +146,10 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -304,7 +307,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                     }
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Made with ♥ footer
                 Text(
@@ -313,7 +316,6 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 24.dp)
                 )
             }
         }
@@ -326,6 +328,7 @@ fun CreditsSubScreen(onBack: () -> Unit) {
     val context = LocalContext.current
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.about_credits), fontWeight = FontWeight.Bold) },
@@ -343,8 +346,10 @@ fun CreditsSubScreen(onBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -372,8 +377,6 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp, end = 16.dp))
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
