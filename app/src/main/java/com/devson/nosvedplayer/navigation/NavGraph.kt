@@ -47,6 +47,8 @@ fun NavGraph(
         if (hasSeenOnboarding == true) Screen.Home.route else Screen.Onboarding.route
     }
 
+    val safePopBackStack: () -> Unit = { if (navController.previousBackStackEntry != null) navController.popBackStack() }
+
     NavHost(
         navController    = navController,
         startDestination = startDestination,
@@ -104,7 +106,7 @@ fun NavGraph(
             VideoListScreen(
                 onVideoSelected      = onVideoSelected,
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                onBack               = { navController.popBackStack() },
+                onBack               = { safePopBackStack() },
                 onNavigateToSearch   = { query -> navController.navigate(Screen.SearchResults.createRoute(query)) },
                 viewModel            = videoListViewModel
             )
@@ -112,7 +114,7 @@ fun NavGraph(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onBack                        = { navController.popBackStack() },
+                onBack                        = { safePopBackStack() },
                 onNavigateToAbout             = { navController.navigate(Screen.About.route) },
                 onNavigateToLogs              = { navController.navigate(Screen.Logs.route) },
                 onNavigateToPrivacyPolicy     = { navController.navigate(Screen.PrivacyPolicy.route) },
@@ -127,65 +129,65 @@ fun NavGraph(
 
         composable(Screen.Appearance.route) {
             AppearanceSettingsScreen(
-                onNavigateBack    = { navController.popBackStack() },
+                onNavigateBack    = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }
 
         composable(Screen.ListOption.route) {
             com.devson.nosvedplayer.ui.screens.settings.ListOptionScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }
 
         composable(Screen.ScanFolders.route) {
             com.devson.nosvedplayer.ui.screens.settings.ScanFoldersScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }
 
         composable(Screen.Tool.route) {
-            ToolScreen(onBack = { navController.popBackStack() })
+            ToolScreen(onBack = { safePopBackStack() })
         }
 
         composable(Screen.PlayerInterface.route) {
             PlayerScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
         }
 
         composable(Screen.About.route) {
             AboutScreen(
-                onBack                = { navController.popBackStack() },
+                onBack                = { safePopBackStack() },
                 onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
             )
         }
 
         composable(Screen.Logs.route) {
             LogScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { safePopBackStack() }
             )
         }
 
         composable(Screen.PrivacyPolicy.route) {
             PrivacyPolicyScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { safePopBackStack() }
             )
         }
 
         composable(Screen.History.route) {
             HistoryScreen(
                 onVideoSelected = onVideoSelected,
-                onBack = { navController.popBackStack() }
+                onBack = { safePopBackStack() }
             )
         }
 
         composable(Screen.RecycleBin.route) {
             com.devson.nosvedplayer.ui.screens.RecycleBinScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { safePopBackStack() }
             )
         }
 
@@ -198,7 +200,7 @@ fun NavGraph(
             SearchResultsScreen(
                 query = query,
                 onVideoSelected = onVideoSelected,
-                onBack = { navController.popBackStack() }
+                onBack = { safePopBackStack() }
             )
         }
     }
