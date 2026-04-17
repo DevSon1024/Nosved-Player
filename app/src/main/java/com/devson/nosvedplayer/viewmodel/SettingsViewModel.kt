@@ -158,4 +158,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowRemainingTime(show: Boolean) {
         viewModelScope.launch { settingsRepo.updateShowRemainingTime(show) }
     }
+
+    val isNavBarTransparent: StateFlow<Boolean> = settingsRepo.isNavBarTransparentFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setNavBarTransparent(transparent: Boolean) {
+        viewModelScope.launch { settingsRepo.setNavBarTransparent(transparent) }
+    }
 }

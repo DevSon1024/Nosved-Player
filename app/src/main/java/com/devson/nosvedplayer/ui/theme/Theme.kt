@@ -29,6 +29,7 @@ fun NosvedPlayerTheme(
     forceDark: Boolean? = null,
     dynamicColor: Boolean = false,
     palette: AppThemePalette = AppThemePalette.CINEMATIC,
+    isNavBarTransparent: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -47,12 +48,20 @@ fun NosvedPlayerTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as android.app.Activity).window
-            @Suppress("DEPRECATION")
-            window.statusBarColor     = Color.Transparent.toArgb()
-            @Suppress("DEPRECATION")
-            window.navigationBarColor = Color.Transparent.toArgb()
-
             val insetsController = WindowCompat.getInsetsController(window, view)
+            if (isNavBarTransparent) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                @Suppress("DEPRECATION")
+                window.statusBarColor = Color.Transparent.toArgb()
+                @Suppress("DEPRECATION")
+                window.navigationBarColor = Color.Transparent.toArgb()
+            } else {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                @Suppress("DEPRECATION")
+                window.statusBarColor = Color.Transparent.toArgb()
+                @Suppress("DEPRECATION")
+                window.navigationBarColor = (if (darkTheme) android.graphics.Color.parseColor("#FF1C1B1F") else android.graphics.Color.parseColor("#FFF8F5FF"))
+            }
             insetsController.isAppearanceLightStatusBars     = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme
         }

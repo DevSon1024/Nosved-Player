@@ -65,6 +65,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val SHOW_SCREEN_ROTATION_BUTTON = booleanPreferencesKey("show_screen_rotation_button")
         val PAUSE_WHEN_OBSTRUCTED = booleanPreferencesKey("pause_when_obstructed")
         val SHOW_REMAINING_TIME = booleanPreferencesKey("show_remaining_time")
+        val NAV_BAR_TRANSPARENT = booleanPreferencesKey("nav_bar_transparent")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -243,5 +244,13 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateShowRemainingTime(show: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.SHOW_REMAINING_TIME] = show }
+    }
+
+    val isNavBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.NAV_BAR_TRANSPARENT] ?: true
+    }
+
+    suspend fun setNavBarTransparent(transparent: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.NAV_BAR_TRANSPARENT] = transparent }
     }
 }

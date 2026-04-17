@@ -46,11 +46,13 @@ class MainActivity : AppCompatActivity() {
             val forceDark      by settingsViewModel.isDarkTheme.collectAsState()
             val dynamicColor   by settingsViewModel.dynamicColor.collectAsState()
             val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
+            val navBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
 
             NosvedPlayerTheme(
-                forceDark    = forceDark,
-                dynamicColor = dynamicColor,
-                palette      = selectedPalette
+                forceDark         = forceDark,
+                dynamicColor      = dynamicColor,
+                palette           = selectedPalette,
+                isNavBarTransparent = navBarTransparent
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

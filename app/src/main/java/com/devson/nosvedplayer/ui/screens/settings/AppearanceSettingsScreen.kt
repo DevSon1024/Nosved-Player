@@ -50,6 +50,7 @@ fun AppearanceSettingsScreen(
     val isDark        by settingsViewModel.isDarkTheme.collectAsState()
     val dynamicColor  by settingsViewModel.dynamicColor.collectAsState()
     val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
+    val navBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -240,6 +241,15 @@ fun AppearanceSettingsScreen(
                         onCheckedChange = { settingsViewModel.setDynamicColor(it) }
                     )
                 }
+
+                AppearanceDivider()
+                AppearanceToggleRow(
+                    icon      = Icons.Default.WebAsset,
+                    title     = "Transparent Navigation Bar",
+                    subtitle  = "Content scrolls behind the system nav bar",
+                    checked   = navBarTransparent,
+                    onCheckedChange = { settingsViewModel.setNavBarTransparent(it) }
+                )
             }
 
             Spacer(Modifier.height(16.dp))
