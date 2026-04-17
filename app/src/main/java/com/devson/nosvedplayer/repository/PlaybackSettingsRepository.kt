@@ -29,8 +29,6 @@ data class PlaybackSettings(
     val orientationMode: OrientationMode = OrientationMode.SYSTEM_DEFAULT,
     val fullScreenMode: FullScreenMode = FullScreenMode.AUTO_SWITCH,
     val softButtonMode: SoftButtonMode = SoftButtonMode.AUTO_HIDE,
-    val isCustomBrightnessEnabled: Boolean = false,
-    val customBrightnessLevel: Float = 0.5f,
     val showElapsedTimeOverlay: Boolean = false,
     val showBatteryClockOverlay: Boolean = false,
     val showScreenRotationButton: Boolean = true,
@@ -87,8 +85,6 @@ class PlaybackSettingsRepository(private val context: Context) {
                 orientationMode = try { OrientationMode.valueOf(preferences[PreferencesKeys.ORIENTATION_MODE] ?: OrientationMode.SYSTEM_DEFAULT.name) } catch (e: Exception) { OrientationMode.SYSTEM_DEFAULT },
                 fullScreenMode = try { FullScreenMode.valueOf(preferences[PreferencesKeys.FULL_SCREEN_MODE] ?: FullScreenMode.AUTO_SWITCH.name) } catch (e: Exception) { FullScreenMode.AUTO_SWITCH },
                 softButtonMode = try { SoftButtonMode.valueOf(preferences[PreferencesKeys.SOFT_BUTTON_MODE] ?: SoftButtonMode.AUTO_HIDE.name) } catch (e: Exception) { SoftButtonMode.AUTO_HIDE },
-                isCustomBrightnessEnabled = preferences[PreferencesKeys.IS_CUSTOM_BRIGHTNESS_ENABLED] ?: false,
-                customBrightnessLevel = preferences[PreferencesKeys.CUSTOM_BRIGHTNESS_LEVEL] ?: 0.5f,
                 showElapsedTimeOverlay = preferences[PreferencesKeys.SHOW_ELAPSED_TIME_OVERLAY] ?: false,
                 showBatteryClockOverlay = preferences[PreferencesKeys.SHOW_BATTERY_CLOCK_OVERLAY] ?: false,
                 showScreenRotationButton = preferences[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] ?: true,
@@ -227,14 +223,6 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateSoftButtonMode(mode: SoftButtonMode) {
         context.dataStore.edit { it[PreferencesKeys.SOFT_BUTTON_MODE] = mode.name }
-    }
-
-    suspend fun updateIsCustomBrightnessEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[PreferencesKeys.IS_CUSTOM_BRIGHTNESS_ENABLED] = enabled }
-    }
-
-    suspend fun updateCustomBrightnessLevel(level: Float) {
-        context.dataStore.edit { it[PreferencesKeys.CUSTOM_BRIGHTNESS_LEVEL] = level }
     }
 
     suspend fun updateShowElapsedTimeOverlay(show: Boolean) {
