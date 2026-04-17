@@ -38,7 +38,6 @@ data class TrackMetadata(
 
 enum class TrackType { VIDEO, AUDIO, SUBTITLE, OTHER }
 
-
 @OptIn(UnstableApi::class)
 suspend fun getVideoMetadata(
     context: Context,

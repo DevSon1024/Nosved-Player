@@ -192,9 +192,11 @@ fun AppearanceSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                )
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
         ) {
             Spacer(Modifier.height(4.dp))
 
