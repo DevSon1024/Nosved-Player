@@ -661,12 +661,6 @@ private fun HistoryCard(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Text(
-                        text = formatRelativeTime(LocalContext.current, item.lastPlayedAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
         }
