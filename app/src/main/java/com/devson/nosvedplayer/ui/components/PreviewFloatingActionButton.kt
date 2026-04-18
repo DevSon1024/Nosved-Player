@@ -1,55 +1,36 @@
 package com.devson.nosvedplayer.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -69,78 +50,156 @@ fun PreviewFloatingActionButton(
 ) {
     var isPreviewVisible by remember { mutableStateOf(false) }
 
-    // Rotate 90 degrees so Close icon (X) ends as X (0 or 90) rather than + (45)
-    val iconRotation by animateFloatAsState(
-        targetValue = if (enablePreview && isPreviewVisible) 90f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-        label = "fabIconRotation"
-    )
+    LaunchedEffect(enablePreview) {
+        if (!enablePreview) isPreviewVisible = false
+    }
 
-    Box(contentAlignment = Alignment.BottomEnd) {
-        if (enablePreview && isPreviewVisible) {
-            Popup(
-                alignment = Alignment.BottomEnd,
-                onDismissRequest = { isPreviewVisible = false },
-                properties = PopupProperties(focusable = false)
-            ) {
-                Box(
-                    modifier = Modifier.padding(end = 72.dp, bottom = 12.dp),
-                    contentAlignment = Alignment.BottomEnd
-                ) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = scaleIn(
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 1f),
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)
-                        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-                        exit = scaleOut(
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 1f)
-                        ) + fadeOut()
-                    ) {
-                        LastPlayedPreviewCard(
-                            uri = previewUri,
-                            title = previewTitle,
-                            durationMs = previewDurationMs,
-                            lastPositionMs = previewLastPositionMs
-                        )
+    // The Main Scaffold FAB
+    Surface(
+        modifier = Modifier
+            .size(56.dp)
+            .pointerInput(enablePreview) {
+                detectTapGestures(
+                    onTap = { onPlay() },
+                    onLongPress = {
+                        if (enablePreview && previewUri != null) {
+                            isPreviewVisible = true
+                        }
                     }
+                )
+            },
+        shape = FabShape,
+        color = MaterialTheme.colorScheme.primary,
+        shadowElevation = 6.dp
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Filled.PlayArrow,
+                contentDescription = "Play",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+
+    // The Interactive Full-Screen Overlay
+    PreviewOverlayDialog(
+        uri = previewUri,
+        title = previewTitle,
+        durationMs = previewDurationMs,
+        lastPositionMs = previewLastPositionMs,
+        isVisible = isPreviewVisible,
+        onClose = { isPreviewVisible = false },
+        onPlay = {
+            isPreviewVisible = false
+            onPlay()
+        }
+    )
+}
+
+@Composable
+private fun PreviewOverlayDialog(
+    uri: String?,
+    title: String?,
+    durationMs: Long,
+    lastPositionMs: Long,
+    isVisible: Boolean,
+    onClose: () -> Unit,
+    onPlay: () -> Unit
+) {
+    var showDialog by remember { mutableStateOf(isVisible) }
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) showDialog = true
+    }
+
+    if (showDialog) {
+        Dialog(
+            onDismissRequest = onClose,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false, // Allows full screen
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false // Handled manually by our scrim
+            )
+        ) {
+            val transition = updateTransition(targetState = isVisible, label = "overlay")
+
+            val scrimAlpha by transition.animateFloat(
+                transitionSpec = { tween(300) }, label = "scrim"
+            ) { if (it) 0.85f else 0f } // Deep background dim
+
+            val cardScale by transition.animateFloat(
+                transitionSpec = { spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow) }, label = "cardScale"
+            ) { if (it) 1f else 0f }
+
+            val cardAlpha by transition.animateFloat(
+                transitionSpec = { tween(200) }, label = "cardAlpha"
+            ) { if (it) 1f else 0f }
+
+            val fabRot by transition.animateFloat(
+                transitionSpec = { spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium) }, label = "fabRot"
+            ) { if (it) 90f else 0f }
+
+            // Keep dialog alive until exit animations finish
+            LaunchedEffect(transition.currentState) {
+                if (!transition.currentState && !isVisible) {
+                    showDialog = false
                 }
             }
-        }
 
-        Surface(
-            modifier = Modifier
-                .size(56.dp)
-                .pointerInput(enablePreview) {
-                    detectTapGestures(
-                        onTap = {
-                            if (isPreviewVisible) {
-                                isPreviewVisible = false
-                            } else {
-                                onPlay()
-                            }
-                        },
-                        onLongPress = {
-                            if (enablePreview && previewUri != null) {
-                                isPreviewVisible = true
-                            }
-                        }
-                    )
-                },
-            shape = FabShape,
-            color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 6.dp,
-            tonalElevation = 0.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = if (enablePreview && isPreviewVisible) Icons.Filled.Close else Icons.Filled.PlayArrow,
-                    contentDescription = if (enablePreview && isPreviewVisible) "Close Preview" else "Play Last Played",
-                    tint = MaterialTheme.colorScheme.onPrimary,
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { onClose() }) // Clicking background safely closes
+                    }
+            ) {
+                Column(
                     modifier = Modifier
-                        .size(28.dp)
-                        .rotate(iconRotation)
-                )
+                        .align(Alignment.BottomEnd)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(end = 16.dp, bottom = 16.dp), // Mirrors Scaffold padding exactly
+                    horizontalAlignment = Alignment.End
+                ) {
+                    // Video Preview Card
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = 24.dp)
+                            .graphicsLayer {
+                                scaleX = cardScale
+                                scaleY = cardScale
+                                alpha = cardAlpha
+                                transformOrigin = TransformOrigin(0.9f, 1f)
+                            }
+                            .clickable { onPlay() } // Clicking card plays video
+                    ) {
+                        LastPlayedPreviewCard(uri, title, durationMs, lastPositionMs)
+                    }
+
+                    // The 'Close' FAB
+                    Surface(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { onClose() }) // Clicking X safely closes
+                            },
+                        shape = FabShape,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shadowElevation = 4.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .rotate(fabRot)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -159,23 +218,24 @@ private fun LastPlayedPreviewCard(
     val remainingFormatted = remember(remainingMs) { formatDuration(remainingMs) }
 
     Card(
-        modifier = Modifier.widthIn(min = 220.dp, max = 280.dp),
+        modifier = Modifier.width(260.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
     ) {
         Column {
             Box(
                 modifier = Modifier
-                    .height(130.dp)
+                    .height(146.dp) // Perfect 16:9 Ratio
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (uri != null) {
-                    val cacheKey = remember(uri, lastPositionMs) { "fab_preview_${uri}_${lastPositionMs}" }
+                    val cacheKey = remember(uri, lastPositionMs) { "preview_${uri}_${lastPositionMs}" }
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(uri)
@@ -191,50 +251,60 @@ private fun LastPlayedPreviewCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f)),
+                        .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
             }
 
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            if (durationMs > 0) {
+                val progress = (lastPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
+
+            Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = title ?: "Unknown",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = playedFormatted,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = "/",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp
                     )
                     Text(
                         text = remainingFormatted,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

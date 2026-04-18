@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.ui.components.SearchSuggestionsPopup
 import com.devson.nosvedplayer.R
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -424,9 +425,9 @@ private fun VideoCard(
 ) {
     ElevatedCard(
         modifier = Modifier
-            .width(200.dp)
+            .width(160.dp) // Condensed width
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -436,7 +437,7 @@ private fun VideoCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(124.dp)
+                    .height(90.dp) // 16:9 Aspect Ratio
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -452,7 +453,7 @@ private fun VideoCard(
                 )
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.4f)),
                     contentAlignment = Alignment.Center
@@ -461,36 +462,37 @@ private fun VideoCard(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = stringResource(R.string.cd_play),
                         tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 if (video.duration > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(4.dp))
                             .background(Color.Black.copy(alpha = 0.75f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = formatDuration(video.duration),
                             style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = video.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -498,12 +500,13 @@ private fun VideoCard(
                 ) {
                     Text(
                         text = formatSize(video.size),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = formatDate(video.dateAdded),
                         style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -526,7 +529,7 @@ private fun HistoryCard(
 
     ElevatedCard(
         modifier = Modifier
-            .width(200.dp)
+            .width(160.dp) // Condensed width
             .combinedClickable(
                 onClick = {
                     if (showDeleteButton) showDeleteButton = false
@@ -534,7 +537,7 @@ private fun HistoryCard(
                 },
                 onLongClick = { showDeleteButton = true }
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -544,7 +547,7 @@ private fun HistoryCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(124.dp)
+                    .height(90.dp) // 16:9 Aspect ratio
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -558,10 +561,10 @@ private fun HistoryCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                
+
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.4f)),
                     contentAlignment = Alignment.Center
@@ -570,11 +573,10 @@ private fun HistoryCard(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = "Play",
                         tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // Center Delete Button with Animation
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showDeleteButton,
                     enter = scaleIn(animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)) + fadeIn(),
@@ -584,7 +586,7 @@ private fun HistoryCard(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.3f))
-                            .clickable { showDeleteButton = false }, // Close on background click
+                            .clickable { showDeleteButton = false },
                         contentAlignment = Alignment.Center
                     ) {
                         Button(
@@ -595,13 +597,13 @@ private fun HistoryCard(
                                 contentColor = MaterialTheme.colorScheme.onError
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
-                            modifier = Modifier.size(56.dp),
+                            modifier = Modifier.size(48.dp),
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Delete,
                                 contentDescription = stringResource(R.string.cd_delete),
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -611,14 +613,15 @@ private fun HistoryCard(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .padding(6.dp)
+                            .clip(RoundedCornerShape(4.dp))
                             .background(Color.Black.copy(alpha = 0.75f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = formatDuration(item.duration),
                             style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Medium
                         )
@@ -626,8 +629,7 @@ private fun HistoryCard(
                 }
             }
 
-            // Always take 4dp space to keep layout even
-            Box(modifier = Modifier.fillMaxWidth().height(4.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(3.dp)) {
                 if (progress > 0f) {
                     LinearProgressIndicator(
                         progress = { progress },
@@ -638,15 +640,15 @@ private fun HistoryCard(
                 }
             }
 
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = item.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -655,13 +657,14 @@ private fun HistoryCard(
                     if (item.lastPositionMs > 0L) {
                         Text(
                             text = stringResource(R.string.home_at_position, formatDuration(item.lastPositionMs)),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Text(
                         text = formatRelativeTime(LocalContext.current, item.lastPlayedAt),
                         style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
