@@ -88,12 +88,14 @@ fun OnboardingScreen(
     val onBgColor    = MaterialTheme.colorScheme.onBackground
     val onBgSub      = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgColor)
-    ) {
-        // Full-screen pager
+    Scaffold(
+        containerColor = bgColor
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // Full-screen pager
         HorizontalPager(
             state    = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -112,7 +114,11 @@ fun OnboardingScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = 48.dp, start = 24.dp, end = 24.dp),
+                .padding(
+                    bottom = padding.calculateBottomPadding() + 32.dp,
+                    start = 24.dp,
+                    end = 24.dp
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -197,6 +203,7 @@ fun OnboardingScreen(
                 }
             }
         }
+    }
     }
 }
 

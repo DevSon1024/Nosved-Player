@@ -31,6 +31,7 @@ fun HistoryScreen(
     var showClearDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
@@ -63,8 +64,11 @@ fun HistoryScreen(
             val defaultSettings = remember { ViewSettings() }
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 32.dp
+                )
             ) {
                 items(history, key = { it.uri }) { item ->
                     val video = remember(item) { item.toVideo() }

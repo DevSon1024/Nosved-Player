@@ -92,6 +92,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) { videoListViewModel.loadVideos() }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             if (viewSettings.showFloatingButton && history.isNotEmpty()) {
                 FloatingActionButton(
@@ -210,8 +211,11 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 32.dp
+                )
         ) {
             // Modern Hero Section for "Browse Now"
             ElevatedCard(
@@ -377,7 +381,6 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

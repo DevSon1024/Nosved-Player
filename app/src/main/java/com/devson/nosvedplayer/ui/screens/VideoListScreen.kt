@@ -282,6 +282,7 @@ fun VideoListScreen(
         }
     }
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             val titleText = when (viewSettings.viewMode) {
                 ViewMode.ALL_FOLDERS -> selectedFolder?.name
@@ -562,20 +563,22 @@ fun VideoListScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
         ) {
             // Progress bar shown at top while a file operation is running
             if (opInProgress) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(top = padding.calculateTopPadding())
                         .align(Alignment.TopCenter)
                 )
             }
 
             if (!hasPermission) {
                 Column(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Storage permission is required to find videos.")
@@ -618,7 +621,8 @@ fun VideoListScreen(
                                     selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
                                 },
                                 listState = folderListState,
-                                gridState = folderGridState
+                                gridState = folderGridState,
+                                contentPadding = padding
                             )
                         } else {
                             val videos = videosByFolder[selectedFolder] ?: emptyList()
@@ -641,7 +645,8 @@ fun VideoListScreen(
                                 },
                                 listState = videoListState,
                                 gridState = videoGridState,
-                                historyMap = historyMap
+                                historyMap = historyMap,
+                                contentPadding = padding
                             )
                         }
                     }
@@ -666,7 +671,8 @@ fun VideoListScreen(
                             },
                             listState = videoListState,
                             gridState = videoGridState,
-                            historyMap = historyMap
+                            historyMap = historyMap,
+                            contentPadding = padding
                         )
                     }
                     ViewMode.FOLDERS -> {
@@ -715,7 +721,8 @@ fun VideoListScreen(
                                 selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                             },
                             listState = folderListState,
-                            gridState = folderGridState
+                            gridState = folderGridState,
+                            contentPadding = padding
                         )
                     }
                 }
@@ -854,7 +861,8 @@ fun VideoListContent(
     onVideoClick: (Video) -> Unit,
     onVideoLongClick: (Video) -> Unit,
     listState: LazyListState = rememberLazyListState(),
-    gridState: LazyGridState = rememberLazyGridState()
+    gridState: LazyGridState = rememberLazyGridState(),
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     if (videos.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -871,7 +879,12 @@ fun VideoListContent(
             columns = GridCells.Fixed(settings.gridColumns),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(
+                start = 8.dp,
+                end = 8.dp,
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 8.dp
+            ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -890,7 +903,10 @@ fun VideoListContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding() + 16.dp
+            )
         ) {
             items(videos) { video ->
                 VideoListItem(
@@ -1532,7 +1548,8 @@ fun ExplorerListContent(
     onVideoClick: (Video) -> Unit,
     onVideoLongClick: (Video) -> Unit,
     listState: LazyListState = rememberLazyListState(),
-    gridState: LazyGridState = rememberLazyGridState()
+    gridState: LazyGridState = rememberLazyGridState(),
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
@@ -1541,7 +1558,12 @@ fun ExplorerListContent(
             columns = GridCells.Fixed(settings.gridColumns),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = PaddingValues(
+                start = 8.dp,
+                end = 8.dp,
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 8.dp
+            ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -1577,7 +1599,10 @@ fun ExplorerListContent(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding() + 16.dp
+            )
         ) {
             items(folders) { folder ->
                 val folderVideos = remember(folder, allVideosForSize) { allVideosForSize.filter { it.path.startsWith(folder.id) } }

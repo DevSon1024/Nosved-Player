@@ -170,9 +170,12 @@ fun RecycleBinScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
             if (opInProgress) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(top = padding.calculateTopPadding()))
             }
 
             if (isLoading && trashedVideos.isEmpty()) {
@@ -197,7 +200,12 @@ fun RecycleBinScreen(
                 }
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = padding.calculateTopPadding() + 16.dp,
+                        bottom = padding.calculateBottomPadding() + 32.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(trashedVideos, key = { it.uri }) { video ->

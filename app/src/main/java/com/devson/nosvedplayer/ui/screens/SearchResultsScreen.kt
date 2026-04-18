@@ -57,6 +57,7 @@ fun SearchResultsScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -85,9 +86,7 @@ fun SearchResultsScreen(
         }
     ) { padding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier = Modifier.fillMaxSize()
         ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -97,6 +96,10 @@ fun SearchResultsScreen(
                     settings = viewSettings,
                     selectedVideos = emptySet(),
                     historyMap = historyMap,
+                    contentPadding = PaddingValues(
+                        top = padding.calculateTopPadding(),
+                        bottom = padding.calculateBottomPadding() + 32.dp
+                    ),
                     onVideoClick = { video ->
                         onVideoSelected(video, results, historyMap[video.uri]?.lastPositionMs ?: 0L)
                     },
