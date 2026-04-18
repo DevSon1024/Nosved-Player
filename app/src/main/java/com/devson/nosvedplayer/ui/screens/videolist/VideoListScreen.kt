@@ -1,4 +1,4 @@
-package com.devson.nosvedplayer.ui.screens
+package com.devson.nosvedplayer.ui.screens.videolist
 
 import android.Manifest
 import com.devson.nosvedplayer.ui.components.CustomRenameDialog
@@ -44,7 +44,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.devson.nosvedplayer.ui.components.SearchSuggestionsPopup
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -61,6 +60,8 @@ import com.devson.nosvedplayer.model.ViewSettings
 import com.devson.nosvedplayer.viewmodel.FileOperationsViewModel
 import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.result.IntentSenderRequest
 import androidx.compose.material.icons.Icons
@@ -83,16 +84,31 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.SoftwareKeyboardController
+import com.devson.nosvedplayer.model.WatchHistory
 import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
 import com.devson.nosvedplayer.ui.components.PreviewFloatingActionButton
+import com.devson.nosvedplayer.ui.screens.FolderGridItem
+import com.devson.nosvedplayer.ui.screens.FolderListContent
+import com.devson.nosvedplayer.ui.screens.FolderListItem
+import com.devson.nosvedplayer.ui.screens.InformationBottomSheet
+import com.devson.nosvedplayer.ui.screens.StorageExplorerScreen
+import com.devson.nosvedplayer.util.TagStatusDialog
+import com.devson.nosvedplayer.viewmodel.HomeViewModel
+import java.util.ArrayList
+import kotlin.collections.get
 
 sealed class VideoWatchState {
     object Unplayed : VideoWatchState()
@@ -199,7 +215,7 @@ fun VideoListScreen(
     }
 
     //  Watch History 
-    val homeViewModel: com.devson.nosvedplayer.viewmodel.HomeViewModel = viewModel()
+    val homeViewModel: HomeViewModel = viewModel()
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
@@ -599,7 +615,7 @@ fun VideoListScreen(
             } else if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
-                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                PullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = { viewModel.loadVideos(forceRefresh = true) },
                     modifier = Modifier.fillMaxSize()
@@ -608,24 +624,26 @@ fun VideoListScreen(
                         ViewMode.ALL_FOLDERS -> {
                             if (selectedFolder == null) {
                                 FolderListContent(
-                                folders = videosByFolder,
-                                settings = viewSettings,
-                                selectedFolders = selectedFolders,
-                                historyMap = historyMap,
-                                onFolderClick = { folder ->
-                                    if (isSelectionActive) {
-                                        selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                    } else {
-                                        viewModel.selectFolder(folder)
-                                    }
-                                },
-                                onFolderLongClick = { folder ->
-                                    selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                },
-                                listState = folderListState,
-                                gridState = folderGridState,
-                                contentPadding = padding
-                            )
+                                    folders = videosByFolder,
+                                    settings = viewSettings,
+                                    selectedFolders = selectedFolders,
+                                    historyMap = historyMap,
+                                    onFolderClick = { folder ->
+                                        if (isSelectionActive) {
+                                            selectedFolders =
+                                                if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
+                                        } else {
+                                            viewModel.selectFolder(folder)
+                                        }
+                                    },
+                                    onFolderLongClick = { folder ->
+                                        selectedFolders =
+                                            if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
+                                    },
+                                    listState = folderListState,
+                                    gridState = folderGridState,
+                                    contentPadding = padding
+                                )
                         } else {
                             val videos = videosByFolder[selectedFolder] ?: emptyList()
                             val sortedVideos = remember(videos, viewSettings.sortField, viewSettings.sortDirection) {
@@ -859,7 +877,7 @@ fun VideoListContent(
     videos: List<Video>,
     settings: ViewSettings,
     selectedVideos: Set<Video>,
-    historyMap: Map<String, com.devson.nosvedplayer.model.WatchHistory> = emptyMap(),
+    historyMap: Map<String, WatchHistory> = emptyMap(),
     onVideoClick: (Video) -> Unit,
     onVideoLongClick: (Video) -> Unit,
     listState: LazyListState = rememberLazyListState(),
@@ -1544,7 +1562,7 @@ fun ExplorerListContent(
     settings: ViewSettings,
     selectedFolders: Set<VideoFolder>,
     selectedVideos: Set<Video>,
-    historyMap: Map<String, com.devson.nosvedplayer.model.WatchHistory> = emptyMap(),
+    historyMap: Map<String, WatchHistory> = emptyMap(),
     onFolderClick: (VideoFolder) -> Unit,
     onFolderLongClick: (VideoFolder) -> Unit,
     onVideoClick: (Video) -> Unit,
@@ -1553,7 +1571,7 @@ fun ExplorerListContent(
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic = LocalHapticFeedback.current
 
     if (settings.layoutMode == LayoutMode.GRID) {
         LazyVerticalGrid(
@@ -1578,7 +1596,7 @@ fun ExplorerListContent(
                     isSelected = folder in selectedFolders,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onFolderLongClick(folder)
                     }
                 )
@@ -1591,7 +1609,7 @@ fun ExplorerListContent(
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
                     onClick = { onVideoClick(video) },
                     onLongClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onVideoLongClick(video)
                     }
                 )
@@ -1615,7 +1633,7 @@ fun ExplorerListContent(
                     isSelected = folder in selectedFolders,
                     onClick = { onFolderClick(folder) },
                     onLongClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onFolderLongClick(folder)
                     }
                 )
@@ -1628,7 +1646,7 @@ fun ExplorerListContent(
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
                     onClick = { onVideoClick(video) },
                     onLongClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onVideoLongClick(video)
                     }
                 )
@@ -1659,7 +1677,7 @@ private fun VideoListTopAppBar(
     onSearchTextChange: (String) -> Unit = {},
     searchSuggestions: List<Video> = emptyList(),
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
-    keyboard: androidx.compose.ui.platform.SoftwareKeyboardController? = null
+    keyboard: SoftwareKeyboardController? = null
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -1704,10 +1722,10 @@ private fun VideoListTopAppBar(
                         placeholder = { Text("Search videos...") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Search
                         ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        keyboardActions = KeyboardActions(
                             onSearch = {
                                 keyboard?.hide()
                                 if (searchText.isNotBlank()) {
@@ -1788,7 +1806,7 @@ fun VideoSelectionBottomAppBar(
     var showTagDialog by remember { mutableStateOf(false) }
 
     if (showTagDialog) {
-        com.devson.nosvedplayer.util.TagStatusDialog(
+        TagStatusDialog(
             onDismiss = { showTagDialog = false },
             onConfirm = { status ->
                 showTagDialog = false
@@ -1841,7 +1859,7 @@ fun VideoSelectionBottomAppBar(
 
 @Composable
 private fun ActionColumn(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     onClick: () -> Unit
 ) {
@@ -1877,23 +1895,23 @@ private fun List<VideoFolder>.applyFolderSort(
     return if (direction == SortDirection.DESCENDING) sorted.reversed() else sorted
 }
 
-fun shareVideos(context: android.content.Context, videos: List<com.devson.nosvedplayer.model.Video>) {
+fun shareVideos(context: Context, videos: List<Video>) {
     if (videos.isEmpty()) return
-    val uris = videos.map { android.net.Uri.parse(it.uri) }
+    val uris = videos.map { Uri.parse(it.uri) }
     
     val intent = if (uris.size == 1) {
-        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        Intent(Intent.ACTION_SEND).apply {
             type = "video/*"
-            putExtra(android.content.Intent.EXTRA_STREAM, uris.first())
-            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_STREAM, uris.first())
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     } else {
-        android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+        Intent(Intent.ACTION_SEND_MULTIPLE).apply {
             type = "video/*"
-            putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, java.util.ArrayList(uris))
-            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
     
-    context.startActivity(android.content.Intent.createChooser(intent, "Share Video"))
+    context.startActivity(Intent.createChooser(intent, "Share Video"))
 }

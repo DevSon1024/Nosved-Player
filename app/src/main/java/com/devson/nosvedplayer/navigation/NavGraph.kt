@@ -1,6 +1,5 @@
 package com.devson.nosvedplayer.navigation
 
-import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
@@ -27,7 +26,7 @@ import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.settings.ToolScreen
 import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
-import com.devson.nosvedplayer.ui.screens.VideoListScreen
+import com.devson.nosvedplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument

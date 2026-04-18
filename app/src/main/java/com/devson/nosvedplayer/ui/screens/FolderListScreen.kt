@@ -70,6 +70,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.filled.VideoLibrary
 import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
+import com.devson.nosvedplayer.ui.screens.videolist.VideoThumbnail
+import com.devson.nosvedplayer.ui.screens.videolist.VideoWatchState
+import com.devson.nosvedplayer.ui.screens.videolist.getWatchState
 
 /** Small pill badge showing the number of unplayed videos in a folder. */
 @Composable
@@ -112,8 +115,8 @@ fun FolderMediaPreview(
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
             VideoThumbnail(
-                uri         = videos.first().uri,
-                modifier    = Modifier.fillMaxSize(),
+                uri = videos.first().uri,
+                modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )
             // Subtle bottom scrim so folder looks layered
@@ -180,7 +183,10 @@ fun FolderListItem(
     onLongClick: () -> Unit = {}
 ) {
     val newCount = remember(videos, historyMap) {
-        videos.count { v -> getWatchState(historyMap[v.uri]?.lastPositionMs ?: 0L, v.duration) is VideoWatchState.Unplayed }
+        videos.count { v -> getWatchState(
+            historyMap[v.uri]?.lastPositionMs ?: 0L,
+            v.duration
+        ) is VideoWatchState.Unplayed }
     }
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
@@ -270,7 +276,10 @@ fun FolderGridItem(
 ) {
     val isDense = settings.gridColumns >= 3
     val newCount = remember(videos, historyMap) {
-        videos.count { v -> getWatchState(historyMap[v.uri]?.lastPositionMs ?: 0L, v.duration) is VideoWatchState.Unplayed }
+        videos.count { v -> getWatchState(
+            historyMap[v.uri]?.lastPositionMs ?: 0L,
+            v.duration
+        ) is VideoWatchState.Unplayed }
     }
  
     val bgColor by animateColorAsState(
