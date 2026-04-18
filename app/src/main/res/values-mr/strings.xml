@@ -118,7 +118,7 @@
     <string name="home_recently_added">अलीकडे जोडलेले</string>
     <string name="home_no_recent_videos">कोणतेही अलीकडील व्हिडिओ नाहीत</string>
     <string name="home_start_exploring">एक्सप्लोर करणे सुरू करण्यासाठी येथे टॅप करा</string>
-    <string name="home_at_position">%1$s वर</string>
+    <string name="home_at_position">%1$s पर्यंत पाहिले</string>
     
     <!-- History Screen -->
     <string name="history_title">पाहण्याचा इतिहास</string>

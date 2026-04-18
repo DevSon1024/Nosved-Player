@@ -121,7 +121,7 @@
     <string name="home_recently_added">Recently Added</string>
     <string name="home_no_recent_videos">No recent videos</string>
     <string name="home_start_exploring">Tap here to start exploring</string>
-    <string name="home_at_position">At %1$s</string>
+    <string name="home_at_position">Played Till %1$s</string>
     
     <!-- History Screen -->
     <string name="history_title">Watch History</string>
