@@ -1,15 +1,15 @@
 package com.devson.nosvedplayer.navigation
 
-import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
@@ -26,7 +26,7 @@ import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.settings.ToolScreen
 import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
-import com.devson.nosvedplayer.ui.screens.VideoListScreen
+import com.devson.nosvedplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -42,10 +42,14 @@ fun NavGraph(
     settingsViewModel: SettingsViewModel,
     onVideoSelected: (Video, List<Video>, Long) -> Unit
 ) {
-    val hasSeenOnboarding by settingsViewModel.hasSeenOnboarding.collectAsState()
-    val startDestination = remember(hasSeenOnboarding) {
-        if (hasSeenOnboarding == true) Screen.Home.route else Screen.Onboarding.route
+    val hasSeenOnboarding by settingsViewModel.hasSeenOnboarding.collectAsState(initial = null)
+
+    if (hasSeenOnboarding == null) {
+        GreetingSplashScreen()
+        return
     }
+
+    val startDestination = if (hasSeenOnboarding == true) Screen.Home.route else Screen.Onboarding.route
 
     val safePopBackStack: () -> Unit = { if (navController.previousBackStackEntry != null) navController.popBackStack() }
 
@@ -203,5 +207,19 @@ fun NavGraph(
                 onBack = { safePopBackStack() }
             )
         }
+    }
+}
+
+@Composable
+fun GreetingSplashScreen() {
+    Box(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        androidx.compose.material3.Text(
+            text = "Welcome",
+            style = androidx.compose.material3.MaterialTheme.typography.displayMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+        )
     }
 }

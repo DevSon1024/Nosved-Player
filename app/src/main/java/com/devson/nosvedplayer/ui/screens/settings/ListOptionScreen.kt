@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Visibility
@@ -88,7 +89,7 @@ fun ListOptionScreen(
                     }
                     HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsToggleRow(
-                        icon = Icons.Default.List,
+                        icon = Icons.AutoMirrored.Filled.List,
                         title = "Select thumbnail",
                         subtitle = "Switch to selection mode by touching the thumbnail or icon",
                         checked = viewSettings.selectByThumbnail,
