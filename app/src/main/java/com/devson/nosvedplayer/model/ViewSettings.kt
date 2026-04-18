@@ -39,5 +39,6 @@ data class ViewSettings(
     val recognizeNoMedia: Boolean = false,
     val showFloatingButton: Boolean = true,
     val selectByThumbnail: Boolean = false,
+    val enableFabPreview: Boolean = false,
     val scanFoldersList: Set<String> = setOf("/storage", "/storage/emulated/0"),
 )

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,6 +75,17 @@ fun ListOptionScreen(
                         checked = viewSettings.showFloatingButton,
                         onCheckedChange = { settingsViewModel.updateShowFloatingButton(it) }
                     )
+                    if (viewSettings.showFloatingButton) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingsToggleRow(
+                            icon = Icons.Default.Visibility,
+                            title = "Last Played Preview",
+                            subtitle = "Enable long press preview for the FAB",
+                            checked = viewSettings.enableFabPreview,
+                            onCheckedChange = { settingsViewModel.updateEnableFabPreview(it) },
+                            indented = true
+                        )
+                    }
                     HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant)
                     SettingsToggleRow(
                         icon = Icons.Default.List,
@@ -94,13 +106,15 @@ private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    indented: Boolean = false
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = if (indented) 28.dp else 16.dp, end = 16.dp)
+            .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -108,14 +122,18 @@ private fun SettingsToggleRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
+                .background(
+                    if (indented) MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.secondaryContainer
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                tint = if (indented) MaterialTheme.colorScheme.onTertiaryContainer
+                       else MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
         Column(modifier = Modifier.weight(1f)) {

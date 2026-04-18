@@ -102,6 +102,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { viewSettingsRepo.updateSelectByThumbnail(select) }
     }
 
+    fun updateEnableFabPreview(enable: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateEnableFabPreview(enable) }
+    }
+
     fun updateScanFoldersList(folders: Set<String>) {
         viewModelScope.launch { viewSettingsRepo.updateScanFoldersList(folders) }
     }

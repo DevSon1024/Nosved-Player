@@ -56,6 +56,7 @@ import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.WatchHistory
+import com.devson.nosvedplayer.ui.components.PreviewFloatingActionButton
 import com.devson.nosvedplayer.viewmodel.HomeViewModel
 import com.devson.nosvedplayer.viewmodel.VideoListViewModel
 import com.devson.nosvedplayer.util.formatDate
@@ -95,34 +96,26 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             if (viewSettings.showFloatingButton && history.isNotEmpty()) {
-                FloatingActionButton(
-                    onClick = {
-                        val lastPlayed = history.first()
-                        val playlist = history.map { 
-                            Video(
-                                uri = it.uri,
-                                title = it.title,
-                                duration = it.duration,
-                                size = it.size,
-                                folderName = it.folderName
-                            ) 
-                        }
+                val lastPlayed = history.first()
+                val playlist = remember(history) {
+                    history.map {
+                        Video(uri = it.uri, title = it.title, duration = it.duration, size = it.size, folderName = it.folderName)
+                    }
+                }
+                PreviewFloatingActionButton(
+                    enablePreview = viewSettings.enableFabPreview,
+                    previewUri = lastPlayed.uri,
+                    previewTitle = lastPlayed.title,
+                    previewDurationMs = lastPlayed.duration,
+                    previewLastPositionMs = lastPlayed.lastPositionMs,
+                    onPlay = {
                         onVideoSelected(
-                            Video(
-                                uri = lastPlayed.uri,
-                                title = lastPlayed.title,
-                                duration = lastPlayed.duration,
-                                size = lastPlayed.size,
-                                folderName = lastPlayed.folderName
-                            ),
+                            Video(uri = lastPlayed.uri, title = lastPlayed.title, duration = lastPlayed.duration, size = lastPlayed.size, folderName = lastPlayed.folderName),
                             playlist,
                             lastPlayed.lastPositionMs
                         )
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play Last Played")
-                }
+                    }
+                )
             }
         },
         topBar = {

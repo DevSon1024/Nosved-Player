@@ -38,6 +38,7 @@ class ViewSettingsRepository(private val context: Context) {
         val RECOGNIZE_NOMEDIA = booleanPreferencesKey("recognize_nomedia")
         val SHOW_FLOATING_BUTTON = booleanPreferencesKey("show_floating_button")
         val SELECT_BY_THUMBNAIL = booleanPreferencesKey("select_by_thumbnail")
+        val ENABLE_FAB_PREVIEW = booleanPreferencesKey("enable_fab_preview")
         val SCAN_FOLDERS_LIST = stringSetPreferencesKey("scan_folders_list")
     }
 
@@ -62,6 +63,7 @@ class ViewSettingsRepository(private val context: Context) {
             recognizeNoMedia = preferences[RECOGNIZE_NOMEDIA] ?: false,
             showFloatingButton = preferences[SHOW_FLOATING_BUTTON] ?: true,
             selectByThumbnail = preferences[SELECT_BY_THUMBNAIL] ?: false,
+            enableFabPreview = preferences[ENABLE_FAB_PREVIEW] ?: false,
             scanFoldersList = preferences[SCAN_FOLDERS_LIST] ?: setOf("/storage", "/storage/emulated/0")
         )
     }
@@ -140,6 +142,10 @@ class ViewSettingsRepository(private val context: Context) {
 
     suspend fun updateSelectByThumbnail(select: Boolean) {
         context.viewSettingsDataStore.edit { it[SELECT_BY_THUMBNAIL] = select }
+    }
+
+    suspend fun updateEnableFabPreview(enable: Boolean) {
+        context.viewSettingsDataStore.edit { it[ENABLE_FAB_PREVIEW] = enable }
     }
 
     suspend fun updateScanFoldersList(folders: Set<String>) {

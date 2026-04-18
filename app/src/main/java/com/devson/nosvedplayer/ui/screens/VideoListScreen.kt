@@ -92,6 +92,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.devson.nosvedplayer.ui.components.CustomEmptyStateView
+import com.devson.nosvedplayer.ui.components.PreviewFloatingActionButton
 
 sealed class VideoWatchState {
     object Unplayed : VideoWatchState()
@@ -513,9 +514,8 @@ fun VideoListScreen(
         },
         floatingActionButton = {
             if (viewSettings.showFloatingButton && !isSelectionActive) {
-                // Determine the last played video
                 val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
-                
+
                 val lastPlayedVideo = remember(history, selectedFolder, viewSettings.viewMode, currentExplorerPath, allVideosFlat) {
                     if (viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) {
                         val folderVideos = videosByFolder[selectedFolder] ?: emptyList()
@@ -534,8 +534,14 @@ fun VideoListScreen(
                 }
 
                 if (lastPlayedVideo != null) {
-                    FloatingActionButton(
-                        onClick = {
+                    val lastHistoryEntry = remember(lastPlayedVideo, historyMap) { historyMap[lastPlayedVideo.uri] }
+                    PreviewFloatingActionButton(
+                        enablePreview = viewSettings.enableFabPreview,
+                        previewUri = lastPlayedVideo.uri,
+                        previewTitle = lastPlayedVideo.title,
+                        previewDurationMs = lastPlayedVideo.duration,
+                        previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
+                        onPlay = {
                             val playlist = when (viewSettings.viewMode) {
                                 ViewMode.FILES -> allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
@@ -549,13 +555,9 @@ fun VideoListScreen(
                                     allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                             }
-                            onVideoSelected(lastPlayedVideo, playlist, historyMap[lastPlayedVideo.uri]?.lastPositionMs ?: 0L)
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = "Play Last Played Video")
-                    }
+                            onVideoSelected(lastPlayedVideo, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
+                        }
+                    )
                 }
             }
         }
