@@ -14,9 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -25,6 +29,19 @@ import java.util.*
 fun ToolScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Live real-time state
+    var liveMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                liveMillis = System.currentTimeMillis()
+                delay(40)
+            }
+        }
+    }
     
     // Section A state
     var millisInput by remember { mutableStateOf("") }
@@ -110,6 +127,41 @@ fun ToolScreen(onBack: () -> Unit) {
                 ),
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
+            // Live Real-Time Section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Live Current Time", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = sdfB.format(Date(liveMillis)),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text("Milliseconds", style = MaterialTheme.typography.labelSmall)
+                            Text(liveMillis.toString(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
+                        }
+                        Button(onClick = {
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(liveMillis.toString()))
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Copy")
+                        }
+                    }
+                }
+            }
+
             // Section A: Millis to Date
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Millis to Date", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
