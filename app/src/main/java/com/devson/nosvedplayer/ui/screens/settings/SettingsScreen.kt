@@ -143,7 +143,7 @@ fun SettingsScreen(
                 )
                 SettingsRow(
                     icon     = Icons.Default.Tune,
-                    title    = "Interface",
+                    title    = "Player Interface",
                     subtitle = "Manage player layout and visibility",
                     onClick  = onNavigateToPlayerInterface
                 )

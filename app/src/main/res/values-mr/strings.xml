@@ -36,13 +36,10 @@
     
 
     <!-- Appearance Settings Screen -->
-    <string name="appearance_dark_theme">गडद थिम</string>
+    <string name="appearance_dark_theme">थिम</string>
     <string name="appearance_light">प्रकाश</string>
-    <string name="appearance_light_desc">नेहमी हलके रंग वापरा</string>
     <string name="appearance_dark">गडद</string>
-    <string name="appearance_dark_desc">नेहमी गडद रंग वापरा</string>
     <string name="appearance_system_default">सिस्टम डीफॉल्ट</string>
-    <string name="appearance_system_default_desc">सिस्टम सेटिंग्जनुसार थिम</string>
     <string name="appearance_close">बंद करा</string>
     <string name="appearance_colour_palette">रंग पॅलेट</string>
     <string name="appearance_theme">थिम आणि दृश्य सेटिंग्ज</string>

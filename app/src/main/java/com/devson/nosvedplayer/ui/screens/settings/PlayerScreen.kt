@@ -71,7 +71,7 @@ fun PlayerScreen(
         ) {
             item { Spacer(Modifier.height(8.dp)) }
 
-            item { SettingsSectionLabel("Control Settings") }
+            item { SettingsSectionLabel("Player Control Settings") }
             item {
                 SettingsCard {
                     SettingsRadioItem(

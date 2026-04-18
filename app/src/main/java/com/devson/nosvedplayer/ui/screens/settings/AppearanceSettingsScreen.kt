@@ -55,7 +55,7 @@ fun AppearanceSettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
 
-    //  Dark theme picker dialog
+    //  Theme picker dialog
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
@@ -78,7 +78,6 @@ fun AppearanceSettingsScreen(
                 Column(modifier = Modifier.selectableGroup()) {
                     ThemeOption(
                         text        = stringResource(R.string.appearance_light),
-                        description = stringResource(R.string.appearance_light_desc),
                         selected    = isDark == false,
                         icon        = Icons.Default.LightMode,
                         onClick     = {
@@ -88,7 +87,6 @@ fun AppearanceSettingsScreen(
                     )
                     ThemeOption(
                         text        = stringResource(R.string.appearance_dark),
-                        description = stringResource(R.string.appearance_dark_desc),
                         selected    = isDark == true,
                         icon        = Icons.Default.DarkMode,
                         onClick     = {
@@ -98,7 +96,6 @@ fun AppearanceSettingsScreen(
                     )
                     ThemeOption(
                         text        = stringResource(R.string.appearance_system_default),
-                        description = stringResource(R.string.appearance_system_default_desc),
                         selected    = isDark == null,
                         icon        = Icons.Default.SettingsBrightness,
                         onClick     = {
@@ -139,7 +136,6 @@ fun AppearanceSettingsScreen(
                 Column(modifier = Modifier.selectableGroup()) {
                     ThemeOption(
                         text        = stringResource(R.string.appearance_english),
-                        description = "",
                         selected    = !isMarathi,
                         icon        = Icons.Default.Check,
                         onClick     = {
@@ -149,7 +145,6 @@ fun AppearanceSettingsScreen(
                     )
                     ThemeOption(
                         text        = stringResource(R.string.appearance_marathi_full),
-                        description = "",
                         selected    = isMarathi,
                         icon        = Icons.Default.Check,
                         onClick     = {
@@ -615,7 +610,6 @@ private fun AppearanceToggleRow(
 @Composable
 private fun ThemeOption(
     text: String,
-    description: String,
     selected: Boolean,
     icon: ImageVector,
     onClick: () -> Unit
@@ -624,7 +618,7 @@ private fun ThemeOption(
         modifier          = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -635,14 +629,12 @@ private fun ThemeOption(
             tint               = if (selected) MaterialTheme.colorScheme.primary
                                  else MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = text, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text  = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
         RadioButton(selected = selected, onClick = null)
     }
 }
+

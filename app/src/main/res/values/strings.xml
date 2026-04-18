@@ -35,13 +35,10 @@
     <string name="settings_stable">Stable</string>
     
     <!-- Appearance Settings Screen -->
-    <string name="appearance_dark_theme">Dark Theme</string>
+    <string name="appearance_dark_theme">Theme</string>
     <string name="appearance_light">Light</string>
-    <string name="appearance_light_desc">Always use light colours</string>
     <string name="appearance_dark">Dark</string>
-    <string name="appearance_dark_desc">Always use dark colours</string>
-    <string name="appearance_system_default">System default</string>
-    <string name="appearance_system_default_desc">Follow system light / dark setting</string>
+    <string name="appearance_system_default">System Default</string>
     <string name="appearance_close">Close</string>
     <string name="appearance_colour_palette">Colour Palette</string>
     <string name="appearance_theme">Theme &amp; View Setting</string>
