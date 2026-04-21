@@ -126,7 +126,18 @@ android {
             excludes += "**/*.version"
             excludes += "**/kotlin-tooling-metadata.json"
         }
-        jniLibs.useLegacyPackaging = true
+        jniLibs {
+            useLegacyPackaging = true
+            pickFirsts += listOf(
+                "**/libavcodec.so",
+                "**/libavfilter.so",
+                "**/libavformat.so",
+                "**/libavutil.so",
+                "**/libswresample.so",
+                "**/libswscale.so",
+                "**/libpostproc.so"
+            )
+        }
     }
     ndkVersion = "27.0.12077973"
 }
@@ -150,8 +161,7 @@ dependencies {
     implementation(libs.androidx.media3.effect)
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
-
-//    implementation(files("libs/lib-decoder-ffmpeg-release.aar"))
+    implementation("io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb:6.1.4")
 
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

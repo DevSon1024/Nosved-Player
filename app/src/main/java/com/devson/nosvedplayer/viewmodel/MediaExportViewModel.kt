@@ -1,15 +1,20 @@
 package com.devson.nosvedplayer.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import android.provider.DocumentsContract
 import androidx.annotation.OptIn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import com.devson.nosvedplayer.service.MediaConverterService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,7 +126,7 @@ class MediaExportViewModel : ViewModel() {
                     }
                     muxer.release()
                     extractor.release()
-                    
+
                     if (framesWritten == 0) {
                         tempExtractedFile.delete()
                         throw Exception("No valid audio frames found in the selected range")
@@ -134,6 +139,48 @@ class MediaExportViewModel : ViewModel() {
                 _state.value = ExportUiState.Error(e.message ?: "Export failed")
             }
         }
+    }
+
+    /**
+     * Offloads FFmpeg work to the isolated :converter process.
+     * inputUri is passed as Intent data with FLAG_GRANT_READ_URI_PERMISSION so
+     * the remote process can open Scoped Storage URIs.
+     */
+    fun startFfmpegConvert(
+        context: Context,
+        inputUri: Uri,
+        ffmpegArgs: ArrayList<String>
+    ) {
+        if (_state.value is ExportUiState.Processing) return
+        _state.value = ExportUiState.Processing(0f)
+
+        val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                when (resultCode) {
+                    MediaConverterService.RESULT_PROGRESS -> {
+                        val pct = resultData?.getFloat(MediaConverterService.KEY_PROGRESS, 0f) ?: 0f
+                        _state.value = ExportUiState.Processing(pct)
+                    }
+                    MediaConverterService.RESULT_SUCCESS -> {
+                        val path = resultData?.getString(MediaConverterService.KEY_PATH) ?: ""
+                        _state.value = ExportUiState.Success(path)
+                    }
+                    MediaConverterService.RESULT_ERROR -> {
+                        val msg = resultData?.getString(MediaConverterService.KEY_MSG) ?: "FFmpeg error"
+                        _state.value = ExportUiState.Error(msg)
+                    }
+                }
+            }
+        }
+
+        val intent = Intent(context, MediaConverterService::class.java).apply {
+            action = MediaConverterService.ACTION_CONVERT
+            data = inputUri
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(MediaConverterService.EXTRA_RECEIVER, receiver)
+            putStringArrayListExtra(MediaConverterService.EXTRA_CMD_ARGS, ffmpegArgs)
+        }
+        context.startForegroundService(intent)
     }
 
     private fun saveOutput(context: Context, tempFile: File, outputFolderUri: Uri?, format: ExportAudioFormat, fileNamePrefix: String): String {
