@@ -10,30 +10,26 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.transformer.Composition
-import androidx.media3.transformer.EditedMediaItem
-import androidx.media3.transformer.ExportException
-import androidx.media3.transformer.ExportResult
-import androidx.media3.transformer.ProgressHolder
-import androidx.media3.transformer.Transformer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.nio.ByteBuffer
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
+
+data class AudioTrackInfo(val index: Int, val language: String, val mime: String)
 
 enum class ExportAudioFormat(val ext: String, val mime: String) {
-    M4A(".m4a", MimeTypes.AUDIO_AAC),
-    MP3(".mp3", MimeTypes.AUDIO_MPEG)
+    M4A(".m4a", MimeTypes.AUDIO_AAC)
 }
 
 sealed class ExportOperation {
-    data class ExtractAudio(val format: ExportAudioFormat, val startMs: Long, val endMs: Long) : ExportOperation()
+    data class ExtractAudio(val format: ExportAudioFormat, val startMs: Long, val endMs: Long, val tracks: List<AudioTrackInfo>) : ExportOperation()
 }
 
 sealed class ExportUiState {
@@ -49,14 +45,13 @@ class MediaExportViewModel : ViewModel() {
     private val _state = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val state: StateFlow<ExportUiState> = _state
 
-    private var activeTransformer: Transformer? = null
     private var pollJob: Job? = null
 
     fun startExport(context: Context, inputUri: Uri, operation: ExportOperation.ExtractAudio, outputFolderUri: Uri?) {
         if (_state.value is ExportUiState.Processing) return
         _state.value = ExportUiState.Processing(0f)
 
-        viewModelScope.launch(Dispatchers.Main) {
+        pollJob = viewModelScope.launch(Dispatchers.IO) {
             var originalName = "audio"
             try {
                 context.contentResolver.query(inputUri, null, null, null, null)?.use { cursor ->
@@ -65,61 +60,78 @@ class MediaExportViewModel : ViewModel() {
                         if (nameIndex != -1) cursor.getString(nameIndex)?.let { originalName = it.substringBeforeLast(".") }
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {}
             if (originalName == "audio") originalName = inputUri.lastPathSegment?.substringBeforeLast(".") ?: "audio"
-            originalName = originalName.replace(Regex("[^a-zA-Z0-9_\\-\\s]"), "").trim().replace(" ", "_")
-            if (originalName.isEmpty()) originalName = "audio"
+            originalName = originalName.replace(Regex("[^a-zA-Z0-9_\\\\-\\\\s]"), "").trim().replace(" ", "_").ifEmpty { "audio" }
 
-            val fileNamePrefix = "$originalName-${System.currentTimeMillis()}"
-            val tempFile = File(context.cacheDir, "$fileNamePrefix${operation.format.ext}")
-            val mediaItem = MediaItem.Builder().setUri(inputUri)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(operation.startMs)
-                        .setEndPositionMs(operation.endMs)
-                        .build()
-                ).build()
+            try {
+                for ((i, track) in operation.tracks.withIndex()) {
+                    val progressOffset = i.toFloat() / operation.tracks.size
+                    val trackFraction = 1f / operation.tracks.size
 
-            val editedMediaItem = EditedMediaItem.Builder(mediaItem)
-                .setRemoveVideo(true)
-                .build()
+                    val fileNamePrefix = "$originalName-${System.currentTimeMillis()}-${track.language}"
+                    val tempExtractedFile = File(context.cacheDir, "$fileNamePrefix.m4a")
 
-            val listener = object : Transformer.Listener {
-                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                    pollJob?.cancel()
-                    viewModelScope.launch(Dispatchers.IO) {
-                        try {
-                            val finalPath = saveOutput(context, tempFile, outputFolderUri, operation.format, fileNamePrefix)
-                            _state.value = ExportUiState.Success(finalPath)
-                        } catch (e: Exception) {
-                            _state.value = ExportUiState.Error("Copy failed: ${e.message}")
+                    val extractor = MediaExtractor()
+                    extractor.setDataSource(context, inputUri, null)
+                    extractor.selectTrack(track.index)
+                    extractor.seekTo(operation.startMs * 1000, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+
+                    val format = extractor.getTrackFormat(track.index)
+                    val muxer = MediaMuxer(tempExtractedFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                    val outTrack = muxer.addTrack(format)
+                    muxer.start()
+
+                    val buffer = ByteBuffer.allocate(1024 * 1024)
+                    val bufferInfo = MediaCodec.BufferInfo()
+
+                    var framesWritten = 0
+                    var firstSampleTimeUs = -1L
+
+                    while (true) {
+                        val size = extractor.readSampleData(buffer, 0)
+                        if (size < 0) break
+                        val timeUs = extractor.sampleTime
+                        if (timeUs > operation.endMs * 1000) break
+
+                        if (timeUs < operation.startMs * 1000) {
+                            extractor.advance()
+                            continue
+                        }
+
+                        if (firstSampleTimeUs == -1L) firstSampleTimeUs = timeUs
+
+                        bufferInfo.offset = 0
+                        bufferInfo.size = size
+                        bufferInfo.presentationTimeUs = timeUs - firstSampleTimeUs
+                        bufferInfo.flags = extractor.sampleFlags
+
+                        muxer.writeSampleData(outTrack, buffer, bufferInfo)
+                        framesWritten++
+                        extractor.advance()
+
+                        if (timeUs % 500_000 < 50000) {
+                            val currentMs = (timeUs / 1000).coerceAtLeast(operation.startMs)
+                            val p = (currentMs - operation.startMs).toFloat() / (operation.endMs - operation.startMs).coerceAtLeast(1)
+                            _state.value = ExportUiState.Processing(progressOffset + p * trackFraction)
                         }
                     }
-                }
-
-                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                    pollJob?.cancel()
-                    tempFile.delete()
-                    _state.value = ExportUiState.Error(exportException.message ?: "Export failed")
-                }
-            }
-
-            val transformer = Transformer.Builder(context)
-                .addListener(listener)
-                .setAudioMimeType(MimeTypes.AUDIO_AAC)
-                .build()
-
-            activeTransformer = transformer
-            transformer.start(editedMediaItem, tempFile.absolutePath)
-
-            pollJob = launch {
-                val holder = ProgressHolder()
-                while (true) {
-                    delay(250)
-                    if (transformer.getProgress(holder) == Transformer.PROGRESS_STATE_AVAILABLE) {
-                        _state.value = ExportUiState.Processing(holder.progress / 100f)
+                    if (framesWritten > 0) {
+                        muxer.stop()
                     }
+                    muxer.release()
+                    extractor.release()
+                    
+                    if (framesWritten == 0) {
+                        tempExtractedFile.delete()
+                        throw Exception("No valid audio frames found in the selected range")
+                    }
+
+                    saveOutput(context, tempExtractedFile, outputFolderUri, operation.format, fileNamePrefix)
                 }
+                _state.value = ExportUiState.Success("Export fully completed")
+            } catch (e: Exception) {
+                _state.value = ExportUiState.Error(e.message ?: "Export failed")
             }
         }
     }
@@ -150,8 +162,6 @@ class MediaExportViewModel : ViewModel() {
 
     fun cancelExport() {
         pollJob?.cancel()
-        activeTransformer?.cancel()
-        activeTransformer = null
         _state.value = ExportUiState.Idle
     }
 

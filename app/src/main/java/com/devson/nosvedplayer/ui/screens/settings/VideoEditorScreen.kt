@@ -10,6 +10,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,10 +36,15 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.devson.nosvedplayer.viewmodel.AudioTrackInfo
 import com.devson.nosvedplayer.viewmodel.ExportAudioFormat
 import com.devson.nosvedplayer.viewmodel.ExportOperation
 import com.devson.nosvedplayer.viewmodel.ExportUiState
 import com.devson.nosvedplayer.viewmodel.MediaExportViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.media.MediaExtractor
+import android.media.MediaFormat
 
 @KOptIn(ExperimentalMaterial3Api::class)
 @MediaOptIn(UnstableApi::class)
@@ -117,8 +123,8 @@ fun VideoEditorScreen(onBack: () -> Unit) {
                     AudioExtractionSection(
                         uri = pickedUri!!,
                         enabled = exportState !is ExportUiState.Processing,
-                        onExtract = { format, startMs, endMs ->
-                            vm.startExport(context, pickedUri!!, ExportOperation.ExtractAudio(format, startMs, endMs), outputFolderUri)
+                        onExtract = { format, startMs, endMs, tracks ->
+                            vm.startExport(context, pickedUri!!, ExportOperation.ExtractAudio(format, startMs, endMs, tracks), outputFolderUri)
                         }
                     )
                 }
@@ -198,12 +204,40 @@ private fun PickerCard(pickedUri: Uri?, onPick: () -> Unit) {
 @KOptIn(ExperimentalMaterial3Api::class)
 @MediaOptIn(UnstableApi::class)
 @Composable
-private fun AudioExtractionSection(uri: Uri, enabled: Boolean, onExtract: (ExportAudioFormat, Long, Long) -> Unit) {
+private fun AudioExtractionSection(uri: Uri, enabled: Boolean, onExtract: (ExportAudioFormat, Long, Long, List<AudioTrackInfo>) -> Unit) {
     val context = LocalContext.current
     val exoPlayer = remember { ExoPlayer.Builder(context).build() }
     var durationMs by remember { mutableLongStateOf(1000L) }
     var sliderValues by remember { mutableStateOf(0f..1000f) }
-    var selectedFormat by remember { mutableStateOf(ExportAudioFormat.M4A) }
+    
+    var audioTracks by remember { mutableStateOf(emptyList<AudioTrackInfo>()) }
+    var selectedTrackIndices by remember { mutableStateOf(setOf<Int>()) }
+
+    LaunchedEffect(uri) {
+        withContext(Dispatchers.IO) {
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(context, uri, null)
+                val tracks = mutableListOf<AudioTrackInfo>()
+                for (i in 0 until extractor.trackCount) {
+                    val format = extractor.getTrackFormat(i)
+                    val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                    if (mime.startsWith("audio/")) {
+                        val rawLang = format.getString(MediaFormat.KEY_LANGUAGE)
+                        val lang = if (rawLang.isNullOrEmpty() || rawLang == "und") {
+                            "Unknown Track ${i + 1}"
+                        } else {
+                            java.util.Locale(rawLang).displayLanguage
+                        }
+                        tracks.add(AudioTrackInfo(i, lang, mime))
+                    }
+                }
+                audioTracks = tracks
+                if (tracks.isNotEmpty()) selectedTrackIndices = setOf(tracks[0].index)
+            } catch (e: Exception) {}
+            finally { extractor.release() }
+        }
+    }
 
     DisposableEffect(uri) {
         val mediaItem = MediaItem.fromUri(uri)
@@ -257,25 +291,34 @@ private fun AudioExtractionSection(uri: Uri, enabled: Boolean, onExtract: (Expor
             Text("${(sliderValues.endInclusive / 1000).toInt()}s", style = MaterialTheme.typography.labelSmall)
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text("Format", style = MaterialTheme.typography.bodySmall)
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ExportAudioFormat.entries.forEachIndexed { index, fmt ->
-                SegmentedButton(
-                    selected = selectedFormat == fmt,
-                    onClick = { selectedFormat = fmt },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ExportAudioFormat.entries.size),
-                    enabled = enabled
-                ) {
-                    Text(fmt.name)
+        if (audioTracks.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text("Select Audio Tracks", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                audioTracks.forEach { track ->
+                    FilterChip(
+                        selected = selectedTrackIndices.contains(track.index),
+                        onClick = {
+                            selectedTrackIndices = if (selectedTrackIndices.contains(track.index) && selectedTrackIndices.size > 1) {
+                                selectedTrackIndices - track.index
+                            } else if (!selectedTrackIndices.contains(track.index)) {
+                                selectedTrackIndices + track.index
+                            } else selectedTrackIndices
+                        },
+                        label = { Text(track.language.ifEmpty { "Track ${track.index}" }) },
+                        enabled = enabled
+                    )
                 }
             }
         }
 
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { onExtract(selectedFormat, sliderValues.start.toLong(), sliderValues.endInclusive.toLong()) },
-            enabled = enabled,
+            onClick = { 
+                val tracks = audioTracks.filter { selectedTrackIndices.contains(it.index) }
+                onExtract(ExportAudioFormat.M4A, sliderValues.start.toLong(), sliderValues.endInclusive.toLong(), tracks) 
+            },
+            enabled = enabled && selectedTrackIndices.isNotEmpty(),
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Default.AudioFile, contentDescription = null, Modifier.size(18.dp))
