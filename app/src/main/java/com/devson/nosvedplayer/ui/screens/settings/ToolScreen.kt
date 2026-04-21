@@ -54,8 +54,8 @@ fun ToolScreen(
             )
             ToolHubCard(
                 icon = Icons.Default.VideoSettings,
-                title = "Video Editor",
-                description = "Rotate, crop, or extract audio from any video using hardware MediaCodec.",
+                title = "Video -> Audio Converter",
+                description = "Extract audio from any video using hardware MediaCodec.",
                 onClick = onNavigateToVideoEditor
             )
         }

@@ -1,5 +1,6 @@
 package com.devson.nosvedplayer.ui.screens.settings
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,16 +27,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import com.devson.nosvedplayer.viewmodel.AspectRatio
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import com.devson.nosvedplayer.viewmodel.ExportAudioFormat
 import com.devson.nosvedplayer.viewmodel.ExportOperation
 import com.devson.nosvedplayer.viewmodel.ExportUiState
 import com.devson.nosvedplayer.viewmodel.MediaExportViewModel
-
-private val rotationOptions = listOf(45f, 90f, 180f)
-private val cropOptions = AspectRatio.entries
 
 @KOptIn(ExperimentalMaterial3Api::class)
 @MediaOptIn(UnstableApi::class)
@@ -46,17 +49,26 @@ fun VideoEditorScreen(onBack: () -> Unit) {
     val exportState by vm.state.collectAsStateWithLifecycle()
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedRotation by remember { mutableStateOf<Float?>(null) }
-    var selectedCrop by remember { mutableStateOf<AspectRatio?>(null) }
-
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val prefs = remember { context.getSharedPreferences("video_editor_prefs", Context.MODE_PRIVATE) }
+    var outputFolderUriString by remember { mutableStateOf(prefs.getString("output_folder_uri", null)) }
+    val outputFolderUri = remember(outputFolderUriString) { outputFolderUriString?.let { Uri.parse(it) } }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             pickedUri = it
-            selectedRotation = null
-            selectedCrop = null
             vm.resetState()
+        }
+    }
+
+    val dirPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                prefs.edit().putString("output_folder_uri", it.toString()).apply()
+                outputFolderUriString = it.toString()
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
@@ -71,7 +83,7 @@ fun VideoEditorScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Video Editor", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
+                title = { Text("Video -> Audio Converter", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (exportState is ExportUiState.Processing) vm.cancelExport()
@@ -102,35 +114,19 @@ fun VideoEditorScreen(onBack: () -> Unit) {
                 PickerCard(pickedUri = pickedUri, onPick = { picker.launch("video/*") })
 
                 if (pickedUri != null) {
-                    RotateCard(
-                        selected = selectedRotation,
+                    AudioExtractionSection(
+                        uri = pickedUri!!,
                         enabled = exportState !is ExportUiState.Processing,
-                        onSelect = { deg ->
-                            selectedRotation = deg
-                            selectedCrop = null
-                            vm.startExport(context, pickedUri!!, ExportOperation.Rotate(deg))
-                        }
-                    )
-
-                    CropCard(
-                        selected = selectedCrop,
-                        enabled = exportState !is ExportUiState.Processing,
-                        onSelect = { ratio ->
-                            selectedCrop = ratio
-                            selectedRotation = null
-                            vm.startExport(context, pickedUri!!, ExportOperation.CropVideo(ratio))
-                        }
-                    )
-
-                    AudioCard(
-                        enabled = exportState !is ExportUiState.Processing,
-                        onExtract = {
-                            selectedRotation = null
-                            selectedCrop = null
-                            vm.startExport(context, pickedUri!!, ExportOperation.ExtractAudio)
+                        onExtract = { format, startMs, endMs ->
+                            vm.startExport(context, pickedUri!!, ExportOperation.ExtractAudio(format, startMs, endMs), outputFolderUri)
                         }
                     )
                 }
+
+                LocationCard(
+                    currentUri = outputFolderUriString,
+                    onChange = { dirPicker.launch(null) }
+                )
             }
 
             AnimatedVisibility(
@@ -157,10 +153,30 @@ fun VideoEditorScreen(onBack: () -> Unit) {
 
 @Composable
 private fun PickerCard(pickedUri: Uri?, onPick: () -> Unit) {
+    val context = LocalContext.current
+    var displayName by remember(pickedUri) { mutableStateOf(pickedUri?.lastPathSegment ?: pickedUri?.toString() ?: "") }
+
+    LaunchedEffect(pickedUri) {
+        if (pickedUri?.scheme == "content") {
+            try {
+                context.contentResolver.query(pickedUri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (idx != -1) {
+                            cursor.getString(idx)?.let { displayName = it }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     EditorCard(icon = Icons.Default.VideoFile, title = "Source Video") {
         if (pickedUri != null) {
             Text(
-                text = pickedUri.lastPathSegment ?: pickedUri.toString(),
+                text = displayName,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -180,72 +196,110 @@ private fun PickerCard(pickedUri: Uri?, onPick: () -> Unit) {
 }
 
 @KOptIn(ExperimentalMaterial3Api::class)
+@MediaOptIn(UnstableApi::class)
 @Composable
-private fun RotateCard(selected: Float?, enabled: Boolean, onSelect: (Float) -> Unit) {
-    EditorCard(icon = Icons.Default.RotateRight, title = "Rotate") {
-        Text(
-            "Apply clockwise rotation to the video",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(12.dp))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            rotationOptions.forEachIndexed { index, deg ->
-                SegmentedButton(
-                    selected = selected == deg,
-                    onClick = { if (enabled) onSelect(deg) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = rotationOptions.size),
-                    enabled = enabled
-                ) {
-                    Text("${deg.toInt()}\u00b0")
+private fun AudioExtractionSection(uri: Uri, enabled: Boolean, onExtract: (ExportAudioFormat, Long, Long) -> Unit) {
+    val context = LocalContext.current
+    val exoPlayer = remember { ExoPlayer.Builder(context).build() }
+    var durationMs by remember { mutableLongStateOf(1000L) }
+    var sliderValues by remember { mutableStateOf(0f..1000f) }
+    var selectedFormat by remember { mutableStateOf(ExportAudioFormat.M4A) }
+
+    DisposableEffect(uri) {
+        val mediaItem = MediaItem.fromUri(uri)
+        exoPlayer.setMediaItem(mediaItem)
+        exoPlayer.prepare()
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY) {
+                    val d = exoPlayer.duration.coerceAtLeast(1000L)
+                    durationMs = d
+                    sliderValues = 0f..d.toFloat()
                 }
             }
         }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            exoPlayer.clearMediaItems()
+        }
     }
-}
 
-@KOptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CropCard(selected: AspectRatio?, enabled: Boolean, onSelect: (AspectRatio) -> Unit) {
-    EditorCard(icon = Icons.Default.Crop, title = "Crop") {
-        Text(
-            "Centre-crop to a target aspect ratio",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    DisposableEffect(Unit) {
+        onDispose { exoPlayer.release() }
+    }
+
+    EditorCard(icon = Icons.Default.MusicNote, title = "Extract & Trim Audio") {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = exoPlayer
+                    useController = true
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         )
-        Spacer(Modifier.height(12.dp))
+        
+        Spacer(Modifier.height(16.dp))
+        Text("Trim Range (Seconds)", style = MaterialTheme.typography.bodySmall)
+        RangeSlider(
+            value = sliderValues,
+            onValueChange = { sliderValues = it },
+            valueRange = 0f..durationMs.toFloat(),
+            enabled = enabled
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${(sliderValues.start / 1000).toInt()}s", style = MaterialTheme.typography.labelSmall)
+            Text("${(sliderValues.endInclusive / 1000).toInt()}s", style = MaterialTheme.typography.labelSmall)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text("Format", style = MaterialTheme.typography.bodySmall)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            cropOptions.forEachIndexed { index, ratio ->
+            ExportAudioFormat.entries.forEachIndexed { index, fmt ->
                 SegmentedButton(
-                    selected = selected == ratio,
-                    onClick = { if (enabled) onSelect(ratio) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = cropOptions.size),
+                    selected = selectedFormat == fmt,
+                    onClick = { selectedFormat = fmt },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ExportAudioFormat.entries.size),
                     enabled = enabled
                 ) {
-                    Text(ratio.label)
+                    Text(fmt.name)
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun AudioCard(enabled: Boolean, onExtract: () -> Unit) {
-    EditorCard(icon = Icons.Default.MusicNote, title = "Extract Audio") {
-        Text(
-            "Strip the video track and save the audio as .m4a (AAC)",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
         Button(
-            onClick = onExtract,
+            onClick = { onExtract(selectedFormat, sliderValues.start.toLong(), sliderValues.endInclusive.toLong()) },
             enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Default.AudioFile, contentDescription = null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Extract to M4A")
+            Text("Extract Audio")
+        }
+    }
+}
+
+@Composable
+private fun LocationCard(currentUri: String?, onChange: () -> Unit) {
+    EditorCard(icon = Icons.Default.Folder, title = "Save Location") {
+        val pathText = if (currentUri != null) "Custom: ${Uri.parse(currentUri).lastPathSegment ?: currentUri}"
+        else "Default: Movies/NosvedPlayer/Music"
+        Text(
+            text = pathText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onChange, modifier = Modifier.fillMaxWidth()) {
+            Text("Change Directory")
         }
     }
 }
@@ -258,11 +312,7 @@ private fun ExportProgressBar(progress: Float, onCancel: () -> Unit, modifier: M
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Exporting\u2026 ${(progress * 100).toInt()}%",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
+            Text("Exporting... ${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
             TextButton(onClick = onCancel) { Text("Cancel") }
         }
         LinearProgressIndicator(
