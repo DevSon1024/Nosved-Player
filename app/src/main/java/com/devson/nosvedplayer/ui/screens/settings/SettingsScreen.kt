@@ -166,9 +166,9 @@ fun SettingsScreen(
             SettingsSectionLabel("Tools")
             SettingsCard {
                 SettingsRow(
-                    icon     = Icons.Default.Schedule,
-                    title    = "Timestamp Tool",
-                    subtitle = "Convert between millis and date string",
+                    icon     = Icons.Default.Build,
+                    title    = "Media Tools",
+                    subtitle = "Timestamp converter, video editor and more",
                     onClick  = onNavigateToTool
                 )
             }

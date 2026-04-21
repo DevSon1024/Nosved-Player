@@ -25,6 +25,8 @@ import com.devson.nosvedplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.settings.ToolScreen
+import com.devson.nosvedplayer.ui.screens.settings.MilliSecondScreen
+import com.devson.nosvedplayer.ui.screens.settings.VideoEditorScreen
 import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
 import com.devson.nosvedplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
@@ -153,7 +155,19 @@ fun NavGraph(
         }
 
         composable(Screen.Tool.route) {
-            ToolScreen(onBack = { safePopBackStack() })
+            ToolScreen(
+                onBack = { safePopBackStack() },
+                onNavigateToMilliSeconds = { navController.navigate(Screen.MilliSecond.route) },
+                onNavigateToVideoEditor = { navController.navigate(Screen.VideoEditor.route) }
+            )
+        }
+
+        composable(Screen.MilliSecond.route) {
+            MilliSecondScreen(onBack = { safePopBackStack() })
+        }
+
+        composable(Screen.VideoEditor.route) {
+            VideoEditorScreen(onBack = { safePopBackStack() })
         }
 
         composable(Screen.PlayerInterface.route) {
