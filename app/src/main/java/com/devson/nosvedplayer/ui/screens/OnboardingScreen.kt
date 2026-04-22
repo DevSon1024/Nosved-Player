@@ -65,7 +65,7 @@ fun OnboardingScreen(
             icon        = Icons.Filled.Tune,
             accentColor = Color(0xFFE65100),   // Deep orange — vivid on both themes
             tag         = "PRO CONTROLS",
-            headline    = "YouTube-Style UI\n& Gesture Suite",
+            headline    = "Modern-Style UI\n& Gesture Suite",
             body        = "Swipe up/down to control volume & brightness.\nDouble-tap to seek. Our custom scrubber gives\nyou frame-level precision on every scrub."
         ),
         OnboardingSlide(

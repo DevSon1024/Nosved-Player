@@ -20,9 +20,9 @@
     <string name="settings_folders">Folders</string>
     <string name="settings_about_folders">Select folders to be included in the media library</string>
 
-    <string name="settings_youtube_controls">YouTube-style controls</string>
-    <string name="settings_youtube_controls_active">Inline settings panel active</string>
-    <string name="settings_youtube_controls_inactive">Bottom sheet settings active</string>
+    <string name="settings_Modern_controls">Modern-style controls</string>
+    <string name="settings_Modern_controls_active">Inline settings panel active</string>
+    <string name="settings_Modern_controls_inactive">Bottom sheet settings active</string>
     <string name="settings_app">App</string>
     <string name="settings_about">About Nosved Player</string>
     <string name="settings_about_desc">Version, credits &amp; open-source libraries</string>
@@ -245,7 +245,7 @@
     <string name="cd_create_new_folder">Create New Folder</string>
     <string name="cd_folder">Folder</string>
 
-    <!-- YouTube Style Player Controls -->
+    <!-- Modern Style Player Controls -->
     <string name="cd_unlock">Unlock</string>
     <string name="cd_lock_screen">Lock screen</string>
     <string name="cd_pip">Picture in Picture</string>
@@ -271,7 +271,7 @@
     <string name="auto_play_section">Auto Play</string>
     <string name="auto_play_desc">Next video plays automatically</string>
     <string name="player_style_section">Player Style</string>
-    <string name="player_style_desc">Custom YouTube UI with double tap seek</string>
+    <string name="player_style_desc">Custom Modern UI with double tap seek</string>
     <string name="show_stats_label">Show Stats</string>
     <string name="show_stats_desc">Display playback information</string>
     <string name="seek_duration_section">Seek Duration</string>

@@ -42,7 +42,7 @@ import androidx.media3.ui.PlayerView
 import com.devson.nosvedplayer.ui.components.DeviceStatsOverlay
 import com.devson.nosvedplayer.ui.components.GestureOverlay
 import com.devson.nosvedplayer.ui.components.PlayerControls
-import com.devson.nosvedplayer.ui.components.YoutubeStylePlayerControls
+import com.devson.nosvedplayer.ui.components.ModernStylePlayerControls
 import com.devson.nosvedplayer.ui.components.AudioTrackSheet
 import com.devson.nosvedplayer.ui.components.SubtitleSheet
 import com.devson.nosvedplayer.ui.components.InformationBottomSheet
@@ -109,7 +109,7 @@ fun VideoScreen(
 
     //  Player style preference 
     // Reads the player UI style set in SettingsScreen (default = false = default style)
-    val useYoutubeStyle by settingsViewModel.useYoutubePlayerStyle.collectAsState()
+    val useModernStyle by settingsViewModel.useModernPlayerStyle.collectAsState()
 
     var isLocked by remember { mutableStateOf(false) }
 
@@ -472,13 +472,13 @@ fun VideoScreen(
             )
         }
 
-        //  Player controls - switch between Default and YouTube style 
+        //  Player controls - switch between Default and Modern style 
         val hasPrevious = currentPlaylist.isNotEmpty() && currentPlaylistIndex > 0
         val hasNext = currentPlaylist.isNotEmpty() && currentPlaylistIndex in 0 until currentPlaylist.lastIndex
 
-        if (useYoutubeStyle) {
-            //  YouTube-style controls 
-            YoutubeStylePlayerControls(
+        if (useModernStyle) {
+            //  Modern-style controls 
+            ModernStylePlayerControls(
                 isVisible = controlsVisible,
                 isPlaying = isPlaying,
                 title = currentVideo?.title ?: "",
@@ -610,8 +610,8 @@ fun VideoScreen(
                 onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
                 onShowSeekButtonsChange = { viewModel.setShowSeekButtons(it) },
                 onFastplaySpeedChange = { viewModel.setFastplaySpeed(it) },
-                useYoutubeStyle = useYoutubeStyle,
-                onYoutubeStyleChange = { settingsViewModel.setYoutubePlayerStyle(it) },
+                useModernStyle = useModernStyle,
+                onModernStyleChange = { settingsViewModel.setModernPlayerStyle(it) },
                 onInfoClick = {
                     showInfoSheet = true
                     viewModel.showControlsAndDelayHide()
@@ -688,7 +688,7 @@ fun VideoScreen(
         seekBarStyle = seekBarStyle,
         controlIconSize = controlIconSize,
         autoPlayEnabled = autoPlayEnabled,
-        useYoutubeStyle = useYoutubeStyle,
+        useModernStyle = useModernStyle,
         showSeekButtons = showSeekButtons,
         fastplaySpeed = fastplaySpeed,
         isLandscape = isLandscape,
@@ -697,7 +697,7 @@ fun VideoScreen(
         onSeekBarStyleChange = { viewModel.setSeekBarStyle(it) },
         onControlIconSizeChange = { viewModel.setControlIconSize(it) },
         onAutoPlayChange = { viewModel.setAutoPlayEnabled(it) },
-        onYoutubeStyleChange = { settingsViewModel.setYoutubePlayerStyle(it) },
+        onModernStyleChange = { settingsViewModel.setModernPlayerStyle(it) },
         onShowSeekButtonsChange = { viewModel.setShowSeekButtons(it) },
         onFastplaySpeedChange = { viewModel.setFastplaySpeed(it) },
         showStats = showStats,

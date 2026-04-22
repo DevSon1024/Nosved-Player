@@ -584,7 +584,7 @@ private fun ScrubOverlay(deltaMs: Long, previewMs: Long = 0L) {
     }
 }
 
-//  Accumulating seek ripple  (YouTube-style double-tap arc)
+//  Accumulating seek ripple  (Modern-style double-tap arc)
 @Composable
 private fun AccumulatingSeekRipple(
     isRightSide: Boolean,

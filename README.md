@@ -45,12 +45,12 @@
 <img src="Screenshots/8-AboutScreen.jpg" width="200" style="border-radius:16px; margin:6px;"/>
 </div>
 
-### Player - Default & YouTube Style (Landscape)
+### Player - Default & Modern Style (Landscape)
 
 <div align="center">
 <img src="Screenshots/9-PlayerScreen-Default_Style.jpg" width="640" style="border-radius:16px; margin:6px; display:block;"/>
-<img src="Screenshots/10-PlayerScreen-Youtube_Style.jpg" width="640" style="border-radius:16px; margin:6px; display:block;"/>
-<img src="Screenshots/11-UpNext-YoutubeStylePlayer.jpg" width="640" style="border-radius:16px; margin:6px; display:block;"/>
+<img src="Screenshots/10-PlayerScreen-Modern_Style.jpg" width="640" style="border-radius:16px; margin:6px; display:block;"/>
+<img src="Screenshots/11-UpNext-ModernStylePlayer.jpg" width="640" style="border-radius:16px; margin:6px; display:block;"/>
 </div>
 
 ---
@@ -60,7 +60,7 @@
 ### 🎬 Dual Player UI
 
 - **Default Style** - Clean, minimal controls with gesture-based brightness & volume adjustment.
-- **YouTube Style** - Modern immersive controls with smooth multi-tap seek gestures, a swipe-up settings panel, Replay / Forward buttons, and an **Up Next** queue overlay.
+- **Modern Style** - Modern immersive controls with smooth multi-tap seek gestures, a swipe-up settings panel, Replay / Forward buttons, and an **Up Next** queue overlay.
 - Switch between both styles anytime from **Settings → Player** or **Playback Settings → Player Style**.
 
 ### 🎡 Rotary Sort Wheel

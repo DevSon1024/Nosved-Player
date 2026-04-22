@@ -30,10 +30,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
-     * true = YouTube-style player UI, false = default player UI.
+     * true = Modern-style player UI, false = default player UI.
      * Persisted via PlaybackSettingsRepository / DataStore.
      */
-    val useYoutubePlayerStyle: StateFlow<Boolean> = settingsRepo.useYoutubePlayerStyleFlow
+    val useModernPlayerStyle: StateFlow<Boolean> = settingsRepo.useModernPlayerStyleFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     /**
@@ -69,8 +69,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.setDeveloperMode(true) }
     }
 
-    fun setYoutubePlayerStyle(enabled: Boolean) {
-        viewModelScope.launch { settingsRepo.setYoutubePlayerStyle(enabled) }
+    fun setModernPlayerStyle(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.setModernPlayerStyle(enabled) }
     }
 
     fun setDynamicColor(enabled: Boolean) {

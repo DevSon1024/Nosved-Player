@@ -46,7 +46,7 @@ fun PlaybackSettingsSheet(
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
-    useYoutubeStyle: Boolean,
+    useModernStyle: Boolean,
     showSeekButtons: Boolean = true,
     fastplaySpeed: Float = 2.0f,
     isLandscape: Boolean,
@@ -55,7 +55,7 @@ fun PlaybackSettingsSheet(
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
-    onYoutubeStyleChange: (Boolean) -> Unit,
+    onModernStyleChange: (Boolean) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit = {},
     onFastplaySpeedChange: (Float) -> Unit = {},
     showStats: Boolean = false,
@@ -73,12 +73,12 @@ fun PlaybackSettingsSheet(
                     seekBarStyle = seekBarStyle,
                     controlIconSize = controlIconSize,
                     autoPlayEnabled = autoPlayEnabled,
-                    useYoutubeStyle = useYoutubeStyle,
+                    useModernStyle = useModernStyle,
                     showSeekButtons = showSeekButtons,
                     fastplaySpeed = fastplaySpeed,
                     onControlIconSizeChange = onControlIconSizeChange,
                     onAutoPlayChange = onAutoPlayChange,
-                    onYoutubeStyleChange = onYoutubeStyleChange,
+                    onModernStyleChange = onModernStyleChange,
                     onSeekDurationChange = onSeekDurationChange,
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
@@ -105,12 +105,12 @@ fun PlaybackSettingsSheet(
                     seekBarStyle = seekBarStyle,
                     controlIconSize = controlIconSize,
                     autoPlayEnabled = autoPlayEnabled,
-                    useYoutubeStyle = useYoutubeStyle,
+                    useModernStyle = useModernStyle,
                     showSeekButtons = showSeekButtons,
                     fastplaySpeed = fastplaySpeed,
                     onControlIconSizeChange = onControlIconSizeChange,
                     onAutoPlayChange = onAutoPlayChange,
-                    onYoutubeStyleChange = onYoutubeStyleChange,
+                    onModernStyleChange = onModernStyleChange,
                     onSeekDurationChange = onSeekDurationChange,
                     onSeekBarStyleChange = onSeekBarStyleChange,
                     onShowSeekButtonsChange = onShowSeekButtonsChange,
@@ -134,12 +134,12 @@ private fun SheetPageContent(
     seekBarStyle: SeekBarStyle,
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
-    useYoutubeStyle: Boolean,
+    useModernStyle: Boolean,
     showSeekButtons: Boolean,
     fastplaySpeed: Float,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
-    onYoutubeStyleChange: (Boolean) -> Unit,
+    onModernStyleChange: (Boolean) -> Unit,
     onSeekDurationChange: (Int) -> Unit,
     onSeekBarStyleChange: (SeekBarStyle) -> Unit,
     onShowSeekButtonsChange: (Boolean) -> Unit,
@@ -180,11 +180,11 @@ private fun SheetPageContent(
             MainSettingsPage(
                 controlIconSize = controlIconSize,
                 autoPlayEnabled = autoPlayEnabled,
-                useYoutubeStyle = useYoutubeStyle,
+                useModernStyle = useModernStyle,
                 showStats = showStats,
                 onControlIconSizeChange = onControlIconSizeChange,
                 onAutoPlayChange = onAutoPlayChange,
-                onYoutubeStyleChange = onYoutubeStyleChange,
+                onModernStyleChange = onModernStyleChange,
                 onShowStatsChange = onShowStatsChange,
                 onOpenSeekPage = onOpenSeekPage
             )
@@ -198,11 +198,11 @@ private fun SheetPageContent(
 private fun MainSettingsPage(
     controlIconSize: ControlIconSize,
     autoPlayEnabled: Boolean,
-    useYoutubeStyle: Boolean,
+    useModernStyle: Boolean,
     showStats: Boolean,
     onControlIconSizeChange: (ControlIconSize) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
-    onYoutubeStyleChange: (Boolean) -> Unit,
+    onModernStyleChange: (Boolean) -> Unit,
     onShowStatsChange: (Boolean) -> Unit,
     onOpenSeekPage: () -> Unit
 ) {
@@ -317,14 +317,14 @@ private fun MainSettingsPage(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Use YouTube style controls",
+                    text = "Use Modern style controls",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Switch(
-                    checked = useYoutubeStyle,
-                    onCheckedChange = { onYoutubeStyleChange(it) }
+                    checked = useModernStyle,
+                    onCheckedChange = { onModernStyleChange(it) }
                 )
             }
         }

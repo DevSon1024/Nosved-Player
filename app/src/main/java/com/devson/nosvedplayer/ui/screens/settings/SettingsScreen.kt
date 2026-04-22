@@ -43,7 +43,7 @@ fun SettingsScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
-    val useYoutubeStyle  by settingsViewModel.useYoutubePlayerStyle.collectAsState()
+    val useModernStyle  by settingsViewModel.useModernPlayerStyle.collectAsState()
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
     val viewSettings     by settingsViewModel.viewSettings.collectAsState()
 
@@ -150,13 +150,13 @@ fun SettingsScreen(
                 SettingsCard {
                     SettingsToggleRow(
                         icon     = Icons.Default.PlayCircleOutline,
-                        title    = stringResource(R.string.settings_youtube_controls),
-                        subtitle = if (useYoutubeStyle)
-                            stringResource(R.string.settings_youtube_controls_active)
+                        title    = stringResource(R.string.settings_Modern_controls),
+                        subtitle = if (useModernStyle)
+                            stringResource(R.string.settings_Modern_controls_active)
                         else
-                            stringResource(R.string.settings_youtube_controls_inactive),
-                        checked  = useYoutubeStyle,
-                        onCheckedChange = { settingsViewModel.setYoutubePlayerStyle(it) }
+                            stringResource(R.string.settings_Modern_controls_inactive),
+                        checked  = useModernStyle,
+                        onCheckedChange = { settingsViewModel.setModernPlayerStyle(it) }
                     )
                 }
             }

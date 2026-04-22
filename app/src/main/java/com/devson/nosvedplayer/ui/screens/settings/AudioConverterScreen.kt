@@ -49,7 +49,7 @@ import android.media.MediaFormat
 @KOptIn(ExperimentalMaterial3Api::class)
 @MediaOptIn(UnstableApi::class)
 @Composable
-fun VideoEditorScreen(onBack: () -> Unit) {
+fun AudioConverterScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val vm: MediaExportViewModel = viewModel()
     val exportState by vm.state.collectAsStateWithLifecycle()

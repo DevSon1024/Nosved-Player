@@ -49,7 +49,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         // null stored as absent = follow system
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
-        val YOUTUBE_PLAYER_STYLE = booleanPreferencesKey("youtube_player_style")
+        val Modern_PLAYER_STYLE = booleanPreferencesKey("Modern_player_style")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         // Onboarding
         val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
@@ -108,10 +108,10 @@ class PlaybackSettingsRepository(private val context: Context) {
         prefs[PreferencesKeys.DEVELOPER_MODE] ?: false
     }
 
-    val useYoutubePlayerStyleFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        // Defaults to TRUE so YouTube-style controls are shown on first launch,
+    val useModernPlayerStyleFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        // Defaults to TRUE so Modern-style controls are shown on first launch,
         // immediately showcasing the custom player UI to app-store reviewers.
-        prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] ?: true
+        prefs[PreferencesKeys.Modern_PLAYER_STYLE] ?: true
     }
 
     /** Emits false until the user completes (or skips) the onboarding flow. */
@@ -154,9 +154,9 @@ class PlaybackSettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun setYoutubePlayerStyle(enabled: Boolean) {
+    suspend fun setModernPlayerStyle(enabled: Boolean) {
         context.dataStore.edit { prefs ->
-            prefs[PreferencesKeys.YOUTUBE_PLAYER_STYLE] = enabled
+            prefs[PreferencesKeys.Modern_PLAYER_STYLE] = enabled
         }
     }
 

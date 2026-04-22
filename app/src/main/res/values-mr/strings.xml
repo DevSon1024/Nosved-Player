@@ -20,9 +20,9 @@
     <string name="settings_folders">फोल्डर्स</string>
     <string name="settings_about_folders">मीडिया लायब्ररीमध्ये समाविष्ट करण्यासाठी फोल्डर्स निवडा</string>
 
-    <string name="settings_youtube_controls">YouTube सारखे नियंत्रणे</string>
-    <string name="settings_youtube_controls_active">इनलाइन सेटिंग्ज पॅनेल सक्रिय</string>
-    <string name="settings_youtube_controls_inactive">तळाशी शीट सेटिंग्ज सक्रिय</string>
+    <string name="settings_Modern_controls">Modern सारखे नियंत्रणे</string>
+    <string name="settings_Modern_controls_active">इनलाइन सेटिंग्ज पॅनेल सक्रिय</string>
+    <string name="settings_Modern_controls_inactive">तळाशी शीट सेटिंग्ज सक्रिय</string>
     <string name="settings_app">एप</string>
     <string name="settings_about">नॉस्वेद प्लेअर बद्दल</string>
     <string name="settings_about_desc">आवृत्ती, श्रेय आणि ओपन-सोर्स लायब्ररी</string>
@@ -242,7 +242,7 @@
     <string name="cd_create_new_folder">नवीन फोल्डर तयार करा</string>
     <string name="cd_folder">फोल्डर</string>
 
-    <!-- YouTube Style Player Controls -->
+    <!-- Modern Style Player Controls -->
     <string name="cd_unlock">अनलॉक</string>
     <string name="cd_lock_screen">लॉक स्क्रीन</string>
     <string name="cd_pip">पिक्चर इन पिक्चर</string>
@@ -268,7 +268,7 @@
     <string name="auto_play_section">ऑटो प्ले</string>
     <string name="auto_play_desc">पुढील व्हिडिओ आपोआप सुरू होतो</string>
     <string name="player_style_section">प्लेअर शैली</string>
-    <string name="player_style_desc">डबल टॅप सीकसह सानुकूल YouTube UI</string>
+    <string name="player_style_desc">डबल टॅप सीकसह सानुकूल Modern UI</string>
     <string name="show_stats_label">आकडेवारी दाखवा</string>
     <string name="show_stats_desc">प्लेबॅक माहिती प्रदर्शित करा</string>
     <string name="seek_duration_section">सीक कालावधी</string>

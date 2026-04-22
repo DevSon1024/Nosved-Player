@@ -26,7 +26,7 @@ import com.devson.nosvedplayer.ui.screens.SearchResultsScreen
 import com.devson.nosvedplayer.ui.screens.settings.SettingsScreen
 import com.devson.nosvedplayer.ui.screens.settings.ToolScreen
 import com.devson.nosvedplayer.ui.screens.settings.MilliSecondScreen
-import com.devson.nosvedplayer.ui.screens.settings.VideoEditorScreen
+import com.devson.nosvedplayer.ui.screens.settings.AudioConverterScreen
 import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
 import com.devson.nosvedplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
@@ -167,7 +167,7 @@ fun NavGraph(
         }
 
         composable(Screen.VideoEditor.route) {
-            VideoEditorScreen(onBack = { safePopBackStack() })
+            AudioConverterScreen(onBack = { safePopBackStack() })
         }
 
         composable(Screen.PlayerInterface.route) {
