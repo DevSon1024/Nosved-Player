@@ -43,16 +43,13 @@ class VideoRepository(private val context: Context) {
             MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Video.Media.DATE_ADDED,
             MediaStore.Video.Media.DATA,
-            "resolution", // Works from API 21
+            "resolution",
             MediaStore.Video.Media.MIME_TYPE
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
-        // Pre-calculate roots to filter against
         val hasAllowedFolders = scanFoldersList.any { !it.startsWith("HIDDEN:") }
-
-        // Track paths to avoid duplicates during hidden-file scan
         val seenPaths = mutableSetOf<String>()
 
         context.contentResolver.query(
@@ -83,7 +80,6 @@ class VideoRepository(private val context: Context) {
                 val dateAdded = cursor.getLong(dateAddedColumn)
                 val path = cursor.getString(dataColumn) ?: ""
 
-                // Filter by scanFoldersList
                 val matchingRoots = scanFoldersList.filter { root ->
                     val cleanRoot = root.removePrefix("HIDDEN:")
                     path.startsWith(cleanRoot)
@@ -127,25 +123,16 @@ class VideoRepository(private val context: Context) {
                     } catch (_: Exception) {}
                 }
 
-                // Resolution: keep full "WIDTHxHEIGHT" format (e.g. "1920x1080")
                 var resolutionStr: String? = null
                 if (resolutionColumn != -1) {
                     val res = cursor.getString(resolutionColumn)
-                    if (!res.isNullOrEmpty()) {
-                        // MediaStore stores it as "WIDTHxHEIGHT" already - use as-is
-                        resolutionStr = res
-                    }
+                    if (!res.isNullOrEmpty()) resolutionStr = res
                 }
 
                 var mimeTypeStr: String? = null
                 if (mimeTypeColumn != -1) {
                     mimeTypeStr = cursor.getString(mimeTypeColumn)
                 }
-
-                // Frame rate is NOT extracted at list-load time.
-                // Opening a MediaMetadataRetriever for every video is O(n) file I/O
-                // and causes 50-200 ms per video - unacceptably slow for large libraries.
-                // frameRate stays null here; the detail screen extracts it on demand.
 
                 val contentUri = ContentUris.withAppendedId(collection, id)
                 val playedTime = historyMap[contentUri.toString()]
@@ -164,7 +151,6 @@ class VideoRepository(private val context: Context) {
                         path = path,
                         resolution = resolutionStr,
                         mimeType = mimeTypeStr,
-                        // frameRate left null - extracted on demand in the detail view
                         playedTime = playedTime,
                         lastPlayedAt = historyTimestampMap[contentUri.toString()]
                     )
@@ -172,16 +158,10 @@ class VideoRepository(private val context: Context) {
             }
         }
 
-        //  Hidden file scan
-        // MediaStore omits files inside hidden directories (starting with '.').
-        // Strategy: (1) collect candidate paths quickly with no I/O, then
-        //           (2) extract metadata in PARALLEL so the total cost is
-        //               ~max(single file cost) rather than sum(all file costs).
         if (showHiddenFiles) {
             val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "webm", "m4v", "flv", "3gp", "ts", "wmv")
             val root = Environment.getExternalStorageDirectory()
 
-            // Step A: collect candidate File objects (pure filesystem listing, no retriever I/O)
             val candidateFiles = mutableListOf<File>()
 
             fun collectHiddenDir(dir: File) {
@@ -193,7 +173,7 @@ class VideoRepository(private val context: Context) {
                     } else if (child.isFile) {
                         val ext = child.extension.lowercase()
                         val childPath = child.absolutePath
-                        
+
                         val matchingRoots = scanFoldersList.filter { root ->
                             val cleanRoot = root.removePrefix("HIDDEN:")
                             childPath.startsWith(cleanRoot)
@@ -220,7 +200,6 @@ class VideoRepository(private val context: Context) {
                 topDir.listFiles { f -> f.isDirectory && f.name.startsWith(".") }?.forEach { collectHiddenDir(it) }
             }
 
-            // Step B: resolve metadata in parallel
             if (candidateFiles.isNotEmpty()) {
                 val hiddenVideos = coroutineScope {
                     candidateFiles.map { child ->
@@ -263,6 +242,50 @@ class VideoRepository(private val context: Context) {
             }
         }
         videos
+    }
+
+    /**
+     * Fast validation pass: checks every path in the watch-history DB with
+     * File.exists() and immediately prunes stale rows. Runs entirely on IO.
+     * Returns the set of paths that were removed.
+     */
+    suspend fun quickRefreshValidation(): Set<String> = withContext(Dispatchers.IO) {
+        val db = NosvedDatabase.getInstance(context)
+        val historyDao = db.watchHistoryDao()
+        val all = historyDao.getAllHistoryList()
+        val removed = mutableSetOf<String>()
+
+        for (entry in all) {
+            val path = entry.path
+            if (path.isNotEmpty() && !File(path).exists()) {
+                historyDao.delete(entry.uri)
+                removed.add(path)
+            }
+        }
+        removed
+    }
+
+    /**
+     * Differential sync: queries MediaStore for current video URIs, then diffs
+     * them against the in-memory cache list. Returns only the videos that are
+     * genuinely new (not already present in [cachedUris]).
+     * Stale entries in [cachedUris] that no longer appear in MediaStore are
+     * returned via [onStaleUris] so the caller can update the UI list directly.
+     */
+    suspend fun differentialSync(
+        cachedUris: Set<String>,
+        showHiddenFiles: Boolean = false,
+        recognizeNoMedia: Boolean = false,
+        scanFoldersList: Set<String> = emptySet(),
+        onStaleUris: (Set<String>) -> Unit = {}
+    ): List<Video> = withContext(Dispatchers.IO) {
+        val freshVideos = getAllVideos(showHiddenFiles, recognizeNoMedia, scanFoldersList)
+        val freshUris = freshVideos.map { it.uri }.toSet()
+
+        val stale = cachedUris - freshUris
+        if (stale.isNotEmpty()) onStaleUris(stale)
+
+        freshVideos.filter { it.uri !in cachedUris }
     }
 
     suspend fun getTrashedVideos(): List<Video> = withContext(Dispatchers.IO) {
