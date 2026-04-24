@@ -21,6 +21,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import android.view.KeyEvent
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
@@ -29,11 +30,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -112,6 +115,7 @@ fun VideoScreen(
     val useModernStyle by settingsViewModel.useModernPlayerStyle.collectAsState()
 
     var isLocked by remember { mutableStateOf(false) }
+    var zoomScale by remember { mutableFloatStateOf(1f) }
 
     // Tracks & Subtitles state
     val audioTracks by viewModel.audioTracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
@@ -124,7 +128,7 @@ fun VideoScreen(
     val subtitleTextSizeScale by viewModel.subtitleTextSizeScale.collectAsState()
     val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
 
-    // Modals state (used only in default mode; YT mode handles tracks inline)
+    // Modals state (used only in default mode; Modern mode handles tracks inline)
     var showAudioSheet by remember { mutableStateOf(false) }
     @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     val audioSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -133,7 +137,7 @@ fun VideoScreen(
     @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     val subtitleSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Shared playback-settings sheet (both YT and default style use the same sheet)
+    // Shared playback-settings sheet (both Modern and default style use the same sheet)
     var showPlaybackSettingsSheet by remember { mutableStateOf(false) }
     @kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     val playbackSettingsSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -167,7 +171,7 @@ fun VideoScreen(
     var showBrightnessFeedback by remember { mutableStateOf(false) }
     var brightnessFeedbackTrigger by remember { mutableStateOf(0) }
 
-    // YT-style fast-forward - driven by GestureOverlay
+    // Modern-style fast-forward - driven by GestureOverlay
     var ytIsFastForwarding by remember { mutableStateOf(false) }
 
     LaunchedEffect(volumeFeedbackTrigger) {
@@ -355,7 +359,12 @@ fun VideoScreen(
                     playerView.player = player
                     playerView.resizeMode = resizeMode
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = zoomScale
+                        scaleY = zoomScale
+                    }
             )
         }
 
@@ -384,6 +393,9 @@ fun VideoScreen(
                 if (active) viewModel.setPlaybackSpeed(fastplaySpeed)
                 else viewModel.setPlaybackSpeed(1f)
             },
+            onTwoFingerTap = { viewModel.togglePlayPause() },
+            onZoom = { factor -> zoomScale = (zoomScale * factor).coerceIn(1f, 4f) },
+            zoomScale = zoomScale,
             onVolumeSwipe = { delta ->
                 val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 accumulatedVolume += delta

@@ -93,6 +93,9 @@ fun GestureOverlay(
     onSeekPreview: (Long) -> Unit = {},
     onSeekCommit: (Long) -> Unit = {},
     onFastForwardToggle: (Boolean) -> Unit = {},
+    onTwoFingerTap: () -> Unit = {},
+    onZoom: (scaleFactor: Float) -> Unit = {},
+    zoomScale: Float = 1f,
     volumeLevel: Float,
     brightnessLevel: Float,
     showVolumeFeedback: Boolean,
@@ -141,10 +144,22 @@ fun GestureOverlay(
 
     LaunchedEffect(rightRippleTick) {
         if (rightRippleTick > 0) {
-            delay(1200) // Wait for idle time after last tap
-            showRightSeek = false // Trigger the fade-out animation first
-            delay(400) // Wait for the fadeOut(tween(350)) to complete
-            accumulatedRightMs = 0L // Reset the counter invisibly
+            delay(1200)
+            showRightSeek = false
+            delay(400)
+            accumulatedRightMs = 0L
+        }
+    }
+
+    // Zoom indicator: auto-hide 900 ms after last pinch event
+    var showZoomIndicator by remember { mutableStateOf(false) }
+    LaunchedEffect(zoomScale) {
+        if (zoomScale > 1.01f) {
+            showZoomIndicator = true
+            delay(900)
+            showZoomIndicator = false
+        } else {
+            showZoomIndicator = false
         }
     }
 
@@ -152,9 +167,10 @@ fun GestureOverlay(
         modifier = modifier
             .fillMaxSize()
             .pointerInput(isLocked) {
-                val slopPx = 10.dp.toPx()
+                val slopPx = 18.dp.toPx()
+                val twoFingerSlopPx = 24.dp.toPx()
                 awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = true)
+                    val down = awaitFirstDown(requireUnconsumed = false)
                     if (isLocked) {
                         var isTap = true
                         while (true) {
@@ -162,9 +178,7 @@ fun GestureOverlay(
                             val change = event.changes.firstOrNull() ?: break
                             val dx = change.position.x - down.position.x
                             val dy = change.position.y - down.position.y
-                            if (abs(dx) > slopPx || abs(dy) > slopPx) {
-                                isTap = false
-                            }
+                            if (abs(dx) > slopPx || abs(dy) > slopPx) isTap = false
                             change.consume()
                             if (!change.pressed) break
                         }
@@ -175,19 +189,29 @@ fun GestureOverlay(
                     val startX = down.position.x
                     val isRightSide = startX > size.width / 2f
 
-                    var totalDx  = 0f
-                    var totalDy  = 0f
-                    var isSwiping  = false
-                    var swipeAxis  = ""
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var isSwiping = false
+                    var swipeAxis = ""
 
                     var isLongPressActive = false
-                    // NEW: Track if a 3-finger tap occurred during this gesture
                     var threeFingerTriggered = false
 
+                    // Two-finger tap / pinch-zoom tracking
+                    var twoFingerDown = false
+                    var twoFingerStartTime = 0L
+                    var twoFingerMaxMovePx = 0f
+                    var twoFingerHandled = false
+                    // Set to true once real pinch movement starts; never cleared so
+                    // tap detection is suppressed for the entire gesture after a pinch.
+                    var wasPinching = false
+                    // Last inter-finger span used to compute the incremental zoom factor
+                    var lastSpan = 0f
+
+                    // longPressJob cancelled only when single-finger drag slop is exceeded
                     val longPressJob = coroutineScope.launch {
-                        delay(600)
-                        // Prevent normal long-press if 3-finger lock is already active
-                        if (isPlaying && !isSwiping && !isFastForwardLocked) {
+                        delay(550)
+                        if (isPlaying && !isSwiping && !isFastForwardLocked && !twoFingerDown) {
                             isLongPressActive = true
                             isFastForwarding = true
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -196,30 +220,82 @@ fun GestureOverlay(
                     }
 
                     while (true) {
-                        val event  = awaitPointerEvent()
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.count { it.pressed }
 
-                        // NEW: 3-Finger Toggle Logic
-                        if (event.changes.size == 3 && !threeFingerTriggered) {
+                        // 3-finger toggle
+                        if (event.changes.size >= 3 && !threeFingerTriggered) {
                             threeFingerTriggered = true
+                            longPressJob.cancel()
                             isFastForwardLocked = !isFastForwardLocked
                             isFastForwarding = isFastForwardLocked
                             onFastForwardToggle(isFastForwardLocked)
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
 
-                        val change = event.changes.firstOrNull() ?: break
+                        // Two-finger: pinch-zoom OR two-finger tap
+                        if (!twoFingerHandled && !threeFingerTriggered) {
+                            if (pointerCount == 2 && !twoFingerDown) {
+                                // First frame with 2 fingers — initialise tracking
+                                twoFingerDown = true
+                                twoFingerStartTime = System.currentTimeMillis()
+                                twoFingerMaxMovePx = 0f
+                                longPressJob.cancel()
+                                // Compute initial span between the two pointers
+                                val pts = event.changes.filter { it.pressed }
+                                if (pts.size == 2) {
+                                    val dx0 = pts[0].position.x - pts[1].position.x
+                                    val dy0 = pts[0].position.y - pts[1].position.y
+                                    lastSpan = sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
+                                }
+                            }
 
-                        if (change.isConsumed) {
-                            longPressJob.cancel()
-                            break
+                            if (twoFingerDown && pointerCount == 2) {
+                                val pts = event.changes.filter { it.pressed }
+                                if (pts.size == 2) {
+                                    // Track max individual-finger movement for tap detection
+                                    for (ch in pts) {
+                                        val mov = sqrt(
+                                            (ch.position.x - ch.previousPosition.x).let { it * it } +
+                                            (ch.position.y - ch.previousPosition.y).let { it * it }
+                                        )
+                                        if (mov > twoFingerMaxMovePx) twoFingerMaxMovePx = mov
+                                    }
+                                    // Compute current span and emit incremental zoom factor
+                                    val dx = pts[0].position.x - pts[1].position.x
+                                    val dy = pts[0].position.y - pts[1].position.y
+                                    val currentSpan = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                                    if (twoFingerMaxMovePx > twoFingerSlopPx && lastSpan > 0f) {
+                                        wasPinching = true
+                                        onZoom(currentSpan / lastSpan)
+                                        pts.forEach { it.consume() }
+                                    }
+                                    lastSpan = currentSpan
+                                }
+                            }
+
+                            if (twoFingerDown && pointerCount < 2) {
+                                val elapsed = System.currentTimeMillis() - twoFingerStartTime
+                                if (!wasPinching && elapsed < 300 && twoFingerMaxMovePx < twoFingerSlopPx) {
+                                    // Quick lift with no movement = two-finger tap
+                                    twoFingerHandled = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onTwoFingerTap()
+                                    event.changes.forEach { it.consume() }
+                                    break
+                                }
+                                twoFingerDown = false
+                                lastSpan = 0f
+                            }
                         }
+
+                        val change = event.changes.firstOrNull() ?: break
 
                         if (!change.pressed) {
                             longPressJob.cancel()
 
                             if (isLongPressActive) {
                                 isLongPressActive = false
-                                // Only stop fast-forward if it wasn't locked by 3 fingers
                                 if (!isFastForwardLocked) {
                                     isFastForwarding = false
                                     onFastForwardToggle(false)
@@ -227,24 +303,19 @@ fun GestureOverlay(
                                 break
                             }
 
-                            // If this was a 3-finger gesture, exit cleanly without triggering taps
-                            if (threeFingerTriggered) {
-                                break
-                            }
+                            if (threeFingerTriggered || twoFingerHandled) break
 
                             if (isSwiping && swipeAxis == "HORIZONTAL") {
-                                scrubPreviewMs?.let { previewPos ->
-                                    onSeekCommit(previewPos)
-                                }
+                                scrubPreviewMs?.let { previewPos -> onSeekCommit(previewPos) }
                                 scrubPreviewMs = null
                             }
 
-                            if (!isSwiping) {
-                                // ... existing single/double tap detection logic ...
-                                val now  = System.currentTimeMillis()
-                                val dt   = now - lastTapTime
-                                val dx   = change.position.x - lastTapX
-                                val dy   = change.position.y - lastTapY
+                            // Do not fire any tap if a real pinch occurred in this gesture
+                            if (!isSwiping && !twoFingerDown && !wasPinching) {
+                                val now = System.currentTimeMillis()
+                                val dt = now - lastTapTime
+                                val dx = change.position.x - lastTapX
+                                val dy = change.position.y - lastTapY
                                 val dist = sqrt(dx * dx + dy * dy)
                                 val tapX = change.position.x
 
@@ -257,8 +328,8 @@ fun GestureOverlay(
                                 if (continuingLeftSeek || continuingRightSeek || (dt < 400 && dist < 100f)) {
                                     singleTapJob?.cancel()
                                     lastTapTime = now
-                                    lastTapX    = change.position.x
-                                    lastTapY    = change.position.y
+                                    lastTapX = change.position.x
+                                    lastTapY = change.position.y
 
                                     when {
                                         isLeftTap -> {
@@ -278,7 +349,6 @@ fun GestureOverlay(
                                             onDoubleTapRight()
                                         }
                                         else -> {
-                                            // Ensure center tap is actually a double tap (dt < 400 && dist < 100f)
                                             if (dt < 400 && dist < 100f) {
                                                 centerWasPlaying = isPlaying
                                                 showCenterRipple = true
@@ -289,33 +359,34 @@ fun GestureOverlay(
                                     }
                                 } else {
                                     lastTapTime = now
-                                    lastTapX    = change.position.x
-                                    lastTapY    = change.position.y
+                                    lastTapX = change.position.x
+                                    lastTapY = change.position.y
                                     singleTapJob = coroutineScope.launch { delay(300); onSingleTap() }
                                 }
                             }
                             break
                         }
 
-                        // NEW: If 3 fingers are down, consume the event so we don't trigger swipes
                         if (threeFingerTriggered) {
                             event.changes.forEach { it.consume() }
                             continue
                         }
 
-                        // If long-press fast-forward is active, consume movement and skip all
-                        // swipe logic. The fast-forward only stops when the finger is lifted.
                         if (isLongPressActive) {
                             change.consume()
-                            isSwiping = true   // prevents swipe callbacks below
+                            isSwiping = true
                             continue
                         }
+
+                        // Skip single-finger processing while pinch is active
+                        if (twoFingerDown) continue
 
                         val dx = change.position.x - change.previousPosition.x
                         val dy = change.position.y - change.previousPosition.y
                         totalDx += dx
                         totalDy += dy
 
+                        // Only cancel long-press when actual drag slop is exceeded
                         if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                             isSwiping = true
                             longPressJob.cancel()
@@ -340,16 +411,11 @@ fun GestureOverlay(
                                             onSeekStart()
                                         }
                                         val deltaMs = (totalDx / size.width.toFloat()) * 120_000L
-                                        
-                                        val newPreview = (scrubStartPosition + deltaMs)
-                                            .toLong()
-                                            .coerceIn(0L, dur)
-                                            
+                                        val newPreview = (scrubStartPosition + deltaMs).toLong().coerceIn(0L, dur)
                                         scrubPreviewMs = newPreview
                                         onSeekPreview(newPreview)
                                     } else {
-                                        val deltaMs = (totalDx / size.width.toFloat()) * 120_000L
-                                        scrubPreviewMs = deltaMs.toLong()
+                                        scrubPreviewMs = ((totalDx / size.width.toFloat()) * 120_000L).toLong()
                                     }
                                     onSeekSwipe(dx)
                                 }
@@ -390,6 +456,35 @@ fun GestureOverlay(
                 val dur = duration.coerceAtLeast(1L)
                 val deltaMs = previewMs - currentPosition
                 ScrubOverlay(deltaMs = deltaMs, previewMs = previewMs)
+            }
+        }
+
+        //  Zoom indicator (top-center)
+        AnimatedVisibility(
+            visible = showZoomIndicator,
+            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
+            exit  = fadeOut(tween(300)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 24.dp)
+        ) {
+            val zoomText = String.format("%.1fx", zoomScale)
+            androidx.compose.foundation.layout.Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .background(
+                        color = Color(0xCC000000),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .padding(horizontal = 18.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Zoomed $zoomText",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
             }
         }
 
