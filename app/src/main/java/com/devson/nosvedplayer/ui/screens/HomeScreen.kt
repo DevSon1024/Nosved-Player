@@ -64,6 +64,9 @@ import com.devson.nosvedplayer.util.formatDate
 import com.devson.nosvedplayer.util.formatDuration
 import com.devson.nosvedplayer.util.formatRelativeTime
 import com.devson.nosvedplayer.util.formatSize
+import com.devson.nosvedplayer.viewmodel.StorageVolumeStats
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material.icons.filled.Storage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +92,7 @@ fun HomeScreen(
     }
     val history by homeViewModel.history.collectAsState()
     val latestVideos by homeViewModel.latestVideos.collectAsState()
+    val uiState by homeViewModel.uiState.collectAsState()
     val viewSettings by videoListViewModel.viewSettings.collectAsState()
 
     LaunchedEffect(Unit) { videoListViewModel.loadVideos() }
@@ -261,8 +265,14 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Continue Watching Header
-            Row(
+            if (uiState.showStorageTracker && uiState.storageVolumes.isNotEmpty()) {
+                StorageTrackerSection(volumes = uiState.storageVolumes)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            if (uiState.showHistoryCard) {
+                // Continue Watching Header
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
@@ -335,11 +345,13 @@ fun HomeScreen(
                     }
                 }
             }
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (uiState.showVideoCard) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Recently Added Header
-            Row(
+                // Recently Added Header
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
@@ -374,7 +386,115 @@ fun HomeScreen(
                     }
                 }
             }
+            }
 
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StorageTrackerSection(volumes: List<StorageVolumeStats>) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedIndex by remember { mutableIntStateOf(0) }
+    
+    val selectedVolume = volumes.getOrNull(selectedIndex) ?: return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Storage,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Storage",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (volumes.size > 1) {
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.menuAnchor()
+                    ) {
+                        Text(selectedVolume.name)
+                    }
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        volumes.forEachIndexed { index, volume ->
+                            DropdownMenuItem(
+                                text = { Text(volume.name) },
+                                onClick = {
+                                    selectedIndex = index
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = selectedVolume.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${formatSize(selectedVolume.usedSpace)} of ${formatSize(selectedVolume.totalSpace)} Used",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "${(selectedVolume.progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { selectedVolume.progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
         }
     }
 }

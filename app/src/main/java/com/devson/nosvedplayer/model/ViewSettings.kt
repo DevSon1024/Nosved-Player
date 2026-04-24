@@ -41,4 +41,7 @@ data class ViewSettings(
     val selectByThumbnail: Boolean = false,
     val enableFabPreview: Boolean = false,
     val scanFoldersList: Set<String> = setOf("/storage", "/storage/emulated/0"),
+    val showHistoryCard: Boolean = true,
+    val showVideoCard: Boolean = true,
+    val showStorageTracker: Boolean = true
 )

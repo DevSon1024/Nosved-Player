@@ -20,4 +20,5 @@ sealed class Screen(val route: String) {
     object MilliSecond : Screen("milli_second")
     object VideoEditor : Screen("video_editor")
     object PlayerInterface : Screen("player_interface")
+    object CustomHome : Screen("custom_home")
 }

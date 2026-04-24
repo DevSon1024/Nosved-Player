@@ -40,6 +40,10 @@ class ViewSettingsRepository(private val context: Context) {
         val SELECT_BY_THUMBNAIL = booleanPreferencesKey("select_by_thumbnail")
         val ENABLE_FAB_PREVIEW = booleanPreferencesKey("enable_fab_preview")
         val SCAN_FOLDERS_LIST = stringSetPreferencesKey("scan_folders_list")
+        
+        val SHOW_HISTORY_CARD = booleanPreferencesKey("show_history_card")
+        val SHOW_VIDEO_CARD = booleanPreferencesKey("show_video_card")
+        val SHOW_STORAGE_TRACKER = booleanPreferencesKey("show_storage_tracker")
     }
 
     val viewSettingsFlow: Flow<ViewSettings> = context.viewSettingsDataStore.data.map { preferences ->
@@ -64,7 +68,10 @@ class ViewSettingsRepository(private val context: Context) {
             showFloatingButton = preferences[SHOW_FLOATING_BUTTON] ?: true,
             selectByThumbnail = preferences[SELECT_BY_THUMBNAIL] ?: false,
             enableFabPreview = preferences[ENABLE_FAB_PREVIEW] ?: false,
-            scanFoldersList = preferences[SCAN_FOLDERS_LIST] ?: setOf("/storage", "/storage/emulated/0")
+            scanFoldersList = preferences[SCAN_FOLDERS_LIST] ?: setOf("/storage", "/storage/emulated/0"),
+            showHistoryCard = preferences[SHOW_HISTORY_CARD] ?: true,
+            showVideoCard = preferences[SHOW_VIDEO_CARD] ?: true,
+            showStorageTracker = preferences[SHOW_STORAGE_TRACKER] ?: true
         )
     }
 
@@ -150,5 +157,17 @@ class ViewSettingsRepository(private val context: Context) {
 
     suspend fun updateScanFoldersList(folders: Set<String>) {
         context.viewSettingsDataStore.edit { it[SCAN_FOLDERS_LIST] = folders }
+    }
+
+    suspend fun updateShowHistoryCard(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_HISTORY_CARD] = show }
+    }
+
+    suspend fun updateShowVideoCard(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_VIDEO_CARD] = show }
+    }
+
+    suspend fun updateShowStorageTracker(show: Boolean) {
+        context.viewSettingsDataStore.edit { it[SHOW_STORAGE_TRACKER] = show }
     }
 }

@@ -40,6 +40,7 @@ fun SettingsScreen(
     onNavigateToScanFolders: () -> Unit = {},
     onNavigateToTool: () -> Unit = {},
     onNavigateToPlayerInterface: () -> Unit = {},
+    onNavigateToCustomHome: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -146,6 +147,12 @@ fun SettingsScreen(
                     title    = "Player Interface",
                     subtitle = "Manage player layout and visibility",
                     onClick  = onNavigateToPlayerInterface
+                )
+                SettingsRow(
+                    icon     = Icons.Default.Home,
+                    title    = "Custom Home",
+                    subtitle = "Customize Home Screen Layout",
+                    onClick  = onNavigateToCustomHome
                 )
                 SettingsCard {
                     SettingsToggleRow(

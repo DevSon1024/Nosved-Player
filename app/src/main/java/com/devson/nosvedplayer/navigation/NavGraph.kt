@@ -30,6 +30,7 @@ import com.devson.nosvedplayer.ui.screens.settings.AudioConverterScreen
 import com.devson.nosvedplayer.ui.screens.settings.PlayerScreen
 import com.devson.nosvedplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nosvedplayer.ui.screens.settings.AppearanceSettingsScreen
+import com.devson.nosvedplayer.ui.screens.settings.CustomHomeScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
@@ -129,6 +130,7 @@ fun NavGraph(
                 onNavigateToScanFolders       = { navController.navigate(Screen.ScanFolders.route) },
                 onNavigateToTool              = { navController.navigate(Screen.Tool.route) },
                 onNavigateToPlayerInterface   = { navController.navigate(Screen.PlayerInterface.route) },
+                onNavigateToCustomHome        = { navController.navigate(Screen.CustomHome.route) },
                 settingsViewModel             = settingsViewModel
             )
         }
@@ -172,6 +174,13 @@ fun NavGraph(
 
         composable(Screen.PlayerInterface.route) {
             PlayerScreen(
+                onBack = { safePopBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.CustomHome.route) {
+            CustomHomeScreen(
                 onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
