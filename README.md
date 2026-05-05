@@ -57,18 +57,28 @@
 
 ## Key Features
 
-### 🎬 Dual Player UI
+### Dual Player UI
 
 - **Default Style** - Clean, minimal controls with gesture-based brightness & volume adjustment.
 - **Modern Style** - Modern immersive controls with smooth multi-tap seek gestures, a swipe-up settings panel, Replay / Forward buttons, and an **Up Next** queue overlay.
 - Switch between both styles anytime from **Settings → Player** or **Playback Settings → Player Style**.
 
-### 🎡 Rotary Sort Wheel
+### Gesture Controls in Player 
+- **Right/Left Swipe** - Seek through video timeline forward and backward 
+- **Right/Left Double Tap** - Seek 10s Forward and Backward (Seek time can be customised)
+- **Vertical Swipe Left** - Adjust Brightness 
+- **Vertical Swipe Right** - Adjust Volume
+- **Long Press on The Screen** - 2x Speed
+- **2 Finger Single Tap** - Pause/Resume Video
+- **3 Finger Single Tap ** - Lock 2x Speed
+
+
+### Rotary Sort Wheel
 
 - A unique **radial wheel picker** for sorting videos - spin to select sort field, tap centre buttons to toggle Ascending / Descending.
 - Smooth spring-physics animations, Material You colour theming, and a polished system-bar-aware overlay.
 
-### 🎨 Material You Dynamic Theme
+### Material You Dynamic Theme
 
 - Full **Material 3** colour system with light and dark schemes.
 - Optional **Dynamic Colour** - adapts to your wallpaper on Android 12+ devices.
@@ -89,7 +99,7 @@
 
 ---
 
-## 🛠️ Technical Stack
+## Technical Stack
 
 | Layer               | Technology                                                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -129,7 +139,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-## 👨‍💻 Developed By
+## Developed By
 
 **Devendra Sonawane** (DevSon)
 
