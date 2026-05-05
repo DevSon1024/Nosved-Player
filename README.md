@@ -70,7 +70,7 @@
 - **Vertical Swipe Right** - Adjust Volume
 - **Long Press on The Screen** - 2x Speed
 - **2 Finger Single Tap** - Pause/Resume Video
-- **3 Finger Single Tap ** - Lock 2x Speed
+- **3 Finger Single Tap** - Lock 2x Speed
 
 
 ### Rotary Sort Wheel
