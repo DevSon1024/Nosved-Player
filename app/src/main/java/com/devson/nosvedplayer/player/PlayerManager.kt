@@ -26,6 +26,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.session.MediaSession
+import com.devson.nosvedplayer.repository.DecoderMode
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -87,10 +88,15 @@ class PlayerManager(private val context: Context) {
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
-    fun initializePlayer() {
+    fun initializePlayer(decoderMode: DecoderMode = DecoderMode.HW_PLUS) {
         if (exoPlayer == null) {
+            val extensionMode = when (decoderMode) {
+                DecoderMode.HW      -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+                DecoderMode.HW_PLUS -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                DecoderMode.SW      -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            }
             val renderersFactory = NextRenderersFactory(context)
-                .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+                .setExtensionRendererMode(extensionMode)
                 .setEnableDecoderFallback(true)
                 .forceDisableMediaCodecAsynchronousQueueing()
 
@@ -397,6 +403,13 @@ class PlayerManager(private val context: Context) {
                 _videoFps.value = fps
             }
         }
+    }
+
+    fun releasePlayerAndKeepState(): Pair<Long, Boolean> {
+        val pos = exoPlayer?.currentPosition ?: 0L
+        val playing = exoPlayer?.isPlaying ?: false
+        releasePlayer()
+        return Pair(pos, playing)
     }
 
     fun releasePlayer() {

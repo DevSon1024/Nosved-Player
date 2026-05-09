@@ -127,6 +127,7 @@ fun VideoScreen(
 
     val subtitleTextSizeScale by viewModel.subtitleTextSizeScale.collectAsState()
     val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
+    val currentDecoder by viewModel.currentDecoderMode.collectAsState()
 
     // Modals state (used only in default mode; Modern mode handles tracks inline)
     var showAudioSheet by remember { mutableStateOf(false) }
@@ -564,6 +565,8 @@ fun VideoScreen(
                 showScreenRotationButton = showScreenRotationButton,
                 showRemainingTime = showRemainingTime,
                 onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
+                currentDecoder = currentDecoder,
+                onSelectDecoder = { viewModel.setDecoderMode(it) },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
@@ -647,6 +650,8 @@ fun VideoScreen(
                 showScreenRotationButton = showScreenRotationButton,
                 showRemainingTime = showRemainingTime,
                 onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
+                currentDecoder = currentDecoder,
+                onSelectDecoder = { viewModel.setDecoderMode(it) },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {

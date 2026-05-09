@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.devson.nosvedplayer.model.TrackInfo
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.viewmodel.SeekBarStyle
+import com.devson.nosvedplayer.repository.DecoderMode
 import kotlinx.coroutines.delay
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -103,9 +104,12 @@ fun ModernStylePlayerControls(
     showScreenRotationButton: Boolean = true,
     onToggleScreenRotation: (() -> Unit)? = null,
     showRemainingTime: Boolean = false,
-    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
+    currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
+    onSelectDecoder: ((DecoderMode) -> Unit)? = null
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
+    var showDecoderDialog by remember { mutableStateOf(false) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekPreview by remember { mutableStateOf(0L) }
     var lastDraggedPos by remember { mutableStateOf(0L) }
@@ -203,7 +207,9 @@ fun ModernStylePlayerControls(
                         onSeekTo(lastDraggedPos)
                     },
                     showRemainingTime = showRemainingTime,
-                    onShowRemainingTimeChange = onShowRemainingTimeChange
+                    onShowRemainingTimeChange = onShowRemainingTimeChange,
+                    currentDecoder = currentDecoder,
+                    onToggleDecoder = { showDecoderDialog = true }
                 )
             }
         }
@@ -222,6 +228,14 @@ fun ModernStylePlayerControls(
                     showPlaylistPanel = false
                 },
                 onDismiss = { showPlaylistPanel = false }
+            )
+        }
+
+        if (showDecoderDialog && onSelectDecoder != null) {
+            DecoderSelectorDialog(
+                currentDecoder = currentDecoder,
+                onSelect = onSelectDecoder,
+                onDismiss = { showDecoderDialog = false }
             )
         }
     }
@@ -279,7 +293,9 @@ private fun YtControlsLayout(
     showScreenRotationButton: Boolean = true,
     onToggleScreenRotation: (() -> Unit)? = null,
     showRemainingTime: Boolean = false,
-    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
+    currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
+    onToggleDecoder: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -356,6 +372,16 @@ private fun YtControlsLayout(
             }
             IconButton(onClick = onAudioTrackClick) {
                 Icon(Icons.Filled.Audiotrack, contentDescription = stringResource(R.string.cd_audio_track), tint = Color.White)
+            }
+            if (onToggleDecoder != null) {
+                IconButton(onClick = onToggleDecoder) {
+                    Text(
+                        text = currentDecoder.displayName,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
             }
             IconButton(onClick = onSettingsClick) {
                 Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings), tint = Color.White)

@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.viewmodel.ControlIconSize
 import com.devson.nosvedplayer.viewmodel.SeekBarStyle
+import com.devson.nosvedplayer.repository.DecoderMode
 import kotlinx.coroutines.launch
 
 // Icon size helpers
@@ -145,9 +146,12 @@ fun PlayerControls(
     showScreenRotationButton: Boolean = true,
     onToggleScreenRotation: (() -> Unit)? = null,
     showRemainingTime: Boolean = false,
-    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null
+    onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
+    currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
+    onSelectDecoder: ((DecoderMode) -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var showDecoderDialog by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
@@ -293,6 +297,21 @@ fun PlayerControls(
                         ) {
                             IconButton(onClick = onPipToggle) {
                                 Icon(Icons.Filled.PictureInPictureAlt, contentDescription = "Picture in Picture", tint = Color.White)
+                            }
+                        }
+                    }
+                    if (onSelectDecoder != null) {
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Decoder: ${currentDecoder.displayName}") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = { showDecoderDialog = true }) {
+                                Text(
+                                    text = currentDecoder.displayName,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             }
                         }
                     }
@@ -577,6 +596,14 @@ fun PlayerControls(
         onFastplaySpeedChange = { onFastplaySpeedChange?.invoke(it) },
         onShowStatsChange = { onToggleStats?.invoke() }
     )
+
+    if (showDecoderDialog && onSelectDecoder != null) {
+        DecoderSelectorDialog(
+            currentDecoder = currentDecoder,
+            onSelect = onSelectDecoder,
+            onDismiss = { showDecoderDialog = false }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

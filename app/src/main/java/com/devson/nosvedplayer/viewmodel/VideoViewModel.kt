@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.player.PlayerManager
 import com.devson.nosvedplayer.repository.WatchHistoryRepository
+import com.devson.nosvedplayer.repository.DecoderMode
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -121,6 +122,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _subtitleBgStyle = MutableStateFlow(0)
     val subtitleBgStyle: StateFlow<Int> = _subtitleBgStyle.asStateFlow()
 
+    private val _currentDecoderMode = MutableStateFlow(DecoderMode.HW_PLUS)
+    val currentDecoderMode: StateFlow<DecoderMode> = _currentDecoderMode.asStateFlow()
+
     init {
         startProgressUpdate()
     }
@@ -136,13 +140,14 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
                     _autoPlayEnabled.value = settings.autoPlayEnabled
                     _showSeekButtons.value = settings.showSeekButtons
                     _fastplaySpeed.value = settings.fastplaySpeed
+                    _currentDecoderMode.value = settings.decoderMode
                 }
             }
         }
 
         if (playerManager == null) {
             playerManager = PlayerManager(context)
-            playerManager?.initializePlayer()
+            playerManager?.initializePlayer(_currentDecoderMode.value)
             _playerInstance.value = playerManager?.exoPlayer
 
             playerManager?.onPlayNext = {
@@ -185,6 +190,44 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun toggleDecoderMode() {
+        val next = when (_currentDecoderMode.value) {
+            DecoderMode.HW      -> DecoderMode.HW_PLUS
+            DecoderMode.HW_PLUS -> DecoderMode.SW
+            DecoderMode.SW      -> DecoderMode.HW
+        }
+        setDecoderMode(next)
+    }
+
+    fun setDecoderMode(mode: DecoderMode) {
+        if (_currentDecoderMode.value == mode) return
+        viewModelScope.launch {
+            settingsRepository?.updateDecoderMode(mode)
+            _currentDecoderMode.value = mode
+            val video = _currentVideo.value ?: return@launch
+            val (savedPos, wasPlaying) = playerManager?.releasePlayerAndKeepState() ?: return@launch
+            _playerInstance.value = null
+            playerManager = PlayerManager(getApplication())
+            playerManager?.initializePlayer(mode)
+            _playerInstance.value = playerManager?.exoPlayer
+            playerManager?.onPlayNext = { playNextVideo() }
+            playerManager?.onPlayPrevious = { playPreviousVideo() }
+            playerManager?.onVideoEnded = {
+                val uri = _currentVideo.value?.uri
+                val pos = resolvePositionToSave()
+                if (uri != null && pos > 0L) {
+                    viewModelScope.launch { historyRepo.savePosition(uri, pos) }
+                }
+                if (_autoPlayEnabled.value) playNextVideo()
+            }
+            playerManager?.onPlaybackError = { playNextVideo() }
+            playerManager?.playVideo(video)
+            if (savedPos > 0L) playerManager?.seekTo(savedPos)
+            if (!wasPlaying) playerManager?.pause()
+        }
+    }
+
 
     fun getPlayer() = _playerInstance.value
 

@@ -18,6 +18,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pl
 enum class OrientationMode { VIDEO_ORIENTATION, LANDSCAPE, REVERSE_LANDSCAPE, AUTO_ROTATION, SYSTEM_DEFAULT }
 enum class FullScreenMode { ON, OFF, AUTO_SWITCH }
 enum class SoftButtonMode { SHOW, HIDE, AUTO_HIDE }
+enum class DecoderMode(val displayName: String) { HW("HW"), HW_PLUS("HW+"), SW("SW") }
 
 data class PlaybackSettings(
     val seekDurationSeconds: Int,
@@ -33,7 +34,8 @@ data class PlaybackSettings(
     val showBatteryClockOverlay: Boolean = false,
     val showScreenRotationButton: Boolean = true,
     val pauseWhenObstructed: Boolean = true,
-    val showRemainingTime: Boolean = false
+    val showRemainingTime: Boolean = false,
+    val decoderMode: DecoderMode = DecoderMode.HW_PLUS
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -66,6 +68,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val PAUSE_WHEN_OBSTRUCTED = booleanPreferencesKey("pause_when_obstructed")
         val SHOW_REMAINING_TIME = booleanPreferencesKey("show_remaining_time")
         val NAV_BAR_TRANSPARENT = booleanPreferencesKey("nav_bar_transparent")
+        val DECODER_MODE = stringPreferencesKey("decoder_mode")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -90,7 +93,8 @@ class PlaybackSettingsRepository(private val context: Context) {
                 showBatteryClockOverlay = preferences[PreferencesKeys.SHOW_BATTERY_CLOCK_OVERLAY] ?: false,
                 showScreenRotationButton = preferences[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] ?: true,
                 pauseWhenObstructed = preferences[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] ?: true,
-                showRemainingTime = preferences[PreferencesKeys.SHOW_REMAINING_TIME] ?: false
+                showRemainingTime = preferences[PreferencesKeys.SHOW_REMAINING_TIME] ?: false,
+                decoderMode = try { DecoderMode.valueOf(preferences[PreferencesKeys.DECODER_MODE] ?: DecoderMode.HW_PLUS.name) } catch (e: Exception) { DecoderMode.HW_PLUS }
             )
         }
 
@@ -244,6 +248,10 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateShowRemainingTime(show: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.SHOW_REMAINING_TIME] = show }
+    }
+
+    suspend fun updateDecoderMode(mode: DecoderMode) {
+        context.dataStore.edit { it[PreferencesKeys.DECODER_MODE] = mode.name }
     }
 
     val isNavBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
