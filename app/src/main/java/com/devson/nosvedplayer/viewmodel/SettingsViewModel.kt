@@ -26,6 +26,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val isDarkTheme: StateFlow<Boolean?> = settingsRepo.isDarkThemeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val isAmoledTheme: StateFlow<Boolean> = settingsRepo.isAmoledThemeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val defaultAudioLang: StateFlow<String> = settingsRepo.defaultAudioLangFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    val defaultSubtitleLang: StateFlow<String> = settingsRepo.defaultSubtitleLangFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
     val isDeveloperMode: StateFlow<Boolean> = settingsRepo.isDeveloperModeFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
@@ -63,6 +72,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Clears any explicit dark/light override - theme follows the device system setting. */
     fun resetDarkTheme() {
         viewModelScope.launch { settingsRepo.resetDarkTheme() }
+    }
+
+    fun setAmoledTheme(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.setAmoledTheme(enabled) }
+    }
+
+    fun setDefaultAudioLang(langCode: String) {
+        viewModelScope.launch { settingsRepo.setDefaultAudioLanguage(langCode) }
+    }
+
+    fun setDefaultSubtitleLang(langCode: String) {
+        viewModelScope.launch { settingsRepo.setDefaultSubtitleLanguage(langCode) }
     }
 
     fun enableDeveloperMode() {

@@ -30,18 +30,34 @@ fun NosvedPlayerTheme(
     dynamicColor: Boolean = false,
     palette: AppThemePalette = AppThemePalette.CINEMATIC,
     isNavBarTransparent: Boolean = true,
+    isAmoledTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
     val darkTheme  = forceDark ?: systemDark
 
-    val colorScheme = when {
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val ctx = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         }
         darkTheme -> palette.darkScheme()
         else      -> palette.lightScheme()
+    }
+
+    val colorScheme = if (darkTheme && isAmoledTheme) {
+        baseColorScheme.copy(
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceVariant = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color.Black,
+            surfaceContainer = Color(0xFF0A0A0A),
+            surfaceContainerHigh = Color(0xFF111111),
+            surfaceContainerHighest = Color(0xFF181818)
+        )
+    } else {
+        baseColorScheme
     }
 
     val view = LocalView.current

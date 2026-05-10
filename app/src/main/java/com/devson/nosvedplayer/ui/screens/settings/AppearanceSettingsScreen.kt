@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.devson.nosvedplayer.R
 import com.devson.nosvedplayer.ui.theme.AppThemePalette
 import com.devson.nosvedplayer.ui.theme.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +52,8 @@ fun AppearanceSettingsScreen(
     val dynamicColor  by settingsViewModel.dynamicColor.collectAsState()
     val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
     val navBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
+    val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsState()
+    val isEffectivelyDark = isDark ?: isSystemInDarkTheme()
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -240,9 +243,20 @@ fun AppearanceSettingsScreen(
                 }
 
                 AppearanceDivider()
+                if (isEffectivelyDark) {
+                    AppearanceToggleRow(
+                        icon      = Icons.Default.Brightness1,
+                        title     = "AMOLED Theme",
+                        subtitle  = "Pure black background for dark mode",
+                        checked   = isAmoledTheme,
+                        onCheckedChange = { settingsViewModel.setAmoledTheme(it) }
+                    )
+                    AppearanceDivider()
+                }
+
                 AppearanceToggleRow(
                     icon      = Icons.Default.WebAsset,
-                    title     = "Transparent Navigation Bar",
+                    title     = "Transparent NavBar",
                     subtitle  = "Content scrolls behind the system nav bar",
                     checked   = navBarTransparent,
                     onCheckedChange = { settingsViewModel.setNavBarTransparent(it) }

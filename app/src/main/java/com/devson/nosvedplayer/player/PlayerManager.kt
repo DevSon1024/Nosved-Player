@@ -88,7 +88,11 @@ class PlayerManager(private val context: Context) {
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
-    fun initializePlayer(decoderMode: DecoderMode = DecoderMode.HW_PLUS) {
+    fun initializePlayer(
+        decoderMode: DecoderMode = DecoderMode.HW_PLUS,
+        defaultAudioLang: String = "",
+        defaultSubtitleLang: String = ""
+    ) {
         if (exoPlayer == null) {
             val extensionMode = when (decoderMode) {
                 DecoderMode.HW      -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
@@ -297,7 +301,22 @@ class PlayerManager(private val context: Context) {
             }
 
             mediaSession = MediaSession.Builder(context, forwardingPlayer).build()
+
+            exoPlayer?.trackSelectionParameters = exoPlayer!!.trackSelectionParameters
+                .buildUpon()
+                .setPreferredAudioLanguage(if (defaultAudioLang.isEmpty()) null else defaultAudioLang)
+                .setPreferredTextLanguage(if (defaultSubtitleLang.isEmpty()) null else defaultSubtitleLang)
+                .build()
         }
+    }
+
+    fun updatePreferredLanguages(audioLang: String, subLang: String) {
+        val player = exoPlayer ?: return
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setPreferredAudioLanguage(if (audioLang.isEmpty()) null else audioLang)
+            .setPreferredTextLanguage(if (subLang.isEmpty()) null else subLang)
+            .build()
     }
 
     private fun applyLoudnessEnhancer(audioSessionId: Int) {

@@ -36,7 +36,30 @@ fun PlayerScreen(
     onBack: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
-    val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+    val playbackSettings  by settingsViewModel.playbackSettings.collectAsState()
+    val defaultAudioLang  by settingsViewModel.defaultAudioLang.collectAsState()
+    val defaultSubtitleLang by settingsViewModel.defaultSubtitleLang.collectAsState()
+
+    var showAudioLangDialog by remember { mutableStateOf(false) }
+    var showSubLangDialog   by remember { mutableStateOf(false) }
+
+    val commonLanguages = listOf(
+        "" to "System Default",
+        "en" to "English",
+        "hi" to "Hindi",
+        "fr" to "French",
+        "de" to "German",
+        "es" to "Spanish",
+        "ja" to "Japanese",
+        "ko" to "Korean",
+        "zh" to "Chinese",
+        "ar" to "Arabic",
+        "ru" to "Russian",
+        "pt" to "Portuguese",
+        "it" to "Italian",
+        "bn" to "Bengali",
+        "mr" to "Marathi"
+    )
 
     Scaffold(
         topBar = {
@@ -152,7 +175,48 @@ fun PlayerScreen(
                     )
                 }
             }
+
+            item { Spacer(Modifier.height(16.dp)) }
+            item { SettingsSectionLabel("Default Track Languages") }
+            item {
+                SettingsCard {
+                    SettingsClickRow(
+                        icon     = Icons.Default.Headset,
+                        title    = "Default Audio Language",
+                        subtitle = commonLanguages.find { it.first == defaultAudioLang }?.second
+                            ?: defaultAudioLang.ifEmpty { "System Default" },
+                        onClick  = { showAudioLangDialog = true }
+                    )
+                    SettingsDivider()
+                    SettingsClickRow(
+                        icon     = Icons.Default.Subtitles,
+                        title    = "Default Subtitle Language",
+                        subtitle = commonLanguages.find { it.first == defaultSubtitleLang }?.second
+                            ?: defaultSubtitleLang.ifEmpty { "System Default" },
+                        onClick  = { showSubLangDialog = true }
+                    )
+                }
+            }
         }
+    }
+
+    if (showAudioLangDialog) {
+        LangPickerDialog(
+            title     = "Default Audio Language",
+            options   = commonLanguages,
+            selected  = defaultAudioLang,
+            onSelect  = { settingsViewModel.setDefaultAudioLang(it); showAudioLangDialog = false },
+            onDismiss = { showAudioLangDialog = false }
+        )
+    }
+    if (showSubLangDialog) {
+        LangPickerDialog(
+            title     = "Default Subtitle Language",
+            options   = commonLanguages,
+            selected  = defaultSubtitleLang,
+            onSelect  = { settingsViewModel.setDefaultSubtitleLang(it); showSubLangDialog = false },
+            onDismiss = { showSubLangDialog = false }
+        )
     }
 }
 
@@ -165,6 +229,105 @@ private fun SettingsSectionLabel(label: String) {
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
     )
+}
+
+@Composable
+private fun LangPickerDialog(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, bottom = 8.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(max = 360.dp)
+                ) {
+                    items(options.size) { index ->
+                        val (code, label) = options[index]
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(code) }
+                                .padding(horizontal = 12.dp, vertical = 2.dp)
+                        ) {
+                            RadioButton(
+                                selected = (code == selected),
+                                onClick  = { onSelect(code) }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick  = onDismiss,
+                    modifier = Modifier.align(Alignment.End).padding(end = 16.dp)
+                ) { Text("Cancel") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsClickRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = null,
+             tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable

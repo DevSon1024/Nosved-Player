@@ -12,7 +12,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Extension property to get DataStore instance via Context
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "playback_settings")
 
 enum class OrientationMode { VIDEO_ORIENTATION, LANDSCAPE, REVERSE_LANDSCAPE, AUTO_ROTATION, SYSTEM_DEFAULT }
@@ -35,7 +34,10 @@ data class PlaybackSettings(
     val showScreenRotationButton: Boolean = true,
     val pauseWhenObstructed: Boolean = true,
     val showRemainingTime: Boolean = false,
-    val decoderMode: DecoderMode = DecoderMode.HW_PLUS
+    val decoderMode: DecoderMode = DecoderMode.HW_PLUS,
+    val isAmoledTheme: Boolean = false,
+    val defaultAudioLanguage: String = "",
+    val defaultSubtitleLanguage: String = ""
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -48,14 +50,11 @@ class PlaybackSettingsRepository(private val context: Context) {
         val SHOW_SEEK_BUTTONS = booleanPreferencesKey("show_seek_buttons")
         val FASTPLAY_SPEED = floatPreferencesKey("fastplay_speed")
         val DARK_THEME = booleanPreferencesKey("dark_theme")
-        // null stored as absent = follow system
         val DARK_THEME_SET = booleanPreferencesKey("dark_theme_set")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
         val Modern_PLAYER_STYLE = booleanPreferencesKey("Modern_player_style")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
-        // Onboarding
         val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
-        // Theme palette
         val SELECTED_PALETTE = stringPreferencesKey("selected_palette")
         val ORIENTATION_MODE = stringPreferencesKey("orientation_mode")
         val FULL_SCREEN_MODE = stringPreferencesKey("full_screen_mode")
@@ -69,23 +68,20 @@ class PlaybackSettingsRepository(private val context: Context) {
         val SHOW_REMAINING_TIME = booleanPreferencesKey("show_remaining_time")
         val NAV_BAR_TRANSPARENT = booleanPreferencesKey("nav_bar_transparent")
         val DECODER_MODE = stringPreferencesKey("decoder_mode")
+        val AMOLED_THEME = booleanPreferencesKey("amoled_theme")
+        val DEFAULT_AUDIO_LANG = stringPreferencesKey("default_audio_lang")
+        val DEFAULT_SUBTITLE_LANG = stringPreferencesKey("default_subtitle_lang")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
         .map { preferences ->
-            val seekDuration = preferences[PreferencesKeys.SEEK_DURATION] ?: 10
-            val seekBarStyle = preferences[PreferencesKeys.SEEK_BAR_STYLE] ?: "DEFAULT"
-            val controlIconSize = preferences[PreferencesKeys.CONTROL_ICON_SIZE] ?: "MEDIUM"
-            val autoPlay = preferences[PreferencesKeys.AUTO_PLAY] ?: false
-            val showSeekButtons = preferences[PreferencesKeys.SHOW_SEEK_BUTTONS] ?: true
-            val fastplaySpeed = preferences[PreferencesKeys.FASTPLAY_SPEED] ?: 2.0f
             PlaybackSettings(
-                seekDurationSeconds = seekDuration,
-                seekBarStyle = seekBarStyle,
-                controlIconSize = controlIconSize,
-                autoPlayEnabled = autoPlay,
-                showSeekButtons = showSeekButtons,
-                fastplaySpeed = fastplaySpeed,
+                seekDurationSeconds = preferences[PreferencesKeys.SEEK_DURATION] ?: 10,
+                seekBarStyle = preferences[PreferencesKeys.SEEK_BAR_STYLE] ?: "DEFAULT",
+                controlIconSize = preferences[PreferencesKeys.CONTROL_ICON_SIZE] ?: "MEDIUM",
+                autoPlayEnabled = preferences[PreferencesKeys.AUTO_PLAY] ?: false,
+                showSeekButtons = preferences[PreferencesKeys.SHOW_SEEK_BUTTONS] ?: true,
+                fastplaySpeed = preferences[PreferencesKeys.FASTPLAY_SPEED] ?: 2.0f,
                 orientationMode = try { OrientationMode.valueOf(preferences[PreferencesKeys.ORIENTATION_MODE] ?: OrientationMode.SYSTEM_DEFAULT.name) } catch (e: Exception) { OrientationMode.SYSTEM_DEFAULT },
                 fullScreenMode = try { FullScreenMode.valueOf(preferences[PreferencesKeys.FULL_SCREEN_MODE] ?: FullScreenMode.AUTO_SWITCH.name) } catch (e: Exception) { FullScreenMode.AUTO_SWITCH },
                 softButtonMode = try { SoftButtonMode.valueOf(preferences[PreferencesKeys.SOFT_BUTTON_MODE] ?: SoftButtonMode.AUTO_HIDE.name) } catch (e: Exception) { SoftButtonMode.AUTO_HIDE },
@@ -94,18 +90,29 @@ class PlaybackSettingsRepository(private val context: Context) {
                 showScreenRotationButton = preferences[PreferencesKeys.SHOW_SCREEN_ROTATION_BUTTON] ?: true,
                 pauseWhenObstructed = preferences[PreferencesKeys.PAUSE_WHEN_OBSTRUCTED] ?: true,
                 showRemainingTime = preferences[PreferencesKeys.SHOW_REMAINING_TIME] ?: false,
-                decoderMode = try { DecoderMode.valueOf(preferences[PreferencesKeys.DECODER_MODE] ?: DecoderMode.HW_PLUS.name) } catch (e: Exception) { DecoderMode.HW_PLUS }
+                decoderMode = try { DecoderMode.valueOf(preferences[PreferencesKeys.DECODER_MODE] ?: DecoderMode.HW_PLUS.name) } catch (e: Exception) { DecoderMode.HW_PLUS },
+                isAmoledTheme = preferences[PreferencesKeys.AMOLED_THEME] ?: false,
+                defaultAudioLanguage = preferences[PreferencesKeys.DEFAULT_AUDIO_LANG] ?: "",
+                defaultSubtitleLanguage = preferences[PreferencesKeys.DEFAULT_SUBTITLE_LANG] ?: ""
             )
         }
 
-    /**
-     * Emits null when the user hasn't set a preference (follow system),
-     * true for explicit dark, false for explicit light.
-     */
     val isDarkThemeFlow: Flow<Boolean?> = context.dataStore.data.map { prefs ->
         if (prefs[PreferencesKeys.DARK_THEME_SET] == true) {
             prefs[PreferencesKeys.DARK_THEME]
         } else null
+    }
+
+    val isAmoledThemeFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.AMOLED_THEME] ?: false
+    }
+
+    val defaultAudioLangFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.DEFAULT_AUDIO_LANG] ?: ""
+    }
+
+    val defaultSubtitleLangFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.DEFAULT_SUBTITLE_LANG] ?: ""
     }
 
     val isDeveloperModeFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -113,26 +120,17 @@ class PlaybackSettingsRepository(private val context: Context) {
     }
 
     val useModernPlayerStyleFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        // Defaults to TRUE so Modern-style controls are shown on first launch,
-        // immediately showcasing the custom player UI to app-store reviewers.
         prefs[PreferencesKeys.Modern_PLAYER_STYLE] ?: true
     }
 
-    /** Emits false until the user completes (or skips) the onboarding flow. */
     val hasSeenOnboardingFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.HAS_SEEN_ONBOARDING] ?: false
     }
 
-    /** false = use custom Nosved palette; true = use Material You wallpaper colours (SDK 31+) */
     val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.DYNAMIC_COLOR] ?: false
     }
 
-    /**
-     * Emits the persisted palette name string (e.g. "CINEMATIC", "BLUE").
-     * Defaults to "CINEMATIC" on first launch.
-     * Use [com.devson.nosvedplayer.ui.theme.AppThemePaletteHelper.fromKey] to map back to the enum.
-     */
     val selectedPaletteFlow: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.SELECTED_PALETTE] ?: "BLUE"
     }
@@ -144,12 +142,23 @@ class PlaybackSettingsRepository(private val context: Context) {
         }
     }
 
-    /** Clears the explicit dark/light override - theme follows the system setting. */
     suspend fun resetDarkTheme() {
         context.dataStore.edit { prefs ->
             prefs[PreferencesKeys.DARK_THEME_SET] = false
             prefs.remove(PreferencesKeys.DARK_THEME)
         }
+    }
+
+    suspend fun setAmoledTheme(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.AMOLED_THEME] = enabled }
+    }
+
+    suspend fun setDefaultAudioLanguage(langCode: String) {
+        context.dataStore.edit { it[PreferencesKeys.DEFAULT_AUDIO_LANG] = langCode }
+    }
+
+    suspend fun setDefaultSubtitleLanguage(langCode: String) {
+        context.dataStore.edit { it[PreferencesKeys.DEFAULT_SUBTITLE_LANG] = langCode }
     }
 
     suspend fun setDeveloperMode(enabled: Boolean) {

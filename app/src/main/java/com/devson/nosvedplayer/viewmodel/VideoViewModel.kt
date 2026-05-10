@@ -125,6 +125,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentDecoderMode = MutableStateFlow(DecoderMode.HW_PLUS)
     val currentDecoderMode: StateFlow<DecoderMode> = _currentDecoderMode.asStateFlow()
 
+    private val _defaultAudioLang = MutableStateFlow("")
+    private val _defaultSubtitleLang = MutableStateFlow("")
+
     init {
         startProgressUpdate()
     }
@@ -141,13 +144,29 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
                     _showSeekButtons.value = settings.showSeekButtons
                     _fastplaySpeed.value = settings.fastplaySpeed
                     _currentDecoderMode.value = settings.decoderMode
+                    _defaultAudioLang.value = settings.defaultAudioLanguage
+                    _defaultSubtitleLang.value = settings.defaultSubtitleLanguage
+                }
+            }
+            viewModelScope.launch {
+                _defaultAudioLang.collect { audio ->
+                    playerManager?.updatePreferredLanguages(audio, _defaultSubtitleLang.value)
+                }
+            }
+            viewModelScope.launch {
+                _defaultSubtitleLang.collect { sub ->
+                    playerManager?.updatePreferredLanguages(_defaultAudioLang.value, sub)
                 }
             }
         }
 
         if (playerManager == null) {
             playerManager = PlayerManager(context)
-            playerManager?.initializePlayer(_currentDecoderMode.value)
+            playerManager?.initializePlayer(
+                _currentDecoderMode.value,
+                _defaultAudioLang.value,
+                _defaultSubtitleLang.value
+            )
             _playerInstance.value = playerManager?.exoPlayer
 
             playerManager?.onPlayNext = {
@@ -209,7 +228,11 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             val (savedPos, wasPlaying) = playerManager?.releasePlayerAndKeepState() ?: return@launch
             _playerInstance.value = null
             playerManager = PlayerManager(getApplication())
-            playerManager?.initializePlayer(mode)
+            playerManager?.initializePlayer(
+                mode,
+                _defaultAudioLang.value,
+                _defaultSubtitleLang.value
+            )
             _playerInstance.value = playerManager?.exoPlayer
             playerManager?.onPlayNext = { playNextVideo() }
             playerManager?.onPlayPrevious = { playPreviousVideo() }
