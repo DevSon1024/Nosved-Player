@@ -126,8 +126,8 @@ private fun InfoSheetBody(
                 // Section 1: About File
                 CompactInfoSection(title = "About File", sectionSp = sectionSp, compact = compact) {
                     val path = data.video.path
-                    val name = path.substringAfterLast('/', data.video.title)
-                    val location = path.substringBeforeLast('/', "Unknown")
+                    val name = if (path.startsWith("/")) path.substringAfterLast('/') else data.video.title
+                    val location = if (path.startsWith("/")) path.substringBeforeLast('/') else data.video.folderName
                     val hasSubtitles = data.tracks.any { it.type == TrackType.SUBTITLE }
 
                     CompactInfoRow("File Name", name, labelSp, valueSp, vertPad)

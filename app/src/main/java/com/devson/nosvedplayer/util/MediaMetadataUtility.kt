@@ -202,7 +202,7 @@ suspend fun getVideoMetadata(
     }
 
     DetailedVideoMetadata(
-        video = video.copy(uri = resolvedPath),
+        video = video.copy(path = if (resolvedPath.startsWith("/")) resolvedPath else video.path),
         history = history.await(),
         format = containerFormat,
         resolution = finalRes,

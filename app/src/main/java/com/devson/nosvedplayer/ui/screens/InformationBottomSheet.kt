@@ -100,7 +100,12 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
     // Section 1: About File
     InfoSection(title = stringResource(R.string.info_about_file)) {
         InfoRow(label = stringResource(R.string.info_file_name), value = video.title)
-        InfoRow(label = stringResource(R.string.folder_info_location), value = video.uri)
+        val location = if (video.path.startsWith("/")) {
+            video.path.substringBeforeLast('/')
+        } else {
+            video.folderName
+        }
+        InfoRow(label = stringResource(R.string.folder_info_location), value = location)
         InfoRow(label = stringResource(R.string.info_file_size), value = formatSize(video.size))
         InfoRow(label = stringResource(R.string.info_file_date), value = formatDate(video.dateAdded))
     }
