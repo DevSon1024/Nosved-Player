@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,7 +84,6 @@ fun VideoGridItem(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                         .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
                 ) {
                     if (settings.showThumbnail) {
@@ -165,7 +163,6 @@ fun VideoGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
             ) {
                 if (settings.showThumbnail) {
