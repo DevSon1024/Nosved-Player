@@ -100,10 +100,10 @@ private fun SingleVideoInfo(metadata: DetailedVideoMetadata) {
     // Section 1: About File
     InfoSection(title = stringResource(R.string.info_about_file)) {
         InfoRow(label = stringResource(R.string.info_file_name), value = video.title)
-        val location = if (video.path.startsWith("/")) {
-            video.path.substringBeforeLast('/')
-        } else {
-            video.folderName
+        val location = when {
+            video.path.isNotEmpty() -> video.path.substringBeforeLast('/')
+            video.folderName != "Unknown" -> video.folderName
+            else -> video.uri.substringAfterLast("/0/", "").substringBeforeLast('/').ifEmpty { video.uri }
         }
         InfoRow(label = stringResource(R.string.folder_info_location), value = location)
         InfoRow(label = stringResource(R.string.info_file_size), value = formatSize(video.size))

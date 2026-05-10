@@ -125,9 +125,18 @@ private fun InfoSheetBody(
             metadata?.let { data ->
                 // Section 1: About File
                 CompactInfoSection(title = "About File", sectionSp = sectionSp, compact = compact) {
-                    val path = data.video.path
-                    val name = if (path.startsWith("/")) path.substringAfterLast('/') else data.video.title
-                    val location = if (path.startsWith("/")) path.substringBeforeLast('/') else data.video.folderName
+                    // data.video.uri is the real path after getVideoMetadata resolves content:// URIs
+                    val resolvedPath = data.video.uri
+                    val name = if (resolvedPath.startsWith("/")) {
+                        resolvedPath.substringAfterLast('/')
+                    } else {
+                        data.video.title
+                    }
+                    val location = if (resolvedPath.startsWith("/")) {
+                        resolvedPath.substringBeforeLast('/')
+                    } else {
+                        data.video.path.substringBeforeLast('/', data.video.folderName)
+                    }
                     val hasSubtitles = data.tracks.any { it.type == TrackType.SUBTITLE }
 
                     CompactInfoRow("File Name", name, labelSp, valueSp, vertPad)
