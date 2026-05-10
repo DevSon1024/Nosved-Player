@@ -106,7 +106,8 @@ fun ModernStylePlayerControls(
     showRemainingTime: Boolean = false,
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
-    onSelectDecoder: ((DecoderMode) -> Unit)? = null
+    onSelectDecoder: ((DecoderMode) -> Unit)? = null,
+    onScrubbingModeChange: (Boolean) -> Unit = {}
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
@@ -197,19 +198,23 @@ fun ModernStylePlayerControls(
                         isSeeking = true
                         seekPreview = pos
                         lastDraggedPos = pos
+                        onScrubbingModeChange(true)
                     },
                     onSeekChange = { pos ->
                         seekPreview = pos
                         lastDraggedPos = pos
+                        onSeekTo(pos)
                     },
                     onSeekEnd = {
                         isSeeking = false
                         onSeekTo(lastDraggedPos)
+                        onScrubbingModeChange(false)
                     },
                     showRemainingTime = showRemainingTime,
                     onShowRemainingTimeChange = onShowRemainingTimeChange,
                     currentDecoder = currentDecoder,
-                    onToggleDecoder = { showDecoderDialog = true }
+                    onToggleDecoder = { showDecoderDialog = true },
+                    onScrubbingModeChange = onScrubbingModeChange
                 )
             }
         }
@@ -295,7 +300,8 @@ private fun YtControlsLayout(
     showRemainingTime: Boolean = false,
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
-    onToggleDecoder: (() -> Unit)? = null
+    onToggleDecoder: (() -> Unit)? = null,
+    onScrubbingModeChange: (Boolean) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -591,7 +597,7 @@ private fun YtSeekBar(
             sliderPosition = newVal
             val newPos = newVal.toLong()
             if (!isSeeking) onSeekStart(newPos)
-            else onSeekChange(newPos)
+            onSeekChange(newPos)
         },
         onValueChangeFinished = {
             onSeekEnd()

@@ -443,6 +443,11 @@ class PlayerManager(private val context: Context) {
         loudnessEnhancer = null
     }
 
+    @UnstableApi
+    fun setScrubbingMode(enabled: Boolean) {
+        exoPlayer?.setScrubbingModeEnabled(enabled)
+    }
+
     // --- Audio & Subtitle Selection ---
 
     fun selectAudioTrack(index: Int) {

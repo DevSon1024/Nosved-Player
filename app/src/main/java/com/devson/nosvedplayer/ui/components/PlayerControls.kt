@@ -148,7 +148,8 @@ fun PlayerControls(
     showRemainingTime: Boolean = false,
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
-    onSelectDecoder: ((DecoderMode) -> Unit)? = null
+    onSelectDecoder: ((DecoderMode) -> Unit)? = null,
+    onScrubbingModeChange: (Boolean) -> Unit = {}
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
@@ -380,11 +381,14 @@ fun PlayerControls(
                                 valueRange = safeValueRange,
                                 onValueChange = {
                                     draggingJob?.cancel()
+                                    if (!isDragging) onScrubbingModeChange(true)
                                     isDragging = true
                                     sliderPosition = it
+                                    onSeekTo(it.toLong())
                                 },
                                 onValueChangeFinished = {
                                     onSeekTo(sliderPosition.toLong())
+                                    onScrubbingModeChange(false)
                                     draggingJob = scope.launch {
                                         kotlinx.coroutines.delay(800)
                                         isDragging = false
@@ -399,9 +403,11 @@ fun PlayerControls(
                                     draggingJob?.cancel()
                                     isDragging = true
                                     sliderPosition = it
+                                    onSeekTo(it.toLong())
                                 },
                                 onValueChangeFinished = {
                                     onSeekTo(sliderPosition.toLong())
+                                    onScrubbingModeChange(false)
                                     draggingJob = scope.launch {
                                         kotlinx.coroutines.delay(800)
                                         isDragging = false

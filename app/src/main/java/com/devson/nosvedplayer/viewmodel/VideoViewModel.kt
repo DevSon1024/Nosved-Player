@@ -375,6 +375,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         debounceSeekByOffset(offsetMs)
     }
 
+    fun setScrubbingMode(enabled: Boolean) {
+        playerManager?.setScrubbingMode(enabled)
+    }
+
     private fun debounceSeekByOffset(offsetMs: Long) {
         val player = playerManager?.exoPlayer ?: return
         

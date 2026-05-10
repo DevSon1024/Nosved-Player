@@ -575,7 +575,8 @@ fun VideoScreen(
                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
                     viewModel.showControlsAndDelayHide()
-                }
+                },
+                onScrubbingModeChange = { viewModel.setScrubbingMode(it) }
             )
         } else {
             //  Default controls 
@@ -660,7 +661,8 @@ fun VideoScreen(
                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
                     viewModel.showControlsAndDelayHide()
-                }
+                },
+                onScrubbingModeChange = { viewModel.setScrubbingMode(it) }
             )
         }
     }
