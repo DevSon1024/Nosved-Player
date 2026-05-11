@@ -354,11 +354,50 @@ fun VideoScreen(
                     PlayerView(ctx).apply {
                         useController = false
                         this.player = player
+                        subtitleView?.setApplyEmbeddedStyles(false)
+                        subtitleView?.setApplyEmbeddedFontSizes(false)
                     }
                 },
                 update = { playerView ->
                     playerView.player = player
                     playerView.resizeMode = resizeMode
+                    
+                    playerView.subtitleView?.apply {
+                        setApplyEmbeddedStyles(false)
+                        setApplyEmbeddedFontSizes(false)
+                        
+                        // Apply custom text scale
+                        setFractionalTextSize(androidx.media3.ui.SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * subtitleTextSizeScale)
+                        
+                        // Map integer to CaptionStyleCompat (0: None/Outline, 1: Dark Translucent, 2: Solid Black)
+                        val styleCompat = when (subtitleBgStyle) {
+                            1 -> androidx.media3.ui.CaptionStyleCompat(
+                                android.graphics.Color.WHITE,
+                                android.graphics.Color.parseColor("#80000000"),
+                                android.graphics.Color.TRANSPARENT,
+                                androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_NONE,
+                                android.graphics.Color.BLACK,
+                                null
+                            )
+                            2 -> androidx.media3.ui.CaptionStyleCompat(
+                                android.graphics.Color.WHITE,
+                                android.graphics.Color.BLACK,
+                                android.graphics.Color.TRANSPARENT,
+                                androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_NONE,
+                                android.graphics.Color.BLACK,
+                                null
+                            )
+                            else -> androidx.media3.ui.CaptionStyleCompat(
+                                android.graphics.Color.WHITE,
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT,
+                                androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                android.graphics.Color.BLACK,
+                                null
+                            )
+                        }
+                        setStyle(styleCompat)
+                    }
                 },
                 modifier = Modifier
                     .fillMaxSize()
