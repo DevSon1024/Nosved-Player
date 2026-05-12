@@ -15,13 +15,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.nosvedplayer.R
+import com.devson.nosvedplayer.model.DefaultScreen
 import com.devson.nosvedplayer.viewmodel.SettingsViewModel
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,6 +38,7 @@ fun CustomHomeScreen(
     settingsViewModel: SettingsViewModel
 ) {
     val viewSettings by settingsViewModel.viewSettings.collectAsState()
+    var showStartupDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -65,7 +71,7 @@ fun CustomHomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Visibility",
+                text = "Startup Behavior",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
@@ -73,8 +79,87 @@ fun CustomHomeScreen(
             )
 
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().clickable { showStartupDialog = true },
                 shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 2.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Default Screen", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = if (viewSettings.defaultScreen == DefaultScreen.HOME) "Home Screen" else "Video List Screen",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            if (showStartupDialog) {
+                AlertDialog(
+                    onDismissRequest = { showStartupDialog = false },
+                    title = { Text("Default Screen") },
+                    text = {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    settingsViewModel.updateDefaultScreen(DefaultScreen.HOME)
+                                    showStartupDialog = false
+                                },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = viewSettings.defaultScreen == DefaultScreen.HOME,
+                                    onClick = {
+                                        settingsViewModel.updateDefaultScreen(DefaultScreen.HOME)
+                                        showStartupDialog = false
+                                    }
+                                )
+                                Text(text = "Home Screen", modifier = Modifier.padding(start = 8.dp))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    settingsViewModel.updateDefaultScreen(DefaultScreen.VIDEO_LIST)
+                                    showStartupDialog = false
+                                },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = viewSettings.defaultScreen == DefaultScreen.VIDEO_LIST,
+                                    onClick = {
+                                        settingsViewModel.updateDefaultScreen(DefaultScreen.VIDEO_LIST)
+                                        showStartupDialog = false
+                                    }
+                                )
+                                Text(text = "Video List Screen", modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showStartupDialog = false }) {
+                            Text("Close")
+                        }
+                    }
+                )
+            }
+
+            Text(
+                text = "Visibility",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            )
+
+            val isHomeStartup = viewSettings.defaultScreen == DefaultScreen.HOME
+            Surface(
+                modifier = Modifier.fillMaxWidth().alpha(if (isHomeStartup) 1f else 0.5f),
+                shape = RoundedCornerShape(16.dp),
+
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 2.dp
             ) {
@@ -84,6 +169,7 @@ fun CustomHomeScreen(
                         title = "History Card",
                         subtitle = "Show continue watching section",
                         checked = viewSettings.showHistoryCard,
+                        enabled = isHomeStartup,
                         onCheckedChange = { settingsViewModel.updateShowHistoryCard(it) }
                     )
                     
@@ -94,6 +180,7 @@ fun CustomHomeScreen(
                         title = "Video Card",
                         subtitle = "Show recently added videos",
                         checked = viewSettings.showVideoCard,
+                        enabled = isHomeStartup,
                         onCheckedChange = { settingsViewModel.updateShowVideoCard(it) }
                     )
                     
@@ -104,6 +191,7 @@ fun CustomHomeScreen(
                         title = "Storage Tracker",
                         subtitle = "Show device storage info",
                         checked = viewSettings.showStorageTracker,
+                        enabled = isHomeStartup,
                         onCheckedChange = { settingsViewModel.updateShowStorageTracker(it) }
                     )
                 }
@@ -118,12 +206,13 @@ private fun ToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -154,7 +243,8 @@ private fun ToggleRow(
 
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
         )
     }
 }

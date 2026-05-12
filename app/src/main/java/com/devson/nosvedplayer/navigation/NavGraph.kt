@@ -46,13 +46,18 @@ fun NavGraph(
     onVideoSelected: (Video, List<Video>, Long) -> Unit
 ) {
     val hasSeenOnboarding by settingsViewModel.hasSeenOnboarding.collectAsState(initial = null)
+    val viewSettings by settingsViewModel.viewSettings.collectAsState()
 
     if (hasSeenOnboarding == null) {
         GreetingSplashScreen()
         return
     }
 
-    val startDestination = if (hasSeenOnboarding == true) Screen.Home.route else Screen.Onboarding.route
+    val startDestination = if (hasSeenOnboarding == true) {
+        if (viewSettings.defaultScreen == com.devson.nosvedplayer.model.DefaultScreen.VIDEO_LIST) Screen.Videos.route else Screen.Home.route
+    } else {
+        Screen.Onboarding.route
+    }
 
     val safePopBackStack: () -> Unit = { if (navController.previousBackStackEntry != null) navController.popBackStack() }
 
@@ -129,6 +134,7 @@ fun NavGraph(
                 onNavigateToListOption        = { navController.navigate(Screen.ListOption.route) },
                 onNavigateToScanFolders       = { navController.navigate(Screen.ScanFolders.route) },
                 onNavigateToTool              = { navController.navigate(Screen.Tool.route) },
+                onNavigateToRecycleBin        = { navController.navigate(Screen.RecycleBin.route) },
                 onNavigateToPlayerInterface   = { navController.navigate(Screen.PlayerInterface.route) },
                 onNavigateToCustomHome        = { navController.navigate(Screen.CustomHome.route) },
                 settingsViewModel             = settingsViewModel

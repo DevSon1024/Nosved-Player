@@ -1,5 +1,7 @@
 package com.devson.nosvedplayer.model
 
+enum class DefaultScreen { HOME, VIDEO_LIST }
+
 enum class ViewMode {
     ALL_FOLDERS,
     FILES,
@@ -43,5 +45,6 @@ data class ViewSettings(
     val scanFoldersList: Set<String> = setOf("/storage", "/storage/emulated/0"),
     val showHistoryCard: Boolean = true,
     val showVideoCard: Boolean = true,
-    val showStorageTracker: Boolean = true
+    val showStorageTracker: Boolean = true,
+    val defaultScreen: DefaultScreen = DefaultScreen.HOME
 )

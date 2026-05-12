@@ -142,6 +142,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowStorageTracker(show: Boolean) {
         viewModelScope.launch { viewSettingsRepo.updateShowStorageTracker(show) }
     }
+
+    fun updateDefaultScreen(screen: com.devson.nosvedplayer.model.DefaultScreen) {
+        viewModelScope.launch { viewSettingsRepo.updateDefaultScreen(screen) }
+    }
     
     val playbackSettings = settingsRepo.playbackSettingsFlow
         .stateIn(

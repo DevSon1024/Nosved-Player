@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.nosvedplayer.model.DefaultScreen
 import com.devson.nosvedplayer.model.Video
 import com.devson.nosvedplayer.model.VideoFolder
 import com.devson.nosvedplayer.model.ViewMode
@@ -241,6 +242,7 @@ fun VideoListScreen(
                     ViewMode.FOLDERS -> explorerNodes.first.size + explorerNodes.second.size
                 },
                 showBackButton = selectedFolder != null || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null),
+                showHomeBackButton = viewSettings.defaultScreen != DefaultScreen.VIDEO_LIST,
                 onClearSelection = { 
                     selectedFolders = emptySet()
                     selectedVideos = emptySet()

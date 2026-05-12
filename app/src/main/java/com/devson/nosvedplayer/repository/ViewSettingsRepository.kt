@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.devson.nosvedplayer.model.LayoutMode
 import com.devson.nosvedplayer.model.SortDirection
+import com.devson.nosvedplayer.model.DefaultScreen
 import com.devson.nosvedplayer.model.SortField
 import com.devson.nosvedplayer.model.ViewMode
 import com.devson.nosvedplayer.model.ViewSettings
@@ -44,6 +45,7 @@ class ViewSettingsRepository(private val context: Context) {
         val SHOW_HISTORY_CARD = booleanPreferencesKey("show_history_card")
         val SHOW_VIDEO_CARD = booleanPreferencesKey("show_video_card")
         val SHOW_STORAGE_TRACKER = booleanPreferencesKey("show_storage_tracker")
+        val DEFAULT_SCREEN = stringPreferencesKey("default_screen")
     }
 
     val viewSettingsFlow: Flow<ViewSettings> = context.viewSettingsDataStore.data.map { preferences ->
@@ -71,7 +73,8 @@ class ViewSettingsRepository(private val context: Context) {
             scanFoldersList = preferences[SCAN_FOLDERS_LIST] ?: setOf("/storage", "/storage/emulated/0"),
             showHistoryCard = preferences[SHOW_HISTORY_CARD] ?: true,
             showVideoCard = preferences[SHOW_VIDEO_CARD] ?: true,
-            showStorageTracker = preferences[SHOW_STORAGE_TRACKER] ?: true
+            showStorageTracker = preferences[SHOW_STORAGE_TRACKER] ?: true,
+            defaultScreen = try { DefaultScreen.valueOf(preferences[DEFAULT_SCREEN] ?: DefaultScreen.HOME.name) } catch (e: Exception) { DefaultScreen.HOME }
         )
     }
 
@@ -169,5 +172,9 @@ class ViewSettingsRepository(private val context: Context) {
 
     suspend fun updateShowStorageTracker(show: Boolean) {
         context.viewSettingsDataStore.edit { it[SHOW_STORAGE_TRACKER] = show }
+    }
+
+    suspend fun updateDefaultScreen(screen: DefaultScreen) {
+        context.viewSettingsDataStore.edit { it[DEFAULT_SCREEN] = screen.name }
     }
 }

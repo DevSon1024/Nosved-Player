@@ -39,6 +39,7 @@ fun SettingsScreen(
     onNavigateToListOption: () -> Unit = {},
     onNavigateToScanFolders: () -> Unit = {},
     onNavigateToTool: () -> Unit = {},
+    onNavigateToRecycleBin: () -> Unit = {},
     onNavigateToPlayerInterface: () -> Unit = {},
     onNavigateToCustomHome: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
@@ -177,6 +178,13 @@ fun SettingsScreen(
                     title    = "Media Tools",
                     subtitle = "Timestamp converter, video editor and more",
                     onClick  = onNavigateToTool
+                )
+                SettingsDivider()
+                SettingsRow(
+                    icon     = Icons.Default.Delete,
+                    title    = "Recycle Bin",
+                    subtitle = "Manage deleted videos",
+                    onClick  = onNavigateToRecycleBin
                 )
             }
 
