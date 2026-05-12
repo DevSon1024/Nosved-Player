@@ -24,17 +24,17 @@ val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskN
     it.contains("debug", ignoreCase = true)
 }
 
-val appVersion = "1.3.5"
+val appVersion = "1.3.6"
 
 android {
-    namespace = "com.devson.nosvedplayer"
+    namespace = "com.devson.nvplayer"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.devson.nosvedplayer"
+        applicationId = "com.devson.nvplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 135
+        versionCode = 136
         versionName = appVersion
 
         if (!splitApks) {

@@ -1,4 +1,4 @@
-package com.devson.nosvedplayer
+package com.devson.nvplayer
 
 import org.junit.Test
 

@@ -9,8 +9,8 @@
         android:icon="@mipmap/ic_launcher">
         <intent
             android:action="android.intent.action.MAIN"
-            android:targetPackage="com.devson.nosvedplayer"
-            android:targetClass="com.devson.nosvedplayer.MainActivity" />
+            android:targetPackage="com.devson.nvplayer"
+            android:targetClass="com.devson.nvplayer.MainActivity" />
         <categories android:name="android.intent.category.LAUNCHER" />
         <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
             <parameter-binding android:key="feature" android:value="Video, Anime, Player" />

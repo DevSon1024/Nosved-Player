@@ -1,4 +1,4 @@
-# Conventions - NosvedPlayer
+# Conventions - nvplayer
 
 Coding standards, UI design patterns, and development best practices.
 
