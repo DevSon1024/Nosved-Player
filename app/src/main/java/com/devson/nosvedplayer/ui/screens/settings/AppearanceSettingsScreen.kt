@@ -63,6 +63,7 @@ fun AppearanceSettingsScreen(
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
             shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.background,
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -121,6 +122,7 @@ fun AppearanceSettingsScreen(
         AlertDialog(
             onDismissRequest = { showLanguageDialog = false },
             shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.background,
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -256,8 +258,8 @@ fun AppearanceSettingsScreen(
 
                 AppearanceToggleRow(
                     icon      = Icons.Default.WebAsset,
-                    title     = "Transparent NavBar",
-                    subtitle  = "Content scrolls behind the system nav bar",
+                    title     = "Transparent Navigation Buttons",
+                    subtitle  = "Content scrolls behind the system navigation buttons",
                     checked   = navBarTransparent,
                     onCheckedChange = { settingsViewModel.setNavBarTransparent(it) }
                 )

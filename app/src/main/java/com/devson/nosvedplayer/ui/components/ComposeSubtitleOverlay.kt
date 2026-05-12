@@ -61,6 +61,9 @@ fun ComposeSubtitleOverlay(
     player: Player?,
     textSizeScale: Float,
     bgStyle: Int,
+    useSystemCaptionStyle: Boolean = true,
+    subtitleFont: com.devson.nosvedplayer.repository.SubtitleFont = com.devson.nosvedplayer.repository.SubtitleFont.DEFAULT,
+    isSubtitleBold: Boolean = false,
     subtitleTimingsMs: List<Long> = emptyList(),
     modifier: Modifier = Modifier
 ) {
@@ -199,10 +202,29 @@ fun ComposeSubtitleOverlay(
                             2    -> Color.Black         // solid
                             else -> Color.Transparent   // none
                         }
+                        val targetFontFamily = if (!useSystemCaptionStyle) {
+                            when (subtitleFont) {
+                                com.devson.nosvedplayer.repository.SubtitleFont.DEFAULT -> androidx.compose.ui.text.font.FontFamily.Default
+                                com.devson.nosvedplayer.repository.SubtitleFont.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+                                com.devson.nosvedplayer.repository.SubtitleFont.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.SansSerif
+                                com.devson.nosvedplayer.repository.SubtitleFont.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+                            }
+                        } else {
+                            androidx.compose.ui.text.font.FontFamily.Default
+                        }
+
+                        val targetFontWeight = if (!useSystemCaptionStyle && isSubtitleBold) {
+                            androidx.compose.ui.text.font.FontWeight.Bold
+                        } else {
+                            androidx.compose.ui.text.font.FontWeight.Normal
+                        }
+
                         Text(
                             text = cue.text.toString(),
                             fontSize = (16 * textSizeScale).sp,
                             color = Color.White,
+                            fontFamily = targetFontFamily,
+                            fontWeight = targetFontWeight,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .padding(vertical = 2.dp)

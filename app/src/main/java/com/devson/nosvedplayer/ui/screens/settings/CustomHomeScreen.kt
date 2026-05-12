@@ -103,6 +103,7 @@ fun CustomHomeScreen(
                 AlertDialog(
                     onDismissRequest = { showStartupDialog = false },
                     title = { Text("Default Screen") },
+                    containerColor = MaterialTheme.colorScheme.background,
                     text = {
                         Column {
                             Row(
@@ -177,7 +178,7 @@ fun CustomHomeScreen(
                     
                     ToggleRow(
                         icon = Icons.Default.VideoLibrary,
-                        title = "Video Card",
+                        title = "New Video Card",
                         subtitle = "Show recently added videos",
                         checked = viewSettings.showVideoCard,
                         enabled = isHomeStartup,

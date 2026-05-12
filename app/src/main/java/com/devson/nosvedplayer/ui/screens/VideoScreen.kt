@@ -438,7 +438,14 @@ fun VideoScreen(
             isAudioBoostEnabled = isAudioBoostEnabled
         )
 
-        ComposeSubtitleOverlay(player = player, textSizeScale = subtitleTextSizeScale, bgStyle = subtitleBgStyle)
+        ComposeSubtitleOverlay(
+            player = player, 
+            textSizeScale = subtitleTextSizeScale, 
+            bgStyle = subtitleBgStyle,
+            useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
+            subtitleFont = playbackSettings.subtitleFont,
+            isSubtitleBold = playbackSettings.isSubtitleBold
+        )
 
         //  Device stats overlay 
         DeviceStatsOverlay(
@@ -698,11 +705,17 @@ fun VideoScreen(
         selectedTrackIndex = selectedSubtitleIndex,
         textSizeScale = subtitleTextSizeScale,
         bgStyle = subtitleBgStyle,
+        useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
+        subtitleFont = playbackSettings.subtitleFont,
+        isSubtitleBold = playbackSettings.isSubtitleBold,
         isLandscape = isLandscape,
         onSelectTrack = { viewModel.selectSubtitleTrack(it) },
         onPickExternalSubtitle = { externalSubtitleLauncher.launch("*/*") },
         onTextSizeChange = { viewModel.updateSubtitleTextSizeScale(it) },
         onBgStyleChange = { viewModel.updateSubtitleBgStyle(it) },
+        onUseSystemCaptionStyleChange = { settingsViewModel.updateUseSystemCaptionStyle(it) },
+        onSubtitleFontChange = { settingsViewModel.updateSubtitleFont(it) },
+        onIsSubtitleBoldChange = { settingsViewModel.updateIsSubtitleBold(it) },
         onDismissRequest = { showSubtitleSheet = false }
     )
 

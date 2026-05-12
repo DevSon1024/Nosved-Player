@@ -3,6 +3,7 @@ package com.devson.nosvedplayer.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -168,10 +169,16 @@ fun SubtitleSheet(
     textSizeScale: Float,
     bgStyle: Int,
     isLandscape: Boolean,
+    useSystemCaptionStyle: Boolean,
+    subtitleFont: com.devson.nosvedplayer.repository.SubtitleFont,
+    isSubtitleBold: Boolean,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
     onBgStyleChange: (Int) -> Unit,
+    onUseSystemCaptionStyleChange: (Boolean) -> Unit,
+    onSubtitleFontChange: (com.devson.nosvedplayer.repository.SubtitleFont) -> Unit,
+    onIsSubtitleBoldChange: (Boolean) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     if (showSheet) {
@@ -188,10 +195,16 @@ fun SubtitleSheet(
                     selectedTrackIndex = selectedTrackIndex,
                     textSizeScale = textSizeScale,
                     bgStyle = bgStyle,
+                    useSystemCaptionStyle = useSystemCaptionStyle,
+                    subtitleFont = subtitleFont,
+                    isSubtitleBold = isSubtitleBold,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
                     onBgStyleChange = onBgStyleChange,
+                    onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
+                    onSubtitleFontChange = onSubtitleFontChange,
+                    onIsSubtitleBoldChange = onIsSubtitleBoldChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -208,10 +221,16 @@ fun SubtitleSheet(
                     selectedTrackIndex = selectedTrackIndex,
                     textSizeScale = textSizeScale,
                     bgStyle = bgStyle,
+                    useSystemCaptionStyle = useSystemCaptionStyle,
+                    subtitleFont = subtitleFont,
+                    isSubtitleBold = isSubtitleBold,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
                     onBgStyleChange = onBgStyleChange,
+                    onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
+                    onSubtitleFontChange = onSubtitleFontChange,
+                    onIsSubtitleBoldChange = onIsSubtitleBoldChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -225,10 +244,16 @@ private fun SubtitleSheetContent(
     selectedTrackIndex: Int,
     textSizeScale: Float,
     bgStyle: Int,
+    useSystemCaptionStyle: Boolean,
+    subtitleFont: com.devson.nosvedplayer.repository.SubtitleFont,
+    isSubtitleBold: Boolean,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
     onBgStyleChange: (Int) -> Unit,
+    onUseSystemCaptionStyleChange: (Boolean) -> Unit,
+    onSubtitleFontChange: (com.devson.nosvedplayer.repository.SubtitleFont) -> Unit,
+    onIsSubtitleBoldChange: (Boolean) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -237,7 +262,7 @@ private fun SubtitleSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 10.dp)
-            .padding(bottom = 32.dp)
+            .navigationBarsPadding()
     ) {
         Text(
             text = "Subtitles",
@@ -311,35 +336,87 @@ private fun SubtitleSheetContent(
                 }
                 2 -> { // Customize
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                        SettingsSection(title = "Text Size") {
-                            Slider(
-                                value = textSizeScale,
-                                onValueChange = onTextSizeChange,
-                                valueRange = 0.5f..2.5f,
-                                steps = 7
-                            )
-                            Text(
-                                "${(textSizeScale * 100).toInt()}%", 
-                                color = MaterialTheme.colorScheme.onSurface.copy(0.7f), 
-                                fontSize = 12.sp,
-                                modifier = Modifier.align(Alignment.End)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        SettingsSection(title = "Background Style") {
+                        SettingsSection(title = "System Settings") {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                listOf("None", "Dark", "Solid").forEachIndexed { index, label ->
-                                    ChipButton(
-                                        label = label,
-                                        selected = bgStyle == index,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = { onBgStyleChange(index) }
+                                Text("Use System Caption Style", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                                Switch(
+                                    checked = useSystemCaptionStyle,
+                                    onCheckedChange = onUseSystemCaptionStyleChange
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (!useSystemCaptionStyle) {
+                            SettingsSection(title = "Text Size") {
+                                Slider(
+                                    value = textSizeScale,
+                                    onValueChange = onTextSizeChange,
+                                    valueRange = 0.5f..2.5f,
+                                    steps = 7
+                                )
+                                Text(
+                                    "${(textSizeScale * 100).toInt()}%", 
+                                    color = MaterialTheme.colorScheme.onSurface.copy(0.7f), 
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            SettingsSection(title = "Background Style") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    listOf("None", "Dark", "Solid").forEachIndexed { index, label ->
+                                        ChipButton(
+                                            label = label,
+                                            selected = bgStyle == index,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { onBgStyleChange(index) }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            SettingsSection(title = "Font Family") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    com.devson.nosvedplayer.repository.SubtitleFont.values().forEach { font ->
+                                        ChipButton(
+                                            label = font.name.lowercase().replaceFirstChar { it.uppercase() },
+                                            selected = subtitleFont == font,
+                                            modifier = Modifier.widthIn(min = 80.dp),
+                                            onClick = { onSubtitleFontChange(font) }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            SettingsSection(title = "Bold Text") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Enable Bold Font", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                                    Switch(
+                                        checked = isSubtitleBold,
+                                        onCheckedChange = onIsSubtitleBoldChange
                                     )
                                 }
                             }
+                        } else {
+                            Text(
+                                "Subtitle appearance is controlled by system settings. Go to Android Settings > Accessibility > Caption preferences to change them.", 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, 
+                                fontSize = 14.sp
+                            )
                         }
                     }
                 }

@@ -18,6 +18,7 @@ enum class OrientationMode { VIDEO_ORIENTATION, LANDSCAPE, REVERSE_LANDSCAPE, AU
 enum class FullScreenMode { ON, OFF, AUTO_SWITCH }
 enum class SoftButtonMode { SHOW, HIDE, AUTO_HIDE }
 enum class DecoderMode(val displayName: String) { HW("HW"), HW_PLUS("HW+"), SW("SW") }
+enum class SubtitleFont { DEFAULT, MONOSPACE, SANS_SERIF, SERIF }
 
 data class PlaybackSettings(
     val seekDurationSeconds: Int,
@@ -37,7 +38,10 @@ data class PlaybackSettings(
     val decoderMode: DecoderMode = DecoderMode.HW_PLUS,
     val isAmoledTheme: Boolean = false,
     val defaultAudioLanguage: String = "",
-    val defaultSubtitleLanguage: String = ""
+    val defaultSubtitleLanguage: String = "",
+    val useSystemCaptionStyle: Boolean = false,
+    val subtitleFont: SubtitleFont = SubtitleFont.DEFAULT,
+    val isSubtitleBold: Boolean = false
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -71,6 +75,9 @@ class PlaybackSettingsRepository(private val context: Context) {
         val AMOLED_THEME = booleanPreferencesKey("amoled_theme")
         val DEFAULT_AUDIO_LANG = stringPreferencesKey("default_audio_lang")
         val DEFAULT_SUBTITLE_LANG = stringPreferencesKey("default_subtitle_lang")
+        val USE_SYSTEM_CAPTION_STYLE = booleanPreferencesKey("use_system_caption_style")
+        val SUBTITLE_FONT = stringPreferencesKey("subtitle_font")
+        val IS_SUBTITLE_BOLD = booleanPreferencesKey("is_subtitle_bold")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -93,7 +100,10 @@ class PlaybackSettingsRepository(private val context: Context) {
                 decoderMode = try { DecoderMode.valueOf(preferences[PreferencesKeys.DECODER_MODE] ?: DecoderMode.HW_PLUS.name) } catch (e: Exception) { DecoderMode.HW_PLUS },
                 isAmoledTheme = preferences[PreferencesKeys.AMOLED_THEME] ?: false,
                 defaultAudioLanguage = preferences[PreferencesKeys.DEFAULT_AUDIO_LANG] ?: "",
-                defaultSubtitleLanguage = preferences[PreferencesKeys.DEFAULT_SUBTITLE_LANG] ?: ""
+                defaultSubtitleLanguage = preferences[PreferencesKeys.DEFAULT_SUBTITLE_LANG] ?: "",
+                useSystemCaptionStyle = preferences[PreferencesKeys.USE_SYSTEM_CAPTION_STYLE] ?: false,
+                subtitleFont = try { SubtitleFont.valueOf(preferences[PreferencesKeys.SUBTITLE_FONT] ?: SubtitleFont.DEFAULT.name) } catch (e: Exception) { SubtitleFont.DEFAULT },
+                isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false
             )
         }
 
@@ -269,5 +279,17 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun setNavBarTransparent(transparent: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.NAV_BAR_TRANSPARENT] = transparent }
+    }
+
+    suspend fun updateUseSystemCaptionStyle(useSystem: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.USE_SYSTEM_CAPTION_STYLE] = useSystem }
+    }
+
+    suspend fun updateSubtitleFont(font: SubtitleFont) {
+        context.dataStore.edit { it[PreferencesKeys.SUBTITLE_FONT] = font.name }
+    }
+
+    suspend fun updateIsSubtitleBold(isBold: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.IS_SUBTITLE_BOLD] = isBold }
     }
 }

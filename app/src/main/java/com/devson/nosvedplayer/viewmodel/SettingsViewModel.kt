@@ -165,7 +165,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 showBatteryClockOverlay = false,
                 showScreenRotationButton = true,
                 pauseWhenObstructed = true,
-                showRemainingTime = false
+                showRemainingTime = false,
+                useSystemCaptionStyle = false,
+                subtitleFont = com.devson.nosvedplayer.repository.SubtitleFont.DEFAULT,
+                isSubtitleBold = false
             )
         )
 
@@ -206,5 +209,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setNavBarTransparent(transparent: Boolean) {
         viewModelScope.launch { settingsRepo.setNavBarTransparent(transparent) }
+    }
+
+    fun updateUseSystemCaptionStyle(useSystem: Boolean) {
+        viewModelScope.launch { settingsRepo.updateUseSystemCaptionStyle(useSystem) }
+    }
+
+    fun updateSubtitleFont(font: com.devson.nosvedplayer.repository.SubtitleFont) {
+        viewModelScope.launch { settingsRepo.updateSubtitleFont(font) }
+    }
+
+    fun updateIsSubtitleBold(isBold: Boolean) {
+        viewModelScope.launch { settingsRepo.updateIsSubtitleBold(isBold) }
     }
 }
