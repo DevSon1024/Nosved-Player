@@ -149,7 +149,8 @@ fun PlayerControls(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onSelectDecoder: ((DecoderMode) -> Unit)? = null,
-    onScrubbingModeChange: (Boolean) -> Unit = {}
+    onScrubbingModeChange: (Boolean) -> Unit = {},
+    onSpeedMenuClick: (() -> Unit)? = null
 ) {
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
@@ -452,6 +453,17 @@ fun PlayerControls(
                                     onClick = onToggleLock
                                 ) {
                                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
+                                }
+                            }
+                            if (onSpeedMenuClick != null) {
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                    tooltip = { PlainTooltip { Text("Playback Speed") } },
+                                    state = rememberTooltipState()
+                                ) {
+                                    IconButton(onClick = onSpeedMenuClick) {
+                                        Icon(Icons.Filled.Speed, contentDescription = "Playback Speed", tint = Color.White)
+                                    }
                                 }
                             }
                         }

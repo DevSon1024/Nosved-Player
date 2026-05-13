@@ -51,6 +51,7 @@ import com.devson.nvplayer.ui.components.SubtitleSheet
 import com.devson.nvplayer.ui.components.InformationBottomSheet
 import com.devson.nvplayer.ui.components.PlaybackSettingsSheet
 import com.devson.nvplayer.ui.components.ComposeSubtitleOverlay
+import com.devson.nvplayer.ui.components.PlaybackSpeedSheet
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.viewmodel.VideoViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -129,6 +130,7 @@ fun VideoScreen(
     val subtitleTextSizeScale by viewModel.subtitleTextSizeScale.collectAsState()
     val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
     val currentDecoder by viewModel.currentDecoderMode.collectAsState()
+    val currentPlaybackSpeed by viewModel.currentPlaybackSpeed.collectAsState()
 
     // Modals state (used only in default mode; Modern mode handles tracks inline)
     var showAudioSheet by remember { mutableStateOf(false) }
@@ -145,6 +147,7 @@ fun VideoScreen(
     val playbackSettingsSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showInfoSheet by remember { mutableStateOf(false) }
+    var showSpeedSheet by remember { mutableStateOf(false) }
 
     val externalSubtitleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -576,7 +579,8 @@ fun VideoScreen(
                 onOpenPlaybackSettings = { showPlaybackSettingsSheet = true },
                 onOpenAudioTracks = { showAudioSheet = true },
                 onOpenSubtitles = { showSubtitleSheet = true },
-                currentPlaybackSpeed = 1f,   // Replace with viewModel.playbackSpeed if available
+                currentPlaybackSpeed = currentPlaybackSpeed,
+                onSpeedMenuClick = { showSpeedSheet = true },
                 showScreenRotationButton = showScreenRotationButton,
                 showRemainingTime = showRemainingTime,
                 onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
@@ -677,7 +681,8 @@ fun VideoScreen(
                     }
                     viewModel.showControlsAndDelayHide()
                 },
-                onScrubbingModeChange = { viewModel.setScrubbingMode(it) }
+                onScrubbingModeChange = { viewModel.setScrubbingMode(it) },
+                onSpeedMenuClick = { showSpeedSheet = true }
             )
         }
     }
@@ -752,6 +757,14 @@ fun VideoScreen(
             useSideSheet = true
         )
     }
+
+    PlaybackSpeedSheet(
+        showSheet = showSpeedSheet,
+        speed = currentPlaybackSpeed,
+        isLandscape = isLandscape,
+        onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+        onDismiss = { showSpeedSheet = false }
+    )
 }
 
 private fun hideSystemUI(activity: Activity) {

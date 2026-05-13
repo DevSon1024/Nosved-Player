@@ -107,7 +107,8 @@ fun ModernStylePlayerControls(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onSelectDecoder: ((DecoderMode) -> Unit)? = null,
-    onScrubbingModeChange: (Boolean) -> Unit = {}
+    onScrubbingModeChange: (Boolean) -> Unit = {},
+    onSpeedMenuClick: (() -> Unit)? = null
 ) {
     var showPlaylistPanel by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
@@ -214,7 +215,8 @@ fun ModernStylePlayerControls(
                     onShowRemainingTimeChange = onShowRemainingTimeChange,
                     currentDecoder = currentDecoder,
                     onToggleDecoder = { showDecoderDialog = true },
-                    onScrubbingModeChange = onScrubbingModeChange
+                    onScrubbingModeChange = onScrubbingModeChange,
+                    onSpeedMenuClick = onSpeedMenuClick
                 )
             }
         }
@@ -301,7 +303,8 @@ private fun YtControlsLayout(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onToggleDecoder: (() -> Unit)? = null,
-    onScrubbingModeChange: (Boolean) -> Unit
+    onScrubbingModeChange: (Boolean) -> Unit,
+    onSpeedMenuClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -341,6 +344,20 @@ private fun YtControlsLayout(
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
+                }
+                if (onSpeedMenuClick != null) {
+                    IconButton(
+                        onClick = onSpeedMenuClick,
+                        modifier = Modifier
+                            .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = "Playback Speed",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
                 if (showScreenRotationButton && onToggleScreenRotation != null) {
                     IconButton(

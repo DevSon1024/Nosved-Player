@@ -113,6 +113,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _fastplaySpeed = MutableStateFlow(2.0f)
     val fastplaySpeed: StateFlow<Float> = _fastplaySpeed.asStateFlow()
 
+    private val _currentPlaybackSpeed = MutableStateFlow(1.0f)
+    val currentPlaybackSpeed: StateFlow<Float> = _currentPlaybackSpeed.asStateFlow()
+
     // --- Subtitle Customization State ---
     
     private val _subtitleTextSizeScale = MutableStateFlow(1f)
@@ -298,7 +301,9 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setPlaybackSpeed(speed: Float) {
-        playerManager?.setPlaybackSpeed(speed)
+        val clamped = speed.coerceIn(0.25f, 4.0f)
+        _currentPlaybackSpeed.value = clamped
+        playerManager?.setPlaybackSpeed(clamped)
     }
 
     private fun resolvePositionToSave(): Long {
