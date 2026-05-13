@@ -206,13 +206,24 @@ fun PlayerControls(
                     if (showScreenRotationButton && onToggleScreenRotation != null) {
                         IconButton(
                             onClick = onToggleScreenRotation,
-                            modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                                .size(36.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.ScreenRotation,
                                 contentDescription = "Rotate Screen",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    if (onSpeedMenuClick != null) {
+                        IconButton(
+                            onClick = onSpeedMenuClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Speed,
+                                contentDescription = "Playback Speed",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -453,17 +464,6 @@ fun PlayerControls(
                                     onClick = onToggleLock
                                 ) {
                                     Icon(Icons.Filled.LockOpen, contentDescription = "Lock Controls", tint = Color.White)
-                                }
-                            }
-                            if (onSpeedMenuClick != null) {
-                                TooltipBox(
-                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                    tooltip = { PlainTooltip { Text("Playback Speed") } },
-                                    state = rememberTooltipState()
-                                ) {
-                                    IconButton(onClick = onSpeedMenuClick) {
-                                        Icon(Icons.Filled.Speed, contentDescription = "Playback Speed", tint = Color.White)
-                                    }
                                 }
                             }
                         }
