@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -131,9 +132,10 @@ fun GestureOverlay(
     val updatedDuration by rememberUpdatedState(duration)
 
     var showCenterRipple by remember { mutableStateOf(false) }
+    var centerRippleTick by remember { mutableStateOf(0) }
     var centerWasPlaying by remember { mutableStateOf(false) }
-    LaunchedEffect(showCenterRipple) {
-        if (showCenterRipple) { delay(650); showCenterRipple = false }
+    LaunchedEffect(centerRippleTick) {
+        if (centerRippleTick > 0) { showCenterRipple = true; delay(900); showCenterRipple = false }
     }
 
     var lastTapTime by remember { mutableStateOf(0L) }
@@ -256,7 +258,7 @@ fun GestureOverlay(
                                     }
                                     MultiFingerAction.PLAY_PAUSE -> {
                                         centerWasPlaying = isPlaying
-                                        showCenterRipple = true
+                                        centerRippleTick++
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onDoubleTapCenter()
                                     }
@@ -380,7 +382,7 @@ fun GestureOverlay(
                                             (!isLeftTap && !isRightTap) && canPlayPause -> {
                                                 if (dt < 400 && dist < 100f) {
                                                     centerWasPlaying = isPlaying
-                                                    showCenterRipple = true
+                                                    centerRippleTick++
                                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                     onDoubleTapCenter()
                                                 }
@@ -563,7 +565,7 @@ fun GestureOverlay(
             exit  = fadeOut(tween(380)) + scaleOut(targetScale = 1.2f, animationSpec = tween(380)),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            CenterRipple(wasPlaying = centerWasPlaying)
+            CenterRippleWave(wasPlaying = centerWasPlaying, rippleTick = centerRippleTick)
         }
 
         AnimatedVisibility(
@@ -793,24 +795,72 @@ private fun AccumulatingSeekRipple(isRightSide: Boolean, accumulatedMs: Long, ri
 }
 
 @Composable
-private fun CenterRipple(wasPlaying: Boolean) {
-    val pulseAnim = remember { Animatable(0.85f) }
-    LaunchedEffect(Unit) {
-        pulseAnim.animateTo(1.05f, animationSpec = tween(200, easing = FastOutSlowInEasing))
-        pulseAnim.animateTo(1.00f, animationSpec = tween(150, easing = FastOutSlowInEasing))
+private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
+    val ring1 = remember { Animatable(0f) }
+    val ring2 = remember { Animatable(0f) }
+    val ring3 = remember { Animatable(0f) }
+    val scrim = remember { Animatable(0f) }
+
+    LaunchedEffect(rippleTick) {
+        ring1.snapTo(0f); ring2.snapTo(0f); ring3.snapTo(0f); scrim.snapTo(0f)
+        launch {
+            scrim.animateTo(1f, tween(60))
+            delay(180)
+            scrim.animateTo(0f, tween(400, easing = EaseOut))
+        }
+        launch { ring1.animateTo(1f, tween(520, easing = EaseOut)) }
+        launch { delay(80); ring2.animateTo(1f, tween(520, easing = EaseOut)) }
+        launch { delay(180); ring3.animateTo(1f, tween(520, easing = EaseOut)) }
     }
-    Box(
-        modifier = Modifier
-            .size((64 * pulseAnim.value).dp)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.55f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector  = if (wasPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (wasPlaying) "Paused" else "Playing",
-            tint         = Color.White,
-            modifier     = Modifier.size(40.dp)
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val maxRadius = kotlin.math.sqrt(cx * cx + cy * cy)
+
+        // subtle scrim flash at impact
+        drawRect(color = Color.White.copy(alpha = 0.07f * scrim.value), size = size)
+
+        // ring1: sharp impact ring
+        val r1 = maxRadius * ring1.value
+        val a1 = (1f - ring1.value).coerceIn(0f, 1f)
+        drawCircle(
+            color = Color.White.copy(alpha = 0.55f * a1),
+            radius = r1,
+            center = Offset(cx, cy),
+            style = Stroke(width = 2.5.dp.toPx())
+        )
+
+        // ring2: softer mid wave
+        val r2 = maxRadius * ring2.value
+        val a2 = (1f - ring2.value).coerceIn(0f, 1f)
+        drawCircle(
+            color = Color.White.copy(alpha = 0.30f * a2),
+            radius = r2,
+            center = Offset(cx, cy),
+            style = Stroke(width = 1.8.dp.toPx())
+        )
+
+        // ring3: faintest trailing wave
+        val r3 = maxRadius * ring3.value
+        val a3 = (1f - ring3.value).coerceIn(0f, 1f)
+        drawCircle(
+            color = Color.White.copy(alpha = 0.15f * a3),
+            radius = r3,
+            center = Offset(cx, cy),
+            style = Stroke(width = 1.2.dp.toPx())
+        )
+
+        // filled radial burst at center that dissipates quickly
+        val burstAlpha = ((1f - ring1.value) * 0.18f).coerceIn(0f, 0.18f)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color.White.copy(alpha = burstAlpha), Color.Transparent),
+                center = Offset(cx, cy),
+                radius = maxRadius * 0.35f * ring1.value.coerceAtLeast(0.01f)
+            ),
+            radius = maxRadius * 0.35f * ring1.value.coerceAtLeast(0.01f),
+            center = Offset(cx, cy)
         )
     }
 }
