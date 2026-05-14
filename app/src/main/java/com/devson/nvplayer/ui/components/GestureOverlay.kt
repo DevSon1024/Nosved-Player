@@ -91,7 +91,7 @@ fun GestureOverlay(
     fastplaySpeed: Float = 2.0f,
     currentPosition: Long = 0L,
     duration: Long = 0L,
-
+    
     // Configurable Gesture Settings
     seekGestureEnabled: Boolean = true,
     seekSensitivity: Float = 0.5f,
@@ -187,8 +187,10 @@ fun GestureOverlay(
         modifier = modifier
             .fillMaxSize()
             .pointerInput(isLocked) {
-                val slopPx = 18.dp.toPx()
+                // Increased touch slop to 24.dp so tiny thumb rolls don't cancel the long-press
+                val slopPx = 24.dp.toPx()
                 val twoFingerSlopPx = 24.dp.toPx()
+                
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (isLocked) {
@@ -234,232 +236,244 @@ fun GestureOverlay(
                         }
                     }
 
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val pointerCount = event.changes.count { it.pressed }
+                    // TRY-FINALLY block ensures the fast forward / seek preview ALWYAS cleans up 
+                    // even if the loop gets broken by a system intercept or weird multi-finger tap.
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pointerCount = event.changes.count { it.pressed }
 
-                        // 3-finger toggle
-                        if (event.changes.size >= 3 && !threeFingerTriggered) {
-                            threeFingerTriggered = true
-                            longPressJob.cancel()
-                            when(threeFingerAction) {
-                                MultiFingerAction.FAST_PLAY -> {
-                                    isFastForwardLocked = !isFastForwardLocked
-                                    isFastForwarding = isFastForwardLocked
-                                    onFastForwardToggle(isFastForwardLocked, longPressSpeed)
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                }
-                                MultiFingerAction.PLAY_PAUSE -> {
-                                    centerWasPlaying = isPlaying
-                                    showCenterRipple = true
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onDoubleTapCenter()
-                                }
-                                MultiFingerAction.NONE -> {}
-                            }
-                        }
-
-                        // Two-finger: pinch-zoom OR two-finger tap
-                        if (!twoFingerHandled && !threeFingerTriggered) {
-                            if (pointerCount == 2 && !twoFingerDown) {
-                                twoFingerDown = true
-                                twoFingerStartTime = System.currentTimeMillis()
-                                twoFingerMaxMovePx = 0f
+                            // 3-finger toggle
+                            if (event.changes.size >= 3 && !threeFingerTriggered) {
+                                threeFingerTriggered = true
                                 longPressJob.cancel()
-                                val pts = event.changes.filter { it.pressed }
-                                if (pts.size == 2) {
-                                    val dx0 = pts[0].position.x - pts[1].position.x
-                                    val dy0 = pts[0].position.y - pts[1].position.y
-                                    lastSpan = sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
-                                }
-                            }
-
-                            if (twoFingerDown && pointerCount == 2) {
-                                val pts = event.changes.filter { it.pressed }
-                                if (pts.size == 2) {
-                                    for (ch in pts) {
-                                        val mov = sqrt(
-                                            (ch.position.x - ch.previousPosition.x).let { it * it } +
-                                                    (ch.position.y - ch.previousPosition.y).let { it * it }
-                                        )
-                                        if (mov > twoFingerMaxMovePx) twoFingerMaxMovePx = mov
+                                when(threeFingerAction) {
+                                    MultiFingerAction.FAST_PLAY -> {
+                                        isFastForwardLocked = !isFastForwardLocked
+                                        isFastForwarding = isFastForwardLocked
+                                        onFastForwardToggle(isFastForwardLocked, longPressSpeed)
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     }
-                                    val dx = pts[0].position.x - pts[1].position.x
-                                    val dy = pts[0].position.y - pts[1].position.y
-                                    val currentSpan = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
-                                    if (twoFingerMaxMovePx > twoFingerSlopPx && lastSpan > 0f) {
-                                        wasPinching = true
-                                        onZoom(currentSpan / lastSpan)
-                                        pts.forEach { it.consume() }
+                                    MultiFingerAction.PLAY_PAUSE -> {
+                                        centerWasPlaying = isPlaying
+                                        showCenterRipple = true
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onDoubleTapCenter()
                                     }
-                                    lastSpan = currentSpan
+                                    MultiFingerAction.NONE -> {}
                                 }
                             }
 
-                            if (twoFingerDown && pointerCount < 2) {
-                                val elapsed = System.currentTimeMillis() - twoFingerStartTime
-                                if (!wasPinching && elapsed < 300 && twoFingerMaxMovePx < twoFingerSlopPx) {
-                                    twoFingerHandled = true
-                                    when(twoFingerAction) {
-                                        MultiFingerAction.PLAY_PAUSE -> {
-                                            centerWasPlaying = isPlaying
-                                            showCenterRipple = true
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onDoubleTapCenter()
-                                        }
-                                        MultiFingerAction.FAST_PLAY -> {
-                                            isFastForwardLocked = !isFastForwardLocked
-                                            isFastForwarding = isFastForwardLocked
-                                            onFastForwardToggle(isFastForwardLocked, longPressSpeed)
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        MultiFingerAction.NONE -> {}
+                            // Two-finger: pinch-zoom OR two-finger tap
+                            if (!twoFingerHandled && !threeFingerTriggered) {
+                                if (pointerCount == 2 && !twoFingerDown) {
+                                    twoFingerDown = true
+                                    twoFingerStartTime = System.currentTimeMillis()
+                                    twoFingerMaxMovePx = 0f
+                                    longPressJob.cancel()
+                                    val pts = event.changes.filter { it.pressed }
+                                    if (pts.size == 2) {
+                                        val dx0 = pts[0].position.x - pts[1].position.x
+                                        val dy0 = pts[0].position.y - pts[1].position.y
+                                        lastSpan = sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
                                     }
-                                    event.changes.forEach { it.consume() }
-                                    break
                                 }
-                                twoFingerDown = false
-                                lastSpan = 0f
-                            }
-                        }
 
-                        val change = event.changes.firstOrNull() ?: break
-
-                        if (!change.pressed) {
-                            longPressJob.cancel()
-
-                            if (isLongPressActive) {
-                                isLongPressActive = false
-                                if (!isFastForwardLocked) {
-                                    isFastForwarding = false
-                                    onFastForwardToggle(false, longPressSpeed)
+                                if (twoFingerDown && pointerCount == 2) {
+                                    val pts = event.changes.filter { it.pressed }
+                                    if (pts.size == 2) {
+                                        for (ch in pts) {
+                                            val mov = sqrt(
+                                                (ch.position.x - ch.previousPosition.x).let { it * it } +
+                                                (ch.position.y - ch.previousPosition.y).let { it * it }
+                                            )
+                                            if (mov > twoFingerMaxMovePx) twoFingerMaxMovePx = mov
+                                        }
+                                        val dx = pts[0].position.x - pts[1].position.x
+                                        val dy = pts[0].position.y - pts[1].position.y
+                                        val currentSpan = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                                        if (twoFingerMaxMovePx > twoFingerSlopPx && lastSpan > 0f) {
+                                            wasPinching = true
+                                            onZoom(currentSpan / lastSpan)
+                                            pts.forEach { it.consume() }
+                                        }
+                                        lastSpan = currentSpan
+                                    }
                                 }
-                                break
-                            }
 
-                            if (threeFingerTriggered || twoFingerHandled) break
-
-                            if (isSwiping && swipeAxis == "HORIZONTAL") {
-                                scrubPreviewMs?.let { previewPos -> onSeekCommit(previewPos) }
-                                scrubPreviewMs = null
-                            }
-
-                            if (!isSwiping && !twoFingerDown && !wasPinching) {
-                                val now = System.currentTimeMillis()
-                                val dt = now - lastTapTime
-                                val dx = change.position.x - lastTapX
-                                val dy = change.position.y - lastTapY
-                                val dist = sqrt(dx * dx + dy * dy)
-                                val tapX = change.position.x
-
-                                val isLeftTap = tapX < size.width * 0.33f
-                                val isRightTap = tapX > size.width * 0.66f
-
-                                val continuingLeftSeek = showLeftSeek && isLeftTap && (now - lastTapTime < 800)
-                                val continuingRightSeek = showRightSeek && isRightTap && (now - lastTapTime < 800)
-
-                                val canSeek = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.FAST_FORWARD_REWIND
-                                val canPlayPause = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.PLAY_PAUSE
-
-                                if (continuingLeftSeek || continuingRightSeek || (dt < 400 && dist < 100f)) {
-                                    singleTapJob?.cancel()
-                                    lastTapTime = now
-                                    lastTapX = change.position.x
-                                    lastTapY = change.position.y
-
-                                    when {
-                                        isLeftTap && canSeek -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            accumulatedLeftMs += updatedSeekDuration * 1000L
-                                            showLeftSeek = true
-                                            leftRippleTick++
-                                            onDoubleTapLeft()
-                                        }
-                                        isRightTap && canSeek -> {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            accumulatedRightMs += updatedSeekDuration * 1000L
-                                            showRightSeek = true
-                                            rightRippleTick++
-                                            onDoubleTapRight()
-                                        }
-                                        (!isLeftTap && !isRightTap) && canPlayPause -> {
-                                            if (dt < 400 && dist < 100f) {
+                                if (twoFingerDown && pointerCount < 2) {
+                                    val elapsed = System.currentTimeMillis() - twoFingerStartTime
+                                    if (!wasPinching && elapsed < 300 && twoFingerMaxMovePx < twoFingerSlopPx) {
+                                        twoFingerHandled = true
+                                        when(twoFingerAction) {
+                                            MultiFingerAction.PLAY_PAUSE -> {
                                                 centerWasPlaying = isPlaying
                                                 showCenterRipple = true
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 onDoubleTapCenter()
                                             }
+                                            MultiFingerAction.FAST_PLAY -> {
+                                                isFastForwardLocked = !isFastForwardLocked
+                                                isFastForwarding = isFastForwardLocked
+                                                onFastForwardToggle(isFastForwardLocked, longPressSpeed)
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                            MultiFingerAction.NONE -> {}
                                         }
+                                        event.changes.forEach { it.consume() }
+                                        break
                                     }
-                                } else {
-                                    lastTapTime = now
-                                    lastTapX = change.position.x
-                                    lastTapY = change.position.y
-                                    singleTapJob = coroutineScope.launch { delay(300); onSingleTap() }
+                                    twoFingerDown = false
+                                    lastSpan = 0f
                                 }
                             }
-                            break
-                        }
 
-                        if (threeFingerTriggered) {
-                            event.changes.forEach { it.consume() }
-                            continue
-                        }
+                            val change = event.changes.firstOrNull() ?: break
 
-                        if (isLongPressActive) {
-                            change.consume()
-                            isSwiping = true
-                            continue
-                        }
-
-                        if (twoFingerDown) continue
-
-                        val dx = change.position.x - change.previousPosition.x
-                        val dy = change.position.y - change.previousPosition.y
-                        totalDx += dx
-                        totalDy += dy
-
-                        if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
-                            isSwiping = true
-                            longPressJob.cancel()
-                            swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
-                        }
-
-                        if (isSwiping) {
-                            change.consume()
-                            if (isFastForwardLocked) continue
-
-                            when (swipeAxis) {
-                                "VERTICAL" -> {
-                                    if (isRightSide && !volumeGestureEnabled) continue
-                                    if (!isRightSide && !brightnessGestureEnabled) continue
-
-                                    val userSens = if (isRightSide) volumeSensitivity else brightnessSensitivity
-                                    val multiplier = 0.4f + (userSens * 1.6f)
-                                    val delta = (-dy / size.height.toFloat()) * (1.2f * multiplier)
-
-                                    if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
+                            if (!change.pressed) {
+                                longPressJob.cancel()
+                                
+                                if (isLongPressActive) {
+                                    break // Let finally block safely handle the cleanup
                                 }
-                                "HORIZONTAL" -> {
-                                    if (!seekGestureEnabled) continue
 
-                                    val multiplier = 0.4f + (seekSensitivity * 1.6f)
-                                    val dur = updatedDuration
-                                    if (dur > 0L) {
-                                        if (scrubPreviewMs == null) {
-                                            scrubStartPosition = updatedCurrentPosition
-                                            onSeekStart()
+                                if (threeFingerTriggered || twoFingerHandled) break
+
+                                if (!isSwiping && !twoFingerDown && !wasPinching) {
+                                    val now = System.currentTimeMillis()
+                                    val dt = now - lastTapTime
+                                    val dx = change.position.x - lastTapX
+                                    val dy = change.position.y - lastTapY
+                                    val dist = sqrt(dx * dx + dy * dy)
+                                    val tapX = change.position.x
+
+                                    val isLeftTap = tapX < size.width * 0.33f
+                                    val isRightTap = tapX > size.width * 0.66f
+
+                                    val continuingLeftSeek = showLeftSeek && isLeftTap && (now - lastTapTime < 800)
+                                    val continuingRightSeek = showRightSeek && isRightTap && (now - lastTapTime < 800)
+
+                                    val canSeek = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.FAST_FORWARD_REWIND
+                                    val canPlayPause = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.PLAY_PAUSE
+
+                                    if (continuingLeftSeek || continuingRightSeek || (dt < 400 && dist < 100f)) {
+                                        singleTapJob?.cancel()
+                                        lastTapTime = now
+                                        lastTapX = change.position.x
+                                        lastTapY = change.position.y
+
+                                        when {
+                                            isLeftTap && canSeek -> {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                accumulatedLeftMs += updatedSeekDuration * 1000L
+                                                showLeftSeek = true
+                                                leftRippleTick++
+                                                onDoubleTapLeft()
+                                            }
+                                            isRightTap && canSeek -> {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                accumulatedRightMs += updatedSeekDuration * 1000L
+                                                showRightSeek = true
+                                                rightRippleTick++
+                                                onDoubleTapRight()
+                                            }
+                                            (!isLeftTap && !isRightTap) && canPlayPause -> {
+                                                if (dt < 400 && dist < 100f) {
+                                                    centerWasPlaying = isPlaying
+                                                    showCenterRipple = true
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    onDoubleTapCenter()
+                                                }
+                                            }
                                         }
-                                        val deltaMs = (totalDx / size.width.toFloat()) * (120_000L * multiplier)
-                                        val newPreview = (scrubStartPosition + deltaMs).toLong().coerceIn(0L, dur)
-                                        scrubPreviewMs = newPreview
-                                        onSeekPreview(newPreview)
                                     } else {
-                                        scrubPreviewMs = ((totalDx / size.width.toFloat()) * (120_000L * multiplier)).toLong()
+                                        lastTapTime = now
+                                        lastTapX = change.position.x
+                                        lastTapY = change.position.y
+                                        singleTapJob = coroutineScope.launch { delay(300); onSingleTap() }
                                     }
-                                    onSeekSwipe(dx)
+                                }
+                                break
+                            }
+
+                            if (threeFingerTriggered) {
+                                event.changes.forEach { it.consume() }
+                                continue
+                            }
+
+                            if (isLongPressActive) {
+                                change.consume()
+                                isSwiping = true
+                                continue
+                            }
+
+                            if (twoFingerDown) continue
+
+                            val dx = change.position.x - change.previousPosition.x
+                            val dy = change.position.y - change.previousPosition.y
+                            totalDx += dx
+                            totalDy += dy
+
+                            if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
+                                isSwiping = true
+                                longPressJob.cancel()
+                                swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
+                            }
+
+                            if (isSwiping) {
+                                change.consume()
+                                if (isFastForwardLocked) continue
+
+                                when (swipeAxis) {
+                                    "VERTICAL" -> {
+                                        if (isRightSide && !volumeGestureEnabled) continue
+                                        if (!isRightSide && !brightnessGestureEnabled) continue
+
+                                        val userSens = if (isRightSide) volumeSensitivity else brightnessSensitivity
+                                        val multiplier = 0.4f + (userSens * 1.6f)
+                                        val delta = (-dy / size.height.toFloat()) * (1.2f * multiplier)
+                                        
+                                        if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
+                                    }
+                                    "HORIZONTAL" -> {
+                                        if (!seekGestureEnabled) continue
+                                        
+                                        val multiplier = 0.4f + (seekSensitivity * 1.6f)
+                                        val dur = updatedDuration
+                                        if (dur > 0L) {
+                                            if (scrubPreviewMs == null) {
+                                                scrubStartPosition = updatedCurrentPosition
+                                                onSeekStart()
+                                            }
+                                            val deltaMs = (totalDx / size.width.toFloat()) * (120_000L * multiplier)
+                                            val newPreview = (scrubStartPosition + deltaMs).toLong().coerceIn(0L, dur)
+                                            scrubPreviewMs = newPreview
+                                            onSeekPreview(newPreview)
+                                        } else {
+                                            scrubPreviewMs = ((totalDx / size.width.toFloat()) * (120_000L * multiplier)).toLong()
+                                        }
+                                        onSeekSwipe(dx)
+                                    }
                                 }
                             }
+                        }
+                    } finally {
+                        // 1. Guaranteed cleanup for Long Press stuck issues
+                        longPressJob.cancel()
+                        if (isLongPressActive) {
+                            isLongPressActive = false
+                            if (!isFastForwardLocked) {
+                                isFastForwarding = false
+                                onFastForwardToggle(false, longPressSpeed)
+                            }
+                        }
+                        
+                        // 2. Guaranteed cleanup for Seek scrub hanging issues
+                        if (isSwiping && swipeAxis == "HORIZONTAL") {
+                            scrubPreviewMs?.let { previewPos -> 
+                                onSeekCommit(previewPos) 
+                            }
+                            scrubPreviewMs = null
                         }
                     }
                 }
@@ -565,7 +579,7 @@ fun GestureOverlay(
             )
         }
 
-        AnimatedVisibility(
+       AnimatedVisibility(
             visible = isFastForwarding,
             enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { -it }) + scaleIn(initialScale = 0.85f),
             exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { -it }),
@@ -578,7 +592,6 @@ fun GestureOverlay(
     }
 }
 
-// ModernEdgeSlider, ScrubOverlay, AccumulatingSeekRipple, CenterRipple, FastForwardBadge remain same...
 @Composable
 private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnabled: Boolean = false) {
     val clampedLevel = level.coerceIn(0f, 1f)

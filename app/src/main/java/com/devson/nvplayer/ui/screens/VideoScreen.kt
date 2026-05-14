@@ -420,14 +420,19 @@ fun VideoScreen(
 
             // Revert back to proper currentPlaybackSpeed instead of hardcoded 1f
             onFastForwardToggle = { active, activeSpeed ->
-                ytIsFastForwarding = active
                 if (active) {
-                    // Capture the current speed BEFORE applying fast-forward
-                    preFastForwardSpeed = currentPlaybackSpeed
-                    viewModel.setPlaybackSpeed(activeSpeed)
+                    // Only cache the speed if we aren't ALREADY fast forwarding
+                    if (!ytIsFastForwarding) {
+                        preFastForwardSpeed = currentPlaybackSpeed
+                        ytIsFastForwarding = true
+                        viewModel.setPlaybackSpeed(activeSpeed)
+                    }
                 } else {
-                    // Revert to the cached speed when the finger is released
-                    viewModel.setPlaybackSpeed(preFastForwardSpeed)
+                    // Only revert if we were actually fast forwarding
+                    if (ytIsFastForwarding) {
+                        ytIsFastForwarding = false
+                        viewModel.setPlaybackSpeed(preFastForwardSpeed)
+                    }
                 }
             },
 
