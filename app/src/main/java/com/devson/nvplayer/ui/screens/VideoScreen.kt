@@ -33,6 +33,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -131,6 +132,8 @@ fun VideoScreen(
     val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
     val currentDecoder by viewModel.currentDecoderMode.collectAsState()
     val currentPlaybackSpeed by viewModel.currentPlaybackSpeed.collectAsState()
+
+    var isSubtitleGestureEnabled by rememberSaveable { mutableStateOf(true) }
 
     // Modals state (used only in default mode; Modern mode handles tracks inline)
     var showAudioSheet by remember { mutableStateOf(false) }
@@ -447,7 +450,8 @@ fun VideoScreen(
             bgStyle = subtitleBgStyle,
             useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
             subtitleFont = playbackSettings.subtitleFont,
-            isSubtitleBold = playbackSettings.isSubtitleBold
+            isSubtitleBold = playbackSettings.isSubtitleBold,
+            isSubtitleGestureEnabled = isSubtitleGestureEnabled
         )
 
         //  Device stats overlay 
@@ -713,6 +717,7 @@ fun VideoScreen(
         useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
         subtitleFont = playbackSettings.subtitleFont,
         isSubtitleBold = playbackSettings.isSubtitleBold,
+        isSubtitleGestureEnabled = isSubtitleGestureEnabled,
         isLandscape = isLandscape,
         onSelectTrack = { viewModel.selectSubtitleTrack(it) },
         onPickExternalSubtitle = { externalSubtitleLauncher.launch("*/*") },
@@ -721,6 +726,7 @@ fun VideoScreen(
         onUseSystemCaptionStyleChange = { settingsViewModel.updateUseSystemCaptionStyle(it) },
         onSubtitleFontChange = { settingsViewModel.updateSubtitleFont(it) },
         onIsSubtitleBoldChange = { settingsViewModel.updateIsSubtitleBold(it) },
+        onSubtitleGestureEnabledChange = { isSubtitleGestureEnabled = it },
         onDismissRequest = { showSubtitleSheet = false }
     )
 

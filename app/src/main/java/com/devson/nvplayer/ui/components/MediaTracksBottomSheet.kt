@@ -172,6 +172,7 @@ fun SubtitleSheet(
     useSystemCaptionStyle: Boolean,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
+    isSubtitleGestureEnabled: Boolean = true,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
@@ -179,6 +180,7 @@ fun SubtitleSheet(
     onUseSystemCaptionStyleChange: (Boolean) -> Unit,
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
+    onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
     if (showSheet) {
@@ -198,6 +200,7 @@ fun SubtitleSheet(
                     useSystemCaptionStyle = useSystemCaptionStyle,
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
+                    isSubtitleGestureEnabled = isSubtitleGestureEnabled,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
@@ -205,6 +208,7 @@ fun SubtitleSheet(
                     onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
+                    onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -224,6 +228,7 @@ fun SubtitleSheet(
                     useSystemCaptionStyle = useSystemCaptionStyle,
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
+                    isSubtitleGestureEnabled = isSubtitleGestureEnabled,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
@@ -231,6 +236,7 @@ fun SubtitleSheet(
                     onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
+                    onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -247,6 +253,7 @@ private fun SubtitleSheetContent(
     useSystemCaptionStyle: Boolean,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
+    isSubtitleGestureEnabled: Boolean = true,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
@@ -254,6 +261,7 @@ private fun SubtitleSheetContent(
     onUseSystemCaptionStyleChange: (Boolean) -> Unit,
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
+    onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -336,6 +344,20 @@ private fun SubtitleSheetContent(
                 }
                 2 -> { // Customize
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        SettingsSection(title = "Gestures") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Enable Swipe Gestures", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                                Switch(
+                                    checked = isSubtitleGestureEnabled,
+                                    onCheckedChange = onSubtitleGestureEnabledChange
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                         SettingsSection(title = "System Settings") {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

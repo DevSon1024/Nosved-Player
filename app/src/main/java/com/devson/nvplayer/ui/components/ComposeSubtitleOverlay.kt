@@ -46,6 +46,7 @@ fun ComposeSubtitleOverlay(
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
     isSubtitleBold: Boolean = false,
     subtitleTimingsMs: List<Long> = emptyList(),
+    isSubtitleGestureEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     //  Cue collection 
@@ -123,7 +124,8 @@ fun ComposeSubtitleOverlay(
                 .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
                 .padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
                 .wrapContentSize()
-                .pointerInput(Unit) {
+                .pointerInput(isSubtitleGestureEnabled) {
+                    if (!isSubtitleGestureEnabled) return@pointerInput
                     detectDragGestures(
                         onDragStart = {
                             lockedVertical = null
