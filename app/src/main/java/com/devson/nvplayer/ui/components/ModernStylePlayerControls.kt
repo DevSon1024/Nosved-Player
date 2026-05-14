@@ -335,8 +335,6 @@ private fun YtControlsLayout(
                 }
                 IconButton(
                     onClick = onToggleLock,
-                    modifier = Modifier
-                        .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LockOpen,
@@ -348,8 +346,6 @@ private fun YtControlsLayout(
                 if (onSpeedMenuClick != null) {
                     IconButton(
                         onClick = onSpeedMenuClick,
-                        modifier = Modifier
-                            .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Speed,
@@ -362,8 +358,6 @@ private fun YtControlsLayout(
                 if (showScreenRotationButton && onToggleScreenRotation != null) {
                     IconButton(
                         onClick = onToggleScreenRotation,
-                        modifier = Modifier
-                            .background(Color.Black.copy(0.35f), RoundedCornerShape(8.dp))
                     ) {
                         Icon(
                             Icons.Filled.ScreenRotation,

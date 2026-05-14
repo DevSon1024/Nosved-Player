@@ -3,16 +3,23 @@ package com.devson.nvplayer.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeMute
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -37,7 +45,6 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -533,11 +540,13 @@ fun GestureOverlay(
         }
 
         //  Fast-forward badge
-        AnimatedVisibility(
+       AnimatedVisibility(
             visible = isFastForwarding,
-            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.85f),
-            exit  = fadeOut(tween(200)),
-            modifier = Modifier.align(Alignment.Center)
+            enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { -it }) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 48.dp)
         ) {
             FastForwardBadge(speed = fastplaySpeed)
         }
@@ -843,29 +852,89 @@ private fun CenterRipple(wasPlaying: Boolean) {
 
 @Composable
 private fun FastForwardBadge(speed: Float) {
-    Box(
+    val infiniteTransition = rememberInfiniteTransition(label = "speedPulse")
+
+    // Chevron stagger — each of the 3 chevrons fades in sequence
+    val chevron1Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "c1"
+    )
+    val chevron2Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "c2"
+    )
+    val chevron3Alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "c3"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
-            .clip(RoundedCornerShape(36.dp))
-            .background(Color.Black.copy(alpha = 0.65f))
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color(0x00000000), Color(0x99000000), Color(0x00000000))
+                ),
+                shape = RoundedCornerShape(50)
+            )
+            .border(
+                width = 0.5.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.25f), Color.Transparent)
+                ),
+                shape = RoundedCornerShape(50)
+            )
+            .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
+        // Staggered chevron trio
         Row(
-            verticalAlignment    = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Filled.Speed,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint     = Color.White,
-                modifier = Modifier.size(20.dp)
+                tint = Color.White.copy(alpha = chevron1Alpha),
+                modifier = Modifier.size(14.dp)
             )
-            Text(
-                text       = "${speed}x Speed",
-                color      = Color.White,
-                fontSize   = 16.sp,
-                fontWeight = FontWeight.SemiBold
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = chevron2Alpha),
+                modifier = Modifier.size(16.dp)
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = chevron3Alpha),
+                modifier = Modifier.size(18.dp)
             )
         }
+
+        Text(
+            text = "${speed}x",
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+
+        Text(
+            text = "Speed",
+            color = Color.White.copy(alpha = 0.75f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 0.3.sp
+        )
     }
 }
