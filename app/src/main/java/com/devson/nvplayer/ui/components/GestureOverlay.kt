@@ -132,10 +132,14 @@ fun GestureOverlay(
     val updatedDuration by rememberUpdatedState(duration)
 
     var showCenterRipple by remember { mutableStateOf(false) }
-    var centerRippleTick by remember { mutableStateOf(0) }
     var centerWasPlaying by remember { mutableStateOf(false) }
+    var centerRippleTick by remember { mutableStateOf(0) }
     LaunchedEffect(centerRippleTick) {
-        if (centerRippleTick > 0) { showCenterRipple = true; delay(900); showCenterRipple = false }
+        if (centerRippleTick > 0) {
+            showCenterRipple = true
+            delay(900)
+            showCenterRipple = false
+        }
     }
 
     var lastTapTime by remember { mutableStateOf(0L) }
@@ -310,7 +314,7 @@ fun GestureOverlay(
                                         when(twoFingerAction) {
                                             MultiFingerAction.PLAY_PAUSE -> {
                                                 centerWasPlaying = isPlaying
-                                                showCenterRipple = true
+                                                centerRippleTick++
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 onDoubleTapCenter()
                                             }
