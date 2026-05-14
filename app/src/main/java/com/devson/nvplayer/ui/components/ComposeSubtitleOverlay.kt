@@ -1,61 +1,42 @@
 package com.devson.nvplayer.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import androidx.media3.common.text.CueGroup
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Gesture tuning constants
-
-/** Pixels of accumulated X movement before a dialog-jump fires. */
 private const val HORIZONTAL_THRESHOLD_PX = 80f
-
-/**
- * Pixels of total movement before we decide which axis the gesture is on.
- * Keeping this small (8 px) makes the lock feel instant but still intentional.
- */
 private const val AXIS_LOCK_THRESHOLD_PX = 8f
 
-// 
+// Arrow feedback state
+private enum class SwipeHint { None, Left, Right }
 
-/**
- * Subtitle overlay with two independent gestures, both scoped ONLY to the
- * visible subtitle plate.  Touches anywhere outside the plate are NOT consumed,
- * so GestureOverlay underneath (seek scrub, volume, brightness) works normally.
- *
- * Gestures on the subtitle plate:
- *  • Vertical drag   → repositions the plate up / down (clamped to screen).
- *  • Horizontal swipe → jumps to the previous / next subtitle dialog.
- *                       Fires once per lift; user must release to fire again.
- *
- * @param subtitleTimingsMs Sorted list of subtitle cue start times in ms.
- *   Pass the times you already parse for your subtitle track.  When empty,
- *   horizontal swipe falls back to a ±5 s seek.
- */
 @Composable
 fun ComposeSubtitleOverlay(
     player: Player?,
@@ -82,7 +63,6 @@ fun ComposeSubtitleOverlay(
     }
 
     //  Vertical position state 
-    // Negative = plate moves upward (away from bottom edge).
     var rawOffsetY by remember { mutableFloatStateOf(0f) }
     val animatedOffsetY by animateFloatAsState(
         targetValue = rawOffsetY,
@@ -90,53 +70,92 @@ fun ComposeSubtitleOverlay(
         label = "subtitleOffsetY"
     )
 
-    //  Gesture state (reset on every new touch down) 
-    // Declared outside pointerInput so the same objects survive recomposition.
+    //  Gesture state 
     var lockedVertical by remember { mutableStateOf<Boolean?>(null) }
-    var xAccumulator  by remember { mutableFloatStateOf(0f) }
-    // One-shot flag: once a dialog-jump fires the user must lift and re-touch.
-    var seekFired     by remember { mutableStateOf(false) }
+    var xAccumulator by remember { mutableFloatStateOf(0f) }
+    var seekFired by remember { mutableStateOf(false) }
 
-    //  Layout 
-    // BoxWithConstraints gives us maxHeightPx for the vertical clamp.
-    // Its own modifier is fillMaxSize with NO pointerInput → transparent to GestureOverlay.
+    //  Arrow / highlight feedback 
+    var swipeHint by remember { mutableStateOf(SwipeHint.None) }
+    // Progress 0..1 while dragging horizontally (before threshold)
+    var dragProgress by remember { mutableFloatStateOf(0f) }
+    // Fired = show the "committed" pulse then fade
+    var seekJustFired by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Animated values driven by dragProgress / seekJustFired
+    val arrowAlpha by animateFloatAsState(
+        targetValue = when {
+            swipeHint == SwipeHint.None -> 0f
+            seekJustFired -> 1f
+            else -> 0.4f + dragProgress * 0.6f   // dims → full as thumb moves
+        },
+        animationSpec = tween(120),
+        label = "arrowAlpha"
+    )
+    val arrowScale by animateFloatAsState(
+        targetValue = when {
+            swipeHint == SwipeHint.None -> 0.6f
+            seekJustFired -> 1.25f
+            else -> 0.75f + dragProgress * 0.4f
+        },
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
+        label = "arrowScale"
+    )
+    // Plate highlight border opacity (only during horizontal drag)
+    val highlightAlpha by animateFloatAsState(
+        targetValue = if (swipeHint != SwipeHint.None && lockedVertical == false) {
+            0.25f + dragProgress * 0.55f
+        } else 0f,
+        animationSpec = tween(150),
+        label = "plateHighlight"
+    )
+
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
         val maxHeightPx = constraints.maxHeight.toFloat()
 
-        // Outer Box: bottom-centers the plate but does NOT intercept touches.
-        // wrapContentSize() means its hit-area is exactly the plate, nothing more.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
                 .padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
-                // ↑ Padding is layout-only; does NOT extend the touch target.
                 .wrapContentSize()
-                // pointerInput lives here, on the tight-fitting box.
-                // Only touches that land on actual subtitle text reach this handler.
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = {
                             lockedVertical = null
-                            xAccumulator  = 0f
-                            seekFired     = false
+                            xAccumulator = 0f
+                            seekFired = false
+                            seekJustFired = false
+                            swipeHint = SwipeHint.None
+                            dragProgress = 0f
                         },
                         onDragEnd = {
+                            // Fade out arrow after a short hold if seek fired
+                            coroutineScope.launch {
+                                if (seekJustFired) {
+                                    kotlinx.coroutines.delay(350)
+                                }
+                                swipeHint = SwipeHint.None
+                                dragProgress = 0f
+                                seekJustFired = false
+                            }
                             lockedVertical = null
-                            xAccumulator  = 0f
-                            seekFired     = false
+                            xAccumulator = 0f
+                            seekFired = false
                         },
                         onDragCancel = {
+                            swipeHint = SwipeHint.None
+                            dragProgress = 0f
+                            seekJustFired = false
                             lockedVertical = null
-                            xAccumulator  = 0f
-                            seekFired     = false
+                            xAccumulator = 0f
+                            seekFired = false
                         }
                     ) { change, dragAmount ->
-                        // Consume the event so GestureOverlay doesn't also react
-                        // while the finger is on the subtitle plate.
                         change.consume()
 
                         val dx = dragAmount.x
@@ -146,29 +165,36 @@ fun ComposeSubtitleOverlay(
                         if (lockedVertical == null) {
                             if (abs(dx) + abs(dy) > AXIS_LOCK_THRESHOLD_PX) {
                                 lockedVertical = abs(dy) >= abs(dx)
+                                // Only show hint once we've committed horizontally
+                                if (lockedVertical == false) {
+                                    swipeHint = if (dx < 0) SwipeHint.Left else SwipeHint.Right
+                                }
                             }
-                            // Not enough movement yet; wait for the next event.
                             return@detectDragGestures
                         }
 
-                        //  2a. Vertical → reposition the plate 
+                        //  2a. Vertical → reposition 
                         if (lockedVertical == true) {
                             rawOffsetY = (rawOffsetY + dy).coerceIn(
-                                -maxHeightPx * 0.85f,   // can go almost to the top
-                                maxHeightPx * 0.30f     // slight downward tolerance
+                                -maxHeightPx * 0.85f,
+                                maxHeightPx * 0.30f
                             )
                             return@detectDragGestures
                         }
 
-                        //  2b. Horizontal → jump to prev / next dialog 
-                        if (seekFired) return@detectDragGestures   // one jump per stroke
+                        //  2b. Horizontal → navigate dialog 
+                        if (seekFired) return@detectDragGestures
 
                         xAccumulator += dx
+
+                        // Keep hint direction tracking live even before threshold
+                        swipeHint = if (xAccumulator < 0) SwipeHint.Left else SwipeHint.Right
+                        dragProgress = (abs(xAccumulator) / HORIZONTAL_THRESHOLD_PX).coerceIn(0f, 1f)
+
                         if (abs(xAccumulator) < HORIZONTAL_THRESHOLD_PX) return@detectDragGestures
 
+                        // Threshold crossed → fire seek
                         player?.let { p ->
-                            // Swipe RIGHT (xAccumulator > 0) → go to PREVIOUS dialog
-                            // Swipe LEFT  (xAccumulator < 0) → go to NEXT dialog
                             val newPos = if (xAccumulator > 0) {
                                 findPrevSubtitle(p.currentPosition, subtitleTimingsMs)
                             } else {
@@ -176,87 +202,158 @@ fun ComposeSubtitleOverlay(
                             }
                             p.seekTo(newPos)
                         }
-                        seekFired = true   // lock until finger lifts
+                        seekFired = true
+                        seekJustFired = true
+                        dragProgress = 1f
                     }
                 }
         ) {
-            //  Subtitle content 
-            // Column is wrapContentSize so the hit-area == the visible text only.
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            //  Plate container with highlight border + arrows 
+            Box(
+                contentAlignment = Alignment.Center
             ) {
-                currentCues.forEach { cue ->
-
-                    // Bitmap cues (PGS / VOBSUB image subtitles)
-                    if (cue.bitmap != null) {
-                        Image(
-                            bitmap = cue.bitmap!!.asImageBitmap(),
-                            contentDescription = null
+                // Scoped highlight ring — wraps snugly around the plate
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            width = 2.dp,
+                            color = Color.White.copy(alpha = highlightAlpha),
+                            shape = RoundedCornerShape(12.dp)
                         )
-                    }
+                        .background(
+                            Color.White.copy(alpha = highlightAlpha * 0.08f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                )
 
-                    // Text cues (SRT / ASS / WebVTT)
-                    if (!cue.text.isNullOrEmpty()) {
-                        val bgColor = when (bgStyle) {
-                            1    -> Color(0x80000000)  // semi-transparent
-                            2    -> Color.Black         // solid
-                            else -> Color.Transparent   // none
-                        }
-                        val targetFontFamily = if (!useSystemCaptionStyle) {
-                            when (subtitleFont) {
-                                com.devson.nvplayer.repository.SubtitleFont.DEFAULT -> androidx.compose.ui.text.font.FontFamily.Default
-                                com.devson.nvplayer.repository.SubtitleFont.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
-                                com.devson.nvplayer.repository.SubtitleFont.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.SansSerif
-                                com.devson.nvplayer.repository.SubtitleFont.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+                //  Subtitle text column 
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // LEFT arrow (shown on swipe-left = next subtitle)
+                    AnimatedArrow(
+                        visible = swipeHint == SwipeHint.Left,
+                        pointLeft = true,
+                        alpha = arrowAlpha,
+                        scale = arrowScale,
+                        pulsing = seekJustFired
+                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        currentCues.forEach { cue ->
+                            if (cue.bitmap != null) {
+                                Image(
+                                    bitmap = cue.bitmap!!.asImageBitmap(),
+                                    contentDescription = null
+                                )
                             }
-                        } else {
-                            androidx.compose.ui.text.font.FontFamily.Default
+                            if (!cue.text.isNullOrEmpty()) {
+                                val bgColor = when (bgStyle) {
+                                    1 -> Color(0x80000000)
+                                    2 -> Color.Black
+                                    else -> Color.Transparent
+                                }
+                                val targetFontFamily = if (!useSystemCaptionStyle) {
+                                    when (subtitleFont) {
+                                        com.devson.nvplayer.repository.SubtitleFont.DEFAULT -> androidx.compose.ui.text.font.FontFamily.Default
+                                        com.devson.nvplayer.repository.SubtitleFont.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
+                                        com.devson.nvplayer.repository.SubtitleFont.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.SansSerif
+                                        com.devson.nvplayer.repository.SubtitleFont.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
+                                    }
+                                } else {
+                                    androidx.compose.ui.text.font.FontFamily.Default
+                                }
+                                val targetFontWeight = if (!useSystemCaptionStyle && isSubtitleBold) {
+                                    androidx.compose.ui.text.font.FontWeight.Bold
+                                } else {
+                                    androidx.compose.ui.text.font.FontWeight.Normal
+                                }
+                                Text(
+                                    text = cue.text.toString(),
+                                    fontSize = (16 * textSizeScale).sp,
+                                    color = Color.White,
+                                    fontFamily = targetFontFamily,
+                                    fontWeight = targetFontWeight,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .padding(vertical = 2.dp)
+                                        .background(color = bgColor, shape = RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
                         }
-
-                        val targetFontWeight = if (!useSystemCaptionStyle && isSubtitleBold) {
-                            androidx.compose.ui.text.font.FontWeight.Bold
-                        } else {
-                            androidx.compose.ui.text.font.FontWeight.Normal
-                        }
-
-                        Text(
-                            text = cue.text.toString(),
-                            fontSize = (16 * textSizeScale).sp,
-                            color = Color.White,
-                            fontFamily = targetFontFamily,
-                            fontWeight = targetFontWeight,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .padding(vertical = 2.dp)
-                                .background(color = bgColor, shape = RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
                     }
+
+                    // RIGHT arrow (shown on swipe-right = prev subtitle)
+                    AnimatedArrow(
+                        visible = swipeHint == SwipeHint.Right,
+                        pointLeft = false,
+                        alpha = arrowAlpha,
+                        scale = arrowScale,
+                        pulsing = seekJustFired
+                    )
                 }
             }
         }
     }
 }
 
-//  Subtitle navigation helpers 
+//  Arrow chip composable 
 
-/**
- * Returns the start time of the next subtitle cue after [currentPositionMs].
- * The 150 ms buffer prevents re-landing on the cue that is currently playing.
- * Falls back to a +5 s seek when no timing list is provided.
- */
-private fun findNextSubtitle(currentPositionMs: Long, timings: List<Long>): Long {
-    if (timings.isEmpty()) return currentPositionMs + 5_000L
-    return timings.firstOrNull { it > currentPositionMs + 150L } ?: currentPositionMs
+@Composable
+private fun AnimatedArrow(
+    visible: Boolean,
+    pointLeft: Boolean,
+    alpha: Float,
+    scale: Float,
+    pulsing: Boolean
+) {
+    // Infinite bounce when pulsing (seek fired confirmation)
+    val infiniteTransition = rememberInfiniteTransition(label = "arrowPulse")
+    val pulseOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (pulsing) (if (pointLeft) -6f else 6f) else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(260, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseOffset"
+    )
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .alpha(alpha)
+            .scale(scale)
+            .offset(x = pulseOffset.dp)
+            .size(28.dp)
+            .background(
+                color = Color.White.copy(alpha = 0.18f),
+                shape = CircleShape
+            )
+    ) {
+        Text(
+            text = if (pointLeft) "‹" else "›",
+            fontSize = 18.sp,
+            color = Color.White,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
-/**
- * Returns the start time of the previous subtitle cue before [currentPositionMs].
- * The 150 ms buffer lets the user re-trigger the current cue from the start
- * only when they are clearly past its beginning; otherwise it jumps one further back.
- * Falls back to a −5 s seek when no timing list is provided.
- */
+//  Subtitle navigation helpers 
+
+private fun findNextSubtitle(currentPositionMs: Long, timings: List<Long>): Long {
+    if (timings.isEmpty()) return currentPositionMs + 5_000L
+    return timings.firstOrNull { it > currentPositionMs + 50L } ?: currentPositionMs
+}
+
 private fun findPrevSubtitle(currentPositionMs: Long, timings: List<Long>): Long {
     if (timings.isEmpty()) return (currentPositionMs - 5_000L).coerceAtLeast(0L)
-    return timings.lastOrNull { it < currentPositionMs - 150L } ?: 0L
+    return timings.lastOrNull { it < currentPositionMs - 50L } ?: 0L
 }
