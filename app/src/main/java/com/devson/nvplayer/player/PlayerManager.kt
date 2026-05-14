@@ -27,6 +27,56 @@ import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.session.MediaSession
 import com.devson.nvplayer.repository.DecoderMode
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.exoplayer.Renderer
+import android.os.Handler
+import androidx.media3.common.MimeTypes
+
+@OptIn(UnstableApi::class)
+class HDRFallbackRenderersFactory(context: Context) : NextRenderersFactory(context) {
+    override fun buildVideoRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        eventHandler: Handler,
+        eventListener: VideoRendererEventListener,
+        allowedVideoJoiningTimeMs: Long,
+        out: java.util.ArrayList<Renderer>
+    ) {
+        val dvFallbackCodecSelector = object : MediaCodecSelector {
+            override fun getDecoderInfos(
+                mimeType: String,
+                requiresSecureDecoder: Boolean,
+                requiresTunnelingDecoder: Boolean
+            ): MutableList<MediaCodecInfo> {
+                val targetMimeType = if (mimeType == MimeTypes.VIDEO_DOLBY_VISION) {
+                    MimeTypes.VIDEO_H265
+                } else {
+                    mimeType
+                }
+                return MediaCodecSelector.DEFAULT.getDecoderInfos(
+                    targetMimeType,
+                    requiresSecureDecoder,
+                    requiresTunnelingDecoder
+                )
+            }
+        }
+
+        super.buildVideoRenderers(
+            context,
+            extensionRendererMode,
+            dvFallbackCodecSelector,
+            enableDecoderFallback,
+            eventHandler,
+            eventListener,
+            allowedVideoJoiningTimeMs,
+            out
+        )
+    }
+}
 
 @OptIn(UnstableApi::class)
 class PlayerManager(private val context: Context) {
@@ -99,7 +149,7 @@ class PlayerManager(private val context: Context) {
                 DecoderMode.HW_PLUS -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
                 DecoderMode.SW      -> androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
             }
-            val renderersFactory = NextRenderersFactory(context)
+            val renderersFactory = HDRFallbackRenderersFactory(context)
                 .setExtensionRendererMode(extensionMode)
                 .setEnableDecoderFallback(true)
                 .forceDisableMediaCodecAsynchronousQueueing()
