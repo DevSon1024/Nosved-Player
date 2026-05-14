@@ -216,6 +216,16 @@ fun PlayerControls(
                             )
                         }
                     }
+                }
+
+                // Right Side Controls
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 12.dp, top = 52.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (onSpeedMenuClick != null) {
                         IconButton(
                             onClick = onSpeedMenuClick,

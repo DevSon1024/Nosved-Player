@@ -10,12 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-
-private const val SPEED_MIN = 0.25f
-private const val SPEED_MAX = 4.0f
-private const val SPEED_STEP = 0.05f
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,18 @@ fun PlaybackSpeedSheet(
         sheetState = sheetState,
         modifier = if (isLandscape) Modifier.fillMaxWidth(0.6f) else Modifier
     ) {
+        val view = LocalView.current
+        SideEffect {
+            val window = (view.parent as? DialogWindowProvider)?.window
+            if (window != null) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                WindowCompat.getInsetsController(window, view).apply {
+                    hide(WindowInsetsCompat.Type.systemBars())
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -117,6 +130,9 @@ fun PlaybackSpeedSheet(
         }
     }
 }
+private const val SPEED_MIN = 0.25f
+private const val SPEED_MAX = 4.0f
+private const val SPEED_STEP = 0.05f
 
 private fun formatSpeed(speed: Float): String {
     val rounded = kotlin.math.round(speed * 100) / 100.0

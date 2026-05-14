@@ -343,18 +343,6 @@ private fun YtControlsLayout(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                if (onSpeedMenuClick != null) {
-                    IconButton(
-                        onClick = onSpeedMenuClick,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Speed,
-                            contentDescription = "Playback Speed",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
                 if (showScreenRotationButton && onToggleScreenRotation != null) {
                     IconButton(
                         onClick = onToggleScreenRotation,
@@ -400,8 +388,24 @@ private fun YtControlsLayout(
                     )
                 }
             }
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings), tint = Color.White)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings), tint = Color.White)
+                }
+                if (onSpeedMenuClick != null) {
+                    IconButton(
+                        onClick = onSpeedMenuClick,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = "Playback Speed",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
