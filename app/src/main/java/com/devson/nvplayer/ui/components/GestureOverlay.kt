@@ -73,6 +73,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devson.nvplayer.repository.DoubleTapAction
+import com.devson.nvplayer.repository.MultiFingerAction
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,6 +91,20 @@ fun GestureOverlay(
     fastplaySpeed: Float = 2.0f,
     currentPosition: Long = 0L,
     duration: Long = 0L,
+
+    // Configurable Gesture Settings
+    seekGestureEnabled: Boolean = true,
+    seekSensitivity: Float = 0.5f,
+    brightnessGestureEnabled: Boolean = true,
+    brightnessSensitivity: Float = 0.5f,
+    volumeGestureEnabled: Boolean = true,
+    volumeSensitivity: Float = 0.5f,
+    twoFingerAction: MultiFingerAction = MultiFingerAction.PLAY_PAUSE,
+    threeFingerAction: MultiFingerAction = MultiFingerAction.FAST_PLAY,
+    longPressEnabled: Boolean = true,
+    longPressSpeed: Float = 2.0f,
+    doubleTapAction: DoubleTapAction = DoubleTapAction.BOTH,
+
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -99,8 +115,7 @@ fun GestureOverlay(
     onSeekStart: () -> Unit = {},
     onSeekPreview: (Long) -> Unit = {},
     onSeekCommit: (Long) -> Unit = {},
-    onFastForwardToggle: (Boolean) -> Unit = {},
-    onTwoFingerTap: () -> Unit = {},
+    onFastForwardToggle: (Boolean, Float) -> Unit = { _, _ -> },
     onZoom: (scaleFactor: Float) -> Unit = {},
     zoomScale: Float = 1f,
     volumeLevel: Float,
@@ -132,7 +147,6 @@ fun GestureOverlay(
     var isFastForwarding by remember { mutableStateOf(false) }
     var isFastForwardLocked by remember { mutableStateOf(false) }
 
-    //  Accumulating double-tap seek 
     var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
     var accumulatedRightMs by remember { mutableLongStateOf(0L) }
     var showLeftSeek       by remember { mutableStateOf(false) }
@@ -142,10 +156,10 @@ fun GestureOverlay(
 
     LaunchedEffect(leftRippleTick) {
         if (leftRippleTick > 0) {
-            delay(1200) // Wait for idle time after last tap
-            showLeftSeek = false // Trigger the fade-out animation first
-            delay(400) // Wait for the fadeOut(tween(350)) to complete
-            accumulatedLeftMs = 0L // Reset the counter invisibly
+            delay(1200)
+            showLeftSeek = false
+            delay(400)
+            accumulatedLeftMs = 0L
         }
     }
 
@@ -158,7 +172,6 @@ fun GestureOverlay(
         }
     }
 
-    // Zoom indicator: auto-hide 900 ms after last pinch event
     var showZoomIndicator by remember { mutableStateOf(false) }
     LaunchedEffect(zoomScale) {
         if (zoomScale > 1.01f) {
@@ -204,25 +217,20 @@ fun GestureOverlay(
                     var isLongPressActive = false
                     var threeFingerTriggered = false
 
-                    // Two-finger tap / pinch-zoom tracking
                     var twoFingerDown = false
                     var twoFingerStartTime = 0L
                     var twoFingerMaxMovePx = 0f
                     var twoFingerHandled = false
-                    // Set to true once real pinch movement starts; never cleared so
-                    // tap detection is suppressed for the entire gesture after a pinch.
                     var wasPinching = false
-                    // Last inter-finger span used to compute the incremental zoom factor
                     var lastSpan = 0f
 
-                    // longPressJob cancelled only when single-finger drag slop is exceeded
                     val longPressJob = coroutineScope.launch {
                         delay(550)
-                        if (isPlaying && !isSwiping && !isFastForwardLocked && !twoFingerDown) {
+                        if (longPressEnabled && isPlaying && !isSwiping && !isFastForwardLocked && !twoFingerDown) {
                             isLongPressActive = true
                             isFastForwarding = true
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onFastForwardToggle(true)
+                            onFastForwardToggle(true, longPressSpeed)
                         }
                     }
 
@@ -234,21 +242,30 @@ fun GestureOverlay(
                         if (event.changes.size >= 3 && !threeFingerTriggered) {
                             threeFingerTriggered = true
                             longPressJob.cancel()
-                            isFastForwardLocked = !isFastForwardLocked
-                            isFastForwarding = isFastForwardLocked
-                            onFastForwardToggle(isFastForwardLocked)
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            when(threeFingerAction) {
+                                MultiFingerAction.FAST_PLAY -> {
+                                    isFastForwardLocked = !isFastForwardLocked
+                                    isFastForwarding = isFastForwardLocked
+                                    onFastForwardToggle(isFastForwardLocked, longPressSpeed)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                                MultiFingerAction.PLAY_PAUSE -> {
+                                    centerWasPlaying = isPlaying
+                                    showCenterRipple = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onDoubleTapCenter()
+                                }
+                                MultiFingerAction.NONE -> {}
+                            }
                         }
 
                         // Two-finger: pinch-zoom OR two-finger tap
                         if (!twoFingerHandled && !threeFingerTriggered) {
                             if (pointerCount == 2 && !twoFingerDown) {
-                                // First frame with 2 fingers — initialise tracking
                                 twoFingerDown = true
                                 twoFingerStartTime = System.currentTimeMillis()
                                 twoFingerMaxMovePx = 0f
                                 longPressJob.cancel()
-                                // Compute initial span between the two pointers
                                 val pts = event.changes.filter { it.pressed }
                                 if (pts.size == 2) {
                                     val dx0 = pts[0].position.x - pts[1].position.x
@@ -260,15 +277,13 @@ fun GestureOverlay(
                             if (twoFingerDown && pointerCount == 2) {
                                 val pts = event.changes.filter { it.pressed }
                                 if (pts.size == 2) {
-                                    // Track max individual-finger movement for tap detection
                                     for (ch in pts) {
                                         val mov = sqrt(
                                             (ch.position.x - ch.previousPosition.x).let { it * it } +
-                                            (ch.position.y - ch.previousPosition.y).let { it * it }
+                                                    (ch.position.y - ch.previousPosition.y).let { it * it }
                                         )
                                         if (mov > twoFingerMaxMovePx) twoFingerMaxMovePx = mov
                                     }
-                                    // Compute current span and emit incremental zoom factor
                                     val dx = pts[0].position.x - pts[1].position.x
                                     val dy = pts[0].position.y - pts[1].position.y
                                     val currentSpan = sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
@@ -284,10 +299,22 @@ fun GestureOverlay(
                             if (twoFingerDown && pointerCount < 2) {
                                 val elapsed = System.currentTimeMillis() - twoFingerStartTime
                                 if (!wasPinching && elapsed < 300 && twoFingerMaxMovePx < twoFingerSlopPx) {
-                                    // Quick lift with no movement = two-finger tap
                                     twoFingerHandled = true
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onTwoFingerTap()
+                                    when(twoFingerAction) {
+                                        MultiFingerAction.PLAY_PAUSE -> {
+                                            centerWasPlaying = isPlaying
+                                            showCenterRipple = true
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onDoubleTapCenter()
+                                        }
+                                        MultiFingerAction.FAST_PLAY -> {
+                                            isFastForwardLocked = !isFastForwardLocked
+                                            isFastForwarding = isFastForwardLocked
+                                            onFastForwardToggle(isFastForwardLocked, longPressSpeed)
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                        MultiFingerAction.NONE -> {}
+                                    }
                                     event.changes.forEach { it.consume() }
                                     break
                                 }
@@ -305,7 +332,7 @@ fun GestureOverlay(
                                 isLongPressActive = false
                                 if (!isFastForwardLocked) {
                                     isFastForwarding = false
-                                    onFastForwardToggle(false)
+                                    onFastForwardToggle(false, longPressSpeed)
                                 }
                                 break
                             }
@@ -317,7 +344,6 @@ fun GestureOverlay(
                                 scrubPreviewMs = null
                             }
 
-                            // Do not fire any tap if a real pinch occurred in this gesture
                             if (!isSwiping && !twoFingerDown && !wasPinching) {
                                 val now = System.currentTimeMillis()
                                 val dt = now - lastTapTime
@@ -332,6 +358,9 @@ fun GestureOverlay(
                                 val continuingLeftSeek = showLeftSeek && isLeftTap && (now - lastTapTime < 800)
                                 val continuingRightSeek = showRightSeek && isRightTap && (now - lastTapTime < 800)
 
+                                val canSeek = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.FAST_FORWARD_REWIND
+                                val canPlayPause = doubleTapAction == DoubleTapAction.BOTH || doubleTapAction == DoubleTapAction.PLAY_PAUSE
+
                                 if (continuingLeftSeek || continuingRightSeek || (dt < 400 && dist < 100f)) {
                                     singleTapJob?.cancel()
                                     lastTapTime = now
@@ -339,23 +368,21 @@ fun GestureOverlay(
                                     lastTapY = change.position.y
 
                                     when {
-                                        isLeftTap -> {
+                                        isLeftTap && canSeek -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            val stepMs = updatedSeekDuration * 1000L
-                                            accumulatedLeftMs += stepMs
+                                            accumulatedLeftMs += updatedSeekDuration * 1000L
                                             showLeftSeek = true
                                             leftRippleTick++
                                             onDoubleTapLeft()
                                         }
-                                        isRightTap -> {
+                                        isRightTap && canSeek -> {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            val stepMs = updatedSeekDuration * 1000L
-                                            accumulatedRightMs += stepMs
+                                            accumulatedRightMs += updatedSeekDuration * 1000L
                                             showRightSeek = true
                                             rightRippleTick++
                                             onDoubleTapRight()
                                         }
-                                        else -> {
+                                        (!isLeftTap && !isRightTap) && canPlayPause -> {
                                             if (dt < 400 && dist < 100f) {
                                                 centerWasPlaying = isPlaying
                                                 showCenterRipple = true
@@ -385,7 +412,6 @@ fun GestureOverlay(
                             continue
                         }
 
-                        // Skip single-finger processing while pinch is active
                         if (twoFingerDown) continue
 
                         val dx = change.position.x - change.previousPosition.x
@@ -393,7 +419,6 @@ fun GestureOverlay(
                         totalDx += dx
                         totalDy += dy
 
-                        // Only cancel long-press when actual drag slop is exceeded
                         if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                             isSwiping = true
                             longPressJob.cancel()
@@ -406,23 +431,31 @@ fun GestureOverlay(
 
                             when (swipeAxis) {
                                 "VERTICAL" -> {
-                                    val sensitivity = 1.2f
-                                    val delta = (-dy / size.height.toFloat()) * sensitivity
+                                    if (isRightSide && !volumeGestureEnabled) continue
+                                    if (!isRightSide && !brightnessGestureEnabled) continue
+
+                                    val userSens = if (isRightSide) volumeSensitivity else brightnessSensitivity
+                                    val multiplier = 0.4f + (userSens * 1.6f)
+                                    val delta = (-dy / size.height.toFloat()) * (1.2f * multiplier)
+
                                     if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
                                 }
                                 "HORIZONTAL" -> {
+                                    if (!seekGestureEnabled) continue
+
+                                    val multiplier = 0.4f + (seekSensitivity * 1.6f)
                                     val dur = updatedDuration
                                     if (dur > 0L) {
                                         if (scrubPreviewMs == null) {
                                             scrubStartPosition = updatedCurrentPosition
                                             onSeekStart()
                                         }
-                                        val deltaMs = (totalDx / size.width.toFloat()) * 120_000L
+                                        val deltaMs = (totalDx / size.width.toFloat()) * (120_000L * multiplier)
                                         val newPreview = (scrubStartPosition + deltaMs).toLong().coerceIn(0L, dur)
                                         scrubPreviewMs = newPreview
                                         onSeekPreview(newPreview)
                                     } else {
-                                        scrubPreviewMs = ((totalDx / size.width.toFloat()) * 120_000L).toLong()
+                                        scrubPreviewMs = ((totalDx / size.width.toFloat()) * (120_000L * multiplier)).toLong()
                                     }
                                     onSeekSwipe(dx)
                                 }
@@ -432,7 +465,6 @@ fun GestureOverlay(
                 }
             }
     ) {
-        //  Brightness slider (left edge)
         AnimatedVisibility(
             visible = showBrightnessFeedback,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = tween(180)),
@@ -442,7 +474,6 @@ fun GestureOverlay(
             ModernEdgeSlider(level = brightnessLevel, isVolume = false)
         }
 
-        //  Volume slider (right edge)
         AnimatedVisibility(
             visible = showVolumeFeedback,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = tween(180)),
@@ -452,7 +483,6 @@ fun GestureOverlay(
             ModernEdgeSlider(level = volumeLevel, isVolume = true, isAudioBoostEnabled = isAudioBoostEnabled)
         }
 
-        //  Horizontal scrub overlay (center)
         AnimatedVisibility(
             visible = scrubPreviewMs != null,
             enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.9f),
@@ -466,7 +496,6 @@ fun GestureOverlay(
             }
         }
 
-        //  Zoom indicator (top-center)
         AnimatedVisibility(
             visible = showZoomIndicator,
             enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
@@ -495,7 +524,6 @@ fun GestureOverlay(
             }
         }
 
-        //  Left accumulating seek
         AnimatedVisibility(
             visible = showLeftSeek,
             enter = fadeIn(tween(100)),
@@ -509,7 +537,6 @@ fun GestureOverlay(
             )
         }
 
-        //  Center play/pause ripple
         AnimatedVisibility(
             visible = showCenterRipple,
             enter = fadeIn(tween(60)) + scaleIn(
@@ -525,7 +552,6 @@ fun GestureOverlay(
             CenterRipple(wasPlaying = centerWasPlaying)
         }
 
-        //  Right accumulating seek
         AnimatedVisibility(
             visible = showRightSeek,
             enter = fadeIn(tween(100)),
@@ -539,8 +565,7 @@ fun GestureOverlay(
             )
         }
 
-        //  Fast-forward badge
-       AnimatedVisibility(
+        AnimatedVisibility(
             visible = isFastForwarding,
             enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { -it }) + scaleIn(initialScale = 0.85f),
             exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { -it }),
@@ -548,12 +573,12 @@ fun GestureOverlay(
                 .align(Alignment.TopCenter)
                 .padding(top = 48.dp)
         ) {
-            FastForwardBadge(speed = fastplaySpeed)
+            FastForwardBadge(speed = if(isFastForwarding) longPressSpeed else fastplaySpeed)
         }
     }
 }
 
-//  Modern edge slider  (volume / brightness)
+// ModernEdgeSlider, ScrubOverlay, AccumulatingSeekRipple, CenterRipple, FastForwardBadge remain same...
 @Composable
 private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnabled: Boolean = false) {
     val clampedLevel = level.coerceIn(0f, 1f)
@@ -571,7 +596,6 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
         "$currentStep"
     }
 
-    // Choose volume icon tier
     val volumeIcon = when {
         !isVolume          -> Icons.Filled.BrightnessMedium
         clampedLevel == 0f -> Icons.AutoMirrored.Filled.VolumeOff
@@ -598,8 +622,6 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
                 tint         = Color.White,
                 modifier     = Modifier.size(22.dp)
             )
-
-            // Arc/pill track
             Canvas(
                 modifier = Modifier
                     .height(130.dp)
@@ -608,14 +630,11 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
                 val trackH = size.height
                 val trackW = size.width
                 val radius = trackW / 2f
-
-                // Background track
                 drawRoundRect(
                     color        = Color.White.copy(alpha = 0.25f),
                     size         = Size(trackW, trackH),
                     cornerRadius = CornerRadius(radius, radius)
                 )
-                // Filled portion (bottom-up)
                 val filledH = trackH * animLevel
                 drawRoundRect(
                     color        = Color.White,
@@ -624,7 +643,6 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
                     cornerRadius = CornerRadius(radius, radius)
                 )
             }
-
             Text(
                 text      = displayValue,
                 color     = Color.White,
@@ -635,13 +653,11 @@ private fun ModernEdgeSlider(level: Float, isVolume: Boolean, isAudioBoostEnable
     }
 }
 
-//  Horizontal-scrub overlay
 @Composable
 private fun ScrubOverlay(deltaMs: Long, previewMs: Long = 0L) {
     val sign      = if (deltaMs >= 0) "+" else ""
     val secs      = deltaMs / 1000L
     val isForward = deltaMs >= 0
-
     val totalSec  = previewMs / 1000L
     val ph        = totalSec / 3600
     val pm        = (totalSec % 3600) / 60
@@ -688,21 +704,13 @@ private fun ScrubOverlay(deltaMs: Long, previewMs: Long = 0L) {
     }
 }
 
-//  Accumulating seek ripple  (Modern-style double-tap arc)
 @Composable
-private fun AccumulatingSeekRipple(
-    isRightSide: Boolean,
-    accumulatedMs: Long,
-    rippleTick: Int
-) {
+private fun AccumulatingSeekRipple(isRightSide: Boolean, accumulatedMs: Long, rippleTick: Int) {
     val secs  = accumulatedMs / 1000L
     val label = if (isRightSide) "+${secs}s" else "-${secs}s"
-
-    // Animated arc sweep: 0f → 1f on EACH new tap (rippleTick change)
     val arcProgress = remember { Animatable(0f) }
     LaunchedEffect(rippleTick) {
         if (rippleTick > 0) {
-            // Snap back to 0 then animate forward for stacked-tap feel
             arcProgress.snapTo(0f)
             arcProgress.animateTo(
                 targetValue   = 1f,
@@ -710,8 +718,6 @@ private fun AccumulatingSeekRipple(
             )
         }
     }
-
-    // Background flash on each tap
     val flashAlpha = remember { Animatable(0f) }
     LaunchedEffect(rippleTick) {
         if (rippleTick > 0) {
@@ -719,7 +725,6 @@ private fun AccumulatingSeekRipple(
             flashAlpha.animateTo(0f, animationSpec = tween(500))
         }
     }
-
     Box(
         modifier = Modifier
             .fillMaxHeight()
@@ -742,41 +747,13 @@ private fun AccumulatingSeekRipple(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Arc + chevron indicator
             Canvas(modifier = Modifier.size(58.dp)) {
                 val stroke = Stroke(width = 3.2.dp.toPx(), cap = StrokeCap.Round)
                 val sweep  = 250f * arcProgress.value
-
-                // Arc spans from ~130° to ~310° (open toward the tap side)
-                // Right side: opens LEFT  → start at 140°, sweep clockwise
-                // Left side:  opens RIGHT → start at -70° (290°), sweep counter-clockwise
-                //   = start at 320°, sweep -250° → equivalent to start=320, sweep= -sweep (going CCW)
-                //   Simpler: mirror the right arc. startAngle for left = 320° - 250° = 70° reversed.
-                //   We draw right arc at startAngle=140, sweep=+250 (CW).
-                //   For left arc we want mirror: startAngle= -70° (= 290°), sweep=-250 (CCW).
-                //   In Canvas: drawArc with negative sweep draws CCW.
-
                 val bgStartAngle = if (isRightSide) 140f else -70f
                 val bgSweep      = if (isRightSide) 250f else -250f
-
-                // Background arc (full)
-                drawArc(
-                    color      = Color.White.copy(alpha = 0.18f),
-                    startAngle = bgStartAngle,
-                    sweepAngle = bgSweep,
-                    useCenter  = false,
-                    style      = stroke
-                )
-                // Animated fill arc
-                drawArc(
-                    color      = Color.White.copy(alpha = 0.90f),
-                    startAngle = bgStartAngle,
-                    sweepAngle = if (isRightSide) sweep else -sweep,
-                    useCenter  = false,
-                    style      = stroke
-                )
-
-                // Double chevron arrows (>>) pointing in seek direction
+                drawArc(color = Color.White.copy(alpha = 0.18f), startAngle = bgStartAngle, sweepAngle = bgSweep, useCenter = false, style = stroke)
+                drawArc(color = Color.White.copy(alpha = 0.90f), startAngle = bgStartAngle, sweepAngle = if (isRightSide) sweep else -sweep, useCenter = false, style = stroke)
                 val cx = size.width / 2f
                 val cy = size.height / 2f
                 val aW = 7.dp.toPx()
@@ -784,49 +761,26 @@ private fun AccumulatingSeekRipple(
                 val gap = 5.dp.toPx()
                 val arrowColor = Color.White
                 val sw = 2.6.dp.toPx()
-
                 if (isRightSide) {
-                    // First chevron >
                     drawLine(arrowColor, Offset(cx - aW - gap, cy - aH / 2), Offset(cx - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(arrowColor, Offset(cx - aW - gap, cy + aH / 2), Offset(cx - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
-                    // Second chevron >
                     drawLine(arrowColor, Offset(cx - gap, cy - aH / 2), Offset(cx + aW - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(arrowColor, Offset(cx - gap, cy + aH / 2), Offset(cx + aW - gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                 } else {
-                    // First chevron <
                     drawLine(arrowColor, Offset(cx + aW + gap, cy - aH / 2), Offset(cx + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(arrowColor, Offset(cx + aW + gap, cy + aH / 2), Offset(cx + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
-                    // Second chevron <
                     drawLine(arrowColor, Offset(cx + gap, cy - aH / 2), Offset(cx - aW + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                     drawLine(arrowColor, Offset(cx + gap, cy + aH / 2), Offset(cx - aW + gap, cy), strokeWidth = sw, cap = StrokeCap.Round)
                 }
             }
-
-            Text(
-                text       = label,
-                color      = Color.White,
-                fontSize   = 16.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign  = TextAlign.Center
-            )
-
-            Text(
-                text      = if (isRightSide) "Forward" else "Rewind",
-                color     = Color.White.copy(alpha = 0.70f),
-                fontSize  = 11.sp,
-                textAlign = TextAlign.Center
-            )
+            Text(text = label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(text = if (isRightSide) "Forward" else "Rewind", color = Color.White.copy(alpha = 0.70f), fontSize = 11.sp, textAlign = TextAlign.Center)
         }
     }
 }
 
-//  Center play/pause ripple
-
 @Composable
 private fun CenterRipple(wasPlaying: Boolean) {
-    // wasPlaying = state BEFORE the tap, so icon shows what action was just taken:
-    // was playing → user just paused → show Pause icon
-    // was paused  → user just played → show PlayArrow icon
     val pulseAnim = remember { Animatable(0.85f) }
     LaunchedEffect(Unit) {
         pulseAnim.animateTo(1.05f, animationSpec = tween(200, easing = FastOutSlowInEasing))
@@ -848,93 +802,29 @@ private fun CenterRipple(wasPlaying: Boolean) {
     }
 }
 
-//  Fast-forward badge (long-press hold indicator)
-
 @Composable
 private fun FastForwardBadge(speed: Float) {
     val infiniteTransition = rememberInfiniteTransition(label = "speedPulse")
-
-    // Chevron stagger — each of the 3 chevrons fades in sequence
-    val chevron1Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "c1"
-    )
-    val chevron2Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "c2"
-    )
-    val chevron3Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "c3"
-    )
-
+    val chevron1Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "c1")
+    val chevron2Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "c2")
+    val chevron3Alpha by infiniteTransition.animateFloat(initialValue = 0.3f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "c3")
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0x00000000), Color(0x99000000), Color(0x00000000))
-                ),
+                brush = Brush.horizontalGradient(colors = listOf(Color(0x00000000), Color(0x99000000), Color(0x00000000))),
                 shape = RoundedCornerShape(50)
             )
-            .border(
-                width = 0.5.dp,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.25f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(50)
-            )
+            .border(width = 0.5.dp, brush = Brush.horizontalGradient(colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.25f), Color.Transparent)), shape = RoundedCornerShape(50))
             .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
-        // Staggered chevron trio
-        Row(
-            horizontalArrangement = Arrangement.spacedBy((-4).dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = chevron1Alpha),
-                modifier = Modifier.size(14.dp)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = chevron2Alpha),
-                modifier = Modifier.size(16.dp)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = chevron3Alpha),
-                modifier = Modifier.size(18.dp)
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy((-4).dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = chevron1Alpha), modifier = Modifier.size(14.dp))
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = chevron2Alpha), modifier = Modifier.size(16.dp))
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = chevron3Alpha), modifier = Modifier.size(18.dp))
         }
-
-        Text(
-            text = "${speed}x",
-            color = Color.White,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp
-        )
-
-        Text(
-            text = "Speed",
-            color = Color.White.copy(alpha = 0.75f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 0.3.sp
-        )
+        Text(text = "${speed}x", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Text(text = "Speed", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
     }
 }

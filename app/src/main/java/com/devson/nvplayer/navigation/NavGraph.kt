@@ -137,6 +137,7 @@ fun NavGraph(
                 onNavigateToRecycleBin        = { navController.navigate(Screen.RecycleBin.route) },
                 onNavigateToPlayerInterface   = { navController.navigate(Screen.PlayerInterface.route) },
                 onNavigateToCustomHome        = { navController.navigate(Screen.CustomHome.route) },
+                onNavigateToGestures          = { navController.navigate(Screen.Gestures.route) },
                 settingsViewModel             = settingsViewModel
             )
         }
@@ -150,6 +151,13 @@ fun NavGraph(
 
         composable(Screen.ListOption.route) {
             com.devson.nvplayer.ui.screens.settings.ListOptionScreen(
+                onBack = { safePopBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.Gestures.route) {
+            com.devson.nvplayer.ui.screens.settings.GestureSettingsScreen(
                 onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )

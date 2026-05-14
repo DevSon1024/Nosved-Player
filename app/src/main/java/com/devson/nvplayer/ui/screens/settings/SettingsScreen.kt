@@ -42,6 +42,7 @@ fun SettingsScreen(
     onNavigateToRecycleBin: () -> Unit = {},
     onNavigateToPlayerInterface: () -> Unit = {},
     onNavigateToCustomHome: () -> Unit = {},
+    onNavigateToGestures: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -136,6 +137,12 @@ fun SettingsScreen(
                     title    = stringResource(R.string.settings_list),
                     subtitle = stringResource(R.string.settings_about_list),
                     onClick  = onNavigateToListOption
+                )
+                SettingsRow(
+                    icon     = Icons.Default.Swipe,
+                    title    = "Gestures & Taps",
+                    subtitle = "Customize swipe and tap behaviors",
+                    onClick  = onNavigateToGestures
                 )
                 SettingsRow(
                     icon     = Icons.Default.Folder,

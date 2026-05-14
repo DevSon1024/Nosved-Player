@@ -19,7 +19,17 @@ enum class FullScreenMode { ON, OFF, AUTO_SWITCH }
 enum class SoftButtonMode { SHOW, HIDE, AUTO_HIDE }
 enum class DecoderMode(val displayName: String) { HW("HW"), HW_PLUS("HW+"), SW("SW") }
 enum class SubtitleFont { DEFAULT, MONOSPACE, SANS_SERIF, SERIF }
-
+enum class DoubleTapAction(val displayName: String) {
+    PLAY_PAUSE("Play / Pause"),
+    FAST_FORWARD_REWIND("Fast Forward / Rewind"),
+    BOTH("Both"),
+    NONE("None")
+}
+enum class MultiFingerAction(val displayName: String) {
+    PLAY_PAUSE("Play / Pause"),
+    FAST_PLAY("Lock Video at Fast Play"),
+    NONE("None")
+}
 data class PlaybackSettings(
     val seekDurationSeconds: Int,
     val seekBarStyle: String,
@@ -41,7 +51,20 @@ data class PlaybackSettings(
     val defaultSubtitleLanguage: String = "",
     val useSystemCaptionStyle: Boolean = false,
     val subtitleFont: SubtitleFont = SubtitleFont.DEFAULT,
-    val isSubtitleBold: Boolean = false
+    val isSubtitleBold: Boolean = false,
+
+    // Gesture Settings
+    val seekGestureEnabled: Boolean = true,
+    val seekSensitivity: Float = 0.5f,
+    val brightnessGestureEnabled: Boolean = true,
+    val brightnessSensitivity: Float = 0.5f,
+    val volumeGestureEnabled: Boolean = true,
+    val volumeSensitivity: Float = 0.5f,
+    val twoFingerAction: MultiFingerAction = MultiFingerAction.PLAY_PAUSE,
+    val threeFingerAction: MultiFingerAction = MultiFingerAction.FAST_PLAY,
+    val longPressEnabled: Boolean = true,
+    val longPressSpeed: Float = 2.0f,
+    val doubleTapAction: DoubleTapAction = DoubleTapAction.BOTH
 )
 
 class PlaybackSettingsRepository(private val context: Context) {
@@ -78,6 +101,19 @@ class PlaybackSettingsRepository(private val context: Context) {
         val USE_SYSTEM_CAPTION_STYLE = booleanPreferencesKey("use_system_caption_style")
         val SUBTITLE_FONT = stringPreferencesKey("subtitle_font")
         val IS_SUBTITLE_BOLD = booleanPreferencesKey("is_subtitle_bold")
+
+        // Gesture Keys
+        val SEEK_GESTURE_ENABLED = booleanPreferencesKey("seek_gesture_enabled")
+        val SEEK_SENSITIVITY = floatPreferencesKey("seek_sensitivity")
+        val BRIGHTNESS_GESTURE_ENABLED = booleanPreferencesKey("brightness_gesture_enabled")
+        val BRIGHTNESS_SENSITIVITY = floatPreferencesKey("brightness_sensitivity")
+        val VOLUME_GESTURE_ENABLED = booleanPreferencesKey("volume_gesture_enabled")
+        val VOLUME_SENSITIVITY = floatPreferencesKey("volume_sensitivity")
+        val TWO_FINGER_ACTION = stringPreferencesKey("two_finger_action")
+        val THREE_FINGER_ACTION = stringPreferencesKey("three_finger_action")
+        val LONG_PRESS_ENABLED = booleanPreferencesKey("long_press_enabled")
+        val LONG_PRESS_SPEED = floatPreferencesKey("long_press_speed")
+        val DOUBLE_TAP_ACTION = stringPreferencesKey("double_tap_action")
     }
 
     val playbackSettingsFlow: Flow<PlaybackSettings> = context.dataStore.data
@@ -103,7 +139,19 @@ class PlaybackSettingsRepository(private val context: Context) {
                 defaultSubtitleLanguage = preferences[PreferencesKeys.DEFAULT_SUBTITLE_LANG] ?: "",
                 useSystemCaptionStyle = preferences[PreferencesKeys.USE_SYSTEM_CAPTION_STYLE] ?: false,
                 subtitleFont = try { SubtitleFont.valueOf(preferences[PreferencesKeys.SUBTITLE_FONT] ?: SubtitleFont.DEFAULT.name) } catch (e: Exception) { SubtitleFont.DEFAULT },
-                isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false
+                isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false,
+
+                seekGestureEnabled = preferences[PreferencesKeys.SEEK_GESTURE_ENABLED] ?: true,
+                seekSensitivity = preferences[PreferencesKeys.SEEK_SENSITIVITY] ?: 0.5f,
+                brightnessGestureEnabled = preferences[PreferencesKeys.BRIGHTNESS_GESTURE_ENABLED] ?: true,
+                brightnessSensitivity = preferences[PreferencesKeys.BRIGHTNESS_SENSITIVITY] ?: 0.5f,
+                volumeGestureEnabled = preferences[PreferencesKeys.VOLUME_GESTURE_ENABLED] ?: true,
+                volumeSensitivity = preferences[PreferencesKeys.VOLUME_SENSITIVITY] ?: 0.5f,
+                twoFingerAction = try { MultiFingerAction.valueOf(preferences[PreferencesKeys.TWO_FINGER_ACTION] ?: MultiFingerAction.PLAY_PAUSE.name) } catch (e: Exception) { MultiFingerAction.PLAY_PAUSE },
+                threeFingerAction = try { MultiFingerAction.valueOf(preferences[PreferencesKeys.THREE_FINGER_ACTION] ?: MultiFingerAction.FAST_PLAY.name) } catch (e: Exception) { MultiFingerAction.FAST_PLAY },
+                longPressEnabled = preferences[PreferencesKeys.LONG_PRESS_ENABLED] ?: true,
+                longPressSpeed = preferences[PreferencesKeys.LONG_PRESS_SPEED] ?: 2.0f,
+                doubleTapAction = try { DoubleTapAction.valueOf(preferences[PreferencesKeys.DOUBLE_TAP_ACTION] ?: DoubleTapAction.BOTH.name) } catch (e: Exception) { DoubleTapAction.BOTH }
             )
         }
 
@@ -292,4 +340,15 @@ class PlaybackSettingsRepository(private val context: Context) {
     suspend fun updateIsSubtitleBold(isBold: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.IS_SUBTITLE_BOLD] = isBold }
     }
+    suspend fun updateSeekGestureEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.SEEK_GESTURE_ENABLED] = enabled } }
+    suspend fun updateSeekSensitivity(sensitivity: Float) { context.dataStore.edit { it[PreferencesKeys.SEEK_SENSITIVITY] = sensitivity } }
+    suspend fun updateBrightnessGestureEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.BRIGHTNESS_GESTURE_ENABLED] = enabled } }
+    suspend fun updateBrightnessSensitivity(sensitivity: Float) { context.dataStore.edit { it[PreferencesKeys.BRIGHTNESS_SENSITIVITY] = sensitivity } }
+    suspend fun updateVolumeGestureEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.VOLUME_GESTURE_ENABLED] = enabled } }
+    suspend fun updateVolumeSensitivity(sensitivity: Float) { context.dataStore.edit { it[PreferencesKeys.VOLUME_SENSITIVITY] = sensitivity } }
+    suspend fun updateTwoFingerAction(action: MultiFingerAction) { context.dataStore.edit { it[PreferencesKeys.TWO_FINGER_ACTION] = action.name } }
+    suspend fun updateThreeFingerAction(action: MultiFingerAction) { context.dataStore.edit { it[PreferencesKeys.THREE_FINGER_ACTION] = action.name } }
+    suspend fun updateLongPressEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.LONG_PRESS_ENABLED] = enabled } }
+    suspend fun updateLongPressSpeed(speed: Float) { context.dataStore.edit { it[PreferencesKeys.LONG_PRESS_SPEED] = speed } }
+    suspend fun updateDoubleTapAction(action: DoubleTapAction) { context.dataStore.edit { it[PreferencesKeys.DOUBLE_TAP_ACTION] = action.name } }
 }

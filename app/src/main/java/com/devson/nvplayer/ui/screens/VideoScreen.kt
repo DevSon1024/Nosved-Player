@@ -133,6 +133,8 @@ fun VideoScreen(
     val currentDecoder by viewModel.currentDecoderMode.collectAsState()
     val currentPlaybackSpeed by viewModel.currentPlaybackSpeed.collectAsState()
 
+    var preFastForwardSpeed by remember { mutableFloatStateOf(1f) }
+
     var isSubtitleGestureEnabled by rememberSaveable { mutableStateOf(true) }
 
     // Modals state (used only in default mode; Modern mode handles tracks inline)
@@ -390,6 +392,20 @@ fun VideoScreen(
             fastplaySpeed = fastplaySpeed,
             currentPosition = currentPosition,
             duration = duration,
+
+            // Pass all custom gesture settings down
+            seekGestureEnabled = playbackSettings.seekGestureEnabled,
+            seekSensitivity = playbackSettings.seekSensitivity,
+            brightnessGestureEnabled = playbackSettings.brightnessGestureEnabled,
+            brightnessSensitivity = playbackSettings.brightnessSensitivity,
+            volumeGestureEnabled = playbackSettings.volumeGestureEnabled,
+            volumeSensitivity = playbackSettings.volumeSensitivity,
+            twoFingerAction = playbackSettings.twoFingerAction,
+            threeFingerAction = playbackSettings.threeFingerAction,
+            longPressEnabled = playbackSettings.longPressEnabled,
+            longPressSpeed = playbackSettings.longPressSpeed,
+            doubleTapAction = playbackSettings.doubleTapAction,
+
             onSingleTap = { viewModel.toggleControlsVisibility() },
             onDoubleTapLeft = {
                 viewModel.seekBackward()
@@ -401,12 +417,20 @@ fun VideoScreen(
             onSeekStart = { viewModel.beginSeek() },
             onSeekPreview = { pos -> viewModel.updateSeekPreview(pos) },
             onSeekCommit = { absPos -> viewModel.updateSeekPreview(absPos); viewModel.commitSeek() },
-            onFastForwardToggle = { active ->
+
+            // Revert back to proper currentPlaybackSpeed instead of hardcoded 1f
+            onFastForwardToggle = { active, activeSpeed ->
                 ytIsFastForwarding = active
-                if (active) viewModel.setPlaybackSpeed(fastplaySpeed)
-                else viewModel.setPlaybackSpeed(1f)
+                if (active) {
+                    // Capture the current speed BEFORE applying fast-forward
+                    preFastForwardSpeed = currentPlaybackSpeed
+                    viewModel.setPlaybackSpeed(activeSpeed)
+                } else {
+                    // Revert to the cached speed when the finger is released
+                    viewModel.setPlaybackSpeed(preFastForwardSpeed)
+                }
             },
-            onTwoFingerTap = { viewModel.togglePlayPause() },
+
             onZoom = { factor -> zoomScale = (zoomScale * factor).coerceIn(1f, 4f) },
             zoomScale = zoomScale,
             onVolumeSwipe = { delta ->

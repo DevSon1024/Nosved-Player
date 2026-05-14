@@ -146,7 +146,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateDefaultScreen(screen: com.devson.nvplayer.model.DefaultScreen) {
         viewModelScope.launch { viewSettingsRepo.updateDefaultScreen(screen) }
     }
-    
+
     val playbackSettings = settingsRepo.playbackSettingsFlow
         .stateIn(
             viewModelScope,
@@ -168,7 +168,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 showRemainingTime = false,
                 useSystemCaptionStyle = false,
                 subtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
-                isSubtitleBold = false
+                isSubtitleBold = false,
+                // New Gesture Defaults
+                seekGestureEnabled = true,
+                seekSensitivity = 0.5f,
+                brightnessGestureEnabled = true,
+                brightnessSensitivity = 0.5f,
+                volumeGestureEnabled = true,
+                volumeSensitivity = 0.5f,
+                twoFingerAction = com.devson.nvplayer.repository.MultiFingerAction.PLAY_PAUSE,
+                threeFingerAction = com.devson.nvplayer.repository.MultiFingerAction.FAST_PLAY,
+                longPressEnabled = true,
+                longPressSpeed = 2.0f,
+                doubleTapAction = com.devson.nvplayer.repository.DoubleTapAction.BOTH
             )
         )
 
@@ -221,5 +233,51 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateIsSubtitleBold(isBold: Boolean) {
         viewModelScope.launch { settingsRepo.updateIsSubtitleBold(isBold) }
+    }
+
+    // --- New Gesture Dispatchers ---
+
+    fun updateSeekGesture(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateSeekGestureEnabled(enabled) }
+    }
+
+    fun updateSeekSensitivity(sensitivity: Float) {
+        viewModelScope.launch { settingsRepo.updateSeekSensitivity(sensitivity) }
+    }
+
+    fun updateBrightnessGesture(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateBrightnessGestureEnabled(enabled) }
+    }
+
+    fun updateBrightnessSensitivity(sensitivity: Float) {
+        viewModelScope.launch { settingsRepo.updateBrightnessSensitivity(sensitivity) }
+    }
+
+    fun updateVolumeGesture(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateVolumeGestureEnabled(enabled) }
+    }
+
+    fun updateVolumeSensitivity(sensitivity: Float) {
+        viewModelScope.launch { settingsRepo.updateVolumeSensitivity(sensitivity) }
+    }
+
+    fun updateTwoFingerAction(action: com.devson.nvplayer.repository.MultiFingerAction) {
+        viewModelScope.launch { settingsRepo.updateTwoFingerAction(action) }
+    }
+
+    fun updateThreeFingerAction(action: com.devson.nvplayer.repository.MultiFingerAction) {
+        viewModelScope.launch { settingsRepo.updateThreeFingerAction(action) }
+    }
+
+    fun updateLongPressEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateLongPressEnabled(enabled) }
+    }
+
+    fun updateLongPressSpeed(speed: Float) {
+        viewModelScope.launch { settingsRepo.updateLongPressSpeed(speed) }
+    }
+
+    fun updateDoubleTapAction(action: com.devson.nvplayer.repository.DoubleTapAction) {
+        viewModelScope.launch { settingsRepo.updateDoubleTapAction(action) }
     }
 }
