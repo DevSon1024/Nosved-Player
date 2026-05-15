@@ -1,11 +1,16 @@
 package com.devson.nvplayer.ui.screens.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,22 +29,30 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,57 +67,104 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.devson.nvplayer.R
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.devson.nvplayer.BuildConfig
+import com.devson.nvplayer.R
 
 private data class LibraryInfo(
     val name: String,
-    val descriptionRes: Int,
-    val url: String
+    val descriptionRes: Int? = null,
+    val descriptionStr: String? = null,
+    val url: String,
+    val version: String,
+    val license: String
 )
 
 private val libraries = listOf(
     LibraryInfo(
         name = "ExoPlayer / Media3",
         descriptionRes = R.string.about_lib_exoplayer_desc,
-        url = "https://github.com/androidx/media"
+        url = "https://github.com/androidx/media",
+        version = "1.5.1",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "Nextlib",
         descriptionRes = R.string.about_lib_nextlib_desc,
-        url = "https://github.com/anilbeesetti/nextlib"
+        url = "https://github.com/anilbeesetti/nextlib",
+        version = "1.9.1",
+        license = "GPL-3.0 License"
     ),
     LibraryInfo(
         name = "Jetpack Compose",
         descriptionRes = R.string.about_lib_compose_desc,
-        url = "https://developer.android.com/jetpack/compose"
+        url = "https://developer.android.com/jetpack/compose",
+        version = "1.11.0",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "Material 3",
         descriptionRes = R.string.about_lib_material3_desc,
-        url = "https://m3.material.io"
+        url = "https://m3.material.io",
+        version = "1.5.6",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "Room",
         descriptionRes = R.string.about_lib_room_desc,
-        url = "https://developer.android.com/training/data-storage/room"
+        url = "https://developer.android.com/training/data-storage/room",
+        version = "2.7.0",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "DataStore Preferences",
         descriptionRes = R.string.about_lib_datastore_desc,
-        url = "https://developer.android.com/topic/libraries/architecture/datastore"
+        url = "https://developer.android.com/topic/libraries/architecture/datastore",
+        version = "1.1.2",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "Kotlin Coroutines",
         descriptionRes = R.string.about_lib_coroutines_desc,
-        url = "https://kotlinlang.org/docs/coroutines-overview.html"
+        url = "https://kotlinlang.org/docs/coroutines-overview.html",
+        version = "1.9.0",
+        license = "Apache License 2.0"
     ),
     LibraryInfo(
         name = "Kotlin",
         descriptionRes = R.string.about_lib_kotlin_desc,
-        url = "https://kotlinlang.org"
+        url = "https://kotlinlang.org",
+        version = "2.3.0",
+        license = "Apache License 2.0"
+    ),
+    LibraryInfo(
+        name = "Coil",
+        descriptionStr = "Image loading for Android backed by Kotlin Coroutines.",
+        url = "https://github.com/coil-kt/coil",
+        version = "2.6.0",
+        license = "Apache License 2.0"
+    ),
+    LibraryInfo(
+        name = "FFmpegKit",
+        descriptionStr = "A library to run FFmpeg/FFprobe commands in applications.",
+        url = "https://github.com/jamaismagic/ffmpeg-kit",
+        version = "6.1.4",
+        license = "GPL-3.0 License"
+    ),
+    LibraryInfo(
+        name = "DocumentFile",
+        descriptionStr = "Helper for working with documents and trees in Android storage.",
+        url = "https://developer.android.com/jetpack/androidx/releases/documentfile",
+        version = "1.0.1",
+        license = "Apache License 2.0"
+    ),
+    LibraryInfo(
+        name = "AndroidX Core",
+        descriptionStr = "Core components for Android development with backward compatibility.",
+        url = "https://developer.android.com/jetpack/androidx",
+        version = "1.13.1",
+        license = "Apache License 2.0"
     )
 )
 
@@ -111,6 +172,7 @@ private val libraries = listOf(
 @Composable
 fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
     var showCredits by remember { mutableStateOf(false) }
+    var showDonateSheet by remember { mutableStateOf(false) }
 
     if (showCredits) {
         CreditsSubScreen(onBack = { showCredits = false })
@@ -161,7 +223,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 12.dp, vertical = 16.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -209,7 +271,37 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                             else
                                 MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Sponsor & Github buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                        ) {
+                            Button(
+                                onClick = { showDonateSheet = true },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sponsor", maxLines = 1)
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/DevSon1024/Nosved-Player".toUri()))
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Filled.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("GitHub", maxLines = 1)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = stringResource(R.string.about_summary),
                             style = MaterialTheme.typography.bodySmall,
@@ -252,15 +344,6 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                     icon = Icons.Filled.BugReport,
                     onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/DevSon1024/Nosved-Player/issues".toUri()))
-                    }
-                )
-
-                AboutItemRow(
-                    title = stringResource(R.string.about_sponsor),
-                    description = stringResource(R.string.about_sponsor_desc),
-                    icon = Icons.Filled.FavoriteBorder,
-                    onClick = {
-                        Toast.makeText(context, context.getString(R.string.about_coming_soon), Toast.LENGTH_SHORT).show()
                     }
                 )
 
@@ -320,6 +403,8 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
             }
         }
     }
+    
+    DonateSheet(showSheet = showDonateSheet, onDismiss = { showDonateSheet = false })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -365,7 +450,7 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
 
-                libraries.forEachIndexed { index, lib ->
+                libraries.forEach { lib ->
                     LibraryRow(
                         library = lib,
                         onClick = {
@@ -373,9 +458,6 @@ fun CreditsSubScreen(onBack: () -> Unit) {
                             context.startActivity(intent)
                         }
                     )
-                    if (index < libraries.lastIndex) {
-                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp, end = 16.dp))
-                    }
                 }
             }
         }
@@ -420,37 +502,183 @@ private fun AboutItemRow(
 
 @Composable
 private fun LibraryRow(library: LibraryInfo, onClick: () -> Unit) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Icon(
-            imageVector = Icons.Filled.Code,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = library.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
             Text(
-                text = library.name,
+                text = library.descriptionStr ?: library.descriptionRes?.let { stringResource(it) } ?: "",
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(library.descriptionRes),
-                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Version ${library.version}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = library.license,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-            contentDescription = stringResource(R.string.about_open),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
-        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DonateSheet(showSheet: Boolean, onDismiss: () -> Unit) {
+    if (showSheet) {
+        val sheetState = rememberModalBottomSheetState()
+        val context = LocalContext.current
+        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Support the Project",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "If you like this app, consider supporting the development!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // UPI Option
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    onClick = {
+                        val clip = ClipData.newPlainText("UPI ID", "devendraps0103@okicici")
+                        clipboardManager.setPrimaryClip(clip)
+                        Toast.makeText(context, "UPI ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Payment,
+                            contentDescription = "UPI",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "UPI (India)",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "devendraps0103@okicici",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                // PayPal
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    enabled = false,
+                    onClick = {}
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Public, contentDescription = "PayPal", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "PayPal (Coming Soon)",
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Ko-fi
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    enabled = false,
+                    onClick = {}
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.LocalCafe, contentDescription = "Ko-fi", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Ko-fi (Coming Soon)",
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }

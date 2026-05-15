@@ -142,9 +142,8 @@ android {
     ndkVersion = "27.0.12077973"
 }
 
-
-
 dependencies {
+    // androidx
     implementation(libs.androidx.core.ktx)
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -153,29 +152,50 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+
+    // Material3
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.iconsExtended)
+
+    // media3
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.transformer)
     implementation(libs.androidx.media3.effect)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.media3.ui)
+
+    // nextlib
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
-    implementation("io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb:6.1.4")
 
-    implementation(libs.androidx.media3.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // FFMPEG kit for Video Utility
+    implementation("io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb:6.1.4")
+    
+    // DataStore for Settings
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // Room for Database
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)    
+    
+    // Compose
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.navigation.compose)
-    ksp(libs.androidx.room.compiler)
+
+    // coil
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+
+    // WorkManager for background tasks
     implementation(libs.androidx.work.runtime.ktx)
+
+    // documentfile
     implementation("androidx.documentfile:documentfile:1.0.1")
+    
+    // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
