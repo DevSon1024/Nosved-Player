@@ -1,10 +1,8 @@
 package com.devson.nvplayer.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +29,8 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioTrackSheet(
@@ -40,8 +40,10 @@ fun AudioTrackSheet(
     selectedTrackIndex: Int,
     isLandscape: Boolean,
     isAudioBoostEnabled: Boolean,
+    audioDelayMs: Long = 0L, // NEW Parameter
     onToggleAudioBoost: (Boolean) -> Unit,
     onSelectTrack: (Int) -> Unit,
+    onAudioDelayChange: (Long) -> Unit = {}, // NEW Parameter
     onDismissRequest: () -> Unit
 ) {
     if (showSheet) {
@@ -57,8 +59,10 @@ fun AudioTrackSheet(
                     tracks = audioTracks,
                     selectedTrackIndex = selectedTrackIndex,
                     isAudioBoostEnabled = isAudioBoostEnabled,
+                    audioDelayMs = audioDelayMs,
                     onToggleAudioBoost = onToggleAudioBoost,
                     onSelectTrack = onSelectTrack,
+                    onAudioDelayChange = onAudioDelayChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -75,8 +79,10 @@ fun AudioTrackSheet(
                     tracks = audioTracks,
                     selectedTrackIndex = selectedTrackIndex,
                     isAudioBoostEnabled = isAudioBoostEnabled,
+                    audioDelayMs = audioDelayMs,
                     onToggleAudioBoost = onToggleAudioBoost,
                     onSelectTrack = onSelectTrack,
+                    onAudioDelayChange = onAudioDelayChange,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -90,11 +96,14 @@ private fun MediaTrackSheetContent(
     tracks: List<TrackInfo>,
     selectedTrackIndex: Int,
     isAudioBoostEnabled: Boolean,
+    audioDelayMs: Long = 0L,
     onToggleAudioBoost: (Boolean) -> Unit,
     onSelectTrack: (Int) -> Unit,
+    onAudioDelayChange: (Long) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -106,62 +115,169 @@ private fun MediaTrackSheetContent(
             color = MaterialTheme.colorScheme.onSurface,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 20.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        if (tracks.isEmpty()) {
-            Text(
-                text = "No tracks found.",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                fontSize = 14.sp
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f, fill = false),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(tracks) { track ->
-                    TrackItem(
-                        track = track,
-                        isSelected = selectedTrackIndex == track.index,
-                        onClick = {
-                            onSelectTrack(track.index)
-                            onDismissRequest()
-                        }
-                    )
-                }
+        // Adding TabRow to match SubtitleSheetContent
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            divider = {}
+        ) {
+            val tabs = listOf("Tracks", "Sync")
+            tabs.forEachIndexed { index, tabTitle ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { 
+                        Text(
+                            tabTitle, 
+                            color = if (selectedTabIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) 
+                        ) 
+                    }
+                )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
-        // Audio Boost Toggle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Audio Boost (2X)",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-                Text(
-                    text = "Loudness Enhancer Applied. This may impact battery life.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+
+        Box(modifier = Modifier.weight(1f, fill = false)) {
+            when (selectedTabIndex) {
+                0 -> { // Tracks & Audio Boost
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (tracks.isEmpty()) {
+                            Text(
+                                text = "No tracks found.",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                fontSize = 14.sp
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f, fill = false),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(tracks) { track ->
+                                    TrackItem(
+                                        track = track,
+                                        isSelected = selectedTrackIndex == track.index,
+                                        onClick = {
+                                            onSelectTrack(track.index)
+                                            onDismissRequest()
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Audio Boost Toggle
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Audio Boost (2X)",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Amplify volume up to 200%",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Switch(
+                                checked = isAudioBoostEnabled,
+                                onCheckedChange = onToggleAudioBoost
+                            )
+                        }
+                    }
+                }
+                1 -> { // Sync
+                    var delayInputText by remember(audioDelayMs) {
+                        mutableStateOf("%.1f".format(audioDelayMs / 1000.0))
+                    }
+
+                    Box {
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            SettingsSection(title = "Audio Delay") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilledTonalIconButton(
+                                        onClick = {},
+                                        enabled = false,
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Text("-", fontSize = 20.sp)
+                                    }
+
+                                    OutlinedTextField(
+                                        value = delayInputText,
+                                        onValueChange = {},
+                                        enabled = false,
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        suffix = { Text("s") },
+                                        textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Center)
+                                    )
+
+                                    FilledTonalIconButton(
+                                        onClick = {},
+                                        enabled = false,
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Text("+", fontSize = 20.sp)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    colors = ButtonDefaults.outlinedButtonColors()
+                                ) {
+                                    Text("Reset to 0s")
+                                }
+                            }
+                        }
+
+                        // Overlay for "Coming Soon"
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Coming Soon",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
             }
-            Switch(
-                checked = isAudioBoostEnabled,
-                onCheckedChange = { onToggleAudioBoost(it) }
-            )
         }
     }
 }
