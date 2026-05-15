@@ -566,8 +566,16 @@ class PlayerManager(private val context: Context) {
         val player = exoPlayer ?: return
         val currentMediaItem = player.currentMediaItem ?: return
 
+        val uriPath = uri.path ?: uri.toString()
+        val ext = uriPath.substringAfterLast('.', "").lowercase()
+        val resolvedMimeType = when {
+            ext == "ass" || ext == "ssa" -> MimeTypes.TEXT_SSA
+            mimeType.isNotEmpty() -> mimeType
+            else -> MimeTypes.APPLICATION_SUBRIP
+        }
+
         val subtitleConfig = SubtitleConfiguration.Builder(uri)
-            .setMimeType(mimeType)
+            .setMimeType(resolvedMimeType)
             .setLanguage("en")
             .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
             .setLabel(encodingLabel)

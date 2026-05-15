@@ -42,7 +42,7 @@ fun ComposeSubtitleOverlay(
     player: Player?,
     textSizeScale: Float,
     bgStyle: Int,
-    useSystemCaptionStyle: Boolean = true,
+    useSystemCaptionStyle: Boolean = false,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
     isSubtitleBold: Boolean = false,
     subtitleTimingsMs: List<Long> = emptyList(),
