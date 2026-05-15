@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -173,6 +175,8 @@ fun SubtitleSheet(
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
     isSubtitleGestureEnabled: Boolean = true,
+    subtitleDelayMs: Long = 0L,
+    subtitleVerticalOffset: Float = 0f,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
@@ -181,6 +185,9 @@ fun SubtitleSheet(
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
     onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
+    onSubtitleDelayChange: (Long) -> Unit = {},
+    onSubtitleVerticalOffsetChange: (Float) -> Unit = {},
+    onPickExternalSubtitleWithEncoding: (String) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
     if (showSheet) {
@@ -201,6 +208,8 @@ fun SubtitleSheet(
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
                     isSubtitleGestureEnabled = isSubtitleGestureEnabled,
+                    subtitleDelayMs = subtitleDelayMs,
+                    subtitleVerticalOffset = subtitleVerticalOffset,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
@@ -209,6 +218,9 @@ fun SubtitleSheet(
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
                     onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
+                    onSubtitleDelayChange = onSubtitleDelayChange,
+                    onSubtitleVerticalOffsetChange = onSubtitleVerticalOffsetChange,
+                    onPickExternalSubtitleWithEncoding = onPickExternalSubtitleWithEncoding,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -229,6 +241,8 @@ fun SubtitleSheet(
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
                     isSubtitleGestureEnabled = isSubtitleGestureEnabled,
+                    subtitleDelayMs = subtitleDelayMs,
+                    subtitleVerticalOffset = subtitleVerticalOffset,
                     onSelectTrack = onSelectTrack,
                     onPickExternalSubtitle = onPickExternalSubtitle,
                     onTextSizeChange = onTextSizeChange,
@@ -237,6 +251,9 @@ fun SubtitleSheet(
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
                     onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
+                    onSubtitleDelayChange = onSubtitleDelayChange,
+                    onSubtitleVerticalOffsetChange = onSubtitleVerticalOffsetChange,
+                    onPickExternalSubtitleWithEncoding = onPickExternalSubtitleWithEncoding,
                     onDismissRequest = onDismissRequest
                 )
             }
@@ -244,6 +261,7 @@ fun SubtitleSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubtitleSheetContent(
     subtitleTracks: List<TrackInfo>,
@@ -254,6 +272,8 @@ private fun SubtitleSheetContent(
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
     isSubtitleGestureEnabled: Boolean = true,
+    subtitleDelayMs: Long = 0L,
+    subtitleVerticalOffset: Float = 0f,
     onSelectTrack: (Int?) -> Unit,
     onPickExternalSubtitle: () -> Unit,
     onTextSizeChange: (Float) -> Unit,
@@ -262,6 +282,9 @@ private fun SubtitleSheetContent(
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
     onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
+    onSubtitleDelayChange: (Long) -> Unit = {},
+    onSubtitleVerticalOffsetChange: (Float) -> Unit = {},
+    onPickExternalSubtitleWithEncoding: (String) -> Unit = {},
     onDismissRequest: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -286,7 +309,7 @@ private fun SubtitleSheetContent(
             contentColor = MaterialTheme.colorScheme.primary,
             divider = {}
         ) {
-            val tabs = listOf("Tracks", "External", "Customize")
+            val tabs = listOf("Tracks", "External", "Style", "Sync")
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTabIndex == index,
@@ -330,16 +353,50 @@ private fun SubtitleSheetContent(
                     }
                 }
                 1 -> { // External
-                    Button(
-                        onClick = {
-                            onPickExternalSubtitle()
-                            onDismissRequest()
-                        },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Pick .SRT or .VTT File", color = MaterialTheme.colorScheme.onPrimary)
+                    var selectedEncoding by remember { mutableStateOf("UTF-8") }
+                    var encodingExpanded by remember { mutableStateOf(false) }
+                    val encodingOptions = listOf("UTF-8", "Windows-1252", "ISO-8859-1")
+
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = {
+                                onPickExternalSubtitleWithEncoding(selectedEncoding)
+                                onDismissRequest()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Pick .SRT or .VTT File", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+
+                        ExposedDropdownMenuBox(
+                            expanded = encodingExpanded,
+                            onExpandedChange = { encodingExpanded = !encodingExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedEncoding,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Text Encoding") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = encodingExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = encodingExpanded,
+                                onDismissRequest = { encodingExpanded = false }
+                            ) {
+                                encodingOptions.forEach { enc ->
+                                    DropdownMenuItem(
+                                        text = { Text(enc) },
+                                        onClick = {
+                                            selectedEncoding = enc
+                                            encodingExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 2 -> { // Customize
@@ -438,6 +495,96 @@ private fun SubtitleSheetContent(
                                 "Subtitle appearance is controlled by system settings. Go to Android Settings > Accessibility > Caption preferences to change them.", 
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, 
                                 fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+                3 -> { // Sync
+                    var delayInputText by remember(subtitleDelayMs) {
+                        mutableStateOf("%.1f".format(subtitleDelayMs / 1000.0))
+                    }
+
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        SettingsSection(title = "Subtitle Delay") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val newDelay = subtitleDelayMs - 100L
+                                        onSubtitleDelayChange(newDelay)
+                                        delayInputText = "%.1f".format(newDelay / 1000.0)
+                                    },
+                                    modifier = Modifier.size(48.dp),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("-", fontSize = 20.sp)
+                                }
+
+                                OutlinedTextField(
+                                    value = delayInputText,
+                                    onValueChange = { text ->
+                                        delayInputText = text
+                                        val parsed = text.toDoubleOrNull()
+                                        if (parsed != null) {
+                                            onSubtitleDelayChange((parsed * 1000).toLong())
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    suffix = { Text("s") },
+                                    textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Center)
+                                )
+
+                                OutlinedButton(
+                                    onClick = {
+                                        val newDelay = subtitleDelayMs + 100L
+                                        onSubtitleDelayChange(newDelay)
+                                        delayInputText = "%.1f".format(newDelay / 1000.0)
+                                    },
+                                    modifier = Modifier.size(48.dp),
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("+", fontSize = 20.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    onSubtitleDelayChange(0L)
+                                    delayInputText = "0.0"
+                                },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                                colors = ButtonDefaults.outlinedButtonColors()
+                            ) {
+                                Text("Reset to 0s")
+                            }
+                        }
+
+                        SettingsSection(title = "Vertical Position") {
+                            Slider(
+                                value = subtitleVerticalOffset,
+                                onValueChange = onSubtitleVerticalOffsetChange,
+                                valueRange = -0.5f..0.5f,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = when {
+                                    subtitleVerticalOffset > 0.01f -> "Up ${(subtitleVerticalOffset * 100).toInt()}%"
+                                    subtitleVerticalOffset < -0.01f -> "Down ${(-subtitleVerticalOffset * 100).toInt()}%"
+                                    else -> "Default"
+                                },
+                                color = MaterialTheme.colorScheme.onSurface.copy(0.7f),
+                                fontSize = 12.sp,
+                                modifier = Modifier.align(Alignment.End)
                             )
                         }
                     }

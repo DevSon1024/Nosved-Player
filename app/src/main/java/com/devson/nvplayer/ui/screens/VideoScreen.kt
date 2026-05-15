@@ -130,6 +130,8 @@ fun VideoScreen(
 
     val subtitleTextSizeScale by viewModel.subtitleTextSizeScale.collectAsState()
     val subtitleBgStyle by viewModel.subtitleBgStyle.collectAsState()
+    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
+    val subtitleVerticalOffset by viewModel.subtitleVerticalOffset.collectAsState()
     val currentDecoder by viewModel.currentDecoderMode.collectAsState()
     val currentPlaybackSpeed by viewModel.currentPlaybackSpeed.collectAsState()
 
@@ -154,12 +156,15 @@ fun VideoScreen(
     var showInfoSheet by remember { mutableStateOf(false) }
     var showSpeedSheet by remember { mutableStateOf(false) }
 
+    // Encoding state for the external subtitle picker
+    var pendingExternalEncoding by remember { mutableStateOf("UTF-8") }
+
     val externalSubtitleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             val mimeType = context.contentResolver.getType(uri) ?: "application/x-subrip"
-            viewModel.loadExternalSubtitle(uri, mimeType)
+            viewModel.loadExternalSubtitle(uri, mimeType, pendingExternalEncoding)
         }
     }
 
@@ -480,7 +485,9 @@ fun VideoScreen(
             useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
             subtitleFont = playbackSettings.subtitleFont,
             isSubtitleBold = playbackSettings.isSubtitleBold,
-            isSubtitleGestureEnabled = isSubtitleGestureEnabled
+            isSubtitleGestureEnabled = isSubtitleGestureEnabled,
+            subtitleDelayMs = subtitleDelayMs,
+            verticalOffsetFraction = subtitleVerticalOffset
         )
 
         //  Device stats overlay 
@@ -748,6 +755,8 @@ fun VideoScreen(
         isSubtitleBold = playbackSettings.isSubtitleBold,
         isSubtitleGestureEnabled = isSubtitleGestureEnabled,
         isLandscape = isLandscape,
+        subtitleDelayMs = subtitleDelayMs,
+        subtitleVerticalOffset = subtitleVerticalOffset,
         onSelectTrack = { viewModel.selectSubtitleTrack(it) },
         onPickExternalSubtitle = { externalSubtitleLauncher.launch("*/*") },
         onTextSizeChange = { viewModel.updateSubtitleTextSizeScale(it) },
@@ -756,6 +765,12 @@ fun VideoScreen(
         onSubtitleFontChange = { settingsViewModel.updateSubtitleFont(it) },
         onIsSubtitleBoldChange = { settingsViewModel.updateIsSubtitleBold(it) },
         onSubtitleGestureEnabledChange = { isSubtitleGestureEnabled = it },
+        onSubtitleDelayChange = { viewModel.setSubtitleDelayMs(it) },
+        onSubtitleVerticalOffsetChange = { viewModel.setSubtitleVerticalOffset(it) },
+        onPickExternalSubtitleWithEncoding = { encoding ->
+            pendingExternalEncoding = encoding
+            externalSubtitleLauncher.launch("*/*")
+        },
         onDismissRequest = { showSubtitleSheet = false }
     )
 

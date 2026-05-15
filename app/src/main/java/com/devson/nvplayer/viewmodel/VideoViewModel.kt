@@ -125,6 +125,12 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _subtitleBgStyle = MutableStateFlow(0)
     val subtitleBgStyle: StateFlow<Int> = _subtitleBgStyle.asStateFlow()
 
+    private val _subtitleDelayMs = MutableStateFlow(0L)
+    val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
+
+    private val _subtitleVerticalOffset = MutableStateFlow(0f)
+    val subtitleVerticalOffset: StateFlow<Float> = _subtitleVerticalOffset.asStateFlow()
+
     private val _currentDecoderMode = MutableStateFlow(DecoderMode.HW_PLUS)
     val currentDecoderMode: StateFlow<DecoderMode> = _currentDecoderMode.asStateFlow()
 
@@ -468,8 +474,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         playerManager?.selectSubtitleTrack(index ?: -1)
     }
 
-    fun loadExternalSubtitle(uri: Uri, mimeType: String) {
-        playerManager?.loadExternalSubtitle(uri, mimeType)
+    fun loadExternalSubtitle(uri: Uri, mimeType: String, encodingLabel: String = "UTF-8") {
+        playerManager?.loadExternalSubtitle(uri, mimeType, encodingLabel)
     }
 
     fun updateSubtitleTextSizeScale(scale: Float) {
@@ -478,6 +484,14 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSubtitleBgStyle(style: Int) {
         _subtitleBgStyle.value = style
+    }
+
+    fun setSubtitleDelayMs(delayMs: Long) {
+        _subtitleDelayMs.value = delayMs
+    }
+
+    fun setSubtitleVerticalOffset(offset: Float) {
+        _subtitleVerticalOffset.value = offset
     }
 
     private var hideJob: kotlinx.coroutines.Job? = null

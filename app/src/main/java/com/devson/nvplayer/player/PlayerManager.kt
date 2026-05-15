@@ -562,7 +562,7 @@ class PlayerManager(private val context: Context) {
         }
     }
 
-    fun loadExternalSubtitle(uri: Uri, mimeType: String) {
+    fun loadExternalSubtitle(uri: Uri, mimeType: String, encodingLabel: String = "UTF-8") {
         val player = exoPlayer ?: return
         val currentMediaItem = player.currentMediaItem ?: return
 
@@ -570,6 +570,7 @@ class PlayerManager(private val context: Context) {
             .setMimeType(mimeType)
             .setLanguage("en")
             .setSelectionFlags(androidx.media3.common.C.SELECTION_FLAG_DEFAULT)
+            .setLabel(encodingLabel)
             .build()
 
         val newMediaItem = currentMediaItem.buildUpon()

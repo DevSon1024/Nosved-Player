@@ -47,20 +47,36 @@ fun ComposeSubtitleOverlay(
     isSubtitleBold: Boolean = false,
     subtitleTimingsMs: List<Long> = emptyList(),
     isSubtitleGestureEnabled: Boolean = true,
+    subtitleDelayMs: Long = 0L,
+    verticalOffsetFraction: Float = 0f,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
     //  Cue collection 
     val currentCues = remember { mutableStateListOf<androidx.media3.common.text.Cue>() }
 
-    DisposableEffect(player) {
+    DisposableEffect(player, subtitleDelayMs) {
+        var delayJob: kotlinx.coroutines.Job? = null
         val listener = object : Player.Listener {
             override fun onCues(cueGroup: CueGroup) {
-                currentCues.clear()
-                currentCues.addAll(cueGroup.cues)
+                delayJob?.cancel()
+                if (subtitleDelayMs > 0L) {
+                    delayJob = coroutineScope.launch {
+                        kotlinx.coroutines.delay(subtitleDelayMs)
+                        currentCues.clear()
+                        currentCues.addAll(cueGroup.cues)
+                    }
+                } else {
+                    currentCues.clear()
+                    currentCues.addAll(cueGroup.cues)
+                }
             }
         }
         player?.addListener(listener)
-        onDispose { player?.removeListener(listener) }
+        onDispose { 
+            player?.removeListener(listener)
+            delayJob?.cancel()
+        }
     }
 
     //  Vertical position state 
@@ -82,7 +98,6 @@ fun ComposeSubtitleOverlay(
     var dragProgress by remember { mutableFloatStateOf(0f) }
     // Fired = show the "committed" pulse then fade
     var seekJustFired by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     // Animated values driven by dragProgress / seekJustFired
     val arrowAlpha by animateFloatAsState(
@@ -117,11 +132,12 @@ fun ComposeSubtitleOverlay(
         contentAlignment = Alignment.BottomCenter
     ) {
         val maxHeightPx = constraints.maxHeight.toFloat()
+        val externalOffsetPx = -verticalOffsetFraction * maxHeightPx
 
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
+                .offset { IntOffset(0, (animatedOffsetY + externalOffsetPx).roundToInt()) }
                 .padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
                 .wrapContentSize()
                 .pointerInput(isSubtitleGestureEnabled) {
