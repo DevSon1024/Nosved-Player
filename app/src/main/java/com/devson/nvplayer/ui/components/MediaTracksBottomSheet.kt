@@ -25,7 +25,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.model.TrackInfo
 import kotlinx.coroutines.launch
-
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioTrackSheet(
@@ -514,14 +519,15 @@ private fun SubtitleSheetContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        val newDelay = subtitleDelayMs - 100L
-                                        onSubtitleDelayChange(newDelay)
-                                        delayInputText = "%.1f".format(newDelay / 1000.0)
-                                    },
-                                    modifier = Modifier.size(48.dp),
-                                    contentPadding = PaddingValues(0.dp)
+                                FilledTonalIconButton(
+                                    onClick = {},
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .repeatingClickable {
+                                            val newDelay = subtitleDelayMs - 100L
+                                            onSubtitleDelayChange(newDelay)
+                                            delayInputText = "%.1f".format(newDelay / 1000.0)
+                                        }
                                 ) {
                                     Text("-", fontSize = 20.sp)
                                 }
@@ -542,14 +548,15 @@ private fun SubtitleSheetContent(
                                     textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Center)
                                 )
 
-                                OutlinedButton(
-                                    onClick = {
-                                        val newDelay = subtitleDelayMs + 100L
-                                        onSubtitleDelayChange(newDelay)
-                                        delayInputText = "%.1f".format(newDelay / 1000.0)
-                                    },
-                                    modifier = Modifier.size(48.dp),
-                                    contentPadding = PaddingValues(0.dp)
+                                FilledTonalIconButton(
+                                    onClick = {},
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .repeatingClickable {
+                                            val newDelay = subtitleDelayMs + 100L
+                                            onSubtitleDelayChange(newDelay)
+                                            delayInputText = "%.1f".format(newDelay / 1000.0)
+                                        }
                                 ) {
                                     Text("+", fontSize = 20.sp)
                                 }
@@ -617,5 +624,30 @@ private fun TrackItem(
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             fontSize = 15.sp
         )
+    }
+}
+
+fun Modifier.repeatingClickable(
+    initialDelayMillis: Long = 300L,
+    repeatIntervalMillis: Long = 50L,
+    onClick: () -> Unit
+): Modifier = composed {
+    val currentClickListener by rememberUpdatedState(onClick)
+    val coroutineScope = rememberCoroutineScope()
+
+    pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            val job = coroutineScope.launch {
+                currentClickListener()
+                delay(initialDelayMillis)
+                while (true) {
+                    currentClickListener()
+                    delay(repeatIntervalMillis)
+                }
+            }
+            waitForUpOrCancellation()
+            job.cancel()
+        }
     }
 }
