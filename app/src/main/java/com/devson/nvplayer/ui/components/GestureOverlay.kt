@@ -149,7 +149,7 @@ fun GestureOverlay(
 
     var isFastForwarding by remember { mutableStateOf(false) }
     // FIX: isFastForwardLocked moved inside awaitEachGesture so it resets each gesture.
-    // It is hoisted here only for the UI badge — use a separate UI state var.
+    // It is hoisted here only for the UI badge - use a separate UI state var.
     var isFastForwardLocked by remember { mutableStateOf(false) }
 
     var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
@@ -238,7 +238,7 @@ fun GestureOverlay(
 
                     val longPressJob = coroutineScope.launch {
                         delay(550)
-                        // Reads live value via array reference — not a stale copy
+                        // Reads live value via array reference - not a stale copy
                         if (longPressEnabled && isPlaying && longPressArmed[0] && !isFastForwardLocked) {
                             isLongPressActive = true
                             isFastForwarding = true
@@ -349,7 +349,7 @@ fun GestureOverlay(
 
                                 if (!isSwiping && !twoFingerDown && !wasPinching) {
                                     // FIX: If finger was held > 300ms but long-press didn't
-                                    // fire (e.g. video paused), treat as cancelled — not a tap.
+                                    // fire (e.g. video paused), treat as cancelled - not a tap.
                                     val heldMs = System.currentTimeMillis() - downTime
                                     if (heldMs > 300L) break
 

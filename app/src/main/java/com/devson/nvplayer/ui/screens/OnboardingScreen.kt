@@ -46,7 +46,7 @@ private data class OnboardingSlide(
  * - Calling [onFinished] (via "Start Playing" or "Skip") persists the
  *   HAS_SEEN_ONBOARDING flag via SettingsViewModel.markOnboardingComplete()
  *   and removes this destination from the back-stack in NavGraph, so it
- *   can NEVER be shown again—not on restart, not ever.
+ *   can NEVER be shown again-not on restart, not ever.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -56,21 +56,21 @@ fun OnboardingScreen(
     val slides = listOf(
         OnboardingSlide(
             icon        = Icons.Filled.Hd,
-            accentColor = Color(0xFF0288D1),   // Blue-ish cyan — readable on both light & dark
+            accentColor = Color(0xFF0288D1),   // Blue-ish cyan - readable on both light & dark
             tag         = "ULTIMATE PLAYBACK",
             headline    = "Cinema-Grade\nCodec Support",
             body        = "Nosved Player decodes HEVC H.265 10-bit\nHDR content natively. No transcoding, no\nquality loss. Pure, pixel-perfect playback."
         ),
         OnboardingSlide(
             icon        = Icons.Filled.Tune,
-            accentColor = Color(0xFFE65100),   // Deep orange — vivid on both themes
+            accentColor = Color(0xFFE65100),   // Deep orange - vivid on both themes
             tag         = "PRO CONTROLS",
             headline    = "Modern-Style UI\n& Gesture Suite",
             body        = "Swipe up/down to control volume & brightness.\nDouble-tap to seek. Our custom scrubber gives\nyou frame-level precision on every scrub."
         ),
         OnboardingSlide(
             icon        = Icons.Filled.Speed,
-            accentColor = Color(0xFF6200EA),   // Deep violet — solid contrast on light & dark
+            accentColor = Color(0xFF6200EA),   // Deep violet - solid contrast on light & dark
             tag         = "REAL-TIME METRICS",
             headline    = "Live Device Stats\nOverlay",
             body        = "Monitor CPU, RAM, battery temperature, and\nframe-rate in real time without leaving the\nplayer. Your personal performance dashboard."
@@ -192,7 +192,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // Skip text link — theme-aware colour
+            // Skip text link - theme-aware colour
             if (!isLast) {
                 TextButton(onClick = onFinished) {
                     Text(
@@ -302,7 +302,7 @@ private fun OnboardingPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Headline — uses theme onBackground for proper contrast
+            // Headline - uses theme onBackground for proper contrast
             Text(
                 text          = slide.headline,
                 color         = onBgColor,
@@ -315,7 +315,7 @@ private fun OnboardingPage(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Body — uses theme onSurfaceVariant for secondary text
+            // Body - uses theme onSurfaceVariant for secondary text
             Text(
                 text       = slide.body,
                 color      = onBgSub,

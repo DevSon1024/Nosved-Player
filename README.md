@@ -18,6 +18,8 @@
 
 **Nosved Player** is a clean, modern, and high-performance local video player for Android. Built from the ground up using **Jetpack Compose** and **Media3 (ExoPlayer)**, it delivers a premium media experience with a focus on simplicity, fluidity, and Material You design.
 
+> **⚠️ Migration Notice (v1.4.0+):** The application package name has migrated to `com.devson.nvplayer` to align with external app store releases. If you are updating from v1.3.0 or below, this will install as a fresh application.
+
 ---
 
 ## 📸 Screenshots
@@ -57,26 +59,36 @@
 
 ## Key Features
 
-### Dual Player UI
+### Playback & Dual Player UI
 
 - **Default Style** - Clean, minimal controls with gesture-based brightness & volume adjustment.
 - **Modern Style** - Modern immersive controls with smooth multi-tap seek gestures, a swipe-up settings panel, Replay / Forward buttons, and an **Up Next** queue overlay.
-- Switch between both styles anytime from **Settings → Player** or **Playback Settings → Player Style**.
+- **Advanced Playback Speed & Scrubbing** - Precision speed controls and visual live-scrubbing while interacting with the seekbar.
+- **HDR Fallback Mechanism** - Intelligently spoofs Dolby Vision MIME types to H.265 to prevent black screen issues on non-DV supported devices.
 
-### Gesture Controls in Player 
-- **Right/Left Swipe** - Seek through video timeline forward and backward 
+### Advanced Gesture Controls
+
+- **Right/Left Swipe** - Seek through video timeline forward and backward
 - **Right/Left Double Tap** - Seek 10s Forward and Backward (Seek time can be customised)
-- **Vertical Swipe Left** - Adjust Brightness 
+- **Vertical Swipe Left** - Adjust Brightness
 - **Vertical Swipe Right** - Adjust Volume
 - **Long Press on The Screen** - 2x Speed
 - **2 Finger Single Tap** - Pause/Resume Video
 - **3 Finger Single Tap** - Lock 2x Speed
 
+### 💬 Powerful Subtitle Engine
 
-### Rotary Sort Wheel
+- **Embedded ASS/SSA Customization** - Full control over subtitle fonts, text size, bolding, and robust background corner boxes.
+- **Swipe-to-Seek Dialog** - Instantly jump backward or forward through dialogue lines by swiping directly on the subtitle text.
+- **Advanced Sync** - Manual speed sync and text encoding adjustments for perfect audio-visual timing.
 
-- A unique **radial wheel picker** for sorting videos - spin to select sort field, tap centre buttons to toggle Ascending / Descending.
-- Smooth spring-physics animations, Material You colour theming, and a polished system-bar-aware overlay.
+### 📁 Smart Library & UI Customization
+
+- **Dynamic Home Screen** - Choose exactly what your dashboard displays: Storage Tracker, History Cards, or Latest Videos.
+- **Custom Landing Screen** - Bypass the Home page entirely and boot directly into your Video List.
+- **True AMOLED Theme** - Total black color mapping for dark mode, maximizing OLED battery savings.
+- **Rotary Sort Wheel** - A unique radial wheel picker for sorting videos with smooth spring-physics animations.
+- **Folder Views** - Multiple layout modes (All Folders, Files, Explorer, List, Grid).
 
 ### Material You Dynamic Theme
 
@@ -84,11 +96,11 @@
 - Optional **Dynamic Colour** - adapts to your wallpaper on Android 12+ devices.
 - Status bar and navigation bar colours blend seamlessly with the app background.
 
-### 📁 Smart Library
+### 🛠️ Native Video Editing & Utilities
 
-- **Continue Watching** - quick-access history cards with progress bars; long-press to delete.
-- **Folder view** with multiple layout modes (All Folders, Files, Explorer, List, Grid).
-- **Grid Columns** customisation for the video list.
+- **Multi-Process Architecture** - Dual FFmpeg base libraries running simultaneously to support both robust decoding and native editing.
+- **Video-to-Audio Converter** - Extract audio from your media files directly within the app.
+- **Timestamp Tools** - Developer-friendly utilities for converting standard time to milliseconds and vice-versa.
 
 ### ⚡ Performance & Compatibility
 
@@ -130,6 +142,14 @@ git clone https://github.com/DevSon1024/Nosved-Player.git
 1. Open the project in **Android Studio**.
 2. **Sync** Project with Gradle Files.
 3. Run the `app` module on your device or emulator.
+
+---
+
+## ❤️ Support the Project
+
+If you love using Nosved Player or find the source code helpful for your own projects, consider supporting its development!
+
+**UPI Sponsorship available within the App Settings.**
 
 ---
 

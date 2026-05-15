@@ -52,7 +52,7 @@ val NosvedBlueDarkOutline   = Color(0xFF3A4660)   // Border / outline
 val NosvedBlueDarkOnSurface = Color(0xFFE2E5F0)   // Primary text on dark
 val NosvedBlueDarkSubtext   = Color(0xFF8D97B2)   // Secondary / hint text
 
-// Shared surface tokens (Cinematic — default)
+// Shared surface tokens (Cinematic - default)
 val NosvedLightBg       = Color(0xFFF0F4F8)
 val NosvedLightSurface  = Color(0xFFFFFFFF)
 val NosvedLightSurface2 = Color(0xFFE8EDF4)

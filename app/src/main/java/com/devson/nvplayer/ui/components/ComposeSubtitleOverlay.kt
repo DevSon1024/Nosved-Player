@@ -230,7 +230,7 @@ fun ComposeSubtitleOverlay(
             Box(
                 contentAlignment = Alignment.Center
             ) {
-                // Scoped highlight ring — wraps snugly around the plate
+                // Scoped highlight ring - wraps snugly around the plate
                 Box(
                     modifier = Modifier
                         .matchParentSize()

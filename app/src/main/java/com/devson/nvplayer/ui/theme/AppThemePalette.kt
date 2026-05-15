@@ -507,7 +507,7 @@ enum class AppThemePalette(
 object AppThemePaletteHelper {
     /**
      * Safely parse a stored string key back to the enum.
-     * Defaults to BLUE (Nosved Blue) — the app's factory default palette.
+     * Defaults to BLUE (Nosved Blue) - the app's factory default palette.
      */
     fun fromKey(key: String?): AppThemePalette =
         AppThemePalette.entries.firstOrNull { it.name == key } ?: AppThemePalette.BLUE
