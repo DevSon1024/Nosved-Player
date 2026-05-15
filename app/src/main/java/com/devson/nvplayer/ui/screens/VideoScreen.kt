@@ -33,6 +33,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -70,8 +71,7 @@ fun VideoScreen(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     val player by viewModel.playerInstance.collectAsState()
-    val isPlaying by viewModel.isPlaying?.collectAsState(initial = false)
-        ?: remember { mutableStateOf(false) }
+    val playingIntent by viewModel.playingIntent.collectAsState()
     val currentPosition by viewModel.currentPosition?.collectAsState(initial = 0L)
         ?: remember { mutableStateOf(0L) }
     val duration by viewModel.duration?.collectAsState(initial = 0L)
@@ -134,6 +134,7 @@ fun VideoScreen(
     val subtitleVerticalOffset by viewModel.subtitleVerticalOffset.collectAsState()
     val currentDecoder by viewModel.currentDecoderMode.collectAsState()
     val currentPlaybackSpeed by viewModel.currentPlaybackSpeed.collectAsState()
+    val updatedCurrentPlaybackSpeed by rememberUpdatedState(currentPlaybackSpeed)
 
     var preFastForwardSpeed by remember { mutableFloatStateOf(1f) }
 
@@ -392,7 +393,7 @@ fun VideoScreen(
         GestureOverlay(
             modifier = Modifier.fillMaxSize(),
             seekDurationSeconds = seekDurationSeconds,
-            isPlaying = isPlaying,
+            isPlaying = playingIntent,
             isLocked = isLocked,
             fastplaySpeed = fastplaySpeed,
             currentPosition = currentPosition,
@@ -426,14 +427,12 @@ fun VideoScreen(
             // Revert back to proper currentPlaybackSpeed instead of hardcoded 1f
             onFastForwardToggle = { active, activeSpeed ->
                 if (active) {
-                    // Only cache the speed if we aren't ALREADY fast forwarding
                     if (!ytIsFastForwarding) {
-                        preFastForwardSpeed = currentPlaybackSpeed
+                        preFastForwardSpeed = updatedCurrentPlaybackSpeed  // always fresh
                         ytIsFastForwarding = true
                         viewModel.setPlaybackSpeed(activeSpeed)
                     }
                 } else {
-                    // Only revert if we were actually fast forwarding
                     if (ytIsFastForwarding) {
                         ytIsFastForwarding = false
                         viewModel.setPlaybackSpeed(preFastForwardSpeed)
@@ -551,7 +550,7 @@ fun VideoScreen(
             //  Modern-style controls 
             ModernStylePlayerControls(
                 isVisible = controlsVisible,
-                isPlaying = isPlaying,
+                isPlaying = playingIntent,
                 title = currentVideo?.title ?: "",
                 currentPosition = displayedPosition,
                 duration = duration,
@@ -641,7 +640,7 @@ fun VideoScreen(
             //  Default controls 
             PlayerControls(
                 isVisible = controlsVisible,
-                isPlaying = isPlaying,
+                isPlaying = playingIntent,
                 title = currentVideo?.title ?: "",
                 currentPosition = displayedPosition,
                 duration = duration,

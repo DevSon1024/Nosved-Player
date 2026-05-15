@@ -40,6 +40,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     private val _playerInstance = MutableStateFlow<ExoPlayer?>(null)
     val playerInstance: StateFlow<ExoPlayer?> = _playerInstance.asStateFlow()
 
+    // Add this field
+    private val _playingIntent = MutableStateFlow(true)
+    val playingIntent: StateFlow<Boolean> = _playingIntent.asStateFlow()
+
     val isPlaying get() = playerManager?.isPlaying
     val currentPosition get() = playerManager?.currentPosition
     val duration get() = playerManager?.duration
@@ -303,6 +307,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun togglePlayPause() {
+        val willPlay = playerManager?.exoPlayer?.isPlaying == false
+        _playingIntent.value = willPlay
         playerManager?.playPause()
     }
 
@@ -320,7 +326,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Always pauses - used when leaving the screen or app goes to background. */
-    fun pauseVideo() {
+   fun pauseVideo() {
+        _playingIntent.value = false
         val uri = _currentVideo.value?.uri
         val pos = resolvePositionToSave()
         if (uri != null && pos > 0L) {
@@ -343,6 +350,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
     /** Resumes only if there is an active video (prevents auto-play on cold start). */
     fun resumeVideo() {
         if (_currentVideo.value != null) {
+            _playingIntent.value = true
             playerManager?.resume()
         }
     }

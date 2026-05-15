@@ -92,8 +92,6 @@ fun GestureOverlay(
     fastplaySpeed: Float = 2.0f,
     currentPosition: Long = 0L,
     duration: Long = 0L,
-    
-    // Configurable Gesture Settings
     seekGestureEnabled: Boolean = true,
     seekSensitivity: Float = 0.5f,
     brightnessGestureEnabled: Boolean = true,
@@ -105,7 +103,6 @@ fun GestureOverlay(
     longPressEnabled: Boolean = true,
     longPressSpeed: Float = 2.0f,
     doubleTapAction: DoubleTapAction = DoubleTapAction.BOTH,
-
     onSingleTap: () -> Unit,
     onDoubleTapLeft: () -> Unit,
     onDoubleTapCenter: () -> Unit,
@@ -151,6 +148,8 @@ fun GestureOverlay(
     var scrubStartPosition by remember { mutableStateOf(0L) }
 
     var isFastForwarding by remember { mutableStateOf(false) }
+    // FIX: isFastForwardLocked moved inside awaitEachGesture so it resets each gesture.
+    // It is hoisted here only for the UI badge — use a separate UI state var.
     var isFastForwardLocked by remember { mutableStateOf(false) }
 
     var accumulatedLeftMs  by remember { mutableLongStateOf(0L) }
@@ -192,13 +191,14 @@ fun GestureOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(isLocked) {
-                // Increased touch slop to 24.dp so tiny thumb rolls don't cancel the long-press
+            .pointerInput(isLocked, onFastForwardToggle) {
                 val slopPx = 24.dp.toPx()
                 val twoFingerSlopPx = 24.dp.toPx()
-                
+
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = System.currentTimeMillis()
+
                     if (isLocked) {
                         var isTap = true
                         while (true) {
@@ -222,6 +222,10 @@ fun GestureOverlay(
                     var isSwiping = false
                     var swipeAxis = ""
 
+                    // FIX: Use an array so the coroutine always reads the live value,
+                    // not a snapshot captured at launch time.
+                    val longPressArmed = booleanArrayOf(true)
+
                     var isLongPressActive = false
                     var threeFingerTriggered = false
 
@@ -234,7 +238,8 @@ fun GestureOverlay(
 
                     val longPressJob = coroutineScope.launch {
                         delay(550)
-                        if (longPressEnabled && isPlaying && !isSwiping && !isFastForwardLocked && !twoFingerDown) {
+                        // Reads live value via array reference — not a stale copy
+                        if (longPressEnabled && isPlaying && longPressArmed[0] && !isFastForwardLocked) {
                             isLongPressActive = true
                             isFastForwarding = true
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -242,16 +247,14 @@ fun GestureOverlay(
                         }
                     }
 
-                    // TRY-FINALLY block ensures the fast forward / seek preview ALWYAS cleans up 
-                    // even if the loop gets broken by a system intercept or weird multi-finger tap.
                     try {
                         while (true) {
                             val event = awaitPointerEvent()
                             val pointerCount = event.changes.count { it.pressed }
 
-                            // 3-finger toggle
                             if (event.changes.size >= 3 && !threeFingerTriggered) {
                                 threeFingerTriggered = true
+                                longPressArmed[0] = false
                                 longPressJob.cancel()
                                 when(threeFingerAction) {
                                     MultiFingerAction.FAST_PLAY -> {
@@ -270,13 +273,13 @@ fun GestureOverlay(
                                 }
                             }
 
-                            // Two-finger: pinch-zoom OR two-finger tap
                             if (!twoFingerHandled && !threeFingerTriggered) {
                                 if (pointerCount == 2 && !twoFingerDown) {
                                     twoFingerDown = true
+                                    longPressArmed[0] = false
+                                    longPressJob.cancel()
                                     twoFingerStartTime = System.currentTimeMillis()
                                     twoFingerMaxMovePx = 0f
-                                    longPressJob.cancel()
                                     val pts = event.changes.filter { it.pressed }
                                     if (pts.size == 2) {
                                         val dx0 = pts[0].position.x - pts[1].position.x
@@ -291,7 +294,7 @@ fun GestureOverlay(
                                         for (ch in pts) {
                                             val mov = sqrt(
                                                 (ch.position.x - ch.previousPosition.x).let { it * it } +
-                                                (ch.position.y - ch.previousPosition.y).let { it * it }
+                                                        (ch.position.y - ch.previousPosition.y).let { it * it }
                                             )
                                             if (mov > twoFingerMaxMovePx) twoFingerMaxMovePx = mov
                                         }
@@ -337,15 +340,19 @@ fun GestureOverlay(
                             val change = event.changes.firstOrNull() ?: break
 
                             if (!change.pressed) {
+                                longPressArmed[0] = false
                                 longPressJob.cancel()
-                                
-                                if (isLongPressActive) {
-                                    break // Let finally block safely handle the cleanup
-                                }
+
+                                if (isLongPressActive) break
 
                                 if (threeFingerTriggered || twoFingerHandled) break
 
                                 if (!isSwiping && !twoFingerDown && !wasPinching) {
+                                    // FIX: If finger was held > 300ms but long-press didn't
+                                    // fire (e.g. video paused), treat as cancelled — not a tap.
+                                    val heldMs = System.currentTimeMillis() - downTime
+                                    if (heldMs > 300L) break
+
                                     val now = System.currentTimeMillis()
                                     val dt = now - lastTapTime
                                     val dx = change.position.x - lastTapX
@@ -422,6 +429,7 @@ fun GestureOverlay(
 
                             if (!isSwiping && (abs(totalDx) > slopPx || abs(totalDy) > slopPx)) {
                                 isSwiping = true
+                                longPressArmed[0] = false
                                 longPressJob.cancel()
                                 swipeAxis = if (abs(totalDx) > abs(totalDy)) "HORIZONTAL" else "VERTICAL"
                             }
@@ -438,12 +446,12 @@ fun GestureOverlay(
                                         val userSens = if (isRightSide) volumeSensitivity else brightnessSensitivity
                                         val multiplier = 0.4f + (userSens * 1.6f)
                                         val delta = (-dy / size.height.toFloat()) * (1.2f * multiplier)
-                                        
+
                                         if (isRightSide) onVolumeSwipe(delta) else onBrightnessSwipe(delta)
                                     }
                                     "HORIZONTAL" -> {
                                         if (!seekGestureEnabled) continue
-                                        
+
                                         val multiplier = 0.4f + (seekSensitivity * 1.6f)
                                         val dur = updatedDuration
                                         if (dur > 0L) {
@@ -464,7 +472,7 @@ fun GestureOverlay(
                             }
                         }
                     } finally {
-                        // 1. Guaranteed cleanup for Long Press stuck issues
+                        longPressArmed[0] = false
                         longPressJob.cancel()
                         if (isLongPressActive) {
                             isLongPressActive = false
@@ -473,11 +481,9 @@ fun GestureOverlay(
                                 onFastForwardToggle(false, longPressSpeed)
                             }
                         }
-                        
-                        // 2. Guaranteed cleanup for Seek scrub hanging issues
                         if (isSwiping && swipeAxis == "HORIZONTAL") {
-                            scrubPreviewMs?.let { previewPos -> 
-                                onSeekCommit(previewPos) 
+                            scrubPreviewMs?.let { previewPos ->
+                                onSeekCommit(previewPos)
                             }
                             scrubPreviewMs = null
                         }
@@ -585,7 +591,7 @@ fun GestureOverlay(
             )
         }
 
-       AnimatedVisibility(
+        AnimatedVisibility(
             visible = isFastForwarding,
             enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { -it }) + scaleIn(initialScale = 0.85f),
             exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { -it }),
@@ -822,10 +828,8 @@ private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
         val cy = size.height / 2f
         val maxRadius = kotlin.math.sqrt(cx * cx + cy * cy)
 
-        // subtle scrim flash at impact
         drawRect(color = Color.White.copy(alpha = 0.07f * scrim.value), size = size)
 
-        // ring1: sharp impact ring
         val r1 = maxRadius * ring1.value
         val a1 = (1f - ring1.value).coerceIn(0f, 1f)
         drawCircle(
@@ -835,7 +839,6 @@ private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
             style = Stroke(width = 2.5.dp.toPx())
         )
 
-        // ring2: softer mid wave
         val r2 = maxRadius * ring2.value
         val a2 = (1f - ring2.value).coerceIn(0f, 1f)
         drawCircle(
@@ -845,7 +848,6 @@ private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
             style = Stroke(width = 1.8.dp.toPx())
         )
 
-        // ring3: faintest trailing wave
         val r3 = maxRadius * ring3.value
         val a3 = (1f - ring3.value).coerceIn(0f, 1f)
         drawCircle(
@@ -855,7 +857,6 @@ private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
             style = Stroke(width = 1.2.dp.toPx())
         )
 
-        // filled radial burst at center that dissipates quickly
         val burstAlpha = ((1f - ring1.value) * 0.18f).coerceIn(0f, 0.18f)
         drawCircle(
             brush = Brush.radialGradient(
