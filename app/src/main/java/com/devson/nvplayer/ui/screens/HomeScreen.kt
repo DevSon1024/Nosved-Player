@@ -545,7 +545,8 @@ private fun VideoCard(
 ) {
     ElevatedCard(
         modifier = Modifier
-            .width(160.dp) // Condensed width
+            .width(160.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
@@ -649,7 +650,8 @@ private fun HistoryCard(
 
     ElevatedCard(
         modifier = Modifier
-            .width(160.dp) // Condensed width
+            .width(160.dp)
+            .clip(RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = {
                     if (showDeleteButton) showDeleteButton = false

@@ -79,7 +79,7 @@ fun CustomHomeScreen(
             )
 
             Surface(
-                modifier = Modifier.fillMaxWidth().clickable { showStartupDialog = true },
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable { showStartupDialog = true },
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 2.dp

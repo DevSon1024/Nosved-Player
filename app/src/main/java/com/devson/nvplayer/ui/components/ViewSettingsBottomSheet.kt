@@ -334,6 +334,7 @@ fun AdvancedToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
             .clickable { onCheckedChange(!checked) }
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

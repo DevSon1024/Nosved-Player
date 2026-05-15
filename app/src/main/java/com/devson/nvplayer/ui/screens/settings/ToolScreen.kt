@@ -54,8 +54,8 @@ fun ToolScreen(
             )
             ToolHubCard(
                 icon = Icons.Default.VideoSettings,
-                title = "Video -> Audio Converter",
-                description = "Extract audio from any video using hardware MediaCodec.",
+                title = "Video -> Audio Converter (Work in Progress)",
+                description = "Extract audio from any video using hardware MediaCodec. (output may not be perfect as work is still in progress)",
                 onClick = onNavigateToVideoEditor
             )
         }

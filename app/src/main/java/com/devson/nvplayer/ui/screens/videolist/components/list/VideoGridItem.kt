@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -66,6 +67,7 @@ fun VideoGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 10.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .combinedClickable(
                     onClick    = { onClick(video) },
                     onLongClick = {
@@ -145,6 +147,7 @@ fun VideoGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(if (isDense) 1f else 0.82f)
+            .clip(RoundedCornerShape(14.dp))
             .combinedClickable(
                 onClick    = { onClick(video) },
                 onLongClick = {

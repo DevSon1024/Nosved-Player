@@ -65,6 +65,7 @@ fun VideoListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick    = { onClick(video) },
                 onLongClick = {
@@ -94,6 +95,7 @@ fun VideoListItem(
             Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
                 shape = RoundedCornerShape(10.dp),

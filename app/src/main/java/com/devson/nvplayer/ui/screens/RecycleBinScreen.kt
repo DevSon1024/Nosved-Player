@@ -285,6 +285,7 @@ private fun TrashedVideoItem(
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick

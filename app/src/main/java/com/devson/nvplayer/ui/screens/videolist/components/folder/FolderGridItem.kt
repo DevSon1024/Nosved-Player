@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -85,6 +86,7 @@ fun FolderGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp)
+                .clip(RoundedCornerShape(18.dp))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
             shape     = RoundedCornerShape(18.dp),
             colors    = CardDefaults.cardColors(containerColor = bgColor),
@@ -136,6 +138,7 @@ fun FolderGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.88f)
+                .clip(RoundedCornerShape(14.dp))
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
             shape     = RoundedCornerShape(14.dp),
             colors    = CardDefaults.cardColors(containerColor = bgColor),
@@ -189,6 +192,7 @@ fun FolderGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .clip(RoundedCornerShape(10.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape     = RoundedCornerShape(10.dp),
         colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
