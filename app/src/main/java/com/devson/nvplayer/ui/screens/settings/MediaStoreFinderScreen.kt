@@ -57,6 +57,24 @@ fun MediaStoreFinderScreen(
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var fileMimeType by remember { mutableStateOf<String?>(null) }
 
+    val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val id = getMediaIdFromUri(context, uri)
+            if (id != null) {
+                fileInfo = "Selected File MediaStore ID:\n$id"
+                inputId = id.toString() // Auto-fill the text field
+                fileUri = null
+                fileMimeType = null
+            } else {
+                fileInfo = "Could not resolve a MediaStore ID for this file. It might not be indexed."
+                fileUri = null
+                fileMimeType = null
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -113,6 +131,23 @@ fun MediaStoreFinderScreen(
                 Text("Find File")
             }
 
+            Row(
+                verticalAlignment = Alignment.CenterVertically, 
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            ) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text("OR", modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+            
+            Button(
+                onClick = { filePickerLauncher.launch("*/*") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Text("Select File to get ID")
+            }
+
             if (fileInfo != null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -149,6 +184,50 @@ fun MediaStoreFinderScreen(
 }
 
 data class MediaResult(val name: String, val path: String, val mimeType: String, val uri: Uri)
+
+fun getMediaIdFromUri(context: android.content.Context, uri: android.net.Uri): Long? {
+    if (uri.toString().startsWith("content://media/")) {
+        return try { android.content.ContentUris.parseId(uri) } catch (e: Exception) { null }
+    }
+
+    if (android.provider.DocumentsContract.isDocumentUri(context, uri)) {
+        val docId = android.provider.DocumentsContract.getDocumentId(uri)
+        
+        // 1. Handle Media Provider (image:123) or Downloads Provider (msf:123 or just 123)
+        if (uri.authority == "com.android.providers.media.documents" || uri.authority == "com.android.providers.downloads.documents") {
+            val idStr = docId.split(":").lastOrNull()
+            idStr?.toLongOrNull()?.let { return it }
+        }
+
+        // 2. Handle External Storage Provider (e.g., primary:Download/video.mp4)
+        if (uri.authority == "com.android.externalstorage.documents") {
+            val split = docId.split(":")
+            if (split.size >= 2 && "primary".equals(split[0], ignoreCase = true)) {
+                val fullPath = "${android.os.Environment.getExternalStorageDirectory()}/${split[1]}"
+                try {
+                    val mediaUri = android.provider.MediaStore.Files.getContentUri("external")
+                    val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+                    val selection = "${android.provider.MediaStore.MediaColumns.DATA} = ?"
+                    context.contentResolver.query(mediaUri, projection, selection, arrayOf(fullPath), null)?.use { cursor ->
+                        if (cursor.moveToFirst()) return cursor.getLong(0)
+                    }
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
+    }
+
+    // 3. Fallback for general content providers
+    try {
+        context.contentResolver.query(uri, arrayOf(android.provider.MediaStore.MediaColumns._ID), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns._ID)
+                if (index != -1) return cursor.getLong(index)
+            }
+        }
+    } catch (e: Exception) { e.printStackTrace() }
+    
+    return null
+}
 
 suspend fun findMediaFile(context: Context, id: Long): MediaResult? = withContext(Dispatchers.IO) {
     // MediaStore.Files allows us to find *any* file by its ID, not just videos or audio
