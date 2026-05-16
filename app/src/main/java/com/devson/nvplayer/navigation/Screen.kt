@@ -22,4 +22,5 @@ sealed class Screen(val route: String) {
     object PlayerInterface : Screen("player_interface")
     object CustomHome : Screen("custom_home")
     object Gestures : Screen("gestures")
+    object MediaStoreFinder : Screen("media_store_finder")
 }

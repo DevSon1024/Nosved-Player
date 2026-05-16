@@ -174,7 +174,8 @@ fun NavGraph(
             ToolScreen(
                 onBack = { safePopBackStack() },
                 onNavigateToMilliSeconds = { navController.navigate(Screen.MilliSecond.route) },
-                onNavigateToVideoEditor = { navController.navigate(Screen.VideoEditor.route) }
+                onNavigateToVideoEditor = { navController.navigate(Screen.VideoEditor.route) },
+                onNavigateToMediaStoreFinder = { navController.navigate(Screen.MediaStoreFinder.route) }
             )
         }
 
@@ -228,6 +229,12 @@ fun NavGraph(
 
         composable(Screen.RecycleBin.route) {
             com.devson.nvplayer.ui.screens.RecycleBinScreen(
+                onBack = { safePopBackStack() }
+            )
+        }
+
+        composable(Screen.MediaStoreFinder.route) {
+            com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen(
                 onBack = { safePopBackStack() }
             )
         }
