@@ -295,6 +295,7 @@ fun SubtitleSheet(
     useSystemCaptionStyle: Boolean,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
+    forceAssSubtitleOverride: Boolean = false,
     isSubtitleGestureEnabled: Boolean = true,
     subtitleDelayMs: Long = 0L,
     subtitleVerticalOffset: Float = 0f,
@@ -305,6 +306,7 @@ fun SubtitleSheet(
     onUseSystemCaptionStyleChange: (Boolean) -> Unit,
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
+    onForceAssSubtitleOverrideChange: (Boolean) -> Unit = {},
     onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
     onSubtitleDelayChange: (Long) -> Unit = {},
     onSubtitleVerticalOffsetChange: (Float) -> Unit = {},
@@ -328,6 +330,7 @@ fun SubtitleSheet(
                     useSystemCaptionStyle = useSystemCaptionStyle,
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
+                    forceAssSubtitleOverride = forceAssSubtitleOverride,
                     isSubtitleGestureEnabled = isSubtitleGestureEnabled,
                     subtitleDelayMs = subtitleDelayMs,
                     subtitleVerticalOffset = subtitleVerticalOffset,
@@ -338,6 +341,7 @@ fun SubtitleSheet(
                     onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
+                    onForceAssSubtitleOverrideChange = onForceAssSubtitleOverrideChange,
                     onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
                     onSubtitleDelayChange = onSubtitleDelayChange,
                     onSubtitleVerticalOffsetChange = onSubtitleVerticalOffsetChange,
@@ -361,6 +365,7 @@ fun SubtitleSheet(
                     useSystemCaptionStyle = useSystemCaptionStyle,
                     subtitleFont = subtitleFont,
                     isSubtitleBold = isSubtitleBold,
+                    forceAssSubtitleOverride = forceAssSubtitleOverride,
                     isSubtitleGestureEnabled = isSubtitleGestureEnabled,
                     subtitleDelayMs = subtitleDelayMs,
                     subtitleVerticalOffset = subtitleVerticalOffset,
@@ -371,6 +376,7 @@ fun SubtitleSheet(
                     onUseSystemCaptionStyleChange = onUseSystemCaptionStyleChange,
                     onSubtitleFontChange = onSubtitleFontChange,
                     onIsSubtitleBoldChange = onIsSubtitleBoldChange,
+                    onForceAssSubtitleOverrideChange = onForceAssSubtitleOverrideChange,
                     onSubtitleGestureEnabledChange = onSubtitleGestureEnabledChange,
                     onSubtitleDelayChange = onSubtitleDelayChange,
                     onSubtitleVerticalOffsetChange = onSubtitleVerticalOffsetChange,
@@ -392,6 +398,7 @@ private fun SubtitleSheetContent(
     useSystemCaptionStyle: Boolean,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont,
     isSubtitleBold: Boolean,
+    forceAssSubtitleOverride: Boolean = false,
     isSubtitleGestureEnabled: Boolean = true,
     subtitleDelayMs: Long = 0L,
     subtitleVerticalOffset: Float = 0f,
@@ -402,6 +409,7 @@ private fun SubtitleSheetContent(
     onUseSystemCaptionStyleChange: (Boolean) -> Unit,
     onSubtitleFontChange: (com.devson.nvplayer.repository.SubtitleFont) -> Unit,
     onIsSubtitleBoldChange: (Boolean) -> Unit,
+    onForceAssSubtitleOverrideChange: (Boolean) -> Unit = {},
     onSubtitleGestureEnabledChange: (Boolean) -> Unit = {},
     onSubtitleDelayChange: (Long) -> Unit = {},
     onSubtitleVerticalOffsetChange: (Float) -> Unit = {},
@@ -608,6 +616,23 @@ private fun SubtitleSheetContent(
                                     Switch(
                                         checked = isSubtitleBold,
                                         onCheckedChange = onIsSubtitleBoldChange
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            SettingsSection(title = "ASS Override") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Force Override ASS Styles", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
+                                        Text("Apply custom style over embedded ASS formatting", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                                    }
+                                    Switch(
+                                        checked = forceAssSubtitleOverride,
+                                        onCheckedChange = onForceAssSubtitleOverrideChange
                                     )
                                 }
                             }

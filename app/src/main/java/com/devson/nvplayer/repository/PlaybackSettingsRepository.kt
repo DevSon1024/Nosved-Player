@@ -52,6 +52,7 @@ data class PlaybackSettings(
     val useSystemCaptionStyle: Boolean = false,
     val subtitleFont: SubtitleFont = SubtitleFont.DEFAULT,
     val isSubtitleBold: Boolean = false,
+    val forceAssSubtitleOverride: Boolean = false,
 
     // Gesture Settings
     val seekGestureEnabled: Boolean = true,
@@ -101,6 +102,7 @@ class PlaybackSettingsRepository(private val context: Context) {
         val USE_SYSTEM_CAPTION_STYLE = booleanPreferencesKey("use_system_caption_style")
         val SUBTITLE_FONT = stringPreferencesKey("subtitle_font")
         val IS_SUBTITLE_BOLD = booleanPreferencesKey("is_subtitle_bold")
+        val FORCE_ASS_SUBTITLE_OVERRIDE = booleanPreferencesKey("force_ass_subtitle_override")
 
         // Gesture Keys
         val SEEK_GESTURE_ENABLED = booleanPreferencesKey("seek_gesture_enabled")
@@ -140,6 +142,7 @@ class PlaybackSettingsRepository(private val context: Context) {
                 useSystemCaptionStyle = preferences[PreferencesKeys.USE_SYSTEM_CAPTION_STYLE] ?: false,
                 subtitleFont = try { SubtitleFont.valueOf(preferences[PreferencesKeys.SUBTITLE_FONT] ?: SubtitleFont.DEFAULT.name) } catch (e: Exception) { SubtitleFont.DEFAULT },
                 isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false,
+                forceAssSubtitleOverride = preferences[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] ?: false,
 
                 seekGestureEnabled = preferences[PreferencesKeys.SEEK_GESTURE_ENABLED] ?: true,
                 seekSensitivity = preferences[PreferencesKeys.SEEK_SENSITIVITY] ?: 0.5f,
@@ -339,6 +342,10 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateIsSubtitleBold(isBold: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.IS_SUBTITLE_BOLD] = isBold }
+    }
+
+    suspend fun updateForceAssSubtitleOverride(force: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] = force }
     }
     suspend fun updateSeekGestureEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.SEEK_GESTURE_ENABLED] = enabled } }
     suspend fun updateSeekSensitivity(sensitivity: Float) { context.dataStore.edit { it[PreferencesKeys.SEEK_SENSITIVITY] = sensitivity } }

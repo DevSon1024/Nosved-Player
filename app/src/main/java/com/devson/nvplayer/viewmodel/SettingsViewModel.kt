@@ -169,6 +169,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 useSystemCaptionStyle = false,
                 subtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
                 isSubtitleBold = false,
+                forceAssSubtitleOverride = false,
                 // New Gesture Defaults
                 seekGestureEnabled = true,
                 seekSensitivity = 0.5f,
@@ -233,6 +234,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateIsSubtitleBold(isBold: Boolean) {
         viewModelScope.launch { settingsRepo.updateIsSubtitleBold(isBold) }
+    }
+
+    fun updateForceAssSubtitleOverride(force: Boolean) {
+        viewModelScope.launch { settingsRepo.updateForceAssSubtitleOverride(force) }
     }
 
     // --- New Gesture Dispatchers ---

@@ -45,6 +45,7 @@ fun ComposeSubtitleOverlay(
     useSystemCaptionStyle: Boolean = false,
     subtitleFont: com.devson.nvplayer.repository.SubtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
     isSubtitleBold: Boolean = false,
+    forceAssSubtitleOverride: Boolean = false,
     subtitleTimingsMs: List<Long> = emptyList(),
     isSubtitleGestureEnabled: Boolean = true,
     subtitleDelayMs: Long = 0L,
@@ -276,23 +277,29 @@ fun ComposeSubtitleOverlay(
                                     2 -> Color.Black
                                     else -> Color.Transparent
                                 }
-                                val targetFontFamily = if (!useSystemCaptionStyle) {
-                                    when (subtitleFont) {
+                                val targetFontFamily = when {
+                                    forceAssSubtitleOverride || !useSystemCaptionStyle -> when (subtitleFont) {
                                         com.devson.nvplayer.repository.SubtitleFont.DEFAULT -> androidx.compose.ui.text.font.FontFamily.Default
                                         com.devson.nvplayer.repository.SubtitleFont.MONOSPACE -> androidx.compose.ui.text.font.FontFamily.Monospace
                                         com.devson.nvplayer.repository.SubtitleFont.SANS_SERIF -> androidx.compose.ui.text.font.FontFamily.SansSerif
                                         com.devson.nvplayer.repository.SubtitleFont.SERIF -> androidx.compose.ui.text.font.FontFamily.Serif
                                     }
-                                } else {
-                                    androidx.compose.ui.text.font.FontFamily.Default
+                                    else -> androidx.compose.ui.text.font.FontFamily.Default
                                 }
-                                val targetFontWeight = if (!useSystemCaptionStyle && isSubtitleBold) {
+                                val targetFontWeight = if ((forceAssSubtitleOverride || !useSystemCaptionStyle) && isSubtitleBold) {
                                     androidx.compose.ui.text.font.FontWeight.Bold
                                 } else {
                                     androidx.compose.ui.text.font.FontWeight.Normal
                                 }
+                                val displayText = if (forceAssSubtitleOverride) {
+                                    android.text.SpannableString(cue.text).apply {
+                                        getSpans(0, length, android.text.style.CharacterStyle::class.java).forEach { removeSpan(it) }
+                                    }.toString()
+                                } else {
+                                    cue.text.toString()
+                                }
                                 Text(
-                                    text = cue.text.toString(),
+                                    text = displayText,
                                     fontSize = (16 * textSizeScale).sp,
                                     color = Color.White,
                                     fontFamily = targetFontFamily,

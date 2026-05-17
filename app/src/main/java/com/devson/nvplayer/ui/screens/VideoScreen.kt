@@ -484,6 +484,7 @@ fun VideoScreen(
             useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
             subtitleFont = playbackSettings.subtitleFont,
             isSubtitleBold = playbackSettings.isSubtitleBold,
+            forceAssSubtitleOverride = playbackSettings.forceAssSubtitleOverride,
             isSubtitleGestureEnabled = isSubtitleGestureEnabled,
             subtitleDelayMs = subtitleDelayMs,
             verticalOffsetFraction = subtitleVerticalOffset
@@ -752,6 +753,7 @@ fun VideoScreen(
         useSystemCaptionStyle = playbackSettings.useSystemCaptionStyle,
         subtitleFont = playbackSettings.subtitleFont,
         isSubtitleBold = playbackSettings.isSubtitleBold,
+        forceAssSubtitleOverride = playbackSettings.forceAssSubtitleOverride,
         isSubtitleGestureEnabled = isSubtitleGestureEnabled,
         isLandscape = isLandscape,
         subtitleDelayMs = subtitleDelayMs,
@@ -763,6 +765,7 @@ fun VideoScreen(
         onUseSystemCaptionStyleChange = { settingsViewModel.updateUseSystemCaptionStyle(it) },
         onSubtitleFontChange = { settingsViewModel.updateSubtitleFont(it) },
         onIsSubtitleBoldChange = { settingsViewModel.updateIsSubtitleBold(it) },
+        onForceAssSubtitleOverrideChange = { settingsViewModel.updateForceAssSubtitleOverride(it) },
         onSubtitleGestureEnabledChange = { isSubtitleGestureEnabled = it },
         onSubtitleDelayChange = { viewModel.setSubtitleDelayMs(it) },
         onSubtitleVerticalOffsetChange = { viewModel.setSubtitleVerticalOffset(it) },
