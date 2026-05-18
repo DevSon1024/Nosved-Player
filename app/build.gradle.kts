@@ -169,6 +169,9 @@ dependencies {
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
 
+    // custom aar for replacing exoplayer
+    implementation(files("libs/universal.aar"))
+
     // FFMPEG kit for Video Utility
     implementation("io.github.jamaismagic.ffmpeg:ffmpeg-kit-main-full-gpl-16kb:6.1.4")
     

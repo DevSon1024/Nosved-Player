@@ -167,3 +167,7 @@ Made with ♥ and Kotlin.
 
 [![Telegram](https://img.shields.io/badge/Telegram-Nosved__Player-2CA5E0?logo=telegram)](https://t.me/Nosved_Player)
 [![GitHub](https://img.shields.io/badge/GitHub-DevSon1024-181717?logo=github)](https://github.com/DevSon1024)
+
+<!-- ## Star History -->
+
+<!-- [![Star History Chart](https://api.star-history.com/chart?repos=Devson1024/nosved-player&type=date&legend=top-left)](https://www.star-history.com/?repos=Devson1024/nosved-player&type=date&legend=top-left) -->
