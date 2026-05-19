@@ -1,3 +1,48 @@
 <resources>
     <string name="app_name">nvplayer</string>
+    
+    <!-- Settings Screen -->
+    <string name="unknown">Unknown</string>
+    <string name="settings_title">Settings</string>
+    <string name="back">Back</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_display">Display &amp; Theme</string>
+    <string name="settings_display_desc">Palettes, Dark Mode, Dynamic colors, Language</string>
+    <string name="settings_player">Player Settings</string>
+    <string name="settings_list">Video List</string>
+    <string name="settings_about_list">Show hidden files, floating button, customize items</string>
+    <string name="settings_folders">Scan Folders</string>
+    <string name="settings_about_folders">Add or exclude folders from media scanning</string>
+    <string name="settings_Modern_controls">Modern Player Controls</string>
+    <string name="settings_Modern_controls_active">Modern style controls are enabled</string>
+    <string name="settings_Modern_controls_inactive">Classic style controls are enabled</string>
+    <string name="settings_app">General</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_desc">Version, developer information, legal docs</string>
+    <string name="settings_privacy">Privacy Policy</string>
+    <string name="settings_privacy_desc">Read our commitment to your privacy</string>
+    <string name="settings_developer">Developer Options</string>
+    <string name="settings_error_logs">Error Logs</string>
+    <string name="settings_error_logs_desc">View recent runtime crashes and debug logs</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_stable">STABLE</string>
+
+    <!-- Appearance Settings Screen -->
+    <string name="appearance_dark_theme">Dark Theme</string>
+    <string name="appearance_light">Light</string>
+    <string name="appearance_dark">Dark</string>
+    <string name="appearance_system_default">System Default</string>
+    <string name="appearance_close">Close</string>
+    <string name="appearance_language">Language / भाषा</string>
+    <string name="appearance_english">English</string>
+    <string name="appearance_marathi_full">मराठी (Marathi)</string>
+    <string name="appearance_marathi">मराठी</string>
+    <string name="appearance_colour_palette">Colour Palette</string>
+    <string name="appearance_theme">Theme Mode</string>
+    <string name="appearance_dynamic_colour">Dynamic Colour</string>
+    <string name="appearance_dynamic_colour_desc">Use system dynamic accent colours (Android 12+)</string>
+    <string name="appearance_display_language">Display Language</string>
+    <string name="appearance_restart_info">Some changes might require app restart to fully apply.</string>
+    <string name="appearance_current_palette">Current Palette</string>
+    <string name="appearance_selected">Selected</string>
 </resources>

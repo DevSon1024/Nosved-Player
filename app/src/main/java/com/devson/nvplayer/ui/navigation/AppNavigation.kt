@@ -12,8 +12,10 @@ import androidx.navigation.navArgument
 import com.devson.nvplayer.ui.screen.FolderScreen
 import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
-import com.devson.nvplayer.viewmodel.FolderViewModel
+import com.devson.nvplayer.ui.screen.SettingsScreen
+import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
+import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 
 @Composable
@@ -30,7 +32,26 @@ fun AppNavigation(
                 viewModel = homeViewModel,
                 onFolderClick = { folderName ->
                     navController.navigate("folder/${Uri.encode(folderName)}")
+                },
+                onSettingsClick = {
+                    navController.navigate("settings")
                 }
+            )
+        }
+
+        composable("settings") {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToAbout = {},
+                onNavigateToLogs = {},
+                onNavigateToPrivacyPolicy = {},
+                onNavigateToAppearance = { navController.navigate("appearance") }
+            )
+        }
+
+        composable("appearance") {
+            AppearanceSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

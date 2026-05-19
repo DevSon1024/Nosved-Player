@@ -11,6 +11,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
@@ -19,10 +21,11 @@ import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
 import com.devson.nvplayer.player.MPVPlayerEngine
 import com.devson.nvplayer.ui.navigation.AppNavigation
-import com.devson.nvplayer.ui.theme.nvplayerTheme
+import com.devson.nvplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
+import com.devson.nvplayer.viewmodel.SettingsViewModel
 import coil.ImageLoader
 import coil.Coil
 import coil.decode.VideoFrameDecoder
@@ -32,6 +35,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var playerViewModel: PlayerViewModel
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var folderViewModel: FolderViewModel
+    private lateinit var settingsViewModel: SettingsViewModel
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -59,6 +63,7 @@ class MainActivity : ComponentActivity() {
         
         homeViewModel = HomeViewModel(repository)
         folderViewModel = FolderViewModel(repository)
+        settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
 
         val playerEngine = MPVPlayerEngine(applicationContext)
         val factory = PlayerViewModel.Factory(application, playerEngine)
@@ -67,7 +72,19 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermissions()
 
         setContent {
-            nvplayerTheme {
+            val isDark by settingsViewModel.isDarkTheme.collectAsState()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
+            val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
+            val isNavBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
+            val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsState()
+
+            NosvedPlayerTheme(
+                forceDark = isDark,
+                dynamicColor = dynamicColor,
+                palette = selectedPalette,
+                isNavBarTransparent = isNavBarTransparent,
+                isAmoledTheme = isAmoledTheme
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Transparent

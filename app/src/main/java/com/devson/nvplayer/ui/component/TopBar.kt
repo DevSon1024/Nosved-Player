@@ -1,5 +1,6 @@
 package com.devson.nvplayer.ui.component
 
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +16,8 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun TopBar(
     title: String,
-    onBackClick: (() -> Unit)? = null
+    onBackClick: (() -> Unit)? = null,
+    actions: @Composable (RowScope.() -> Unit) = {}
 ) {
     TopAppBar(
         title = { Text(text = title, color = Color.White) },
@@ -30,6 +32,7 @@ fun TopBar(
                 }
             }
         },
+        actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color(0xFF1E1E1E)
         )

@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,7 +34,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onFolderClick: (String) -> Unit
+    onFolderClick: (String) -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val folders by viewModel.folders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -41,7 +46,18 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-            TopBar(title = "NVPlayer")
+            TopBar(
+                title = "NVPlayer",
+                actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.White
+                        )
+                    }
+                }
+            )
         },
         containerColor = Color.Black
     ) { paddingValues ->

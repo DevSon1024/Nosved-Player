@@ -100,6 +100,7 @@ android {
         compose = true
         viewBinding = true
         resValues = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
@@ -119,6 +120,7 @@ android {
 dependencies {
     implementation(group = "", name = "mpv-android-lib-v0.0.1", ext = "aar")
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
