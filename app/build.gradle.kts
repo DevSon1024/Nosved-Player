@@ -34,11 +34,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        if (!splitApks) {
-            // For debug builds - only include device ABI for faster builds
-            ndk {
-                abiFilters.add("arm64-v8a")
-            }
+        ndk {
+            abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a"))
         }
     }
     signingConfigs {
@@ -79,7 +76,7 @@ android {
             abi {
                 isEnable = true
                 reset()
-                include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+                include("arm64-v8a", "armeabi-v7a")
                 isUniversalApk = true
             }
         }
@@ -107,13 +104,22 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
     }
-    buildFeatures {
-        compose = true
-    }
     ndkVersion = "27.0.12077973"
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            pickFirsts.add("**/libc++_shared.so")
+        }
+    }
 }
 
 dependencies {
+    implementation(group = "", name = "mpv-android-lib-v0.0.1", ext = "aar")
+    implementation(libs.androidx.compose.material.icons.extended)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

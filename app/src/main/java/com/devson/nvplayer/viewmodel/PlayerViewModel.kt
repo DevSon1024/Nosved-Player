@@ -1,0 +1,87 @@
+package com.devson.nvplayer.viewmodel
+
+import android.app.Application
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.devson.nvplayer.player.PlayerEngine
+import com.devson.nvplayer.player.PlayerState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * ViewModel managing the media playback state and bridging it to Compose UI.
+ */
+class PlayerViewModel(
+    application: Application,
+    private val playerEngine: PlayerEngine
+) : AndroidViewModel(application) {
+
+    // Expose flows from the MPV player engine
+    val isPlaying: StateFlow<Boolean> = playerEngine.isPlaying
+    val currentPosition: StateFlow<Long> = playerEngine.currentPosition
+    val duration: StateFlow<Long> = playerEngine.duration
+    val playbackState: StateFlow<PlayerState> = playerEngine.playbackState
+
+    private val _currentUri = MutableStateFlow<Uri?>(null)
+    val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
+
+    /**
+     * Persists URI read permission for Storage Access Framework and plays the file.
+     */
+    fun loadVideo(uri: Uri) {
+        Log.d("PlayerViewModel", "Requested to load video URI: $uri")
+        _currentUri.value = uri
+        try {
+            val contentResolver = getApplication<Application>().contentResolver
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            contentResolver.takePersistableUriPermission(uri, takeFlags)
+            Log.d("PlayerViewModel", "Successfully persisted URI read permission")
+        } catch (e: Exception) {
+            Log.w("PlayerViewModel", "Could not persist URI read permission (non-standard provider): ${e.localizedMessage}")
+        }
+        playerEngine.loadVideo(uri)
+    }
+
+    fun play() {
+        playerEngine.play()
+    }
+
+    fun pause() {
+        playerEngine.pause()
+    }
+
+    fun togglePlayback() {
+        playerEngine.togglePlayback()
+    }
+
+    fun seekTo(position: Long) {
+        playerEngine.seekTo(position)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")
+        playerEngine.release()
+    }
+
+    /**
+     * Custom Factory to instantiate PlayerViewModel without dependency injection frameworks (Hilt).
+     */
+    class Factory(
+        private val application: Application,
+        private val playerEngine: PlayerEngine
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(PlayerViewModel::class.java)) {
+                return PlayerViewModel(application, playerEngine) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        }
+    }
+}
