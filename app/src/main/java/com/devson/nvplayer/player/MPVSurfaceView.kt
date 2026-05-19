@@ -25,6 +25,8 @@ class MPVSurfaceView @JvmOverloads constructor(
         Log.d("MPVSurfaceView", "Surface created - attaching native surface to MPVLib")
         try {
             MPVLib.attachSurface(holder.surface)
+            MPVLib.setOptionString("force-window", "yes")
+            MPVLib.setPropertyString("vo", "gpu")
         } catch (e: Exception) {
             Log.e("MPVSurfaceView", "Error attaching surface to MPVLib", e)
         }
@@ -32,11 +34,18 @@ class MPVSurfaceView @JvmOverloads constructor(
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         Log.d("MPVSurfaceView", "Surface changed - format: $format, width: $width, height: $height")
+        try {
+            MPVLib.setPropertyString("android-surface-size", "${width}x${height}")
+        } catch (e: Exception) {
+            Log.e("MPVSurfaceView", "Error setting surface size", e)
+        }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Log.d("MPVSurfaceView", "Surface destroyed - detaching native surface from MPVLib")
         try {
+            MPVLib.setPropertyString("vo", "null")
+            MPVLib.setOptionString("force-window", "no")
             MPVLib.detachSurface()
         } catch (e: Exception) {
             Log.e("MPVSurfaceView", "Error detaching surface from MPVLib", e)

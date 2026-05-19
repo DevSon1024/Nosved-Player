@@ -14,5 +14,8 @@ interface PlayerEngine {
     fun pause()
     fun togglePlayback()
     fun seekTo(position: Long) // position in milliseconds
+    fun setPlaybackSpeed(speed: Float)
+    fun cycleSubtitle()
+    fun cycleAudio()
     fun release()
 }

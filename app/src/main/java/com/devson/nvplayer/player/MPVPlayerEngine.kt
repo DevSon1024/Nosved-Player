@@ -27,14 +27,17 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         try {
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
             MPVLib.create(context.applicationContext)
-            MPVLib.init()
 
             // Configure standard MPV playback options for modern android
             MPVLib.setOptionString("vo", "gpu")
+            MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("hwdec", "auto")
+            MPVLib.setOptionString("force-window", "yes")
             
             // Keep native player responsive and smooth
             MPVLib.setOptionString("keep-open", "yes")
+
+            MPVLib.init()
 
             // Register event listener
             MPVLib.addObserver(this)
@@ -101,6 +104,33 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.command("seek", seconds.toString(), "absolute")
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to seek to position", e)
+        }
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        Log.d("MPVPlayerEngine", "Setting playback speed to: $speed")
+        try {
+            MPVLib.setPropertyDouble("speed", speed.toDouble())
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set playback speed", e)
+        }
+    }
+
+    override fun cycleSubtitle() {
+        Log.d("MPVPlayerEngine", "Cycling subtitle")
+        try {
+            MPVLib.command("cycle", "sid")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to cycle subtitle", e)
+        }
+    }
+
+    override fun cycleAudio() {
+        Log.d("MPVPlayerEngine", "Cycling audio")
+        try {
+            MPVLib.command("cycle", "aid")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to cycle audio", e)
         }
     }
 

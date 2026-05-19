@@ -30,6 +30,9 @@ fun PlayerControls(
     duration: Long,
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long) -> Unit,
+    onSetPlaybackSpeed: (Float) -> Unit,
+    onCycleSubtitle: () -> Unit,
+    onCycleAudio: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Premium color palette: Neon Cyan, Dark Charcoal, Deep Purple accents
@@ -39,6 +42,10 @@ fun PlayerControls(
 
     var isUserSeeking by remember { mutableStateOf(false) }
     var seekProgressValue by remember { mutableFloatStateOf(0f) }
+    
+    // Playback speed state
+    val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
+    var currentSpeedIndex by remember { mutableIntStateOf(1) }
 
     // Synchronize slider with external progress when the user is not actively dragging it
     val sliderPosition = if (isUserSeeking) seekProgressValue else {
@@ -174,6 +181,47 @@ fun PlayerControls(
                         contentDescription = "Forward 10 seconds",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // 4. Secondary Action Buttons (Audio, Subtitle, Speed)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Audio Track Cycle
+                IconButton(onClick = onCycleAudio) {
+                    Icon(
+                        imageVector = Icons.Rounded.Audiotrack,
+                        contentDescription = "Cycle Audio Track",
+                        tint = Color.White
+                    )
+                }
+                
+                // Subtitle Cycle
+                IconButton(onClick = onCycleSubtitle) {
+                    Icon(
+                        imageVector = Icons.Rounded.Subtitles,
+                        contentDescription = "Cycle Subtitle",
+                        tint = Color.White
+                    )
+                }
+                
+                // Playback Speed Toggle
+                TextButton(
+                    onClick = {
+                        currentSpeedIndex = (currentSpeedIndex + 1) % speeds.size
+                        onSetPlaybackSpeed(speeds[currentSpeedIndex])
+                    }
+                ) {
+                    Text(
+                        text = "${speeds[currentSpeedIndex]}x",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }

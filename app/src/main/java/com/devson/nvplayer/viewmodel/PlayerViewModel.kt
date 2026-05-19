@@ -63,6 +63,18 @@ class PlayerViewModel(
         playerEngine.seekTo(position)
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        playerEngine.setPlaybackSpeed(speed)
+    }
+
+    fun cycleSubtitle() {
+        playerEngine.cycleSubtitle()
+    }
+
+    fun cycleAudio() {
+        playerEngine.cycleAudio()
+    }
+
     override fun onCleared() {
         super.onCleared()
         Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")

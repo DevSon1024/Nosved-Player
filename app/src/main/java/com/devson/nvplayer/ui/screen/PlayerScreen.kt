@@ -8,8 +8,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +39,10 @@ fun PlayerScreen(
     currentUri: Uri?,
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long) -> Unit,
-    onOpenFilePicker: () -> Unit,
+    onSetPlaybackSpeed: (Float) -> Unit,
+    onCycleSubtitle: () -> Unit,
+    onCycleAudio: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Elegant neon-dark theme values
@@ -60,7 +63,6 @@ fun PlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -86,69 +88,7 @@ fun PlayerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(24.dp)
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(RoundedCornerShape(32.dp)),
-                            color = Color(0x1A00E5FF)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Rounded.FolderOpen,
-                                    contentDescription = "Open video folder",
-                                    tint = neonCyan,
-                                    modifier = Modifier.size(56.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(28.dp))
-
-                        Text(
-                            text = "nvplayer",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 1.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Modern high-performance media engine powering flawless local playback.",
-                            fontSize = 14.sp,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.widthIn(max = 280.dp),
-                            lineHeight = 20.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(36.dp))
-
-                        Button(
-                            onClick = onOpenFilePicker,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = neonCyan,
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 16.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Rounded.FolderOpen,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Open Video File",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
+                        CircularProgressIndicator(color = neonCyan)
                     }
                 }
             }
@@ -194,14 +134,14 @@ fun PlayerScreen(
                         Spacer(modifier = Modifier.height(32.dp))
 
                         Button(
-                            onClick = onOpenFilePicker,
+                            onClick = onBackClick,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF2C2C2C),
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Try Another File")
+                            Text("Go Back")
                         }
                     }
                 }
@@ -254,6 +194,21 @@ fun PlayerScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = onBackClick,
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color(0x33FFFFFF),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = "Go back"
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.width(16.dp))
+                            
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Playing",
@@ -268,19 +223,6 @@ fun PlayerScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.White,
                                     maxLines = 1
-                                )
-                            }
-                            
-                            IconButton(
-                                onClick = onOpenFilePicker,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color(0x33FFFFFF),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.FolderOpen,
-                                    contentDescription = "Choose another video"
                                 )
                             }
                         }
@@ -312,6 +254,9 @@ fun PlayerScreen(
                             duration = duration,
                             onPlayPauseToggle = onPlayPauseToggle,
                             onSeek = onSeek,
+                            onSetPlaybackSpeed = onSetPlaybackSpeed,
+                            onCycleSubtitle = onCycleSubtitle,
+                            onCycleAudio = onCycleAudio,
                             modifier = Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
