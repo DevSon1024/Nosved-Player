@@ -25,6 +25,7 @@ import coil.decode.VideoFrameDecoder
 import androidx.compose.ui.platform.LocalContext
 import coil.request.videoFrameMillis
 import com.devson.nvplayer.data.model.VideoItem
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun VideoListItem(
@@ -37,7 +38,7 @@ fun VideoListItem(
             .clickable { onClick() }
             .padding(vertical = 6.dp, horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2C2C2C)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -70,7 +71,7 @@ fun VideoListItem(
                         imageVector = Icons.Default.VideoFile,
                         contentDescription = "Video",
                         modifier = Modifier.fillMaxSize(),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -82,7 +83,7 @@ fun VideoListItem(
             ) {
                 Text(
                     text = videoItem.title,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
@@ -96,13 +97,13 @@ fun VideoListItem(
                     val durationText = formatDuration(videoItem.duration)
                     Text(
                         text = durationText,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
                     if (videoItem.width > 0 && videoItem.height > 0) {
                         Text(
                             text = "${videoItem.width}x${videoItem.height}",
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             fontSize = 12.sp
                         )
                     }

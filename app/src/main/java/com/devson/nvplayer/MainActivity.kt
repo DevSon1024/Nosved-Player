@@ -92,7 +92,8 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         homeViewModel = homeViewModel,
                         folderViewModel = folderViewModel,
-                        playerViewModel = playerViewModel
+                        playerViewModel = playerViewModel,
+                        settingsViewModel = settingsViewModel
                     )
                 }
             }

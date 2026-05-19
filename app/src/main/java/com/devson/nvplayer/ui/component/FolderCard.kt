@@ -24,6 +24,7 @@ import coil.decode.VideoFrameDecoder
 import androidx.compose.ui.platform.LocalContext
 import coil.request.videoFrameMillis
 import com.devson.nvplayer.data.model.FolderItem
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun FolderCard(
@@ -36,7 +37,7 @@ fun FolderCard(
             .clickable { onClick() }
             .padding(vertical = 8.dp, horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2C2C2C)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -65,7 +66,7 @@ fun FolderCard(
                     imageVector = Icons.Default.Folder,
                     contentDescription = "Folder",
                     modifier = Modifier.size(64.dp),
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -74,14 +75,14 @@ fun FolderCard(
             Column {
                 Text(
                     text = folderItem.name,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${folderItem.videoCount} Videos",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
             }

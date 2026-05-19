@@ -9,6 +9,54 @@ import kotlinx.coroutines.flow.asStateFlow
 class PlaybackSettingsRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE)
 
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "is_dark_theme" -> {
+                _isDarkThemeFlow.value = if (prefs.contains("is_dark_theme")) prefs.getBoolean("is_dark_theme", false) else null
+            }
+            "is_amoled_theme" -> {
+                _isAmoledThemeFlow.value = prefs.getBoolean("is_amoled_theme", false)
+            }
+            "default_audio_lang" -> {
+                _defaultAudioLangFlow.value = prefs.getString("default_audio_lang", "") ?: ""
+            }
+            "default_subtitle_lang" -> {
+                _defaultSubtitleLangFlow.value = prefs.getString("default_subtitle_lang", "") ?: ""
+            }
+            "is_developer_mode" -> {
+                _isDeveloperModeFlow.value = prefs.getBoolean("is_developer_mode", false)
+            }
+            "use_modern_player_style" -> {
+                _useModernPlayerStyleFlow.value = prefs.getBoolean("use_modern_player_style", true)
+            }
+            "has_seen_onboarding" -> {
+                _hasSeenOnboardingFlow.value = if (prefs.contains("has_seen_onboarding")) prefs.getBoolean("has_seen_onboarding", false) else null
+            }
+            "dynamic_color" -> {
+                _dynamicColorFlow.value = prefs.getBoolean("dynamic_color", false)
+            }
+            "selected_palette" -> {
+                _selectedPaletteFlow.value = prefs.getString("selected_palette", "BLUE") ?: "BLUE"
+            }
+            "is_navbar_transparent" -> {
+                _isNavBarTransparentFlow.value = prefs.getBoolean("is_navbar_transparent", true)
+            }
+            "seek_duration_seconds", "seek_bar_style", "control_icon_size", "auto_play_enabled",
+            "show_seek_buttons", "fastplay_speed", "orientation_mode", "fullscreen_mode", "soft_button_mode",
+            "show_elapsed_time_overlay", "show_battery_clock_overlay", "show_screen_rotation_button",
+            "pause_when_obstructed", "show_remaining_time", "use_system_caption_style", "subtitle_font",
+            "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_sensitivity",
+            "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
+            "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action" -> {
+                _playbackSettingsFlow.value = loadPlaybackSettings()
+            }
+        }
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
     // Theme and general setting flows
     private val _isDarkThemeFlow = MutableStateFlow<Boolean?>(
         if (prefs.contains("is_dark_theme")) prefs.getBoolean("is_dark_theme", false) else null

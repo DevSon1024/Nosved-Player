@@ -17,12 +17,14 @@ import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
+import com.devson.nvplayer.viewmodel.SettingsViewModel
 
 @Composable
 fun AppNavigation(
     homeViewModel: HomeViewModel,
     folderViewModel: FolderViewModel,
-    playerViewModel: PlayerViewModel
+    playerViewModel: PlayerViewModel,
+    settingsViewModel: SettingsViewModel
 ) {
     val navController = rememberNavController()
 
@@ -45,13 +47,15 @@ fun AppNavigation(
                 onNavigateToAbout = {},
                 onNavigateToLogs = {},
                 onNavigateToPrivacyPolicy = {},
-                onNavigateToAppearance = { navController.navigate("appearance") }
+                onNavigateToAppearance = { navController.navigate("appearance") },
+                settingsViewModel = settingsViewModel
             )
         }
 
         composable("appearance") {
             AppearanceSettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                settingsViewModel = settingsViewModel
             )
         }
 
