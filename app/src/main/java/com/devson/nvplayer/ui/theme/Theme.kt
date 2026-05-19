@@ -1,4 +1,4 @@
-package com.devson.androidTemplate.ui.theme
+package com.devson.nvplayer.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -22,7 +22,7 @@ private val LightColorScheme = lightColorScheme(
     secondary = PurpleGrey40,
     tertiary = Pink40
 
-    /* Other androidTemplate colors to override
+    /* Other nvplayer colors to override
     background = Color(0xFFFFFBFE),
     surface = Color(0xFFFFFBFE),
     onPrimary = Color.White,
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun androidTemplateTheme(
+fun nvplayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
