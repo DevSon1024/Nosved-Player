@@ -24,3 +24,5 @@ update_details.md
 .vscode
 .agent
 nosved-player-commits-v1.3.0.md
+*.txt
+*.log
