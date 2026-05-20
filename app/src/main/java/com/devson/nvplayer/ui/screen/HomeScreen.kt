@@ -55,7 +55,8 @@ fun HomeScreen(
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onVideoClick: (Uri, List<Uri>) -> Unit,
-    onRecycleBinClick: () -> Unit
+    onRecycleBinClick: () -> Unit,
+    onSearch: (String) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -233,9 +234,7 @@ fun HomeScreen(
                 },
                 onNavigateToSettings = onSettingsClick,
                 onShowSettings = { showSettingsSheet = true },
-                onSearch = { query ->
-                    // Global search if query is searched
-                },
+                onSearch = onSearch,
                 searchActive = searchActive,
                 searchText = searchText,
                 onSearchActiveChange = { active ->

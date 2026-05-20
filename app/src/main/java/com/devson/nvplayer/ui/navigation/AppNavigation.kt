@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import com.devson.nvplayer.ui.screen.FolderScreen
 import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
+import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
 import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
 import com.devson.nvplayer.ui.screen.RecycleBinScreen
@@ -58,6 +59,9 @@ fun AppNavigation(
                 },
                 onRecycleBinClick = {
                     navController.navigate("recycle_bin")
+                },
+                onSearch = { query ->
+                    navController.navigate("search_results/${Uri.encode(query)}")
                 }
             )
         }
@@ -104,7 +108,27 @@ fun AppNavigation(
                 },
                 onSettingsClick = {
                     navController.navigate("settings")
+                },
+                onSearch = { query ->
+                    navController.navigate("search_results/${Uri.encode(query)}")
                 }
+            )
+        }
+
+        composable(
+            route = "search_results/{query}",
+            arguments = listOf(navArgument("query") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val query = backStackEntry.arguments?.getString("query") ?: ""
+            SearchResultsScreen(
+                query = query,
+                viewModel = videoListViewModel,
+                homeViewModel = homeViewModel,
+                onVideoSelected = { video, playlist, lastPositionMs ->
+                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    navController.navigate("player")
+                },
+                onBack = safePopBackStack
             )
         }
 

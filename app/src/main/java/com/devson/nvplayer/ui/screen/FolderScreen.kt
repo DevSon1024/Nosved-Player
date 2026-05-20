@@ -41,7 +41,8 @@ fun FolderScreen(
     homeViewModel: HomeViewModel,
     onBackClick: () -> Unit,
     onVideoClick: (Uri, List<Uri>) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onSearch: (String) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -179,9 +180,7 @@ fun FolderScreen(
                 onBack = onBackClick,
                 onNavigateToSettings = onSettingsClick,
                 onShowSettings = { showSettingsSheet = true },
-                onSearch = { query ->
-                    // Handle search query
-                },
+                onSearch = onSearch,
                 searchActive = searchActive,
                 searchText = searchText,
                 onSearchActiveChange = { active ->

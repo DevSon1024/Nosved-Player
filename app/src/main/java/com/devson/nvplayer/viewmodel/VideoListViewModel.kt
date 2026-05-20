@@ -128,6 +128,11 @@ class VideoListViewModel(private val repository: VideoRepository) : ViewModel() 
         performSearch()
     }
 
+    fun getSearchResults(query: String): List<Video> {
+        if (query.isBlank()) return emptyList()
+        return allVideosList.filter { it.title.contains(query, ignoreCase = true) }
+    }
+
     private fun performSearch() {
         if (currentSearchQuery.isBlank()) return
         val filteredMapped = _videosByFolder.value.mapValues { (_, videos) ->

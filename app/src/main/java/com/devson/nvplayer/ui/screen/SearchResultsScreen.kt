@@ -1,7 +1,5 @@
-package com.devson.nvplayer.ui.screens
+package com.devson.nvplayer.ui.screen
 
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.devson.nvplayer.model.LayoutMode
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.applySort
@@ -30,19 +28,19 @@ import com.devson.nvplayer.ui.components.IconToggleButton
 import com.devson.nvplayer.ui.components.SettingsSectionLabel
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
 import com.devson.nvplayer.viewmodel.VideoListViewModel
+import com.devson.nvplayer.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchResultsScreen(
     query: String,
+    viewModel: VideoListViewModel,
+    homeViewModel: HomeViewModel,
     onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onBack: () -> Unit
 ) {
-    val activity = LocalActivity.current as ComponentActivity
-    val viewModel: VideoListViewModel = viewModel(activity)
     val viewSettings by viewModel.viewSettings.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val homeViewModel: com.devson.nvplayer.viewmodel.HomeViewModel = viewModel(activity)
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
