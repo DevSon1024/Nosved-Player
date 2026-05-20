@@ -34,7 +34,8 @@ data class Video(
     val playedTime: Long? = null,
     val lastPlayedAt: Long? = null,
     val resolution: String? = null,
-    val frameRate: Float? = null
+    val frameRate: Float? = null,
+    val dateExpires: Long? = null
 )
 
 fun List<Video>.applySort(field: SortField, direction: SortDirection): List<Video> {
