@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -54,7 +55,8 @@ fun VideoListTopAppBar(
     onSearchTextChange: (String) -> Unit = {},
     searchSuggestions: List<String> = emptyList(),
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
-    keyboard: SoftwareKeyboardController? = null
+    keyboard: SoftwareKeyboardController? = null,
+    onRecycleBinClick: (() -> Unit)? = null
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -142,6 +144,11 @@ fun VideoListTopAppBar(
                         Icon(Icons.Filled.Close, contentDescription = "Close Search")
                     }
                 } else {
+                    onRecycleBinClick?.let { onClick ->
+                        IconButton(onClick = onClick) {
+                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Recycle Bin")
+                        }
+                    }
                     IconButton(onClick = { onSearchActiveChange(true) }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
                     }

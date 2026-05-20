@@ -1,5 +1,6 @@
 package com.devson.nvplayer.data.media
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
@@ -93,14 +94,16 @@ class MediaStoreHelper(private val context: Context) {
             MediaStore.Video.Media.WIDTH,
             MediaStore.Video.Media.HEIGHT
         )
-        val selection = "${MediaStore.Video.Media.IS_TRASHED}=1"
-        val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+        val queryArgs = android.os.Bundle().apply {
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, "${MediaStore.Video.Media.IS_TRASHED}=1")
+            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${MediaStore.Video.Media.DATE_ADDED} DESC")
+        }
         context.contentResolver.query(
             collection,
             projection,
-            selection,
-            null,
-            sortOrder
+            queryArgs,
+            null
         )?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
             val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)

@@ -59,4 +59,20 @@
     <string name="folder_scan_cta">Scan Storage</string>
     <string name="folder_selection_title">Folder Selection</string>
     <string name="ok">OK</string>
+
+    <!-- Recycle Bin Screen -->
+    <string name="selection_items_count">%1$d / %2$d selected</string>
+    <string name="recycle_bin_title">Recycle Bin</string>
+    <string name="action_all">All</string>
+    <string name="action_info">Info</string>
+    <string name="action_restore">Restore</string>
+    <string name="action_delete_permanently">Delete Permanently</string>
+    <string name="action_delete">Delete</string>
+    <string name="recycle_bin_empty">Recycle bin is empty</string>
+    <string name="recycle_bin_select_prompt">Long press to select videos</string>
+    <string name="recycle_bin_info_desc">Items in the recycle bin will be permanently deleted after 30 days.</string>
+    <string name="recycle_bin_delete_confirm_title">Delete permanently?</string>
+    <string name="recycle_bin_delete_confirm_desc">These items will be permanently deleted from your device. This action cannot be undone.</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="recycle_bin_days_left">%1$d days left</string>
 </resources>

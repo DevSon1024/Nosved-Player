@@ -48,7 +48,8 @@ fun HomeScreen(
     homeViewModel: HomeViewModel,
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
-    onVideoClick: (Uri) -> Unit
+    onVideoClick: (Uri) -> Unit,
+    onRecycleBinClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -192,6 +193,7 @@ fun HomeScreen(
                 },
                 showBackButton = viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null,
                 showHomeBackButton = viewSettings.defaultScreen != DefaultScreen.VIDEO_LIST,
+                onRecycleBinClick = onRecycleBinClick,
                 onClearSelection = {
                     selectedFolders = emptySet()
                     selectedVideos = emptySet()

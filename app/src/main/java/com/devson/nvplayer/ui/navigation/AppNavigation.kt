@@ -14,6 +14,7 @@ import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
 import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
+import com.devson.nvplayer.ui.screen.RecycleBinScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
@@ -54,7 +55,17 @@ fun AppNavigation(
                 onVideoClick = { uri ->
                     playerViewModel.prepareVideo(uri)
                     navController.navigate("player")
+                },
+                onRecycleBinClick = {
+                    navController.navigate("recycle_bin")
                 }
+            )
+        }
+
+        composable("recycle_bin") {
+            RecycleBinScreen(
+                onBack = safePopBackStack,
+                fileOpsViewModel = fileOpsViewModel
             )
         }
 
