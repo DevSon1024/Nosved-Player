@@ -50,6 +50,10 @@ fun AppNavigation(
                 },
                 onSettingsClick = {
                     navController.navigate("settings")
+                },
+                onVideoClick = { uri ->
+                    playerViewModel.prepareVideo(uri)
+                    navController.navigate("player")
                 }
             )
         }
