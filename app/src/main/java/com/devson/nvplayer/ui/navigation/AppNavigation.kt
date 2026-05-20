@@ -76,7 +76,7 @@ fun AppNavigation(
                 viewModel = folderViewModel,
                 onBackClick = safePopBackStack, // 2. Use the safe helper
                 onVideoClick = { uri ->
-                    playerViewModel.loadVideo(uri)
+                    playerViewModel.prepareVideo(uri)
                     navController.navigate("player")
                 }
             )
@@ -106,7 +106,8 @@ fun AppNavigation(
                 onSetPlaybackSpeed = { playerViewModel.setPlaybackSpeed(it) },
                 onCycleSubtitle = { playerViewModel.cycleSubtitle() },
                 onCycleAudio = { playerViewModel.cycleAudio() },
-                onBackClick = safePopBackStack // 2. Use the safe helper
+                onBackClick = safePopBackStack, // 2. Use the safe helper
+                onSurfaceReady = { playerViewModel.loadVideoIfNeeded() }
             )
         }
     }

@@ -45,6 +45,7 @@ fun PlayerScreen(
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
     onBackClick: () -> Unit,
+    onSurfaceReady: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val deepCharcoal = Color(0xFF0F0F11)
@@ -117,9 +118,17 @@ fun PlayerScreen(
                 controlsVisible = !controlsVisible
             }
     ) {
+        val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
+
         // ALWAYS keep the AndroidView in the hierarchy so that surface attaches immediately
         AndroidView(
-            factory = { ctx -> MPVSurfaceView(ctx) },
+            factory = { ctx ->
+                MPVSurfaceView(ctx).apply {
+                    onSurfaceCreatedListener = {
+                        currentOnSurfaceReady()
+                    }
+                }
+            },
             modifier = Modifier.fillMaxSize()
         )
 

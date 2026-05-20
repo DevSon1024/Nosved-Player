@@ -17,6 +17,8 @@ class MPVSurfaceView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : SurfaceView(context, attrs, defStyleAttr), SurfaceHolder.Callback {
 
+    var onSurfaceCreatedListener: (() -> Unit)? = null
+
     init {
         holder.addCallback(this)
     }
@@ -27,6 +29,7 @@ class MPVSurfaceView @JvmOverloads constructor(
             MPVLib.attachSurface(holder.surface)
             MPVLib.setOptionString("force-window", "yes")
             MPVLib.setPropertyString("vo", "gpu")
+            onSurfaceCreatedListener?.invoke()
         } catch (e: Exception) {
             Log.e("MPVSurfaceView", "Error attaching surface to MPVLib", e)
         }

@@ -33,21 +33,43 @@ class PlayerViewModel(
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
 
+    private var isVideoLoaded = false
+
     /**
-     * Persists URI read permission for Storage Access Framework and plays the file.
+     * Prepares media Uri and SAF permissions in advance before loading file in the native engine.
      */
-    fun loadVideo(uri: Uri) {
-        Log.d("PlayerViewModel", "Requested to load video URI: $uri")
+    fun prepareVideo(uri: Uri) {
+        Log.d("PlayerViewModel", "Preparing video URI: $uri")
         _currentUri.value = uri
+        isVideoLoaded = false
         try {
             val contentResolver = getApplication<Application>().contentResolver
             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             contentResolver.takePersistableUriPermission(uri, takeFlags)
             Log.d("PlayerViewModel", "Successfully persisted URI read permission")
         } catch (e: Exception) {
-            Log.w("PlayerViewModel", "Could not persist URI read permission (non-standard provider): ${e.localizedMessage}")
+            Log.w("PlayerViewModel", "Could not persist URI read permission: ${e.localizedMessage}")
         }
-        playerEngine.loadVideo(uri)
+    }
+
+    /**
+     * Triggers active native video file loading once rendering surface is created and attached.
+     */
+    fun loadVideoIfNeeded() {
+        val uri = _currentUri.value
+        if (uri != null && !isVideoLoaded) {
+            Log.d("PlayerViewModel", "Loading prepared video into engine: $uri")
+            playerEngine.loadVideo(uri)
+            isVideoLoaded = true
+        }
+    }
+
+    /**
+     * Persists URI read permission for Storage Access Framework and plays the file directly.
+     */
+    fun loadVideo(uri: Uri) {
+        prepareVideo(uri)
+        loadVideoIfNeeded()
     }
 
     fun play() {
