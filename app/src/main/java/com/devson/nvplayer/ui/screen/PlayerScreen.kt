@@ -1,5 +1,8 @@
 package com.devson.nvplayer.ui.screen
 
+import android.app.Activity
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -8,15 +11,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,9 +29,6 @@ import com.devson.nvplayer.player.PlayerState
 import com.devson.nvplayer.ui.component.PlayerControls
 import kotlinx.coroutines.delay
 
-/**
- * High-fidelity Video Player Screen that supports empty, loading, playing, and error states.
- */
 @Composable
 fun PlayerScreen(
     playbackState: PlayerState,
@@ -37,6 +36,9 @@ fun PlayerScreen(
     currentPosition: Long,
     duration: Long,
     currentUri: Uri?,
+    videoWidth: Long,
+    videoHeight: Long,
+    videoRotation: Long,
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long) -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
@@ -45,16 +47,61 @@ fun PlayerScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Elegant neon-dark theme values
     val deepCharcoal = Color(0xFF0F0F11)
     val obsidian = Color(0xFF050505)
     val neonCyan = Color(0xFF00E5FF)
-    
-    var controlsVisible by remember { mutableStateOf(true) }
 
-    // Auto-hide controls after 3 seconds of inactivity during active playback
-    LaunchedEffect(controlsVisible, isPlaying) {
-        if (controlsVisible && isPlaying) {
+    var controlsVisible by remember { mutableStateOf(true) }
+    var isDragging by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    // Dynamically adjust screen orientation to fit the natural display orientation of the loaded video
+    LaunchedEffect(videoWidth, videoHeight, videoRotation) {
+        if (videoWidth > 0 && videoHeight > 0) {
+            var currentContext = context
+            while (currentContext is ContextWrapper) {
+                if (currentContext is Activity) {
+                    val isRotated = videoRotation == 90L || videoRotation == 270L
+                    val displayWidth = if (isRotated) videoHeight else videoWidth
+                    val displayHeight = if (isRotated) videoWidth else videoHeight
+
+                    if (displayWidth > displayHeight) {
+                        // Landscape video -> Rotate screen to sensor landscape layout
+                        currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    } else {
+                        // Portrait video -> Keep screen in vertical portrait layout
+                        currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                    break
+                }
+                currentContext = currentContext.baseContext
+            }
+        }
+    }
+
+    val currentOnPlayPauseToggle by rememberUpdatedState(onPlayPauseToggle)
+    val currentIsPlaying by rememberUpdatedState(isPlaying)
+
+    // FIX: Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio
+    DisposableEffect(Unit) {
+        onDispose {
+            var currentContext = context
+            while (currentContext is ContextWrapper) {
+                if (currentContext is Activity) {
+                    currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    break
+                }
+                currentContext = currentContext.baseContext
+            }
+            if (currentIsPlaying) {
+                currentOnPlayPauseToggle()
+            }
+        }
+    }
+
+    // Auto-hide controls after 3 seconds of inactivity during active playback, unless actively seeking
+    LaunchedEffect(controlsVisible, isPlaying, isDragging) {
+        if (controlsVisible && isPlaying && !isDragging) {
             delay(3000L)
             controlsVisible = false
         }
@@ -70,9 +117,14 @@ fun PlayerScreen(
                 controlsVisible = !controlsVisible
             }
     ) {
+        // ALWAYS keep the AndroidView in the hierarchy so that surface attaches immediately
+        AndroidView(
+            factory = { ctx -> MPVSurfaceView(ctx) },
+            modifier = Modifier.fillMaxSize()
+        )
+
         when (playbackState) {
             is PlayerState.Idle -> {
-                // Beautiful Premium Idle Screen
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -84,17 +136,11 @@ fun PlayerScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        CircularProgressIndicator(color = neonCyan)
-                    }
+                    CircularProgressIndicator(color = neonCyan)
                 }
             }
 
             is PlayerState.Error -> {
-                // Sleek error fallback screen
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -107,22 +153,18 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ErrorOutline,
-                            contentDescription = "Error icon",
+                            contentDescription = "Error",
                             tint = Color(0xFFFF5252),
                             modifier = Modifier.size(64.dp)
                         )
-
                         Spacer(modifier = Modifier.height(20.dp))
-
                         Text(
                             text = "Playback Error",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-
                         Spacer(modifier = Modifier.height(8.dp))
-
                         Text(
                             text = playbackState.message,
                             fontSize = 14.sp,
@@ -130,9 +172,7 @@ fun PlayerScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
-
                         Spacer(modifier = Modifier.height(32.dp))
-
                         Button(
                             onClick = onBackClick,
                             colors = ButtonDefaults.buttonColors(
@@ -148,121 +188,41 @@ fun PlayerScreen(
             }
 
             else -> {
-                // High-performance surface view rendering MPV video
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AndroidView(
-                        factory = { ctx ->
-                            MPVSurfaceView(ctx)
-                        },
-                        modifier = Modifier.fillMaxSize()
+                // Unified Premium Controls Layer
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    PlayerControls(
+                        title = currentUri?.lastPathSegment ?: "Local Video",
+                        isPlaying = isPlaying,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        isDragging = isDragging,
+                        onDraggingChanged = { isDragging = it },
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        onSeek = onSeek,
+                        onSetPlaybackSpeed = onSetPlaybackSpeed,
+                        onCycleSubtitle = onCycleSubtitle,
+                        onCycleAudio = onCycleAudio,
+                        onBackClick = onBackClick,
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { /* Stops outer click propagation */ }
                     )
+                }
 
-                    // Semi-transparent black gradient overlay at top/bottom for readability
-                    AnimatedVisibility(
-                        visible = controlsVisible,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(0xCC000000),
-                                            Color.Transparent,
-                                            Color(0xCC000000)
-                                        )
-                                    )
-                                )
-                        )
-                    }
-
-                    // 1. Top Panel (File Info + Change File Button)
-                    AnimatedVisibility(
-                        visible = controlsVisible,
-                        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                // Separate Buffering overlay if video stalls during playback
+                if (playbackState is PlayerState.Loading) {
+                    CircularProgressIndicator(
+                        color = neonCyan,
+                        strokeWidth = 4.dp,
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .statusBarsPadding()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = onBackClick,
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color(0x33FFFFFF),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                    contentDescription = "Go back"
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Playing",
-                                    fontSize = 12.sp,
-                                    color = neonCyan,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp
-                                )
-                                Text(
-                                    text = currentUri?.lastPathSegment ?: "Local Video",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-
-                    // 2. Playback State Indicator (Loading Spinner)
-                    if (playbackState is PlayerState.Loading) {
-                        CircularProgressIndicator(
-                            color = neonCyan,
-                            strokeWidth = 4.dp,
-                            modifier = Modifier
-                                .size(64.dp)
-                                .align(Alignment.Center)
-                        )
-                    }
-
-                    // 3. Playback Controls Bottom Panel
-                    AnimatedVisibility(
-                        visible = controlsVisible,
-                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                    ) {
-                        PlayerControls(
-                            isPlaying = isPlaying,
-                            currentPosition = currentPosition,
-                            duration = duration,
-                            onPlayPauseToggle = onPlayPauseToggle,
-                            onSeek = onSeek,
-                            onSetPlaybackSpeed = onSetPlaybackSpeed,
-                            onCycleSubtitle = onCycleSubtitle,
-                            onCycleAudio = onCycleAudio,
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { /* Prevent parent Box click event */ }
-                        )
-                    }
+                            .size(56.dp)
+                            .align(Alignment.Center)
+                    )
                 }
             }
         }

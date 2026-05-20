@@ -8,6 +8,9 @@ interface PlayerEngine {
     val currentPosition: StateFlow<Long> // in milliseconds
     val duration: StateFlow<Long> // in milliseconds
     val playbackState: StateFlow<PlayerState>
+    val videoWidth: StateFlow<Long>
+    val videoHeight: StateFlow<Long>
+    val videoRotation: StateFlow<Long>
 
     fun loadVideo(uri: Uri)
     fun play()

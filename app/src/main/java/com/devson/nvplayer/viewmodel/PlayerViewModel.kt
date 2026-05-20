@@ -26,6 +26,9 @@ class PlayerViewModel(
     val currentPosition: StateFlow<Long> = playerEngine.currentPosition
     val duration: StateFlow<Long> = playerEngine.duration
     val playbackState: StateFlow<PlayerState> = playerEngine.playbackState
+    val videoWidth: StateFlow<Long> = playerEngine.videoWidth
+    val videoHeight: StateFlow<Long> = playerEngine.videoHeight
+    val videoRotation: StateFlow<Long> = playerEngine.videoRotation
 
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()

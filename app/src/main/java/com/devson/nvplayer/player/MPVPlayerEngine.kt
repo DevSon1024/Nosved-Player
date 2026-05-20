@@ -23,6 +23,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _playbackState = MutableStateFlow<PlayerState>(PlayerState.Idle)
     override val playbackState: StateFlow<PlayerState> = _playbackState.asStateFlow()
 
+    private val _videoWidth = MutableStateFlow(0L)
+    override val videoWidth: StateFlow<Long> = _videoWidth.asStateFlow()
+
+    private val _videoHeight = MutableStateFlow(0L)
+    override val videoHeight: StateFlow<Long> = _videoHeight.asStateFlow()
+
+    private val _videoRotation = MutableStateFlow(0L)
+    override val videoRotation: StateFlow<Long> = _videoRotation.asStateFlow()
+
     init {
         try {
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
@@ -47,6 +56,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
             MPVLib.observeProperty("duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
             MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
+            
+            // Observe video dimension properties as standard long integers
+            MPVLib.observeProperty("video-params/w", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("video-params/h", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("video-params/rotate", MPVLib.MpvFormat.MPV_FORMAT_INT64)
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
@@ -59,11 +73,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _playbackState.value = PlayerState.Loading
         _currentPosition.value = 0L
         _duration.value = 0L
+        _videoWidth.value = 0L
+        _videoHeight.value = 0L
+        _videoRotation.value = 0L
         
         val uriString = uri.toString()
         Log.d("MPVPlayerEngine", "Loading media file: $uriString")
         try {
             MPVLib.command("loadfile", uriString)
+            MPVLib.setPropertyBoolean("pause", false) // Auto-play the loaded media file
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to load file via MPVLib", e)
             _playbackState.value = PlayerState.Error("Load error: ${e.localizedMessage}")
@@ -150,7 +168,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     override fun eventProperty(property: String, value: Long) {
-        // No-op for default long property events
+        when (property) {
+            "video-params/w" -> _videoWidth.value = value
+            "video-params/h" -> _videoHeight.value = value
+            "video-params/rotate" -> _videoRotation.value = value
+        }
     }
 
     override fun eventProperty(property: String, value: Boolean) {

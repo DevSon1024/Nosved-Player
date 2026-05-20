@@ -2,9 +2,14 @@ package com.devson.nvplayer.ui.component
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -16,222 +21,343 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * Modern glassmorphic playback controls designed with premium dark mode aesthetics.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerControls(
+    title: String,
     isPlaying: Boolean,
     currentPosition: Long,
     duration: Long,
+    isDragging: Boolean,
+    onDraggingChanged: (Boolean) -> Unit,
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long) -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Premium color palette: Neon Cyan, Dark Charcoal, Deep Purple accents
-    val neonCyan = Color(0xFF00E5FF)
-    val neonCyanDim = Color(0xFF00B0FF)
-    val darkCardBackground = Color(0xCC121212) // Semi-transparent glass look
-
-    var isUserSeeking by remember { mutableStateOf(false) }
-    var seekProgressValue by remember { mutableFloatStateOf(0f) }
-    
-    // Playback speed state
     val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
     var currentSpeedIndex by remember { mutableIntStateOf(1) }
 
-    // Synchronize slider with external progress when the user is not actively dragging it
-    val sliderPosition = if (isUserSeeking) seekProgressValue else {
-        if (duration > 0) currentPosition.toFloat() / duration else 0f
+    // Decouple local slider state to stop the visual slider jumping backwards while dragging
+    val safeDuration = duration.coerceAtLeast(1L).toFloat()
+    var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
+    var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(currentPosition) {
+        if (!isDragging) {
+            sliderPosition = currentPosition.toFloat()
+        }
     }
 
-    // Micro-animations for button presses
-    val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.1f, label = "PlayScale")
+    val safeSliderPos = sliderPosition.coerceIn(0f, safeDuration)
+    val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.05f, label = "PlayScale")
 
-    Card(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .clip(RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = darkCardBackground),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.65f),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.8f)
+                    )
+                )
+            )
     ) {
-        Column(
+        // --- 1. TOP PANEL (Title & Track Selectors) ---
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x22FFFFFF),
-                            Color(0x05FFFFFF)
-                        )
-                    )
-                )
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Seekbar Slider
-            Slider(
-                value = sliderPosition,
-                onValueChange = {
-                    isUserSeeking = true
-                    seekProgressValue = it
-                },
-                onValueChangeFinished = {
-                    isUserSeeking = false
-                    if (duration > 0) {
-                        onSeek((seekProgressValue * duration).toLong())
-                    }
-                },
-                colors = SliderDefaults.colors(
-                    thumbColor = neonCyan,
-                    activeTrackColor = neonCyanDim,
-                    inactiveTrackColor = Color(0xFF424242)
-                ),
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(20.dp)
-            )
-
-            // 2. Playback Timers
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .clickable { onBackClick() },
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = formatTime(if (isUserSeeking) (seekProgressValue * duration).toLong() else currentPosition),
-                    color = Color.LightGray,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = formatTime(duration),
-                    color = Color.LightGray,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Go Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            // 3. Playback Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Rewind 10 Seconds
-                IconButton(
-                    onClick = {
-                        val newPos = (currentPosition - 10000L).coerceAtLeast(0L)
-                        onSeek(newPos)
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Replay10,
-                        contentDescription = "Rewind 10 seconds",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Play / Pause Button with Neon Accent Glow
-                FilledIconButton(
-                    onClick = onPlayPauseToggle,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .scale(playScale),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = neonCyan,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Forward 10 Seconds
-                IconButton(
-                    onClick = {
-                        val newPos = (currentPosition + 10000L).coerceAtMost(duration)
-                        onSeek(newPos)
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Forward10,
-                        contentDescription = "Forward 10 seconds",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .clickable { onCycleSubtitle() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Subtitles,
+                    contentDescription = "Subtitles",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             
-            // 4. Secondary Action Buttons (Audio, Subtitle, Speed)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .clickable { onCycleAudio() },
+                contentAlignment = Alignment.Center
             ) {
-                // Audio Track Cycle
-                IconButton(onClick = onCycleAudio) {
-                    Icon(
-                        imageVector = Icons.Rounded.Audiotrack,
-                        contentDescription = "Cycle Audio Track",
-                        tint = Color.White
-                    )
-                }
-                
-                // Subtitle Cycle
-                IconButton(onClick = onCycleSubtitle) {
-                    Icon(
-                        imageVector = Icons.Rounded.Subtitles,
-                        contentDescription = "Cycle Subtitle",
-                        tint = Color.White
-                    )
-                }
-                
-                // Playback Speed Toggle
-                TextButton(
-                    onClick = {
+                Icon(
+                    imageVector = Icons.Rounded.Audiotrack,
+                    contentDescription = "Audio Track",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Speed Selection Toggle Button with Premium Glassmorphism
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    .clickable {
                         currentSpeedIndex = (currentSpeedIndex + 1) % speeds.size
                         onSetPlaybackSpeed(speeds[currentSpeedIndex])
                     }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Speed,
+                        contentDescription = "Playback Speed",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
                         text = "${speeds[currentSpeedIndex]}x",
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
                     )
                 }
+            }
+        }
+
+        // --- 2. CENTER PANEL (Playback Actions) ---
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Rewind 10 Seconds
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                    .clickable { onSeek((currentPosition - 10000L).coerceAtLeast(0L)) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Replay10,
+                    contentDescription = "Rewind 10s",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            // Modern Play/Pause Circle Button
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
+                        )
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                    .scale(playScale)
+                    .clickable { onPlayPauseToggle() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(44.dp)
+                )
+            }
+
+            // Forward 10 Seconds
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                    .clickable { onSeek((currentPosition + 10000L).coerceAtMost(duration)) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Forward10,
+                    contentDescription = "Forward 10s",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+
+        // --- 3. BOTTOM PANEL (Timers, Seekbar & Up Next Hint) ---
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+        ) {
+            // Timers Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Premium Red Slider Seekbar
+            Slider(
+                value = safeSliderPos,
+                onValueChange = { newVal ->
+                    draggingJob?.cancel()
+                    onDraggingChanged(true)
+                    sliderPosition = newVal
+                },
+                onValueChangeFinished = {
+                    onSeek(sliderPosition.toLong())
+                    draggingJob = scope.launch {
+                        delay(800) // Provides ExoPlayer/MPV debounce buffering window
+                        onDraggingChanged(false)
+                    }
+                },
+                valueRange = 0f..safeDuration,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFFF0000),
+                    activeTrackColor = Color(0xFFFF0000),
+                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                ),
+                thumb = { _ ->
+                    Box(
+                        modifier = Modifier
+                            .size(if (isDragging) 16.dp else 12.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF0000))
+                    )
+                },
+                track = { sliderState ->
+                    val rawFraction = ((sliderState.value - 0f) / safeDuration)
+                    val safeFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.White.copy(alpha = 0.25f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
+                                    .height(4.dp)
+                                    .background(Color(0xFFFF0000))
+                            )
+                        }
+                    }
+                }
+            )
+
+            // Up Next Footer Drag Handle styling
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowUp,
+                    contentDescription = "Up Next",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Up Next",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
 }
 
-/**
- * Format milliseconds into HH:MM:SS or MM:SS format.
- */
 fun formatTime(milliseconds: Long): String {
     val totalSeconds = milliseconds / 1000
     val seconds = totalSeconds % 60

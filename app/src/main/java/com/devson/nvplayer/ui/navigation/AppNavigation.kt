@@ -88,6 +88,9 @@ fun AppNavigation(
             val currentPosition by playerViewModel.currentPosition.collectAsState()
             val duration by playerViewModel.duration.collectAsState()
             val currentUri by playerViewModel.currentUri.collectAsState()
+            val videoWidth by playerViewModel.videoWidth.collectAsState()
+            val videoHeight by playerViewModel.videoHeight.collectAsState()
+            val videoRotation by playerViewModel.videoRotation.collectAsState()
 
             PlayerScreen(
                 playbackState = playbackState,
@@ -95,6 +98,9 @@ fun AppNavigation(
                 currentPosition = currentPosition,
                 duration = duration,
                 currentUri = currentUri,
+                videoWidth = videoWidth,
+                videoHeight = videoHeight,
+                videoRotation = videoRotation,
                 onPlayPauseToggle = { playerViewModel.togglePlayback() },
                 onSeek = { playerViewModel.seekTo(it) },
                 onSetPlaybackSpeed = { playerViewModel.setPlaybackSpeed(it) },

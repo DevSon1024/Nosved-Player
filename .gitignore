@@ -13,5 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
-*.txt
+/*.txt
 *.log
