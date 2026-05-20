@@ -205,6 +205,7 @@ fun ViewSettingsBottomSheet(
                 Triple("Path", settings.showPath) { viewModel.updateShowPath(it) },
                 Triple("Size", settings.showSize) { viewModel.updateShowSize(it) },
                 Triple("Date", settings.showDate) { viewModel.updateShowDate(it) },
+                Triple("FPS", settings.showFrameRate) { viewModel.updateShowFrameRate(it) },
             )
 
             // 3 rows × 3 cols

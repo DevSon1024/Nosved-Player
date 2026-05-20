@@ -236,4 +236,8 @@ class VideoListViewModel(private val repository: VideoRepository) : ViewModel() 
     fun updateRecognizeNoMedia(show: Boolean) {
         _viewSettings.value = _viewSettings.value.copy(recognizeNoMedia = show)
     }
+
+    fun updateShowFrameRate(show: Boolean) {
+        _viewSettings.value = _viewSettings.value.copy(showFrameRate = show)
+    }
 }

@@ -58,8 +58,6 @@ fun VideoMetadataChips(
             add(MetaToken(formatSize(video.size)))
         if (settings.showDate && video.dateAdded > 0)
             add(MetaToken(formatDate(video.dateAdded)))
-        if (settings.showPath)
-            add(MetaToken(video.path))
     }.filter { it.text.isNotBlank() }
  
     if (tokens.isEmpty()) return

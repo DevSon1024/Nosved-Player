@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.ui.screens.videolist.components.common.VideoMetadataChips
@@ -170,6 +171,21 @@ fun VideoListItem(
                     else
                         MaterialTheme.colorScheme.onSurface
                 )
+ 
+                if (settings.showPath) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = video.path,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 11.sp,
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
  
                 Spacer(modifier = Modifier.height(5.dp))
  
