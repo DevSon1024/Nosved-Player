@@ -54,7 +54,7 @@ fun HomeScreen(
     homeViewModel: HomeViewModel,
     onFolderClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
-    onVideoClick: (Uri) -> Unit,
+    onVideoClick: (Uri, List<Uri>) -> Unit,
     onRecycleBinClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -297,7 +297,7 @@ fun HomeScreen(
                         videosByFolder = videosByFolder,
                         viewSettings = viewSettings,
                         onVideoSelected = { video, playlist ->
-                            onVideoClick(Uri.parse(video.uri))
+                            onVideoClick(Uri.parse(video.uri), playlist.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() })
                         },
                         onClearSelection = {
                             selectedFolders = emptySet()
@@ -344,7 +344,8 @@ fun HomeScreen(
                             }
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
-                        }
+                        },
+                        showTagAndShare = false
                     )
                 } else {
                     VideoSelectionBottomBar(
@@ -352,7 +353,8 @@ fun HomeScreen(
                         onPlayAll = {
                             val playVideo = selectedVideos.firstOrNull()
                             if (playVideo != null) {
-                                onVideoClick(Uri.parse(playVideo.uri))
+                                val playlist = selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                                onVideoClick(Uri.parse(playVideo.uri), playlist)
                                 selectedVideos = emptySet()
                             }
                         },
@@ -398,7 +400,8 @@ fun HomeScreen(
                             }
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
-                        }
+                        },
+                        showTagAndShare = false
                     )
                 }
             }
@@ -486,7 +489,8 @@ fun HomeScreen(
                                     if (isSelectionActive) {
                                         selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                                     } else {
-                                        onVideoClick(Uri.parse(video.uri))
+                                        val playlist = sortedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                                        onVideoClick(Uri.parse(video.uri), playlist)
                                     }
                                 },
                                 onVideoLongClick = { video ->
@@ -536,7 +540,8 @@ fun HomeScreen(
                                     if (isSelectionActive) {
                                         selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                                     } else {
-                                        onVideoClick(Uri.parse(video.uri))
+                                        val playlist = sortedExpVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                                        onVideoClick(Uri.parse(video.uri), playlist)
                                     }
                                 },
                                 onVideoLongClick = { video ->

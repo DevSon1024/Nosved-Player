@@ -72,7 +72,11 @@ fun PlayerScreen(
     onSaveBrightness: (Float) -> Unit,
     onSaveVolume: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    seekBarStyle: String = "line"
+    seekBarStyle: String = "line",
+    hasNext: Boolean = false,
+    hasPrevious: Boolean = false,
+    onNextClick: () -> Unit = {},
+    onPrevClick: () -> Unit = {}
 ) {
     val deepCharcoal = Color(0xFF0F0F11)
     val obsidian = Color(0xFF050505)
@@ -273,6 +277,10 @@ fun PlayerScreen(
                         onBackClick = onBackClick,
                         playbackSpeed = playbackSpeed,
                         seekBarStyle = seekBarStyle,
+                        hasNext = hasNext,
+                        hasPrevious = hasPrevious,
+                        onNextClick = onNextClick,
+                        onPrevClick = onPrevClick,
                         modifier = Modifier
                     )
                 }

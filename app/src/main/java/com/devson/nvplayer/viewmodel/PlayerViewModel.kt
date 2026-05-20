@@ -34,6 +34,15 @@ class PlayerViewModel(
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
 
+    private val _playlist = MutableStateFlow<List<Uri>>(emptyList())
+    val playlist: StateFlow<List<Uri>> = _playlist.asStateFlow()
+
+    private val _hasNext = MutableStateFlow(false)
+    val hasNext: StateFlow<Boolean> = _hasNext.asStateFlow()
+
+    private val _hasPrevious = MutableStateFlow(false)
+    val hasPrevious: StateFlow<Boolean> = _hasPrevious.asStateFlow()
+
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
@@ -64,12 +73,32 @@ class PlayerViewModel(
 
     private var isVideoLoaded = false
 
+    private fun updateNavigationStates() {
+        val current = _currentUri.value
+        val list = _playlist.value
+        if (current == null || list.isEmpty()) {
+            _hasNext.value = false
+            _hasPrevious.value = false
+            return
+        }
+        val index = list.indexOfFirst { it.toString() == current.toString() }
+        if (index == -1) {
+            _hasNext.value = false
+            _hasPrevious.value = false
+        } else {
+            _hasNext.value = index < list.size - 1
+            _hasPrevious.value = index > 0
+        }
+    }
+
     /**
      * Prepares media Uri and SAF permissions in advance before loading file in the native engine.
      */
-    fun prepareVideo(uri: Uri) {
-        Log.d("PlayerViewModel", "Preparing video URI: $uri")
+    fun prepareVideo(uri: Uri, playlistUris: List<Uri> = emptyList()) {
+        Log.d("PlayerViewModel", "Preparing video URI: $uri, playlist size: ${playlistUris.size}")
         _currentUri.value = uri
+        _playlist.value = playlistUris
+        updateNavigationStates()
         isVideoLoaded = false
         try {
             val contentResolver = getApplication<Application>().contentResolver
@@ -96,9 +125,47 @@ class PlayerViewModel(
     /**
      * Persists URI read permission for Storage Access Framework and plays the file directly.
      */
-    fun loadVideo(uri: Uri) {
-        prepareVideo(uri)
+    fun loadVideo(uri: Uri, playlistUris: List<Uri> = emptyList()) {
+        prepareVideo(uri, playlistUris)
         loadVideoIfNeeded()
+    }
+
+    fun playNext() {
+        val current = _currentUri.value ?: return
+        val list = _playlist.value
+        if (list.isEmpty()) return
+        val index = list.indexOfFirst { it.toString() == current.toString() }
+        if (index != -1 && index < list.size - 1) {
+            val nextUri = list[index + 1]
+            changeVideo(nextUri)
+        }
+    }
+
+    fun playPrevious() {
+        val current = _currentUri.value ?: return
+        val list = _playlist.value
+        if (list.isEmpty()) return
+        val index = list.indexOfFirst { it.toString() == current.toString() }
+        if (index > 0) {
+            val prevUri = list[index - 1]
+            changeVideo(prevUri)
+        }
+    }
+
+    private fun changeVideo(uri: Uri) {
+        savePlaybackProgress()
+        Log.d("PlayerViewModel", "Changing video to: $uri")
+        _currentUri.value = uri
+        isVideoLoaded = false
+        try {
+            val contentResolver = getApplication<Application>().contentResolver
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            contentResolver.takePersistableUriPermission(uri, takeFlags)
+        } catch (e: Exception) {
+            Log.w("PlayerViewModel", "Could not persist URI permission: ${e.localizedMessage}")
+        }
+        loadVideoIfNeeded()
+        updateNavigationStates()
     }
 
     fun play() {

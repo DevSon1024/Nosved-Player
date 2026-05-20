@@ -44,7 +44,8 @@ fun VideoSelectionBottomBar(
     onRename: () -> Unit,
     onShowInfo: () -> Unit,
     onShare: () -> Unit,
-    onMarkStatus: (String) -> Unit
+    onMarkStatus: (String) -> Unit,
+    showTagAndShare: Boolean = true
 ) {
     var showTagDialog by remember { mutableStateOf(false) }
 
@@ -91,11 +92,15 @@ fun VideoSelectionBottomBar(
                 )
             }
             // Share
-            ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
+            if (showTagAndShare) {
+                ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
+            }
             // Info
             ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
             // Tagging
-            ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
+            if (showTagAndShare) {
+                ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
+            }
         }
     }
 }

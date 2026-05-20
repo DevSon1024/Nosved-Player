@@ -55,6 +55,10 @@ fun PlayerControls(
     onBackClick: () -> Unit,
     playbackSpeed: Float,
     seekBarStyle: String = "line",
+    hasNext: Boolean = false,
+    hasPrevious: Boolean = false,
+    onNextClick: () -> Unit = {},
+    onPrevClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -201,9 +205,27 @@ fun PlayerControls(
         // --- 2. CENTER PANEL (Playback Actions) ---
         Row(
             modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Skip Previous
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
+                    .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
+                    .clickable(enabled = hasPrevious) { onPrevClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipPrevious,
+                    contentDescription = "Previous Video",
+                    tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
             // Rewind 10 Seconds
             Box(
                 modifier = Modifier
@@ -259,6 +281,24 @@ fun PlayerControls(
                     imageVector = Icons.Rounded.Forward10,
                     contentDescription = "Forward 10s",
                     tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            // Skip Next
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
+                    .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
+                    .clickable(enabled = hasNext) { onNextClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipNext,
+                    contentDescription = "Next Video",
+                    tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
                     modifier = Modifier.size(26.dp)
                 )
             }

@@ -52,8 +52,8 @@ fun AppNavigation(
                 onSettingsClick = {
                     navController.navigate("settings")
                 },
-                onVideoClick = { uri ->
-                    playerViewModel.prepareVideo(uri)
+                onVideoClick = { uri, playlist ->
+                    playerViewModel.prepareVideo(uri, playlist)
                     navController.navigate("player")
                 },
                 onRecycleBinClick = {
@@ -98,9 +98,12 @@ fun AppNavigation(
                 fileOpsViewModel = fileOpsViewModel,
                 homeViewModel = homeViewModel,
                 onBackClick = safePopBackStack, // 2. Use the safe helper
-                onVideoClick = { uri ->
-                    playerViewModel.prepareVideo(uri)
+                onVideoClick = { uri, playlist ->
+                    playerViewModel.prepareVideo(uri, playlist)
                     navController.navigate("player")
+                },
+                onSettingsClick = {
+                    navController.navigate("settings")
                 }
             )
         }
@@ -119,6 +122,8 @@ fun AppNavigation(
             val savedVolume by playerViewModel.savedVolume.collectAsState()
             val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
             val seekBarStyle = playbackSettings.seekBarStyle
+            val hasNext by playerViewModel.hasNext.collectAsState()
+            val hasPrevious by playerViewModel.hasPrevious.collectAsState()
 
             PlayerScreen(
                 playbackState = playbackState,
@@ -141,7 +146,11 @@ fun AppNavigation(
                 onSurfaceReady = { playerViewModel.loadVideoIfNeeded() },
                 onSaveBrightness = { playerViewModel.saveBrightness(it) },
                 onSaveVolume = { playerViewModel.saveVolume(it) },
-                seekBarStyle = seekBarStyle
+                seekBarStyle = seekBarStyle,
+                hasNext = hasNext,
+                hasPrevious = hasPrevious,
+                onNextClick = { playerViewModel.playNext() },
+                onPrevClick = { playerViewModel.playPrevious() }
             )
         }
     }

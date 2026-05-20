@@ -386,7 +386,8 @@ fun VideoListScreen(
                             }
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
-                        }
+                        },
+                        showTagAndShare = false
                     )
                 } else {
                     // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
@@ -447,7 +448,8 @@ fun VideoListScreen(
                             }
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
-                        }
+                        },
+                        showTagAndShare = false
                     )
                 }
             }

@@ -40,7 +40,8 @@ fun FolderScreen(
     fileOpsViewModel: FileOperationsViewModel,
     homeViewModel: HomeViewModel,
     onBackClick: () -> Unit,
-    onVideoClick: (Uri) -> Unit
+    onVideoClick: (Uri, List<Uri>) -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -176,7 +177,7 @@ fun FolderScreen(
                     selectedVideos = if (selectedVideos.size == sortedVideos.size) emptySet() else sortedVideos.toSet()
                 },
                 onBack = onBackClick,
-                onNavigateToSettings = {},
+                onNavigateToSettings = onSettingsClick,
                 onShowSettings = { showSettingsSheet = true },
                 onSearch = { query ->
                     // Handle search query
@@ -211,7 +212,8 @@ fun FolderScreen(
                     onPlayAll = {
                         val playVideo = selectedVideos.firstOrNull()
                         if (playVideo != null) {
-                            onVideoClick(Uri.parse(playVideo.uri))
+                            val playlist = selectedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                            onVideoClick(Uri.parse(playVideo.uri), playlist)
                             selectedVideos = emptySet()
                         }
                     },
@@ -297,7 +299,8 @@ fun FolderScreen(
                             if (isSelectionActive) {
                                 selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
                             } else {
-                                onVideoClick(Uri.parse(video.uri))
+                                val playlist = sortedVideos.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                                onVideoClick(Uri.parse(video.uri), playlist)
                             }
                         },
                         onVideoLongClick = { video ->

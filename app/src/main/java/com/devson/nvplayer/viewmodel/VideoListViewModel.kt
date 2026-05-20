@@ -184,6 +184,9 @@ class VideoListViewModel(private val repository: VideoRepository) : ViewModel() 
 
     fun updateViewMode(mode: ViewMode) {
         _viewSettings.value = _viewSettings.value.copy(viewMode = mode)
+        if (mode == ViewMode.FILES || mode == ViewMode.FOLDERS) {
+            _selectedFolder.value = null
+        }
     }
 
     fun updateLayoutMode(mode: LayoutMode) {
