@@ -20,14 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.unit.dp
 import com.devson.nvplayer.model.DefaultScreen
 import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.ui.components.CustomRenameDialog
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
-import com.devson.nvplayer.ui.screens.InformationBottomSheet
 import com.devson.nvplayer.ui.screens.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
 import com.devson.nvplayer.ui.screens.videolist.utils.applyFolderSort

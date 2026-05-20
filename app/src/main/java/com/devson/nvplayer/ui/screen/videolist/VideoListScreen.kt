@@ -2,8 +2,6 @@ package com.devson.nvplayer.ui.screens.videolist
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -32,13 +30,12 @@ import com.devson.nvplayer.model.DefaultScreen
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.VideoFolder
 import com.devson.nvplayer.model.ViewMode
-import com.devson.nvplayer.model.WatchHistory
 import com.devson.nvplayer.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
 import com.devson.nvplayer.ui.components.PreviewFloatingActionButton
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
-import com.devson.nvplayer.ui.screens.InformationBottomSheet
+import com.devson.nvplayer.ui.screen.InformationBottomSheet
 import com.devson.nvplayer.ui.screens.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent

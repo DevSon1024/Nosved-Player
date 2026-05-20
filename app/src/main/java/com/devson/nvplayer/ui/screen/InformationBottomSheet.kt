@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens
+package com.devson.nvplayer.ui.screen
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
