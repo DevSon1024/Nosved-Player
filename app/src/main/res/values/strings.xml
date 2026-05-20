@@ -45,4 +45,18 @@
     <string name="appearance_restart_info">Some changes might require app restart to fully apply.</string>
     <string name="appearance_current_palette">Current Palette</string>
     <string name="appearance_selected">Selected</string>
+
+    <!-- Folder/Video List UI strings -->
+    <string name="folder_new_badge">NEW (%1$d)</string>
+    <string name="folder_videos_count">%1$d videos</string>
+    <string name="folder_info_multiple_locations">Multiple locations</string>
+    <string name="folder_info_total_videos">Total videos</string>
+    <string name="folder_info_total_size">Total size</string>
+    <string name="folder_info_location">Location</string>
+    <string name="folder_info_creation_date">Creation date</string>
+    <string name="folder_no_folders_found">No folders found</string>
+    <string name="folder_no_folders_desc">No folders with playable videos were found on your device.</string>
+    <string name="folder_scan_cta">Scan Storage</string>
+    <string name="folder_selection_title">Folder Selection</string>
+    <string name="ok">OK</string>
 </resources>

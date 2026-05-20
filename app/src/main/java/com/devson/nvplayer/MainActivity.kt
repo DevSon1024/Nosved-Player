@@ -26,6 +26,8 @@ import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import com.devson.nvplayer.viewmodel.VideoListViewModel
+import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import coil.ImageLoader
 import coil.Coil
 import coil.decode.VideoFrameDecoder
@@ -36,12 +38,17 @@ class MainActivity : ComponentActivity() {
     private lateinit var homeViewModel: HomeViewModel
     private lateinit var folderViewModel: FolderViewModel
     private lateinit var settingsViewModel: SettingsViewModel
+    private lateinit var videoListViewModel: VideoListViewModel
+    private lateinit var fileOpsViewModel: FileOperationsViewModel
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             homeViewModel.loadFolders()
+            if (::videoListViewModel.isInitialized) {
+                videoListViewModel.loadVideos()
+            }
         } else {
             Toast.makeText(this, "Permission denied to read videos", Toast.LENGTH_LONG).show()
         }
@@ -61,9 +68,11 @@ class MainActivity : ComponentActivity() {
         val mediaStoreHelper = MediaStoreHelper(this)
         val repository = VideoRepository(mediaStoreHelper)
         
-        homeViewModel = HomeViewModel(repository)
+        homeViewModel = HomeViewModel(applicationContext, repository)
         folderViewModel = FolderViewModel(repository)
         settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
+        videoListViewModel = VideoListViewModel(repository)
+        fileOpsViewModel = ViewModelProvider(this)[FileOperationsViewModel::class.java]
 
         val playerEngine = MPVPlayerEngine(applicationContext)
         val factory = PlayerViewModel.Factory(application, playerEngine)
@@ -93,7 +102,9 @@ class MainActivity : ComponentActivity() {
                         homeViewModel = homeViewModel,
                         folderViewModel = folderViewModel,
                         playerViewModel = playerViewModel,
-                        settingsViewModel = settingsViewModel
+                        settingsViewModel = settingsViewModel,
+                        videoListViewModel = videoListViewModel,
+                        fileOpsViewModel = fileOpsViewModel
                     )
                 }
             }
@@ -109,6 +120,7 @@ class MainActivity : ComponentActivity() {
 
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
             homeViewModel.loadFolders()
+            videoListViewModel.loadVideos()
         } else {
             requestPermissionLauncher.launch(permission)
         }

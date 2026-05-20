@@ -1,7 +1,7 @@
 package com.devson.nvplayer.model
 
 enum class DefaultScreen {
-    HOME, FOLDERS, HISTORY
+    HOME, FOLDERS, HISTORY, VIDEO_LIST
 }
 
 data class ViewSettings(
@@ -14,5 +14,22 @@ data class ViewSettings(
     val showHistoryCard: Boolean = true,
     val showVideoCard: Boolean = true,
     val showStorageTracker: Boolean = true,
-    val defaultScreen: DefaultScreen = DefaultScreen.HOME
+    val defaultScreen: DefaultScreen = DefaultScreen.HOME,
+    
+    // New fields for VideoList UI
+    val layoutMode: LayoutMode = LayoutMode.LIST,
+    val gridColumns: Int = 2,
+    val showThumbnail: Boolean = true,
+    val showLength: Boolean = true,
+    val displayLengthOverThumbnail: Boolean = true,
+    val showFileExtension: Boolean = true,
+    val showSize: Boolean = true,
+    val showDate: Boolean = true,
+    val showPath: Boolean = false,
+    val showPlayedTime: Boolean = true,
+    val showResolution: Boolean = true,
+    val showFrameRate: Boolean = true,
+    val sortField: SortField = SortField.TITLE,
+    val sortDirection: SortDirection = SortDirection.ASCENDING,
+    val viewMode: ViewMode = ViewMode.ALL_FOLDERS
 )

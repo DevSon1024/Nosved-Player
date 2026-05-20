@@ -1,6 +1,7 @@
 package com.devson.nvplayer.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
@@ -76,8 +77,19 @@ class PlayerViewModel(
         playerEngine.play()
     }
 
+    fun savePlaybackProgress() {
+        val uri = _currentUri.value ?: return
+        val pos = currentPosition.value
+        if (pos > 0) {
+            val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putLong(uri.toString(), pos).apply()
+            Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
+        }
+    }
+
     fun pause() {
         playerEngine.pause()
+        savePlaybackProgress()
     }
 
     fun togglePlayback() {
@@ -101,6 +113,7 @@ class PlayerViewModel(
     }
 
     override fun onCleared() {
+        savePlaybackProgress()
         super.onCleared()
         Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")
         playerEngine.release()

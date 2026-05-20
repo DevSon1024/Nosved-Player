@@ -18,13 +18,17 @@ import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import com.devson.nvplayer.viewmodel.VideoListViewModel
+import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 
 @Composable
 fun AppNavigation(
     homeViewModel: HomeViewModel,
     folderViewModel: FolderViewModel,
     playerViewModel: PlayerViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    videoListViewModel: VideoListViewModel,
+    fileOpsViewModel: FileOperationsViewModel
 ) {
     val navController = rememberNavController()
 
@@ -38,7 +42,9 @@ fun AppNavigation(
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
-                viewModel = homeViewModel,
+                viewModel = videoListViewModel,
+                fileOpsViewModel = fileOpsViewModel,
+                homeViewModel = homeViewModel,
                 onFolderClick = { folderName ->
                     navController.navigate("folder/${Uri.encode(folderName)}")
                 },
@@ -73,7 +79,9 @@ fun AppNavigation(
             val folderName = backStackEntry.arguments?.getString("folderName") ?: ""
             FolderScreen(
                 folderName = folderName,
-                viewModel = folderViewModel,
+                viewModel = videoListViewModel,
+                fileOpsViewModel = fileOpsViewModel,
+                homeViewModel = homeViewModel,
                 onBackClick = safePopBackStack, // 2. Use the safe helper
                 onVideoClick = { uri ->
                     playerViewModel.prepareVideo(uri)
