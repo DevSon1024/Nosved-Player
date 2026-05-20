@@ -185,6 +185,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             )
         )
 
+    fun updateSeekBarStyle(style: String) {
+        viewModelScope.launch { settingsRepo.updateSeekBarStyle(style) }
+    }
+
     fun updateOrientationMode(mode: com.devson.nvplayer.repository.OrientationMode) {
         viewModelScope.launch { settingsRepo.updateOrientationMode(mode) }
     }

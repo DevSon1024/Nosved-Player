@@ -254,6 +254,10 @@ class PlaybackSettingsRepository(context: Context) {
     }
 
     // Setters for PlaybackSettings
+    suspend fun updateSeekBarStyle(style: String) {
+        updatePlaybackSettings { it.copy(seekBarStyle = style) }
+    }
+
     suspend fun updateOrientationMode(mode: OrientationMode) {
         updatePlaybackSettings { it.copy(orientationMode = mode) }
     }

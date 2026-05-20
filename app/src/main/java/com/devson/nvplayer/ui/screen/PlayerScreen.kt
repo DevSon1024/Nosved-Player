@@ -71,7 +71,8 @@ fun PlayerScreen(
     onSurfaceReady: () -> Unit,
     onSaveBrightness: (Float) -> Unit,
     onSaveVolume: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    seekBarStyle: String = "line"
 ) {
     val deepCharcoal = Color(0xFF0F0F11)
     val obsidian = Color(0xFF050505)
@@ -271,6 +272,7 @@ fun PlayerScreen(
                         onCycleAudio = onCycleAudio,
                         onBackClick = onBackClick,
                         playbackSpeed = playbackSpeed,
+                        seekBarStyle = seekBarStyle,
                         modifier = Modifier
                     )
                 }

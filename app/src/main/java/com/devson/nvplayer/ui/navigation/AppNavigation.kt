@@ -117,6 +117,8 @@ fun AppNavigation(
             val playbackSpeed by playerViewModel.playbackSpeed.collectAsState()
             val savedBrightness by playerViewModel.savedBrightness.collectAsState()
             val savedVolume by playerViewModel.savedVolume.collectAsState()
+            val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+            val seekBarStyle = playbackSettings.seekBarStyle
 
             PlayerScreen(
                 playbackState = playbackState,
@@ -138,7 +140,8 @@ fun AppNavigation(
                 onBackClick = safePopBackStack, // 2. Use the safe helper
                 onSurfaceReady = { playerViewModel.loadVideoIfNeeded() },
                 onSaveBrightness = { playerViewModel.saveBrightness(it) },
-                onSaveVolume = { playerViewModel.saveVolume(it) }
+                onSaveVolume = { playerViewModel.saveVolume(it) },
+                seekBarStyle = seekBarStyle
             )
         }
     }

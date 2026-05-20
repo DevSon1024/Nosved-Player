@@ -1,6 +1,16 @@
 package com.devson.nvplayer.ui.component
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +54,7 @@ fun PlayerControls(
     onCycleAudio: () -> Unit,
     onBackClick: () -> Unit,
     playbackSpeed: Float,
+    seekBarStyle: String = "line",
     modifier: Modifier = Modifier
 ) {
     val speeds = listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -276,7 +287,9 @@ fun PlayerControls(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Premium Red Slider Seekbar
+            val themePrimary = MaterialTheme.colorScheme.primary
+
+            // Premium Theme Slider Seekbar
             Slider(
                 value = safeSliderPos,
                 onValueChange = { newVal ->
@@ -295,8 +308,8 @@ fun PlayerControls(
                 valueRange = 0f..safeDuration,
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFFF0000),
-                    activeTrackColor = Color(0xFFFF0000),
+                    thumbColor = themePrimary,
+                    activeTrackColor = themePrimary,
                     inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                 ),
                 thumb = { _ ->
@@ -304,31 +317,124 @@ fun PlayerControls(
                         modifier = Modifier
                             .size(if (isDragging) 16.dp else 12.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFF0000))
+                            .background(themePrimary)
                     )
                 },
                 track = { sliderState ->
                     val rawFraction = ((sliderState.value - 0f) / safeDuration)
                     val safeFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(Color.White.copy(alpha = 0.25f))
-                        ) {
+                    
+                    when (seekBarStyle) {
+                        "wavy" -> {
+                            val infiniteTransition = rememberInfiniteTransition(label = "waveShift")
+                            val phaseShift by if (isPlaying) {
+                                infiniteTransition.animateFloat(
+                                    initialValue = 0f,
+                                    targetValue = (2f * Math.PI).toFloat(),
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(1500, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Restart
+                                    ),
+                                    label = "wavePhase"
+                                )
+                            } else {
+                                remember { mutableStateOf(0f) }
+                            }
+
+                            androidx.compose.foundation.Canvas(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(24.dp)
+                            ) {
+                                val width = size.width
+                                val height = size.height
+                                val centerY = height / 2
+                                val activeWidth = width * safeFraction
+                                
+                                val amplitude = 4.dp.toPx()
+                                val wavelength = 20.dp.toPx()
+                                
+                                // Draw active wavy track
+                                if (activeWidth > 0) {
+                                    val activePath = Path().apply {
+                                        moveTo(0f, centerY)
+                                        var x = 0f
+                                        while (x <= activeWidth) {
+                                            val y = centerY + amplitude * kotlin.math.sin((2 * Math.PI * x / wavelength).toFloat() - phaseShift)
+                                            lineTo(x, y)
+                                            x += 2f
+                                        }
+                                        val lastY = centerY + amplitude * kotlin.math.sin((2 * Math.PI * activeWidth / wavelength).toFloat() - phaseShift)
+                                        lineTo(activeWidth, lastY)
+                                    }
+                                    drawPath(
+                                        path = activePath,
+                                        color = themePrimary,
+                                        style = Stroke(
+                                            width = 3.dp.toPx(),
+                                            cap = StrokeCap.Round
+                                        )
+                                    )
+                                }
+                                
+                                // Draw inactive flat track
+                                if (activeWidth < width) {
+                                    drawLine(
+                                        color = Color.White.copy(alpha = 0.25f),
+                                        start = Offset(activeWidth, centerY),
+                                        end = Offset(width, centerY),
+                                        strokeWidth = 4.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                }
+                            }
+                        }
+                        "thick" -> {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
-                                    .height(4.dp)
-                                    .background(Color(0xFFFF0000))
-                            )
+                                    .fillMaxWidth()
+                                    .height(20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.White.copy(alpha = 0.25f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
+                                            .height(8.dp)
+                                            .background(themePrimary)
+                                    )
+                                }
+                            }
+                        }
+                        else -> {
+                            // Standard/Line Style
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color.White.copy(alpha = 0.25f))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
+                                            .height(4.dp)
+                                            .background(themePrimary)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
