@@ -9,7 +9,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.devson.nvplayer.ui.screen.FolderScreen
 import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
@@ -21,11 +20,11 @@ import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
 import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
 import com.devson.nvplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
-import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
+import com.devson.nvplayer.model.ViewMode
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -36,7 +35,6 @@ import androidx.compose.animation.fadeOut
 @Composable
 fun AppNavigation(
     homeViewModel: HomeViewModel,
-    folderViewModel: FolderViewModel,
     playerViewModel: PlayerViewModel,
     settingsViewModel: SettingsViewModel,
     videoListViewModel: VideoListViewModel,
@@ -85,7 +83,10 @@ fun AppNavigation(
                 fileOpsViewModel = fileOpsViewModel,
                 homeViewModel = homeViewModel,
                 onFolderClick = { folderName ->
-                    navController.navigate("folder/${Uri.encode(folderName)}")
+                    val folder = videoListViewModel.videosByFolder.value.keys.find { it.name == folderName }
+                    videoListViewModel.selectFolder(folder)
+                    videoListViewModel.updateViewMode(ViewMode.ALL_FOLDERS)
+                    navController.navigate("video_list")
                 },
                 onSettingsClick = {
                     navController.navigate("settings")
@@ -175,29 +176,7 @@ fun AppNavigation(
             )
         }
 
-        composable(
-            route = "folder/{folderName}",
-            arguments = listOf(navArgument("folderName") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val folderName = backStackEntry.arguments?.getString("folderName") ?: ""
-            FolderScreen(
-                folderName = folderName,
-                viewModel = videoListViewModel,
-                fileOpsViewModel = fileOpsViewModel,
-                homeViewModel = homeViewModel,
-                onBackClick = safePopBackStack, // 2. Use the safe helper
-                onVideoClick = { uri, playlist ->
-                    playerViewModel.prepareVideo(uri, playlist)
-                    navController.navigate("player")
-                },
-                onSettingsClick = {
-                    navController.navigate("settings")
-                },
-                onSearch = { query ->
-                    navController.navigate("search_results/${Uri.encode(query)}")
-                }
-            )
-        }
+
 
         composable(
             route = "search_results/{query}",

@@ -22,7 +22,6 @@ import com.devson.nvplayer.data.repository.VideoRepository
 import com.devson.nvplayer.player.MPVPlayerEngine
 import com.devson.nvplayer.ui.navigation.AppNavigation
 import com.devson.nvplayer.ui.theme.NosvedPlayerTheme
-import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -37,7 +36,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var playerViewModel: PlayerViewModel
     private lateinit var homeViewModel: HomeViewModel
-    private lateinit var folderViewModel: FolderViewModel
     private lateinit var settingsViewModel: SettingsViewModel
     private lateinit var videoListViewModel: VideoListViewModel
     private lateinit var fileOpsViewModel: FileOperationsViewModel
@@ -71,7 +69,6 @@ class MainActivity : ComponentActivity() {
         val repository = VideoRepository(mediaStoreHelper)
         
         homeViewModel = HomeViewModel(applicationContext, repository)
-        folderViewModel = FolderViewModel(repository)
         settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
         videoListViewModel = VideoListViewModel(repository)
         fileOpsViewModel = ViewModelProvider(this)[FileOperationsViewModel::class.java]
@@ -102,7 +99,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         homeViewModel = homeViewModel,
-                        folderViewModel = folderViewModel,
                         playerViewModel = playerViewModel,
                         settingsViewModel = settingsViewModel,
                         videoListViewModel = videoListViewModel,

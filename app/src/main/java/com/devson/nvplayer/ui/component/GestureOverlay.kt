@@ -82,6 +82,7 @@ fun GestureOverlay(
     val maxVolume = remember(audioManager) { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
 
     var isLongPressSpeedActive by remember { mutableStateOf(false) }
+    var speedBeforeLongPress by remember { mutableStateOf(1.0f) }
     var isFastPlayActive by remember { mutableStateOf(false) }
     var showVolumeIndicator by remember { mutableStateOf(false) }
     var showBrightnessIndicator by remember { mutableStateOf(false) }
@@ -245,11 +246,12 @@ fun GestureOverlay(
                         dragStarted = false
                         isLeftHalfDrag = startPosition.x < size.width / 2f
 
-                        val isEdge = startPosition.x < size.width * 0.15f || startPosition.x > size.width * 0.85f
+                        val isEdge = startPosition.x < size.width * 0.35f || startPosition.x > size.width * 0.65f
                         longPressJob = launch {
                             delay(500L)
                             if (!dragStarted && isEdge && playbackSettingsState.value.longPressEnabled) {
                                 isLongPressSpeedActive = true
+                                speedBeforeLongPress = playbackSpeedState.value
                                 onSetPlaybackSpeedState.value(tapAndHoldSpeed)
                             }
                         }
@@ -319,7 +321,7 @@ fun GestureOverlay(
 
                                 if (isLongPressSpeedActive) {
                                     isLongPressSpeedActive = false
-                                    onSetPlaybackSpeedState.value(customPlaybackSpeed)
+                                    onSetPlaybackSpeedState.value(speedBeforeLongPress)
                                 } else if (maxPointerCount >= 2 && !dragStarted) {
                                     // Multi-finger tap detected
                                     val settings = playbackSettingsState.value
