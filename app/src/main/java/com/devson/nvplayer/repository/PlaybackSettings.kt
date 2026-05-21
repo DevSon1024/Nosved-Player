@@ -17,7 +17,7 @@ enum class SubtitleFont {
 }
 
 enum class MultiFingerAction {
-    PLAY_PAUSE, FAST_PLAY, MUTE, NONE, SCREENSHOT
+    PLAY_PAUSE, FAST_PLAY, MUTE, NONE, SCREENSHOT, PINCH_ZOOM
 }
 
 enum class DoubleTapAction {
@@ -49,7 +49,7 @@ data class PlaybackSettings(
     val brightnessSensitivity: Float = 0.5f,
     val volumeGestureEnabled: Boolean = true,
     val volumeSensitivity: Float = 0.5f,
-    val twoFingerAction: MultiFingerAction = MultiFingerAction.PLAY_PAUSE,
+    val twoFingerAction: MultiFingerAction = MultiFingerAction.PINCH_ZOOM,
     val threeFingerAction: MultiFingerAction = MultiFingerAction.FAST_PLAY,
     val longPressEnabled: Boolean = true,
     val longPressSpeed: Float = 2.0f,

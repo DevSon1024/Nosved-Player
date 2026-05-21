@@ -3,7 +3,9 @@ package com.devson.nvplayer.ui.component
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.Bitmap
 import android.media.AudioManager
+import android.os.Environment
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -31,14 +33,24 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devson.nvplayer.repository.DoubleTapAction
+import com.devson.nvplayer.repository.MultiFingerAction
+import com.devson.nvplayer.repository.PlaybackSettings
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.compose.foundation.gestures.detectTransformGestures
 
 @Composable
 fun GestureOverlay(
@@ -58,16 +70,22 @@ fun GestureOverlay(
     customPlaybackSpeed: Float,
     tapAndHoldSpeed: Float,
     doubleTapSeekDurationMs: Long,
+    playbackSettings: PlaybackSettings = PlaybackSettings(),
+    // Callback fired during pinch-to-zoom (only when twoFingerAction == PINCH_ZOOM)
+    onZoomChange: ((scaleMultiplier: Float, pan: Offset) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember(audioManager) { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
 
     var isLongPressSpeedActive by remember { mutableStateOf(false) }
+    var isFastPlayActive by remember { mutableStateOf(false) }
     var showVolumeIndicator by remember { mutableStateOf(false) }
     var showBrightnessIndicator by remember { mutableStateOf(false) }
+    var showMultiFingerToast by remember { mutableStateOf<String?>(null) }
     var currentVolumePercent by remember { mutableStateOf(0) }
     var currentBrightnessPercent by remember { mutableStateOf(0) }
 
@@ -120,16 +138,105 @@ fun GestureOverlay(
     val onSaveBrightnessState = rememberUpdatedState(onSaveBrightness)
     val onSaveVolumeState = rememberUpdatedState(onSaveVolume)
     val onControlsVisibleChangedState = rememberUpdatedState(onControlsVisibleChanged)
+    val playbackSettingsState = rememberUpdatedState(playbackSettings)
+
+    // Helper to execute a multi-finger tap action
+    fun executeMultiFingerAction(
+        action: MultiFingerAction,
+        onPlayPause: () -> Unit,
+        onSetSpeed: (Float) -> Unit,
+        currentSpeed: Float,
+        customSpeed: Float,
+        audioManager: AudioManager,
+        maxVolume: Int,
+        onShowToast: (String) -> Unit,
+        onFastPlayChanged: (Boolean) -> Unit,
+        isFastPlay: Boolean,
+        view: android.view.View,
+        activity: Activity?
+    ) {
+        when (action) {
+            MultiFingerAction.PLAY_PAUSE -> {
+                onPlayPause()
+            }
+            MultiFingerAction.FAST_PLAY -> {
+                if (isFastPlay) {
+                    onSetSpeed(customSpeed)
+                    onFastPlayChanged(false)
+                    onShowToast("Speed: ${customSpeed}x")
+                } else {
+                    onSetSpeed(2.0f)
+                    onFastPlayChanged(true)
+                    onShowToast("Fast Play: 2x")
+                }
+            }
+            MultiFingerAction.MUTE -> {
+                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                if (currentVol > 0) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+                    onShowToast("Muted")
+                } else {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume / 2, 0)
+                    onShowToast("Unmuted")
+                }
+            }
+            MultiFingerAction.SCREENSHOT -> {
+                try {
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    view.draw(canvas)
+                    val dir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                        "NVPlayer"
+                    )
+                    dir.mkdirs()
+                    val fileName = "screenshot_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.png"
+                    val file = File(dir, fileName)
+                    FileOutputStream(file).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                    onShowToast("Screenshot saved")
+                } catch (e: Exception) {
+                    onShowToast("Screenshot failed")
+                }
+            }
+            MultiFingerAction.PINCH_ZOOM -> { /* handled by detectTransformGestures, not a tap action */ }
+            MultiFingerAction.NONE -> { /* no-op */ }
+        }
+    }
+
+    // Build the outer modifier chain: first attach pinch-zoom handler (higher priority = Initial pass),
+    // then single-finger gesture handler on top.
+    // detectTransformGestures runs as a SEPARATE pointerInput so it gets its own copy of all events
+    // and will not conflict with the single-finger awaitEachGesture below.
+    val pinchZoomEnabled = playbackSettings.twoFingerAction == MultiFingerAction.PINCH_ZOOM
+    val pinchModifier = if (pinchZoomEnabled && onZoomChange != null) {
+        Modifier.pointerInput(pinchZoomEnabled) {
+            detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
+                // Only fire when it's actually a zoom/pan (zoom != 1 or pan != Zero)
+                if (zoom != 1f || pan != Offset.Zero) {
+                    onZoomChange(zoom, pan)
+                }
+            }
+        }
+    } else Modifier
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            // Pinch-zoom handler: runs in parallel with the single-finger handler below.
+            // Uses detectTransformGestures which only responds to 2-finger motion, so
+            // it never conflicts with single-finger taps, swipes, or long-presses.
+            .then(pinchModifier)
             .pointerInput(Unit) {
                 coroutineScope {
                     var longPressJob: Job? = null
                     var dragStarted = false
                     var isLeftHalfDrag = false
                     var lastDragY = 0f
+                    var multiFingerToastJob: Job? = null
 
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -141,14 +248,19 @@ fun GestureOverlay(
                         val isEdge = startPosition.x < size.width * 0.15f || startPosition.x > size.width * 0.85f
                         longPressJob = launch {
                             delay(500L)
-                            if (!dragStarted && isEdge) {
+                            if (!dragStarted && isEdge && playbackSettingsState.value.longPressEnabled) {
                                 isLongPressSpeedActive = true
                                 onSetPlaybackSpeedState.value(tapAndHoldSpeed)
                             }
                         }
 
+                        // Track max pointer count for multi-finger detection
+                        var maxPointerCount = 1
+
                         while (true) {
                             val event = awaitPointerEvent()
+                            val activePointers = event.changes.count { it.pressed }
+                            if (activePointers > maxPointerCount) maxPointerCount = activePointers
                             val dragChange = event.changes.firstOrNull() ?: break
 
                             if (dragChange.pressed) {
@@ -156,32 +268,37 @@ fun GestureOverlay(
                                 val diffY = currentPos.y - startPosition.y
                                 val diffX = currentPos.x - startPosition.x
 
-                                if (!dragStarted && !isLongPressSpeedActive) {
+                                if (!dragStarted && !isLongPressSpeedActive && maxPointerCount == 1) {
                                     if (Math.abs(diffY) > viewConfiguration.touchSlop && Math.abs(diffY) > Math.abs(diffX)) {
                                         longPressJob?.cancel()
                                         dragStarted = true
 
-                                        if (isLeftHalfDrag) {
+                                        val settings = playbackSettingsState.value
+                                        if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
                                             val lp = activity?.window?.attributes
                                             currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
                                             showBrightnessIndicator = true
                                             brightnessHideJob?.cancel()
-                                        } else {
+                                        } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
                                             currentVolumeFloat = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
                                             showVolumeIndicator = true
                                             volumeHideJob?.cancel()
+                                        } else {
+                                            dragStarted = false // disable drag if gesture is off
                                         }
                                     }
                                 }
 
-                                if (dragStarted) {
+                                if (dragStarted && maxPointerCount == 1) {
                                     val deltaY = currentPos.y - lastDragY
                                     lastDragY = currentPos.y
 
                                     val screenHeight = size.height.toFloat().coerceAtLeast(1f)
-                                    val deltaPercent = -deltaY / screenHeight
+                                    val settings = playbackSettingsState.value
+                                    val sensitivity = if (isLeftHalfDrag) settings.brightnessSensitivity else settings.volumeSensitivity
+                                    val deltaPercent = -deltaY / screenHeight * (0.5f + sensitivity * 1.5f)
 
-                                    if (isLeftHalfDrag) {
+                                    if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
                                         currentBrightnessFloat = (currentBrightnessFloat + deltaPercent).coerceIn(0.01f, 1.0f)
                                         activity?.let { act ->
                                             val lp = act.window.attributes
@@ -189,7 +306,7 @@ fun GestureOverlay(
                                             act.window.attributes = lp
                                         }
                                         currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
-                                    } else {
+                                    } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
                                         currentVolumeFloat = (currentVolumeFloat + deltaPercent * maxVolume).coerceIn(0f, maxVolume.toFloat())
                                         val newVol = currentVolumeFloat.toInt()
                                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
@@ -203,6 +320,32 @@ fun GestureOverlay(
                                 if (isLongPressSpeedActive) {
                                     isLongPressSpeedActive = false
                                     onSetPlaybackSpeedState.value(customPlaybackSpeed)
+                                } else if (maxPointerCount >= 2 && !dragStarted) {
+                                    // Multi-finger tap detected
+                                    val settings = playbackSettingsState.value
+                                    val action = if (maxPointerCount == 2) settings.twoFingerAction else settings.threeFingerAction
+                                    val currentFastPlay = isFastPlayActive
+                                    executeMultiFingerAction(
+                                        action = action,
+                                        onPlayPause = onPlayPauseToggleState.value,
+                                        onSetSpeed = onSetPlaybackSpeedState.value,
+                                        currentSpeed = playbackSpeedState.value,
+                                        customSpeed = customPlaybackSpeed,
+                                        audioManager = audioManager,
+                                        maxVolume = maxVolume,
+                                        onShowToast = { msg ->
+                                            showMultiFingerToast = msg
+                                            multiFingerToastJob?.cancel()
+                                            multiFingerToastJob = launch {
+                                                delay(1500L)
+                                                showMultiFingerToast = null
+                                            }
+                                        },
+                                        onFastPlayChanged = { isFastPlayActive = it },
+                                        isFastPlay = currentFastPlay,
+                                        view = view,
+                                        activity = activity
+                                    )
                                 } else if (dragStarted) {
                                     if (isLeftHalfDrag) {
                                         onSaveBrightnessState.value(currentBrightnessFloat)
@@ -227,34 +370,72 @@ fun GestureOverlay(
                                         tapJob?.cancel()
                                         lastTapTime = 0L
 
+                                        val settings = playbackSettingsState.value
                                         val width = size.width
                                         val x = tapOffset.x
-                                        if (x < width * 0.4f) {
-                                            val newPos = (currentPositionState.value - doubleTapSeekDurationMs).coerceAtLeast(0L)
-                                            onSeekState.value(newPos)
-                                            leftClearJob?.cancel()
-                                            leftAccumulatedMs += doubleTapSeekDurationMs
-                                            leftRippleTick++
-                                            leftRippleActive = true
-                                            leftClearJob = launch {
-                                                delay(650L)
-                                                leftAccumulatedMs = 0L
-                                                leftRippleActive = false
+
+                                        when (settings.doubleTapAction) {
+                                            DoubleTapAction.BOTH -> {
+                                                if (x < width * 0.4f) {
+                                                    val newPos = (currentPositionState.value - doubleTapSeekDurationMs).coerceAtLeast(0L)
+                                                    onSeekState.value(newPos)
+                                                    leftClearJob?.cancel()
+                                                    leftAccumulatedMs += doubleTapSeekDurationMs
+                                                    leftRippleTick++
+                                                    leftRippleActive = true
+                                                    leftClearJob = launch {
+                                                        delay(650L)
+                                                        leftAccumulatedMs = 0L
+                                                        leftRippleActive = false
+                                                    }
+                                                } else if (x > width * 0.6f) {
+                                                    val newPos = (currentPositionState.value + doubleTapSeekDurationMs).coerceAtMost(durationState.value)
+                                                    onSeekState.value(newPos)
+                                                    rightClearJob?.cancel()
+                                                    rightAccumulatedMs += doubleTapSeekDurationMs
+                                                    rightRippleTick++
+                                                    rightRippleActive = true
+                                                    rightClearJob = launch {
+                                                        delay(650L)
+                                                        rightAccumulatedMs = 0L
+                                                        rightRippleActive = false
+                                                    }
+                                                } else {
+                                                    onPlayPauseToggleState.value()
+                                                }
                                             }
-                                        } else if (x > width * 0.6f) {
-                                            val newPos = (currentPositionState.value + doubleTapSeekDurationMs).coerceAtMost(durationState.value)
-                                            onSeekState.value(newPos)
-                                            rightClearJob?.cancel()
-                                            rightAccumulatedMs += doubleTapSeekDurationMs
-                                            rightRippleTick++
-                                            rightRippleActive = true
-                                            rightClearJob = launch {
-                                                delay(650L)
-                                                rightAccumulatedMs = 0L
-                                                rightRippleActive = false
+                                            DoubleTapAction.PLAY_PAUSE -> {
+                                                onPlayPauseToggleState.value()
                                             }
-                                        } else {
-                                            onPlayPauseToggleState.value()
+                                            DoubleTapAction.FAST_FORWARD -> {
+                                                val newPos = (currentPositionState.value + doubleTapSeekDurationMs).coerceAtMost(durationState.value)
+                                                onSeekState.value(newPos)
+                                                rightClearJob?.cancel()
+                                                rightAccumulatedMs += doubleTapSeekDurationMs
+                                                rightRippleTick++
+                                                rightRippleActive = true
+                                                rightClearJob = launch {
+                                                    delay(650L)
+                                                    rightAccumulatedMs = 0L
+                                                    rightRippleActive = false
+                                                }
+                                            }
+                                            DoubleTapAction.REWIND -> {
+                                                val newPos = (currentPositionState.value - doubleTapSeekDurationMs).coerceAtLeast(0L)
+                                                onSeekState.value(newPos)
+                                                leftClearJob?.cancel()
+                                                leftAccumulatedMs += doubleTapSeekDurationMs
+                                                leftRippleTick++
+                                                leftRippleActive = true
+                                                leftClearJob = launch {
+                                                    delay(650L)
+                                                    leftAccumulatedMs = 0L
+                                                    leftRippleActive = false
+                                                }
+                                            }
+                                            DoubleTapAction.NONE -> {
+                                                // Do nothing
+                                            }
                                         }
                                     } else {
                                         lastTapTime = clickTime
@@ -300,6 +481,29 @@ fun GestureOverlay(
                     isRightSide = true,
                     accumulatedMs = rightAccumulatedMs,
                     rippleTick = rightRippleTick
+                )
+            }
+        }
+
+        // Multi-finger toast
+        val toastMsg = showMultiFingerToast
+        if (toastMsg != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(bottom = 80.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.72f),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = toastMsg,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

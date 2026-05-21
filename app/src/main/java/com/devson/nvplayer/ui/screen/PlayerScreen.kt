@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,7 @@ import android.content.Context
 import com.devson.nvplayer.player.TrackInfo
 import com.devson.nvplayer.repository.SubtitleFont
 import com.devson.nvplayer.repository.PlaybackSettings
+import android.provider.MediaStore
 import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
 import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
@@ -120,8 +122,63 @@ fun PlayerScreen(
     var showPlaybackSpeedSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val activity = remember(context) { context.findActivity() }
+    //  Pinch-to-Zoom state 
+    // videoScale and videoOffset are owned here so they can be applied to the
+    // AndroidView via graphicsLayer.  GestureOverlay reports incremental changes
+    // (scaleMultiplier, panDelta) via onZoomChange; we accumulate them here.
+    var videoScale by remember { mutableStateOf(1f) }
+    var videoOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val onZoomChange: (Float, Offset) -> Unit = { scaleMultiplier, pan ->
+        val newScale = (videoScale * scaleMultiplier).coerceIn(1f, 6f)
+        videoScale = newScale
+        if (newScale <= 1.01f) {
+            // Snap back to zero offset when fully zoomed out
+            videoOffset = Offset.Zero
+            videoScale = 1f
+        } else {
+            // Clamp pan so the video never wanders completely off-screen
+            val maxX = (newScale - 1f) * 900f
+            val maxY = (newScale - 1f) * 500f
+            videoOffset = Offset(
+                (videoOffset.x + pan.x).coerceIn(-maxX, maxX),
+                (videoOffset.y + pan.y).coerceIn(-maxY, maxY)
+            )
+        }
+    }
+
+    //  Resolve the real video title 
+    // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
+    // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
+    val videoTitle: String = remember(currentUri) {
+        if (currentUri == null) return@remember "Local Video"
+        // 1. Try ContentResolver (works for content:// MediaStore URIs)
+        try {
+            context.contentResolver.query(
+                currentUri,
+                arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+                null, null, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                    if (nameCol >= 0) {
+                        val fullName = cursor.getString(nameCol) ?: ""
+                        // Strip extension
+                        val dot = fullName.lastIndexOf('.')
+                        return@remember if (dot > 0) fullName.substring(0, dot) else fullName
+                    }
+                }
+            }
+        } catch (_: Exception) { }
+        // 2. Fall back: use last path segment and strip extension
+        val seg = currentUri.lastPathSegment ?: currentUri.toString()
+        val name = seg.substringAfterLast('/')
+        val dot = name.lastIndexOf('.')
+        if (dot > 0) name.substring(0, dot) else name
+    }
+
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val activity = remember(context) { context.findActivity() }
 
     // Define back handler with portrait forcing first
     val handleBack = {
@@ -225,7 +282,10 @@ fun PlayerScreen(
     ) {
         val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
 
-        // ALWAYS keep the AndroidView in the hierarchy so that surface attaches immediately
+        // ALWAYS keep the AndroidView in the hierarchy so that surface attaches immediately.
+        // graphicsLayer applies the zoom/pan state driven by GestureOverlay's onZoomChange.
+        // No `transformable` modifier here — it would never receive events because
+        // GestureOverlay sits on top and captures all touches first.
         AndroidView(
             factory = { ctx ->
                 MPVSurfaceView(ctx).apply {
@@ -234,7 +294,14 @@ fun PlayerScreen(
                     }
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = videoScale,
+                    scaleY = videoScale,
+                    translationX = videoOffset.x,
+                    translationY = videoOffset.y
+                )
         )
 
         when (playbackState) {
@@ -321,7 +388,9 @@ fun PlayerScreen(
                     onControlsVisibleChanged = { controlsVisible = it },
                     customPlaybackSpeed = playbackSettings.customPlaybackSpeed,
                     tapAndHoldSpeed = playbackSettings.tapAndHoldSpeed,
-                    doubleTapSeekDurationMs = playbackSettings.doubleTapSeekDuration
+                    doubleTapSeekDurationMs = playbackSettings.doubleTapSeekDuration,
+                    playbackSettings = playbackSettings,
+                    onZoomChange = onZoomChange
                 )
 
                 ComposeSubtitleOverlay(
@@ -346,7 +415,7 @@ fun PlayerScreen(
                     exit = fadeOut()
                 ) {
                     PlayerControls(
-                        title = currentUri?.lastPathSegment ?: "Local Video",
+                        title = videoTitle,
                         isPlaying = isPlaying,
                         currentPosition = currentPosition,
                         duration = duration,

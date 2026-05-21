@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.repository.DoubleTapAction
 import com.devson.nvplayer.repository.MultiFingerAction
@@ -88,7 +89,9 @@ fun GestureSettingsScreen(
                     GestureSliderRow(
                         title = "Seek Sensitivity",
                         value = playbackSettings.seekSensitivity,
-                        onValueChange = { settingsViewModel.updateSeekSensitivity(it) }
+                        defaultValue = 0.5f,
+                        onValueChange = { settingsViewModel.updateSeekSensitivity(it) },
+                        onReset = { settingsViewModel.updateSeekSensitivity(0.5f) }
                     )
                 }
 
@@ -105,7 +108,9 @@ fun GestureSettingsScreen(
                     GestureSliderRow(
                         title = "Volume Sensitivity",
                         value = playbackSettings.volumeSensitivity,
-                        onValueChange = { settingsViewModel.updateVolumeSensitivity(it) }
+                        defaultValue = 0.5f,
+                        onValueChange = { settingsViewModel.updateVolumeSensitivity(it) },
+                        onReset = { settingsViewModel.updateVolumeSensitivity(0.5f) }
                     )
                 }
 
@@ -122,7 +127,9 @@ fun GestureSettingsScreen(
                     GestureSliderRow(
                         title = "Brightness Sensitivity",
                         value = playbackSettings.brightnessSensitivity,
-                        onValueChange = { settingsViewModel.updateBrightnessSensitivity(it) }
+                        defaultValue = 0.5f,
+                        onValueChange = { settingsViewModel.updateBrightnessSensitivity(it) },
+                        onReset = { settingsViewModel.updateBrightnessSensitivity(0.5f) }
                     )
                 }
             }
@@ -167,18 +174,22 @@ fun GestureSettingsScreen(
                     GestureSliderRow(
                         title = "Tap & Hold Speed Override",
                         value = playbackSettings.tapAndHoldSpeed,
+                        defaultValue = 2.0f,
                         valueRange = 1.5f..3.0f,
                         steps = 2,
                         valueFormatter = { "${String.format("%.1f", it)}x" },
-                        onValueChange = { settingsViewModel.updateTapAndHoldSpeed(it) }
+                        onValueChange = { settingsViewModel.updateTapAndHoldSpeed(it) },
+                        onReset = { settingsViewModel.updateTapAndHoldSpeed(2.0f) }
                     )
                     GestureSliderRow(
                         title = "Long Press Default Speed",
                         value = playbackSettings.longPressSpeed,
+                        defaultValue = 2.0f,
                         valueRange = 1.5f..3.0f,
                         steps = 2,
                         valueFormatter = { "${String.format("%.1f", it)}x" },
-                        onValueChange = { settingsViewModel.updateLongPressSpeed(it) }
+                        onValueChange = { settingsViewModel.updateLongPressSpeed(it) },
+                        onReset = { settingsViewModel.updateLongPressSpeed(2.0f) }
                     )
                 }
             }
@@ -197,6 +208,7 @@ fun GestureSettingsScreen(
                         MultiFingerAction.MUTE -> "Mute"
                         MultiFingerAction.NONE -> "No Action"
                         MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                        MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
                     },
                     onClick = { showTwoFingerActionDialog = true }
                 )
@@ -212,6 +224,7 @@ fun GestureSettingsScreen(
                         MultiFingerAction.MUTE -> "Mute"
                         MultiFingerAction.NONE -> "No Action"
                         MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                        MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
                     },
                     onClick = { showThreeFingerActionDialog = true }
                 )
@@ -349,6 +362,7 @@ fun GestureSettingsScreen(
                                     MultiFingerAction.MUTE -> "Mute Audio"
                                     MultiFingerAction.NONE -> "No Action"
                                     MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom (two-finger)"
                                 },
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -398,6 +412,7 @@ fun GestureSettingsScreen(
                                     MultiFingerAction.MUTE -> "Mute Audio"
                                     MultiFingerAction.NONE -> "No Action"
                                     MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
                                 },
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -546,10 +561,12 @@ private fun GestureToggleRow(
 private fun GestureSliderRow(
     title: String,
     value: Float,
+    defaultValue: Float = 0.5f,
     valueRange: ClosedFloatingPointRange<Float> = 0.1f..1.0f,
     steps: Int = 0,
     valueFormatter: (Float) -> String = { "${(it * 100).roundToInt()}%" },
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
+    onReset: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -564,14 +581,38 @@ private fun GestureSliderRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
             )
-            Text(
-                text = valueFormatter(value),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = valueFormatter(value),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (onReset != null) {
+                    val isAtDefault = kotlin.math.abs(value - defaultValue) < 0.001f
+                    IconButton(
+                        onClick = onReset,
+                        enabled = !isAtDefault,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Reset to default",
+                            modifier = Modifier.size(16.dp),
+                            tint = if (isAtDefault)
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            else
+                                MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
         Slider(
             value = value,
