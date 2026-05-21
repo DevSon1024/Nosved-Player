@@ -61,6 +61,11 @@ import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import android.os.BatteryManager
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.devson.nvplayer.ui.component.formatTime
 
 @Composable
 fun PlayerScreen(
@@ -408,6 +413,24 @@ fun PlayerScreen(
                     onSeekPrev = onSeekPrevSubtitle
                 )
 
+                // Persistent top bar overlay when controls are hidden
+                AnimatedVisibility(
+                    visible = !controlsVisible && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
+                    enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                ) {
+                    PersistentTopBar(
+                        duration = duration,
+                        currentPosition = currentPosition,
+                        showRemainingTime = playbackSettings.showRemainingTime,
+                        showBatteryClock = playbackSettings.showBatteryClockOverlay,
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .padding(top = 12.dp)
+                    )
+                }
+
                 // Unified Premium Controls Layer
                 AnimatedVisibility(
                     visible = controlsVisible,
@@ -500,6 +523,107 @@ fun PlayerScreen(
             onUpdateLongPressSpeed = onUpdateLongPressSpeed,
             onDismiss = { showPlaybackSpeedSideSheet = false }
         )
+    }
+}
+
+@Composable
+private fun PersistentTopBar(
+    duration: Long,
+    currentPosition: Long,
+    showRemainingTime: Boolean,
+    showBatteryClock: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var batteryPercentage by remember { mutableIntStateOf(100) }
+    var currentTime by remember { mutableStateOf("") }
+
+    LaunchedEffect(showBatteryClock) {
+        if (showBatteryClock) {
+            val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            while (true) {
+                batteryPercentage = batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+                currentTime = timeFormat.format(Date())
+                delay(10000L)
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black.copy(alpha = 0.45f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (showRemainingTime) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.HourglassBottom,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    val remainingMs = (duration - currentPosition).coerceAtLeast(0L)
+                    Text(
+                        text = "-${formatTime(remainingMs)}",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            if (showRemainingTime && showBatteryClock) {
+                Spacer(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(10.dp)
+                        .background(Color.White.copy(alpha = 0.2f))
+                )
+            }
+
+            if (showBatteryClock) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.BatteryChargingFull,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = "$batteryPercentage%",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.Schedule,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = currentTime,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 }
 
