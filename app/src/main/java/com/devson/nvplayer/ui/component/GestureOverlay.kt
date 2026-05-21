@@ -616,7 +616,7 @@ fun GestureOverlay(
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 80.dp)
+                .padding(top = 40.dp)
         ) {
             FastForwardBadge(speed = tapAndHoldSpeed)
         }
