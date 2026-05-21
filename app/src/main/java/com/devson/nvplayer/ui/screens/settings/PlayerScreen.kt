@@ -22,6 +22,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.repository.FullScreenMode
 import com.devson.nvplayer.repository.OrientationMode
 import com.devson.nvplayer.repository.SoftButtonMode
+import com.devson.nvplayer.repository.DecoderMode
+import com.devson.nvplayer.ui.components.VideoFiltersDialog
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 
 // Maps raw enum names to user-readable labels
@@ -42,6 +44,7 @@ fun PlayerScreen(
 
     var showAudioLangDialog by remember { mutableStateOf(false) }
     var showSubLangDialog   by remember { mutableStateOf(false) }
+    var showVideoFiltersDialog by remember { mutableStateOf(false) }
 
     val commonLanguages = listOf(
         "" to "System Default",
@@ -196,6 +199,30 @@ fun PlayerScreen(
                         onClick  = { showSubLangDialog = true }
                     )
                 }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            item { SettingsSectionLabel("Advanced Player Settings") }
+            item {
+                SettingsCard {
+                    SettingsRadioItem(
+                        icon = Icons.Default.SettingsInputComponent,
+                        title = "Decoder Mode",
+                        subtitle = "Select hardware or software decoding",
+                        options = DecoderMode.values().map { it.name },
+                        selectedOption = playbackSettings.decoderMode.name,
+                        onOptionSelected = {
+                            settingsViewModel.updateDecoderMode(DecoderMode.valueOf(it))
+                        }
+                    )
+                    SettingsDivider()
+                    SettingsClickRow(
+                        icon = Icons.Default.FilterVintage,
+                        title = "Video Filters",
+                        subtitle = if (playbackSettings.shouldApplyVideoFilters) "Filters are active" else "Configure video effects",
+                        onClick = { showVideoFiltersDialog = true }
+                    )
+                }
             }
         }
     }
@@ -216,6 +243,16 @@ fun PlayerScreen(
             selected  = defaultSubtitleLang,
             onSelect  = { settingsViewModel.setDefaultSubtitleLang(it); showSubLangDialog = false },
             onDismiss = { showSubLangDialog = false }
+        )
+    }
+
+    if (showVideoFiltersDialog) {
+        VideoFiltersDialog(
+            settings = playbackSettings,
+            onDismiss = { showVideoFiltersDialog = false },
+            onConfirm = { shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh ->
+                settingsViewModel.updateVideoFilters(shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh)
+            }
         )
     }
 }

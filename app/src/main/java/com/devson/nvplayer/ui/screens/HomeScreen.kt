@@ -52,9 +52,10 @@ import com.devson.nvplayer.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.request.videoFrameMillis
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.video.videoFrameMillis
+import coil3.request.crossfade
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.WatchHistory
 import com.devson.nvplayer.ui.components.PreviewFloatingActionButton

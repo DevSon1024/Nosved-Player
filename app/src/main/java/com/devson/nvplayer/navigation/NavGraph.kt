@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.ui.screens.settings.AboutScreen
+import com.devson.nvplayer.ui.screens.settings.LibrariesScreen
 import com.devson.nvplayer.ui.screens.HistoryScreen
 import com.devson.nvplayer.ui.screens.HomeScreen
 import com.devson.nvplayer.ui.screens.OnboardingScreen
@@ -204,8 +205,13 @@ fun NavGraph(
         composable(Screen.About.route) {
             AboutScreen(
                 onBack                = { safePopBackStack() },
-                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
+                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() },
+                onNavigateToLibraries = { navController.navigate(Screen.Libraries.route) }
             )
+        }
+
+        composable(Screen.Libraries.route) {
+            LibrariesScreen(onBack = { safePopBackStack() })
         }
 
         composable(Screen.Logs.route) {

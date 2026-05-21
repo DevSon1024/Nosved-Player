@@ -54,6 +54,21 @@ data class PlaybackSettings(
     val isSubtitleBold: Boolean = false,
     val forceAssSubtitleOverride: Boolean = false,
 
+    // Video Filters
+    val shouldApplyVideoFilters: Boolean = false,
+    val isVideoBrightnessFilterEnabled: Boolean = false,
+    val videoBrightness: Float = 0f,
+    val isVideoContrastFilterEnabled: Boolean = false,
+    val videoContrast: Float = 0f,
+    val isVideoSaturationFilterEnabled: Boolean = false,
+    val videoSaturation: Float = 0f,
+    val isVideoHueFilterEnabled: Boolean = false,
+    val videoHue: Float = 0f,
+    val isVideoGammaFilterEnabled: Boolean = false,
+    val videoGamma: Float = 1f,
+    val isVideoSharpeningFilterEnabled: Boolean = false,
+    val videoSharpening: Float = 0f,
+
     // Gesture Settings
     val seekGestureEnabled: Boolean = true,
     val seekSensitivity: Float = 0.5f,
@@ -104,6 +119,21 @@ class PlaybackSettingsRepository(private val context: Context) {
         val IS_SUBTITLE_BOLD = booleanPreferencesKey("is_subtitle_bold")
         val FORCE_ASS_SUBTITLE_OVERRIDE = booleanPreferencesKey("force_ass_subtitle_override")
 
+        // Video Filters Keys
+        val SHOULD_APPLY_VIDEO_FILTERS = booleanPreferencesKey("should_apply_video_filters")
+        val IS_VIDEO_BRIGHTNESS_FILTER_ENABLED = booleanPreferencesKey("is_video_brightness_filter_enabled")
+        val VIDEO_BRIGHTNESS = floatPreferencesKey("video_brightness")
+        val IS_VIDEO_CONTRAST_FILTER_ENABLED = booleanPreferencesKey("is_video_contrast_filter_enabled")
+        val VIDEO_CONTRAST = floatPreferencesKey("video_contrast")
+        val IS_VIDEO_SATURATION_FILTER_ENABLED = booleanPreferencesKey("is_video_saturation_filter_enabled")
+        val VIDEO_SATURATION = floatPreferencesKey("video_saturation")
+        val IS_VIDEO_HUE_FILTER_ENABLED = booleanPreferencesKey("is_video_hue_filter_enabled")
+        val VIDEO_HUE = floatPreferencesKey("video_hue")
+        val IS_VIDEO_GAMMA_FILTER_ENABLED = booleanPreferencesKey("is_video_gamma_filter_enabled")
+        val VIDEO_GAMMA = floatPreferencesKey("video_gamma")
+        val IS_VIDEO_SHARPENING_FILTER_ENABLED = booleanPreferencesKey("is_video_sharpening_filter_enabled")
+        val VIDEO_SHARPENING = floatPreferencesKey("video_sharpening")
+
         // Gesture Keys
         val SEEK_GESTURE_ENABLED = booleanPreferencesKey("seek_gesture_enabled")
         val SEEK_SENSITIVITY = floatPreferencesKey("seek_sensitivity")
@@ -143,6 +173,20 @@ class PlaybackSettingsRepository(private val context: Context) {
                 subtitleFont = try { SubtitleFont.valueOf(preferences[PreferencesKeys.SUBTITLE_FONT] ?: SubtitleFont.DEFAULT.name) } catch (e: Exception) { SubtitleFont.DEFAULT },
                 isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false,
                 forceAssSubtitleOverride = preferences[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] ?: false,
+
+                shouldApplyVideoFilters = preferences[PreferencesKeys.SHOULD_APPLY_VIDEO_FILTERS] ?: false,
+                isVideoBrightnessFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_BRIGHTNESS_FILTER_ENABLED] ?: false,
+                videoBrightness = preferences[PreferencesKeys.VIDEO_BRIGHTNESS] ?: 0f,
+                isVideoContrastFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_CONTRAST_FILTER_ENABLED] ?: false,
+                videoContrast = preferences[PreferencesKeys.VIDEO_CONTRAST] ?: 0f,
+                isVideoSaturationFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_SATURATION_FILTER_ENABLED] ?: false,
+                videoSaturation = preferences[PreferencesKeys.VIDEO_SATURATION] ?: 0f,
+                isVideoHueFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_HUE_FILTER_ENABLED] ?: false,
+                videoHue = preferences[PreferencesKeys.VIDEO_HUE] ?: 0f,
+                isVideoGammaFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_GAMMA_FILTER_ENABLED] ?: false,
+                videoGamma = preferences[PreferencesKeys.VIDEO_GAMMA] ?: 1f,
+                isVideoSharpeningFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_SHARPENING_FILTER_ENABLED] ?: false,
+                videoSharpening = preferences[PreferencesKeys.VIDEO_SHARPENING] ?: 0f,
 
                 seekGestureEnabled = preferences[PreferencesKeys.SEEK_GESTURE_ENABLED] ?: true,
                 seekSensitivity = preferences[PreferencesKeys.SEEK_SENSITIVITY] ?: 0.5f,
@@ -346,6 +390,32 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateForceAssSubtitleOverride(force: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] = force }
+    }
+
+    suspend fun updateVideoFilters(
+        shouldApply: Boolean,
+        isBrightnessEnabled: Boolean, brightness: Float,
+        isContrastEnabled: Boolean, contrast: Float,
+        isSaturationEnabled: Boolean, saturation: Float,
+        isHueEnabled: Boolean, hue: Float,
+        isGammaEnabled: Boolean, gamma: Float,
+        isSharpeningEnabled: Boolean, sharpening: Float
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[PreferencesKeys.SHOULD_APPLY_VIDEO_FILTERS] = shouldApply
+            prefs[PreferencesKeys.IS_VIDEO_BRIGHTNESS_FILTER_ENABLED] = isBrightnessEnabled
+            prefs[PreferencesKeys.VIDEO_BRIGHTNESS] = brightness
+            prefs[PreferencesKeys.IS_VIDEO_CONTRAST_FILTER_ENABLED] = isContrastEnabled
+            prefs[PreferencesKeys.VIDEO_CONTRAST] = contrast
+            prefs[PreferencesKeys.IS_VIDEO_SATURATION_FILTER_ENABLED] = isSaturationEnabled
+            prefs[PreferencesKeys.VIDEO_SATURATION] = saturation
+            prefs[PreferencesKeys.IS_VIDEO_HUE_FILTER_ENABLED] = isHueEnabled
+            prefs[PreferencesKeys.VIDEO_HUE] = hue
+            prefs[PreferencesKeys.IS_VIDEO_GAMMA_FILTER_ENABLED] = isGammaEnabled
+            prefs[PreferencesKeys.VIDEO_GAMMA] = gamma
+            prefs[PreferencesKeys.IS_VIDEO_SHARPENING_FILTER_ENABLED] = isSharpeningEnabled
+            prefs[PreferencesKeys.VIDEO_SHARPENING] = sharpening
+        }
     }
     suspend fun updateSeekGestureEnabled(enabled: Boolean) { context.dataStore.edit { it[PreferencesKeys.SEEK_GESTURE_ENABLED] = enabled } }
     suspend fun updateSeekSensitivity(sensitivity: Float) { context.dataStore.edit { it[PreferencesKeys.SEEK_SENSITIVITY] = sensitivity } }

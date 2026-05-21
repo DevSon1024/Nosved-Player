@@ -48,9 +48,10 @@ import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.viewmodel.SeekBarStyle
 import com.devson.nvplayer.repository.DecoderMode
 import kotlinx.coroutines.delay
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.request.CachePolicy
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.CachePolicy
+import coil3.request.crossfade
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -107,6 +108,7 @@ fun ModernStylePlayerControls(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onSelectDecoder: ((DecoderMode) -> Unit)? = null,
+    onOpenVideoFilters: (() -> Unit)? = null,
     onScrubbingModeChange: (Boolean) -> Unit = {},
     onSpeedMenuClick: (() -> Unit)? = null
 ) {
@@ -215,6 +217,7 @@ fun ModernStylePlayerControls(
                     onShowRemainingTimeChange = onShowRemainingTimeChange,
                     currentDecoder = currentDecoder,
                     onToggleDecoder = { showDecoderDialog = true },
+                    onOpenVideoFilters = onOpenVideoFilters,
                     onScrubbingModeChange = onScrubbingModeChange,
                     onSpeedMenuClick = onSpeedMenuClick
                 )
@@ -303,6 +306,7 @@ private fun YtControlsLayout(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onToggleDecoder: (() -> Unit)? = null,
+    onOpenVideoFilters: (() -> Unit)? = null,
     onScrubbingModeChange: (Boolean) -> Unit,
     onSpeedMenuClick: (() -> Unit)? = null
 ) {
@@ -377,6 +381,11 @@ private fun YtControlsLayout(
             }
             IconButton(onClick = onAudioTrackClick) {
                 Icon(Icons.Filled.Audiotrack, contentDescription = stringResource(R.string.cd_audio_track), tint = Color.White)
+            }
+            if (onOpenVideoFilters != null) {
+                IconButton(onClick = onOpenVideoFilters) {
+                    Icon(Icons.Filled.FilterVintage, contentDescription = "Video Filters", tint = Color.White)
+                }
             }
             if (onToggleDecoder != null) {
                 IconButton(onClick = onToggleDecoder) {

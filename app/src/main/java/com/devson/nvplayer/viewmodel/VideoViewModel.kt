@@ -145,7 +145,7 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         startProgressUpdate()
     }
 
-    fun initializePlayer(context: android.content.Context) {
+    fun initializePlayer(context: android.content.Context, playbackSettings: com.devson.nvplayer.repository.PlaybackSettings? = null) {
         if (settingsRepository == null) {
             settingsRepository = com.devson.nvplayer.repository.PlaybackSettingsRepository(context.applicationContext)
             viewModelScope.launch {
@@ -178,7 +178,8 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
             playerManager?.initializePlayer(
                 _currentDecoderMode.value,
                 _defaultAudioLang.value,
-                _defaultSubtitleLang.value
+                _defaultSubtitleLang.value,
+                playbackSettings
             )
             _playerInstance.value = playerManager?.exoPlayer
 
@@ -316,6 +317,10 @@ class VideoViewModel(application: Application) : AndroidViewModel(application) {
         val clamped = speed.coerceIn(0.25f, 4.0f)
         _currentPlaybackSpeed.value = clamped
         playerManager?.setPlaybackSpeed(clamped)
+    }
+
+    fun updateVideoFilters(settings: com.devson.nvplayer.repository.PlaybackSettings) {
+        playerManager?.updateVideoFilters(settings)
     }
 
     private fun resolvePositionToSave(): Long {

@@ -240,6 +240,32 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateForceAssSubtitleOverride(force) }
     }
 
+    fun updateVideoFilters(
+        shouldApply: Boolean,
+        isBrightnessEnabled: Boolean, brightness: Float,
+        isContrastEnabled: Boolean, contrast: Float,
+        isSaturationEnabled: Boolean, saturation: Float,
+        isHueEnabled: Boolean, hue: Float,
+        isGammaEnabled: Boolean, gamma: Float,
+        isSharpeningEnabled: Boolean, sharpening: Float
+    ) {
+        viewModelScope.launch {
+            settingsRepo.updateVideoFilters(
+                shouldApply,
+                isBrightnessEnabled, brightness,
+                isContrastEnabled, contrast,
+                isSaturationEnabled, saturation,
+                isHueEnabled, hue,
+                isGammaEnabled, gamma,
+                isSharpeningEnabled, sharpening
+            )
+        }
+    }
+
+    fun updateDecoderMode(mode: com.devson.nvplayer.repository.DecoderMode) {
+        viewModelScope.launch { settingsRepo.updateDecoderMode(mode) }
+    }
+
     // --- New Gesture Dispatchers ---
 
     fun updateSeekGesture(enabled: Boolean) {
