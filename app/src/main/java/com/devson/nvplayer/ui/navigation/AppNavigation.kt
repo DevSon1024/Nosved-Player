@@ -16,6 +16,7 @@ import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
 import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
 import com.devson.nvplayer.ui.screen.RecycleBinScreen
+import com.devson.nvplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.FolderViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
@@ -62,7 +63,30 @@ fun AppNavigation(
                 },
                 onSearch = { query ->
                     navController.navigate("search_results/${Uri.encode(query)}")
+                },
+                onBrowseClick = {
+                    navController.navigate("video_list")
                 }
+            )
+        }
+
+        composable("video_list") {
+            VideoListScreen(
+                onVideoSelected = { video, playlist, lastPositionMs ->
+                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    navController.navigate("player")
+                },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
+                },
+                onBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToSearch = { query ->
+                    navController.navigate("search_results/${Uri.encode(query)}")
+                },
+                viewModel = videoListViewModel,
+                homeViewModel = homeViewModel
             )
         }
 

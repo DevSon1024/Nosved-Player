@@ -18,7 +18,8 @@ enum class SortDirection {
 
 data class WatchHistory(
     val uri: String,
-    val lastPositionMs: Long
+    val lastPositionMs: Long,
+    val lastPlayedAt: Long = 0L
 )
 
 data class Video(

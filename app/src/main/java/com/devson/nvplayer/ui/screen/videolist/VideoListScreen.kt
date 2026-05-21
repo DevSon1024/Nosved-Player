@@ -33,6 +33,9 @@ import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
 import com.devson.nvplayer.ui.components.PreviewFloatingActionButton
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
 import com.devson.nvplayer.ui.screen.InformationBottomSheet
@@ -55,7 +58,8 @@ fun VideoListScreen(
     onNavigateToSettings: () -> Unit,
     onBack: () -> Unit = {},
     onNavigateToSearch: (String) -> Unit = {},
-    viewModel: VideoListViewModel = viewModel()
+    viewModel: VideoListViewModel = viewModel(),
+    homeViewModel: HomeViewModel
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -138,9 +142,21 @@ fun VideoListScreen(
     }
 
     //  Watch History 
-    val homeViewModel: HomeViewModel = viewModel()
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.loadWatchHistory()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     //  File Operations 
     val fileOpsViewModel: FileOperationsViewModel = viewModel()

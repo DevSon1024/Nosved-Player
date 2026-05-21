@@ -10,9 +10,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.player.PlayerEngine
 import com.devson.nvplayer.player.PlayerState
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -59,6 +61,24 @@ class PlayerViewModel(
     init {
         _savedBrightness.value = playerPrefs.getFloat("brightness", 0.5f)
         _savedVolume.value = playerPrefs.getInt("volume", -1)
+        viewModelScope.launch {
+            playbackState.collect { state ->
+                if (state is PlayerState.Playing && !isPositionRestored) {
+                    restorePlaybackProgress()
+                }
+            }
+        }
+    }
+
+    private fun restorePlaybackProgress() {
+        val uri = _currentUri.value ?: return
+        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
+        val savedPos = prefs.getLong(uri.toString(), 0L)
+        if (savedPos > 0) {
+            Log.d("PlayerViewModel", "Restoring saved progress: $savedPos for URI: $uri")
+            seekTo(savedPos)
+        }
+        isPositionRestored = true
     }
 
     fun saveBrightness(brightness: Float) {
@@ -72,6 +92,7 @@ class PlayerViewModel(
     }
 
     private var isVideoLoaded = false
+    private var isPositionRestored = false
 
     private fun updateNavigationStates() {
         val current = _currentUri.value
@@ -100,6 +121,16 @@ class PlayerViewModel(
         _playlist.value = playlistUris
         updateNavigationStates()
         isVideoLoaded = false
+        isPositionRestored = false
+
+        // Save progress as 0 if not already present, and update timestamp
+        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
+        if (!prefs.contains(uri.toString())) {
+            prefs.edit().putLong(uri.toString(), 0L).apply()
+        }
+        val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
+        timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
+
         try {
             val contentResolver = getApplication<Application>().contentResolver
             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -157,6 +188,16 @@ class PlayerViewModel(
         Log.d("PlayerViewModel", "Changing video to: $uri")
         _currentUri.value = uri
         isVideoLoaded = false
+        isPositionRestored = false
+
+        // Save progress as 0 if not already present, and update timestamp
+        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
+        if (!prefs.contains(uri.toString())) {
+            prefs.edit().putLong(uri.toString(), 0L).apply()
+        }
+        val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
+        timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
+
         try {
             val contentResolver = getApplication<Application>().contentResolver
             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -178,6 +219,8 @@ class PlayerViewModel(
         if (pos > 0) {
             val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong(uri.toString(), pos).apply()
+            val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
+            timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
             Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
         }
     }

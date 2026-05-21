@@ -22,6 +22,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
+import com.devson.nvplayer.ui.components.PreviewFloatingActionButton
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
 import com.devson.nvplayer.ui.screens.StorageExplorerScreen
@@ -87,6 +91,19 @@ fun FolderScreen(
     // Watch History Map
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.loadWatchHistory()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // Handles MediaStore permission dialogs (delete/rename on API 29-30)
     val intentSenderLauncher = rememberLauncherForActivityResult(
@@ -258,6 +275,31 @@ fun FolderScreen(
                         selectedVideos = emptySet()
                     }
                 )
+            }
+        },
+        floatingActionButton = {
+            if (viewSettings.showFloatingButton && !isSelectionActive) {
+                val lastPlayedVideo = remember(history, videos) {
+                    val folderUris = videos.map { it.uri }.toSet()
+                    val lastHistory = history.firstOrNull { it.uri in folderUris }
+                    if (lastHistory != null) videos.find { it.uri == lastHistory.uri } else null
+                }
+
+                if (lastPlayedVideo != null) {
+                    val lastHistoryEntry = remember(lastPlayedVideo, historyMap) { historyMap[lastPlayedVideo.uri] }
+                    PreviewFloatingActionButton(
+                        enablePreview = viewSettings.enableFabPreview,
+                        previewUri = lastPlayedVideo.uri,
+                        previewTitle = lastPlayedVideo.title,
+                        previewDurationMs = lastPlayedVideo.duration,
+                        previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
+                        onPlay = {
+                            val playlist = sortedVideos
+                            val playlistUris = playlist.mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
+                            onVideoClick(Uri.parse(lastPlayedVideo.uri), playlistUris)
+                        }
+                    )
+                }
             }
         }
     ) { padding ->

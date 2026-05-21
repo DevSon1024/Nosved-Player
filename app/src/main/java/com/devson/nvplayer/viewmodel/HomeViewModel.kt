@@ -33,15 +33,19 @@ class HomeViewModel(
 
     fun loadWatchHistory() {
         val allPrefs = sharedPrefs.all
+        val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
         val historyList = allPrefs.mapNotNull { (key, value) ->
             val pos = value as? Long ?: (value as? Int)?.toLong() ?: return@mapNotNull null
-            WatchHistory(uri = key, lastPositionMs = pos)
-        }
+            val timestamp = timePrefs.getLong(key, 0L)
+            WatchHistory(uri = key, lastPositionMs = pos, lastPlayedAt = timestamp)
+        }.sortedByDescending { it.lastPlayedAt }
         _history.value = historyList
     }
 
     fun setWatchStatus(video: Video, position: Long) {
         sharedPrefs.edit().putLong(video.uri, position).apply()
+        val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
+        timePrefs.edit().putLong(video.uri, System.currentTimeMillis()).apply()
         loadWatchHistory()
     }
 
