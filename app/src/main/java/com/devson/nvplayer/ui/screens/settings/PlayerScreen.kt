@@ -45,6 +45,7 @@ fun PlayerScreen(
     var showAudioLangDialog by remember { mutableStateOf(false) }
     var showSubLangDialog   by remember { mutableStateOf(false) }
     var showVideoFiltersDialog by remember { mutableStateOf(false) }
+    var showThumbnailPositionDialog by remember { mutableStateOf(false) }
 
     val commonLanguages = listOf(
         "" to "System Default",
@@ -131,6 +132,37 @@ fun PlayerScreen(
                         onOptionSelected = {
                             settingsViewModel.updateSoftButtonMode(SoftButtonMode.valueOf(it))
                         }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            item { SettingsSectionLabel("Thumbnail Settings") }
+            item {
+                SettingsCard {
+                    SettingsRadioItem(
+                        icon = Icons.Default.Image,
+                        title = "Thumbnail Generation",
+                        subtitle = "How video thumbnails are generated",
+                        options = com.devson.nvplayer.repository.ThumbnailGenerationStrategy.values().map { it.name },
+                        selectedOption = playbackSettings.thumbnailGenerationStrategy.name,
+                        onOptionSelected = {
+                            settingsViewModel.updateThumbnailGenerationStrategy(com.devson.nvplayer.repository.ThumbnailGenerationStrategy.valueOf(it))
+                        }
+                    )
+                    SettingsDivider()
+                    SettingsClickRow(
+                        icon = Icons.Default.Timer,
+                        title = "Frame Position",
+                        subtitle = "${(playbackSettings.thumbnailFramePosition * 100).toInt()}% into the video",
+                        onClick = { showThumbnailPositionDialog = true }
+                    )
+                    SettingsDivider()
+                    SettingsClickRow(
+                        icon = Icons.Default.DeleteSweep,
+                        title = "Delete Thumbnail Cache",
+                        subtitle = "Clear all generated thumbnails from storage",
+                        onClick = { settingsViewModel.clearThumbnailCache() }
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -252,6 +284,46 @@ fun PlayerScreen(
             onDismiss = { showVideoFiltersDialog = false },
             onConfirm = { shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh ->
                 settingsViewModel.updateVideoFilters(shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh)
+            }
+        )
+    }
+
+    if (showThumbnailPositionDialog) {
+        var sliderValue by remember { mutableStateOf(playbackSettings.thumbnailFramePosition) }
+        AlertDialog(
+            onDismissRequest = { showThumbnailPositionDialog = false },
+            title = { Text("Frame Position") },
+            text = {
+                Column {
+                    Text("Select where to capture the thumbnail:")
+                    Spacer(Modifier.height(16.dp))
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { sliderValue = it },
+                        valueRange = 0.01f..0.99f,
+                        steps = 98
+                    )
+                    Text(
+                        text = "${(sliderValue * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Changing this will clear the thumbnail cache.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    settingsViewModel.updateThumbnailFramePosition(sliderValue)
+                    showThumbnailPositionDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showThumbnailPositionDialog = false }) { Text("Cancel") }
             }
         )
     }

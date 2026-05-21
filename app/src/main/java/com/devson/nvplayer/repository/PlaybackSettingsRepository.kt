@@ -19,6 +19,7 @@ enum class FullScreenMode { ON, OFF, AUTO_SWITCH }
 enum class SoftButtonMode { SHOW, HIDE, AUTO_HIDE }
 enum class DecoderMode(val displayName: String) { HW("HW"), HW_PLUS("HW+"), SW("SW") }
 enum class SubtitleFont { DEFAULT, MONOSPACE, SANS_SERIF, SERIF }
+enum class ThumbnailGenerationStrategy { HYBRID, FRAME_POSITION, FIRST_FRAME }
 enum class DoubleTapAction(val displayName: String) {
     PLAY_PAUSE("Play / Pause"),
     FAST_FORWARD_REWIND("Fast Forward / Rewind"),
@@ -53,6 +54,24 @@ data class PlaybackSettings(
     val subtitleFont: SubtitleFont = SubtitleFont.DEFAULT,
     val isSubtitleBold: Boolean = false,
     val forceAssSubtitleOverride: Boolean = false,
+
+    // Thumbnail Settings
+    val thumbnailGenerationStrategy: ThumbnailGenerationStrategy = ThumbnailGenerationStrategy.HYBRID,
+    val thumbnailFramePosition: Float = 0.33f,
+
+    // Audio Settings
+    val shouldRequireAudioFocus: Boolean = true,
+    val shouldPauseOnHeadsetDisconnect: Boolean = true,
+    val shouldShowSystemVolumePanel: Boolean = true,
+    val shouldRememberPlayerVolume: Boolean = true,
+    val maxInitialPlayerVolumePercentage: Int = 100,
+    val isVolumeNormalizationEnabled: Boolean = false,
+    val isVolumeBoostEnabled: Boolean = false,
+
+    // Subtitle Settings
+    val isSubtitleAutoLoadEnabled: Boolean = true,
+    val subtitleTextEncoding: String = "UTF-8",
+    val shouldApplyEmbeddedStyles: Boolean = true,
 
     // Video Filters
     val shouldApplyVideoFilters: Boolean = false,
@@ -119,6 +138,24 @@ class PlaybackSettingsRepository(private val context: Context) {
         val IS_SUBTITLE_BOLD = booleanPreferencesKey("is_subtitle_bold")
         val FORCE_ASS_SUBTITLE_OVERRIDE = booleanPreferencesKey("force_ass_subtitle_override")
 
+        // Thumbnail Keys
+        val THUMBNAIL_GENERATION_STRATEGY = stringPreferencesKey("thumbnail_generation_strategy")
+        val THUMBNAIL_FRAME_POSITION = floatPreferencesKey("thumbnail_frame_position")
+
+        // Audio Keys
+        val REQUIRE_AUDIO_FOCUS = booleanPreferencesKey("require_audio_focus")
+        val PAUSE_ON_HEADSET_DISCONNECT = booleanPreferencesKey("pause_on_headset_disconnect")
+        val SHOW_SYSTEM_VOLUME_PANEL = booleanPreferencesKey("show_system_volume_panel")
+        val REMEMBER_PLAYER_VOLUME = booleanPreferencesKey("remember_player_volume")
+        val MAX_INITIAL_PLAYER_VOLUME_PERCENTAGE = intPreferencesKey("max_initial_player_volume_percentage")
+        val VOLUME_NORMALIZATION_ENABLED = booleanPreferencesKey("volume_normalization_enabled")
+        val VOLUME_BOOST_ENABLED = booleanPreferencesKey("volume_boost_enabled")
+
+        // Subtitle Keys
+        val SUBTITLE_AUTO_LOAD_ENABLED = booleanPreferencesKey("subtitle_auto_load_enabled")
+        val SUBTITLE_TEXT_ENCODING = stringPreferencesKey("subtitle_text_encoding")
+        val APPLY_EMBEDDED_STYLES = booleanPreferencesKey("apply_embedded_styles")
+
         // Video Filters Keys
         val SHOULD_APPLY_VIDEO_FILTERS = booleanPreferencesKey("should_apply_video_filters")
         val IS_VIDEO_BRIGHTNESS_FILTER_ENABLED = booleanPreferencesKey("is_video_brightness_filter_enabled")
@@ -173,6 +210,21 @@ class PlaybackSettingsRepository(private val context: Context) {
                 subtitleFont = try { SubtitleFont.valueOf(preferences[PreferencesKeys.SUBTITLE_FONT] ?: SubtitleFont.DEFAULT.name) } catch (e: Exception) { SubtitleFont.DEFAULT },
                 isSubtitleBold = preferences[PreferencesKeys.IS_SUBTITLE_BOLD] ?: false,
                 forceAssSubtitleOverride = preferences[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] ?: false,
+
+                thumbnailGenerationStrategy = try { ThumbnailGenerationStrategy.valueOf(preferences[PreferencesKeys.THUMBNAIL_GENERATION_STRATEGY] ?: ThumbnailGenerationStrategy.HYBRID.name) } catch (e: Exception) { ThumbnailGenerationStrategy.HYBRID },
+                thumbnailFramePosition = preferences[PreferencesKeys.THUMBNAIL_FRAME_POSITION] ?: 0.33f,
+
+                shouldRequireAudioFocus = preferences[PreferencesKeys.REQUIRE_AUDIO_FOCUS] ?: true,
+                shouldPauseOnHeadsetDisconnect = preferences[PreferencesKeys.PAUSE_ON_HEADSET_DISCONNECT] ?: true,
+                shouldShowSystemVolumePanel = preferences[PreferencesKeys.SHOW_SYSTEM_VOLUME_PANEL] ?: true,
+                shouldRememberPlayerVolume = preferences[PreferencesKeys.REMEMBER_PLAYER_VOLUME] ?: true,
+                maxInitialPlayerVolumePercentage = preferences[PreferencesKeys.MAX_INITIAL_PLAYER_VOLUME_PERCENTAGE] ?: 100,
+                isVolumeNormalizationEnabled = preferences[PreferencesKeys.VOLUME_NORMALIZATION_ENABLED] ?: false,
+                isVolumeBoostEnabled = preferences[PreferencesKeys.VOLUME_BOOST_ENABLED] ?: false,
+
+                isSubtitleAutoLoadEnabled = preferences[PreferencesKeys.SUBTITLE_AUTO_LOAD_ENABLED] ?: true,
+                subtitleTextEncoding = preferences[PreferencesKeys.SUBTITLE_TEXT_ENCODING] ?: "UTF-8",
+                shouldApplyEmbeddedStyles = preferences[PreferencesKeys.APPLY_EMBEDDED_STYLES] ?: true,
 
                 shouldApplyVideoFilters = preferences[PreferencesKeys.SHOULD_APPLY_VIDEO_FILTERS] ?: false,
                 isVideoBrightnessFilterEnabled = preferences[PreferencesKeys.IS_VIDEO_BRIGHTNESS_FILTER_ENABLED] ?: false,
@@ -368,6 +420,46 @@ class PlaybackSettingsRepository(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.DECODER_MODE] = mode.name }
     }
 
+    suspend fun updateRequireAudioFocus(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.REQUIRE_AUDIO_FOCUS] = enabled }
+    }
+
+    suspend fun updatePauseOnHeadsetDisconnect(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.PAUSE_ON_HEADSET_DISCONNECT] = enabled }
+    }
+
+    suspend fun updateShowSystemVolumePanel(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SHOW_SYSTEM_VOLUME_PANEL] = enabled }
+    }
+
+    suspend fun updateRememberPlayerVolume(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.REMEMBER_PLAYER_VOLUME] = enabled }
+    }
+
+    suspend fun updateMaxInitialPlayerVolume(percentage: Int) {
+        context.dataStore.edit { it[PreferencesKeys.MAX_INITIAL_PLAYER_VOLUME_PERCENTAGE] = percentage }
+    }
+
+    suspend fun updateVolumeNormalization(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.VOLUME_NORMALIZATION_ENABLED] = enabled }
+    }
+
+    suspend fun updateVolumeBoost(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.VOLUME_BOOST_ENABLED] = enabled }
+    }
+
+    suspend fun updateSubtitleAutoLoad(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.SUBTITLE_AUTO_LOAD_ENABLED] = enabled }
+    }
+
+    suspend fun updateSubtitleTextEncoding(encoding: String) {
+        context.dataStore.edit { it[PreferencesKeys.SUBTITLE_TEXT_ENCODING] = encoding }
+    }
+
+    suspend fun updateApplyEmbeddedStyles(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.APPLY_EMBEDDED_STYLES] = enabled }
+    }
+
     val isNavBarTransparentFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[PreferencesKeys.NAV_BAR_TRANSPARENT] ?: true
     }
@@ -390,6 +482,14 @@ class PlaybackSettingsRepository(private val context: Context) {
 
     suspend fun updateForceAssSubtitleOverride(force: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.FORCE_ASS_SUBTITLE_OVERRIDE] = force }
+    }
+
+    suspend fun updateThumbnailGenerationStrategy(strategy: ThumbnailGenerationStrategy) {
+        context.dataStore.edit { it[PreferencesKeys.THUMBNAIL_GENERATION_STRATEGY] = strategy.name }
+    }
+
+    suspend fun updateThumbnailFramePosition(position: Float) {
+        context.dataStore.edit { it[PreferencesKeys.THUMBNAIL_FRAME_POSITION] = position }
     }
 
     suspend fun updateVideoFilters(

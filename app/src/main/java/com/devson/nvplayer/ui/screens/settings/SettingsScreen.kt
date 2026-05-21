@@ -43,6 +43,8 @@ fun SettingsScreen(
     onNavigateToPlayerInterface: () -> Unit = {},
     onNavigateToCustomHome: () -> Unit = {},
     onNavigateToGestures: () -> Unit = {},
+    onNavigateToAudioSettings: () -> Unit = {},
+    onNavigateToSubtitleSettings: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -132,6 +134,18 @@ fun SettingsScreen(
             // Player 
             SettingsSectionLabel(stringResource(R.string.settings_player))
             SettingsCard {
+                SettingsRow(
+                    icon     = Icons.Default.Audiotrack,
+                    title    = "Audio",
+                    subtitle = "Manage audio focus, boost and language",
+                    onClick  = onNavigateToAudioSettings
+                )
+                SettingsRow(
+                    icon     = Icons.Default.ClosedCaption,
+                    title    = "Subtitle",
+                    subtitle = "Custom fonts, encoding and auto-load",
+                    onClick  = onNavigateToSubtitleSettings
+                )
                 SettingsRow(
                     icon     = Icons.AutoMirrored.Filled.List,
                     title    = stringResource(R.string.settings_list),

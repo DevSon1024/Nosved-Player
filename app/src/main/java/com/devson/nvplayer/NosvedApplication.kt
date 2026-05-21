@@ -10,8 +10,33 @@ import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import okio.Path.Companion.toOkioPath
 import com.devson.nvplayer.util.MediaStoreThumbnailFetcher
+import com.devson.nvplayer.util.VideoThumbnailDecoder
+import com.devson.nvplayer.util.ThumbnailStrategy
+import com.devson.nvplayer.repository.PlaybackSettingsRepository
+import com.devson.nvplayer.repository.ThumbnailGenerationStrategy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 class NosvedApplication : Application(), SingletonImageLoader.Factory {
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val settingsRepo by lazy { PlaybackSettingsRepository(this) }
+    
+    private val playbackSettings by lazy {
+        settingsRepo.playbackSettingsFlow.stateIn(
+            scope = applicationScope,
+            started = SharingStarted.Eagerly,
+            initialValue = com.devson.nvplayer.repository.PlaybackSettings(
+                seekDurationSeconds = 10,
+                seekBarStyle = "line",
+                controlIconSize = "medium",
+                autoPlayEnabled = false
+            )
+        )
+    }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         // Determine a sensible disk cache size:  10% of free space, clamped between 50 MB and 500 MB.
@@ -23,6 +48,18 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
 
         return ImageLoader.Builder(context)
             .components {
+                add(
+                    VideoThumbnailDecoder.Factory(
+                        thumbnailStrategy = {
+                            val settings = playbackSettings.value
+                            when (settings.thumbnailGenerationStrategy) {
+                                ThumbnailGenerationStrategy.FIRST_FRAME -> ThumbnailStrategy.FirstFrame
+                                ThumbnailGenerationStrategy.FRAME_POSITION -> ThumbnailStrategy.FrameAtPercentage(settings.thumbnailFramePosition)
+                                ThumbnailGenerationStrategy.HYBRID -> ThumbnailStrategy.Hybrid(settings.thumbnailFramePosition)
+                            }
+                        }
+                    )
+                )
                 add(MediaStoreThumbnailFetcher.Factory())
                 add(VideoFrameDecoder.Factory())
             }
