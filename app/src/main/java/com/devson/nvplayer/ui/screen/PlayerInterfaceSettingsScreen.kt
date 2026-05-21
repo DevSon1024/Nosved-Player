@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -208,7 +209,7 @@ fun PlayerInterfaceSettingsScreen(
                 InterfaceDivider()
 
                 InterfaceToggleRow(
-                    icon = Icons.Default.RotateRight,
+                    icon = Icons.AutoMirrored.Filled.RotateRight,
                     title = "Show Quick Rotation Button",
                     subtitle = "Display rotation lock toggle button in player interface",
                     checked = playbackSettings.showScreenRotationButton,

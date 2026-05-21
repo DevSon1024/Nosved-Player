@@ -25,6 +25,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.model.DefaultScreen
 import com.devson.nvplayer.model.Video
@@ -403,7 +410,7 @@ fun VideoListScreen(
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
                         },
-                        showTagAndShare = false
+                        showTagAndShare = true
                     )
                 } else {
                     // FILES, FOLDERS mode, or ALL_FOLDERS inside a specific folder:
@@ -465,7 +472,7 @@ fun VideoListScreen(
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
                         },
-                        showTagAndShare = false
+                        showTagAndShare = true
                     )
                 }
             }
@@ -564,52 +571,79 @@ fun VideoListScreen(
                 ) {
                     when (viewSettings.viewMode) {
                         ViewMode.ALL_FOLDERS -> {
-                            if (selectedFolder == null) {
-                                FolderListContent(
-                                    folders = videosByFolder,
-                                    settings = viewSettings,
-                                    selectedFolders = selectedFolders,
-                                    historyMap = historyMap,
-                                    onFolderClick = { folder ->
-                                        if (isSelectionActive) {
+                            AnimatedContent(
+                                targetState = selectedFolder,
+                                transitionSpec = {
+                                    if (initialState == null && targetState != null) {
+                                        slideIntoContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                                        ) togetherWith slideOutOfContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                                        )
+                                    } else if (initialState != null && targetState == null) {
+                                        slideIntoContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                                        ) togetherWith slideOutOfContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                                            animationSpec = tween(350, easing = FastOutSlowInEasing)
+                                        )
+                                    } else {
+                                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                                    }
+                                },
+                                label = "FolderTransition",
+                                modifier = Modifier.fillMaxSize()
+                            ) { folder ->
+                                if (folder == null) {
+                                    FolderListContent(
+                                        folders = videosByFolder,
+                                        settings = viewSettings,
+                                        selectedFolders = selectedFolders,
+                                        historyMap = historyMap,
+                                        onFolderClick = { folderItem ->
+                                            if (isSelectionActive) {
+                                                selectedFolders =
+                                                    if (folderItem in selectedFolders) selectedFolders - folderItem else selectedFolders + folderItem
+                                            } else {
+                                                viewModel.selectFolder(folderItem)
+                                            }
+                                        },
+                                        onFolderLongClick = { folderItem ->
                                             selectedFolders =
-                                                if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                        } else {
-                                            viewModel.selectFolder(folder)
-                                        }
-                                    },
-                                    onFolderLongClick = { folder ->
-                                        selectedFolders =
-                                            if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                    },
-                                    listState = folderListState,
-                                    gridState = folderGridState,
-                                    contentPadding = padding
-                                )
-                            } else {
-                                val videos = videosByFolder[selectedFolder] ?: emptyList()
-                                val sortedVideos = remember(videos, viewSettings.sortField, viewSettings.sortDirection) {
-                                    videos.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
-                                VideoListContent(
-                                    videos = sortedVideos,
-                                    settings = viewSettings,
-                                    selectedVideos = selectedVideos,
-                                    onVideoClick = { video ->
-                                        if (isSelectionActive) {
+                                                if (folderItem in selectedFolders) selectedFolders - folderItem else selectedFolders + folderItem
+                                        },
+                                        listState = folderListState,
+                                        gridState = folderGridState,
+                                        contentPadding = padding
+                                    )
+                                } else {
+                                    val videos = videosByFolder[folder] ?: emptyList()
+                                    val sortedVideos = remember(videos, viewSettings.sortField, viewSettings.sortDirection) {
+                                        videos.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                    }
+                                    VideoListContent(
+                                        videos = sortedVideos,
+                                        settings = viewSettings,
+                                        selectedVideos = selectedVideos,
+                                        onVideoClick = { video ->
+                                            if (isSelectionActive) {
+                                                selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
+                                            } else {
+                                                onVideoSelected(video, sortedVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
+                                            }
+                                        },
+                                        onVideoLongClick = { video ->
                                             selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
-                                        } else {
-                                            onVideoSelected(video, sortedVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
-                                        }
-                                    },
-                                    onVideoLongClick = { video ->
-                                        selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
-                                    },
-                                    listState = videoListState,
-                                    gridState = videoGridState,
-                                    historyMap = historyMap,
-                                    contentPadding = padding
-                                )
+                                        },
+                                        listState = videoListState,
+                                        gridState = videoGridState,
+                                        historyMap = historyMap,
+                                        contentPadding = padding
+                                    )
+                                }
                             }
                         }
                         ViewMode.FILES -> {

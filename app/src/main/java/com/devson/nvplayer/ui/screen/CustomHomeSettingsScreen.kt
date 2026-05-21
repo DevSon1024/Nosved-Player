@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Launch
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -133,7 +134,7 @@ fun CustomHomeSettingsScreen(
             CustomHomeHeader("Startup Preference")
             CustomHomeCard {
                 CustomHomeRow(
-                    icon = Icons.Default.Launch,
+                    icon = Icons.AutoMirrored.Filled.Launch,
                     title = "Default Launch Screen",
                     subtitle = when (viewSettings.defaultScreen) {
                         DefaultScreen.HOME -> "Home Screen (Dashboard)"
