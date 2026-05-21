@@ -9,7 +9,7 @@
 ### Video Player for Android
 
 [![GitHub release](https://img.shields.io/github/v/release/DevSon1024/Nosved-Player?label=Release&logo=github)](https://github.com/DevSon1024/Nosved-Player/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/DevSon1024/Nosved-Player/total.svg?logo=github)](https://github.com/DevSon1024/Nosved-Player/releases)
+[![Downloads](https://img.shields.io/github/Downloads/DevSon1024/Nosved-Player/total.svg?logo=github)](https://github.com/DevSon1024/Nosved-Player/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-00DE7A.svg?logo=android)](https://developer.android.com)
 [![Min SDK](<https://img.shields.io/badge/Min%20SDK-26%20(Oreo)-blue.svg>)](https://developer.android.com)
