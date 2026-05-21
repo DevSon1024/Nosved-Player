@@ -439,6 +439,12 @@ fun PlayerScreen(
                         hasPrevious = hasPrevious,
                         onNextClick = onNextClick,
                         onPrevClick = onPrevClick,
+                        showSeekButtons = playbackSettings.showSeekButtons,
+                        showElapsedTimeOverlay = playbackSettings.showElapsedTimeOverlay,
+                        showRemainingTime = playbackSettings.showRemainingTime,
+                        showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay,
+                        showScreenRotationButton = playbackSettings.showScreenRotationButton,
+                        seekDurationSeconds = playbackSettings.seekDurationSeconds,
                         modifier = Modifier
                     )
                 }

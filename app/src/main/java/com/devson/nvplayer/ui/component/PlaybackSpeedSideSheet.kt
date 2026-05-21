@@ -51,6 +51,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.devson.nvplayer.repository.DoubleTapAction
 import com.devson.nvplayer.repository.PlaybackSettings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import androidx.compose.ui.composed
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import kotlin.math.roundToInt
 
 //  Step constants 
@@ -218,7 +224,7 @@ fun PlaybackSpeedSideSheet(
                                     onSpeedSelected(v)
                                     textValue = String.format(java.util.Locale.US, "%.2f", v)
                                 },
-                                valueRange = 0f..4f,
+                                valueRange = 0.25f..4f,
                                 step = SPEED_STEP,
                                 defaultValue = 1.0f
                             )
@@ -229,7 +235,7 @@ fun PlaybackSpeedSideSheet(
                                     .padding(horizontal = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                listOf("0", "1x", "2x", "3x", "4x").forEach { label ->
+                                listOf("0.25x", "1x", "2x", "3x", "4x").forEach { label ->
                                     Text(
                                         text = label,
                                         style = MaterialTheme.typography.labelSmall,
@@ -293,7 +299,7 @@ fun PlaybackSpeedSideSheet(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             SpeedSheetSectionLabel("Custom Speed")
                             val parsedSpeed = textValue.toFloatOrNull()
-                            val isValid = parsedSpeed != null && parsedSpeed in 0f..4.0f
+                            val isValid = parsedSpeed != null && parsedSpeed in 0.25f..4.0f
                             val isError = textValue.isNotEmpty() && !isValid
 
                             Row(
@@ -325,8 +331,8 @@ fun PlaybackSpeedSideSheet(
                                 ) { Text("Apply") }
                             }
                             Text(
-                                text = if (isError) "Enter a speed between 0x and 4.0x"
-                                       else "Speed range: 0x – 4.00x",
+                                text = if (isError) "Enter a speed between 0.25x and 4.0x"
+                                       else "Speed range: 0.25x – 4.00x",
                                 color = if (isError) MaterialTheme.colorScheme.error
                                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 style = MaterialTheme.typography.bodySmall,
@@ -738,18 +744,8 @@ private fun LongPressStepButton(
     contentDescription: String,
     onStep: () -> Unit
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            onStep()
-            delay(LONG_PRESS_INITIAL_DELAY)
-            while (isPressed) {
-                onStep()
-                delay(LONG_PRESS_REPEAT_INTERVAL)
-            }
-        }
-    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
     Box(
         modifier = Modifier
@@ -759,17 +755,12 @@ private fun LongPressStepButton(
                 if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
                 else MaterialTheme.colorScheme.secondaryContainer
             )
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    isPressed = true
-                    // Wait for pointer to lift
-                    do {
-                        val event = awaitPointerEvent()
-                    } while (event.changes.any { it.pressed })
-                    isPressed = false
-                }
-            },
+            .repeatingClickable(
+                initialDelayMillis = 500,
+                delayMillis = 100,
+                interactionSource = interactionSource,
+                onClick = onStep
+            ),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -779,6 +770,53 @@ private fun LongPressStepButton(
             tint = if (isPressed) MaterialTheme.colorScheme.primary
                    else MaterialTheme.colorScheme.onSecondaryContainer
         )
+    }
+}
+
+// Reusable custom Compose extension for auto-repeating clickable pointerInput
+fun Modifier.repeatingClickable(
+    initialDelayMillis: Long = 500,
+    delayMillis: Long = 100,
+    interactionSource: MutableInteractionSource? = null,
+    onClick: () -> Unit
+): Modifier = composed {
+    val scope = rememberCoroutineScope()
+    val localInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+
+    this.pointerInput(onClick, initialDelayMillis, delayMillis) {
+        coroutineScope {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                var pressed = true
+                
+                val press = PressInteraction.Press(down.position)
+                scope.launch {
+                    localInteractionSource.emit(press)
+                }
+                
+                val job = launch {
+                    onClick()
+                    delay(initialDelayMillis)
+                    while (pressed) {
+                        onClick()
+                        delay(delayMillis)
+                    }
+                }
+                
+                do {
+                    val event = awaitPointerEvent()
+                    val anyPressed = event.changes.any { it.pressed }
+                    if (!anyPressed) {
+                        pressed = false
+                    }
+                } while (pressed)
+                
+                job.cancel()
+                scope.launch {
+                    localInteractionSource.emit(PressInteraction.Release(press))
+                }
+            }
+        }
     }
 }
 

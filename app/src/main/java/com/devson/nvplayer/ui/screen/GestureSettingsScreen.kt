@@ -39,6 +39,7 @@ fun GestureSettingsScreen(
 
     var showDoubleTapDialog by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
+    var showSeekButtonDurationDialog by remember { mutableStateOf(false) }
     var showTwoFingerActionDialog by remember { mutableStateOf(false) }
     var showThreeFingerActionDialog by remember { mutableStateOf(false) }
 
@@ -191,6 +192,27 @@ fun GestureSettingsScreen(
                         valueFormatter = { "${String.format("%.1f", it)}x" },
                         onValueChange = { settingsViewModel.updateLongPressSpeed(it) },
                         onReset = { settingsViewModel.updateLongPressSpeed(2.0f) }
+                    )
+                }
+
+                GestureDivider()
+
+                GestureToggleRow(
+                    icon = Icons.Default.Forward10,
+                    title = "Show 10s Seek Buttons",
+                    subtitle = "Display quick rewind/forward buttons in controls overlay",
+                    checked = playbackSettings.showSeekButtons,
+                    onCheckedChange = { settingsViewModel.updateShowSeekButtons(it) }
+                )
+
+                if (playbackSettings.showSeekButtons) {
+                    GestureDivider()
+
+                    GestureRow(
+                        icon = Icons.Default.Timer,
+                        title = "Seek Button Duration",
+                        subtitle = "${playbackSettings.seekDurationSeconds} seconds",
+                        onClick = { showSeekButtonDurationDialog = true }
                     )
                 }
             }
@@ -423,6 +445,50 @@ fun GestureSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThreeFingerActionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showSeekButtonDurationDialog) {
+        val durations = listOf(5, 10, 15, 30, 60)
+        AlertDialog(
+            onDismissRequest = { showSeekButtonDurationDialog = false },
+            title = { Text("Seek Button Duration") },
+            text = {
+                Column(Modifier.selectableGroup()) {
+                    durations.forEach { duration ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .selectable(
+                                    selected = (playbackSettings.seekDurationSeconds == duration),
+                                    onClick = {
+                                        settingsViewModel.updateSeekDurationSeconds(duration)
+                                        showSeekButtonDurationDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (playbackSettings.seekDurationSeconds == duration),
+                                onClick = null
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = "$duration seconds",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSeekButtonDurationDialog = false }) {
                     Text("Cancel")
                 }
             }

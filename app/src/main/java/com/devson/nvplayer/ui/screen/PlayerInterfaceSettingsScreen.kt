@@ -40,8 +40,6 @@ fun PlayerInterfaceSettingsScreen(
     var showScalingDialog by remember { mutableStateOf(false) }
     var showSoftButtonDialog by remember { mutableStateOf(false) }
     var showIconSizeDialog by remember { mutableStateOf(false) }
-    var showSeekDurationDialog by remember { mutableStateOf(false) }
-    var showSeekBarStyleDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -125,27 +123,6 @@ fun PlayerInterfaceSettingsScreen(
             // Playback Controls customization
             InterfaceSectionHeader("Player Controls Customization")
             InterfaceCard {
-                InterfaceToggleRow(
-                    icon = Icons.Default.Forward10,
-                    title = "Show 10s Seek Buttons",
-                    subtitle = "Display quick rewind/forward buttons in controls overlay",
-                    checked = playbackSettings.showSeekButtons,
-                    onCheckedChange = { settingsViewModel.updateShowSeekButtons(it) }
-                )
-
-                if (playbackSettings.showSeekButtons) {
-                    InterfaceDivider()
-
-                    InterfaceRow(
-                        icon = Icons.Default.Timer,
-                        title = "Seek Button Duration",
-                        subtitle = "${playbackSettings.seekDurationSeconds} seconds",
-                        onClick = { showSeekDurationDialog = true }
-                    )
-                }
-
-                InterfaceDivider()
-
                 InterfaceRow(
                     icon = Icons.Default.PhotoSizeSelectLarge,
                     title = "Controls Icon Size",
@@ -161,15 +138,6 @@ fun PlayerInterfaceSettingsScreen(
                     subtitle = "Automatically load and play next video in folder",
                     checked = playbackSettings.autoPlayEnabled,
                     onCheckedChange = { settingsViewModel.updateAutoPlayEnabled(it) }
-                )
-
-                InterfaceDivider()
-
-                InterfaceRow(
-                    icon = Icons.Default.LinearScale,
-                    title = "Seekbar Style",
-                    subtitle = playbackSettings.seekBarStyle.replaceFirstChar { it.uppercase() },
-                    onClick = { showSeekBarStyleDialog = true }
                 )
             }
 
@@ -423,93 +391,7 @@ fun PlayerInterfaceSettingsScreen(
         )
     }
 
-    if (showSeekDurationDialog) {
-        val durations = listOf(5, 10, 15, 30, 60)
-        AlertDialog(
-            onDismissRequest = { showSeekDurationDialog = false },
-            title = { Text("Seek Button Duration") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    durations.forEach { duration ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.seekDurationSeconds == duration),
-                                    onClick = {
-                                        settingsViewModel.updateSeekDurationSeconds(duration)
-                                        showSeekDurationDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.seekDurationSeconds == duration),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = "$duration seconds",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSeekDurationDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 
-    if (showSeekBarStyleDialog) {
-        val styles = listOf("line", "gradient", "wave")
-        AlertDialog(
-            onDismissRequest = { showSeekBarStyleDialog = false },
-            title = { Text("Seekbar Style") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    styles.forEach { style ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.seekBarStyle == style),
-                                    onClick = {
-                                        settingsViewModel.updateSeekBarStyle(style)
-                                        showSeekBarStyleDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.seekBarStyle == style),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = style.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSeekBarStyleDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @Composable
