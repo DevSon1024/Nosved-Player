@@ -53,5 +53,10 @@ data class PlaybackSettings(
     val threeFingerAction: MultiFingerAction = MultiFingerAction.FAST_PLAY,
     val longPressEnabled: Boolean = true,
     val longPressSpeed: Float = 2.0f,
-    val doubleTapAction: DoubleTapAction = DoubleTapAction.BOTH
+    val doubleTapAction: DoubleTapAction = DoubleTapAction.BOTH,
+    val subtitleTextSizeScale: Float = 1.0f,
+    val subtitleBgStyle: Int = 1,
+    val subtitleDelayMs: Long = 0L,
+    val subtitleVerticalOffset: Float = 0f,
+    val subtitleGesturesEnabled: Boolean = true
 )

@@ -47,7 +47,8 @@ class PlaybackSettingsRepository(context: Context) {
             "pause_when_obstructed", "show_remaining_time", "use_system_caption_style", "subtitle_font",
             "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_sensitivity",
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
-            "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action" -> {
+            "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
+            "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -154,7 +155,12 @@ class PlaybackSettingsRepository(context: Context) {
                 DoubleTapAction.valueOf(prefs.getString("double_tap_action", DoubleTapAction.BOTH.name) ?: DoubleTapAction.BOTH.name)
             } catch (e: Exception) {
                 DoubleTapAction.BOTH
-            }
+            },
+            subtitleTextSizeScale = prefs.getFloat("subtitle_text_size_scale", 1.0f),
+            subtitleBgStyle = prefs.getInt("subtitle_bg_style", 1),
+            subtitleDelayMs = prefs.getLong("subtitle_delay_ms", 0L),
+            subtitleVerticalOffset = prefs.getFloat("subtitle_vertical_offset", 0f),
+            subtitleGesturesEnabled = prefs.getBoolean("subtitle_gestures_enabled", true)
         )
     }
 
@@ -193,6 +199,11 @@ class PlaybackSettingsRepository(context: Context) {
             putBoolean("long_press_enabled", updated.longPressEnabled)
             putFloat("long_press_speed", updated.longPressSpeed)
             putString("double_tap_action", updated.doubleTapAction.name)
+            putFloat("subtitle_text_size_scale", updated.subtitleTextSizeScale)
+            putInt("subtitle_bg_style", updated.subtitleBgStyle)
+            putLong("subtitle_delay_ms", updated.subtitleDelayMs)
+            putFloat("subtitle_vertical_offset", updated.subtitleVerticalOffset)
+            putBoolean("subtitle_gestures_enabled", updated.subtitleGesturesEnabled)
             apply()
         }
     }
@@ -348,5 +359,25 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateDoubleTapAction(action: DoubleTapAction) {
         updatePlaybackSettings { it.copy(doubleTapAction = action) }
+    }
+
+    suspend fun updateSubtitleTextSizeScale(scale: Float) {
+        updatePlaybackSettings { it.copy(subtitleTextSizeScale = scale) }
+    }
+
+    suspend fun updateSubtitleBgStyle(style: Int) {
+        updatePlaybackSettings { it.copy(subtitleBgStyle = style) }
+    }
+
+    suspend fun updateSubtitleDelay(delayMs: Long) {
+        updatePlaybackSettings { it.copy(subtitleDelayMs = delayMs) }
+    }
+
+    suspend fun updateSubtitleVerticalOffset(offset: Float) {
+        updatePlaybackSettings { it.copy(subtitleVerticalOffset = offset) }
+    }
+
+    suspend fun updateSubtitleGesturesEnabled(enabled: Boolean) {
+        updatePlaybackSettings { it.copy(subtitleGesturesEnabled = enabled) }
     }
 }

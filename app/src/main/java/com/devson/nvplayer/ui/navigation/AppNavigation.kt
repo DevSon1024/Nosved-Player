@@ -173,6 +173,10 @@ fun AppNavigation(
             val hasNext by playerViewModel.hasNext.collectAsState()
             val hasPrevious by playerViewModel.hasPrevious.collectAsState()
 
+            val currentSubtitleText by playerViewModel.currentSubtitleText.collectAsState()
+            val subtitleTracks by playerViewModel.subtitleTracks.collectAsState()
+            val audioTracks by playerViewModel.audioTracks.collectAsState()
+
             PlayerScreen(
                 playbackState = playbackState,
                 isPlaying = isPlaying,
@@ -198,7 +202,25 @@ fun AppNavigation(
                 hasNext = hasNext,
                 hasPrevious = hasPrevious,
                 onNextClick = { playerViewModel.playNext() },
-                onPrevClick = { playerViewModel.playPrevious() }
+                onPrevClick = { playerViewModel.playPrevious() },
+                currentSubtitleText = currentSubtitleText,
+                subtitleTracks = subtitleTracks,
+                audioTracks = audioTracks,
+                playbackSettings = playbackSettings,
+                onSelectSubtitleTrack = { playerViewModel.selectSubtitleTrack(it) },
+                onSelectAudioTrack = { playerViewModel.selectAudioTrack(it) },
+                onSetSubtitleDelay = { playerViewModel.setSubtitleDelay(it) },
+                onSeekNextSubtitle = { playerViewModel.seekNextSubtitle() },
+                onSeekPrevSubtitle = { playerViewModel.seekPrevSubtitle() },
+                onUpdateUseSystemCaptionStyle = { settingsViewModel.updateUseSystemCaptionStyle(it) },
+                onUpdateSubtitleFont = { settingsViewModel.updateSubtitleFont(it) },
+                onUpdateIsSubtitleBold = { settingsViewModel.updateIsSubtitleBold(it) },
+                onUpdateForceAssSubtitleOverride = { settingsViewModel.updateForceAssSubtitleOverride(it) },
+                onUpdateSubtitleTextSizeScale = { settingsViewModel.updateSubtitleTextSizeScale(it) },
+                onUpdateSubtitleBgStyle = { settingsViewModel.updateSubtitleBgStyle(it) },
+                onUpdateSubtitleDelay = { settingsViewModel.updateSubtitleDelay(it) },
+                onUpdateSubtitleVerticalOffset = { settingsViewModel.updateSubtitleVerticalOffset(it) },
+                onUpdateSubtitleGesturesEnabled = { settingsViewModel.updateSubtitleGesturesEnabled(it) }
             )
         }
     }

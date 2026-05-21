@@ -67,7 +67,7 @@ fun RotarySortWheelDialog(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color(0xFF000000).copy(alpha = 0.72f),
-                            0.5f to Color(0xFF0A0E1A).copy(alpha = 0.82f),
+                            0.5f to MaterialTheme.colorScheme.background.copy(alpha = 0.82f),
                             1.0f to Color(0xFF000000).copy(alpha = 0.88f)
                         )
                     )

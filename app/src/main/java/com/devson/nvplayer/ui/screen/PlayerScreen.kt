@@ -48,6 +48,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import android.media.AudioManager
 import android.content.Context
+import com.devson.nvplayer.player.TrackInfo
+import com.devson.nvplayer.repository.SubtitleFont
+import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
+import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
+import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
+import androidx.activity.compose.BackHandler
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 @Composable
 fun PlayerScreen(
@@ -76,14 +86,51 @@ fun PlayerScreen(
     hasNext: Boolean = false,
     hasPrevious: Boolean = false,
     onNextClick: () -> Unit = {},
-    onPrevClick: () -> Unit = {}
+    onPrevClick: () -> Unit = {},
+    currentSubtitleText: String = "",
+    subtitleTracks: List<TrackInfo> = emptyList(),
+    audioTracks: List<TrackInfo> = emptyList(),
+    playbackSettings: PlaybackSettings = PlaybackSettings(),
+    onSelectSubtitleTrack: (Int) -> Unit = {},
+    onSelectAudioTrack: (Int) -> Unit = {},
+    onSetSubtitleDelay: (Long) -> Unit = {},
+    onSeekNextSubtitle: () -> Unit = {},
+    onSeekPrevSubtitle: () -> Unit = {},
+    onUpdateUseSystemCaptionStyle: (Boolean) -> Unit = {},
+    onUpdateSubtitleFont: (SubtitleFont) -> Unit = {},
+    onUpdateIsSubtitleBold: (Boolean) -> Unit = {},
+    onUpdateForceAssSubtitleOverride: (Boolean) -> Unit = {},
+    onUpdateSubtitleTextSizeScale: (Float) -> Unit = {},
+    onUpdateSubtitleBgStyle: (Int) -> Unit = {},
+    onUpdateSubtitleDelay: (Long) -> Unit = {},
+    onUpdateSubtitleVerticalOffset: (Float) -> Unit = {},
+    onUpdateSubtitleGesturesEnabled: (Boolean) -> Unit = {}
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
     var isDragging by remember { mutableStateOf(false) }
+    var showSubtitleSettingsSideSheet by remember { mutableStateOf(false) }
+    var showAudioSettingsSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    // Define back handler with portrait forcing first
+    val handleBack = {
+        var currentContext = context
+        while (currentContext is ContextWrapper) {
+            if (currentContext is Activity) {
+                currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                break
+            }
+            currentContext = currentContext.baseContext
+        }
+        onBackClick()
+    }
+
+    BackHandler(enabled = true) {
+        handleBack()
+    }
 
     // Restore saved brightness and volume on startup
     LaunchedEffect(Unit) {
@@ -125,10 +172,21 @@ fun PlayerScreen(
     val currentOnPlayPauseToggle by rememberUpdatedState(onPlayPauseToggle)
     val currentIsPlaying by rememberUpdatedState(isPlaying)
 
-    // FIX: Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio,
-    // and restore default screen brightness
+    // Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio,
+    // and restore default screen brightness. Hide system bars on entry and restore on exit.
     DisposableEffect(Unit) {
+        activity?.let { act ->
+            val window = act.window
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         onDispose {
+            activity?.let { act ->
+                val window = act.window
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            }
             var currentContext = context
             while (currentContext is ContextWrapper) {
                 if (currentContext is Activity) {
@@ -225,10 +283,10 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.height(32.dp))
                         Button(
-                            onClick = onBackClick,
+                            onClick = handleBack,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF2C2C2C),
-                                contentColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -255,6 +313,21 @@ fun PlayerScreen(
                     onControlsVisibleChanged = { controlsVisible = it }
                 )
 
+                ComposeSubtitleOverlay(
+                    subtitleText = currentSubtitleText,
+                    textSizeScale = playbackSettings.subtitleTextSizeScale,
+                    bgStyle = playbackSettings.subtitleBgStyle,
+                    subtitleFont = playbackSettings.subtitleFont,
+                    isSubtitleBold = playbackSettings.isSubtitleBold,
+                    isSubtitleGestureEnabled = playbackSettings.subtitleGesturesEnabled,
+                    verticalOffsetFraction = playbackSettings.subtitleVerticalOffset,
+                    onVerticalOffsetFractionChanged = { offset ->
+                        onUpdateSubtitleVerticalOffset(offset)
+                    },
+                    onSeekNext = onSeekNextSubtitle,
+                    onSeekPrev = onSeekPrevSubtitle
+                )
+
                 // Unified Premium Controls Layer
                 AnimatedVisibility(
                     visible = controlsVisible,
@@ -271,9 +344,13 @@ fun PlayerScreen(
                         onPlayPauseToggle = onPlayPauseToggle,
                         onSeek = onSeek,
                         onSetPlaybackSpeed = onSetPlaybackSpeed,
-                        onCycleSubtitle = onCycleSubtitle,
-                        onCycleAudio = onCycleAudio,
-                        onBackClick = onBackClick,
+                        onCycleSubtitle = {
+                            showSubtitleSettingsSideSheet = true
+                        },
+                        onCycleAudio = {
+                            showAudioSettingsSideSheet = true
+                        },
+                        onBackClick = handleBack,
                         playbackSpeed = playbackSpeed,
                         seekBarStyle = seekBarStyle,
                         hasNext = hasNext,
@@ -296,6 +373,32 @@ fun PlayerScreen(
                 }
             }
         }
+
+        SubtitleSettingsSideSheet(
+            visible = showSubtitleSettingsSideSheet,
+            playbackSettings = playbackSettings,
+            subtitleTracks = subtitleTracks,
+            onSelectSubtitleTrack = onSelectSubtitleTrack,
+            onSetSubtitleDelay = onSetSubtitleDelay,
+            onUpdateSubtitleFont = onUpdateSubtitleFont,
+            onUpdateIsSubtitleBold = onUpdateIsSubtitleBold,
+            onUpdateForceAssSubtitleOverride = onUpdateForceAssSubtitleOverride,
+            onUpdateSubtitleTextSizeScale = onUpdateSubtitleTextSizeScale,
+            onUpdateSubtitleBgStyle = onUpdateSubtitleBgStyle,
+            onUpdateSubtitleDelay = onUpdateSubtitleDelay,
+            onUpdateSubtitleVerticalOffset = onUpdateSubtitleVerticalOffset,
+            onUpdateSubtitleGesturesEnabled = onUpdateSubtitleGesturesEnabled,
+            onDismiss = { showSubtitleSettingsSideSheet = false }
+        )
+
+        AudioSettingsSideSheet(
+            visible = showAudioSettingsSideSheet,
+            audioTracks = audioTracks,
+            playbackSpeed = playbackSpeed,
+            onSelectAudioTrack = onSelectAudioTrack,
+            onSetPlaybackSpeed = onSetPlaybackSpeed,
+            onDismiss = { showAudioSettingsSideSheet = false }
+        )
     }
 }
 

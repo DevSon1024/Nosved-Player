@@ -32,6 +32,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _videoRotation = MutableStateFlow(0L)
     override val videoRotation: StateFlow<Long> = _videoRotation.asStateFlow()
 
+    private val _currentSubtitleText = MutableStateFlow("")
+    override val currentSubtitleText: StateFlow<String> = _currentSubtitleText.asStateFlow()
+
+    private val _subtitleTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
+    override val subtitleTracks: StateFlow<List<TrackInfo>> = _subtitleTracks.asStateFlow()
+
+    private val _audioTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
+    override val audioTracks: StateFlow<List<TrackInfo>> = _audioTracks.asStateFlow()
+
     init {
         try {
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
@@ -61,6 +70,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.observeProperty("video-params/w", MPVLib.MpvFormat.MPV_FORMAT_INT64)
             MPVLib.observeProperty("video-params/h", MPVLib.MpvFormat.MPV_FORMAT_INT64)
             MPVLib.observeProperty("video-params/rotate", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+
+            // Observe subtitle text changes
+            MPVLib.observeProperty("sub-text", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
@@ -138,6 +150,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         Log.d("MPVPlayerEngine", "Cycling subtitle")
         try {
             MPVLib.command("cycle", "sid")
+            updateTracks()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to cycle subtitle", e)
         }
@@ -147,8 +160,122 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         Log.d("MPVPlayerEngine", "Cycling audio")
         try {
             MPVLib.command("cycle", "aid")
+            updateTracks()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to cycle audio", e)
+        }
+    }
+
+    override fun selectSubtitleTrack(id: Int) {
+        Log.d("MPVPlayerEngine", "Selecting subtitle track ID: $id")
+        try {
+            if (id == -1) {
+                MPVLib.setPropertyString("sid", "no")
+            } else {
+                MPVLib.setPropertyInt("sid", id)
+            }
+            updateTracks()
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to select subtitle track: $id", e)
+        }
+    }
+
+    override fun selectAudioTrack(id: Int) {
+        Log.d("MPVPlayerEngine", "Selecting audio track ID: $id")
+        try {
+            if (id == -1) {
+                MPVLib.setPropertyString("aid", "no")
+            } else {
+                MPVLib.setPropertyInt("aid", id)
+            }
+            updateTracks()
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to select audio track: $id", e)
+        }
+    }
+
+    override fun setSubtitleDelay(delayMs: Long) {
+        Log.d("MPVPlayerEngine", "Setting subtitle delay: $delayMs ms")
+        try {
+            MPVLib.setPropertyDouble("sub-delay", delayMs / 1000.0)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set subtitle delay: $delayMs", e)
+        }
+    }
+
+    override fun setSubtitleStyle(scale: Float, font: String, bold: Boolean) {
+        Log.d("MPVPlayerEngine", "Setting subtitle style: scale=$scale, font=$font, bold=$bold")
+        try {
+            MPVLib.setPropertyDouble("sub-scale", scale.toDouble())
+            if (font.isNotEmpty()) {
+                MPVLib.setPropertyString("sub-font", font)
+            }
+            MPVLib.setPropertyString("sub-bold", if (bold) "yes" else "no")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set subtitle style", e)
+        }
+    }
+
+    override fun seekNextSubtitle() {
+        Log.d("MPVPlayerEngine", "Seeking to next subtitle")
+        try {
+            MPVLib.command("sub-seek", "1")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to seek to next subtitle", e)
+        }
+    }
+
+    override fun seekPrevSubtitle() {
+        Log.d("MPVPlayerEngine", "Seeking to previous subtitle")
+        try {
+            MPVLib.command("sub-seek", "-1")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to seek to previous subtitle", e)
+        }
+    }
+
+    private fun updateTracks() {
+        try {
+            val count = MPVLib.getPropertyInt("track-list/count") ?: 0
+            val subs = mutableListOf<TrackInfo>()
+            val audios = mutableListOf<TrackInfo>()
+            
+            // Add fallback/disable option for subtitle
+            subs.add(TrackInfo(-1, "sub", "None", false))
+            
+            for (i in 0 until count) {
+                val type = MPVLib.getPropertyString("track-list/$i/type") ?: ""
+                val id = MPVLib.getPropertyInt("track-list/$i/id") ?: -1
+                val title = MPVLib.getPropertyString("track-list/$i/title") ?: ""
+                val lang = MPVLib.getPropertyString("track-list/$i/lang") ?: ""
+                val selected = MPVLib.getPropertyBoolean("track-list/$i/selected") ?: false
+                
+                val trackName = when {
+                    title.isNotEmpty() && lang.isNotEmpty() -> "$title ($lang)"
+                    title.isNotEmpty() -> title
+                    lang.isNotEmpty() -> lang
+                    else -> "${type.replaceFirstChar { it.uppercaseChar() }} Track #$id"
+                }
+                
+                val track = TrackInfo(id, type, trackName, selected)
+                if (type == "sub") {
+                    subs.add(track)
+                } else if (type == "audio") {
+                    audios.add(track)
+                }
+            }
+            
+            // Set "None" selected status if no other subtitle track is active
+            val anySubSelected = subs.filter { it.id != -1 }.any { it.selected }
+            if (!anySubSelected && subs.isNotEmpty()) {
+                subs[0] = subs[0].copy(selected = true)
+            }
+            
+            _subtitleTracks.value = subs
+            _audioTracks.value = audios
+            Log.d("MPVPlayerEngine", "Tracks updated. Subs: ${subs.size}, Audios: ${audios.size}")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to update track list", e)
         }
     }
 
@@ -184,7 +311,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     override fun eventProperty(property: String, value: String) {
-        // No-op for default string property events
+        val safeVal: String? = value
+        if (property == "sub-text") {
+            _currentSubtitleText.value = safeVal ?: ""
+        }
     }
 
     override fun eventProperty(property: String, value: Double) {
@@ -211,6 +341,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 _playbackState.value = PlayerState.Playing
                 _isPlaying.value = true
+                updateTracks()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 _playbackState.value = PlayerState.Ended

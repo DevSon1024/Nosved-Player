@@ -11,6 +11,9 @@ interface PlayerEngine {
     val videoWidth: StateFlow<Long>
     val videoHeight: StateFlow<Long>
     val videoRotation: StateFlow<Long>
+    val currentSubtitleText: StateFlow<String>
+    val subtitleTracks: StateFlow<List<TrackInfo>>
+    val audioTracks: StateFlow<List<TrackInfo>>
 
     fun loadVideo(uri: Uri)
     fun play()
@@ -20,5 +23,11 @@ interface PlayerEngine {
     fun setPlaybackSpeed(speed: Float)
     fun cycleSubtitle()
     fun cycleAudio()
+    fun selectSubtitleTrack(id: Int)
+    fun selectAudioTrack(id: Int)
+    fun setSubtitleDelay(delayMs: Long)
+    fun setSubtitleStyle(scale: Float, font: String, bold: Boolean)
+    fun seekNextSubtitle()
+    fun seekPrevSubtitle()
     fun release()
 }

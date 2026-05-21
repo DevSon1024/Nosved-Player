@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.player.PlayerEngine
 import com.devson.nvplayer.player.PlayerState
+import com.devson.nvplayer.player.TrackInfo
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,9 @@ class PlayerViewModel(
     val videoWidth: StateFlow<Long> = playerEngine.videoWidth
     val videoHeight: StateFlow<Long> = playerEngine.videoHeight
     val videoRotation: StateFlow<Long> = playerEngine.videoRotation
+    val currentSubtitleText: StateFlow<String> = playerEngine.currentSubtitleText
+    val subtitleTracks: StateFlow<List<TrackInfo>> = playerEngine.subtitleTracks
+    val audioTracks: StateFlow<List<TrackInfo>> = playerEngine.audioTracks
 
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
@@ -249,6 +253,30 @@ class PlayerViewModel(
 
     fun cycleAudio() {
         playerEngine.cycleAudio()
+    }
+
+    fun selectSubtitleTrack(id: Int) {
+        playerEngine.selectSubtitleTrack(id)
+    }
+
+    fun selectAudioTrack(id: Int) {
+        playerEngine.selectAudioTrack(id)
+    }
+
+    fun setSubtitleDelay(delayMs: Long) {
+        playerEngine.setSubtitleDelay(delayMs)
+    }
+
+    fun setSubtitleStyle(scale: Float, font: String, bold: Boolean) {
+        playerEngine.setSubtitleStyle(scale, font, bold)
+    }
+
+    fun seekNextSubtitle() {
+        playerEngine.seekNextSubtitle()
+    }
+
+    fun seekPrevSubtitle() {
+        playerEngine.seekPrevSubtitle()
     }
 
     override fun onCleared() {

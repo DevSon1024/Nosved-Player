@@ -289,4 +289,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateDoubleTapAction(action: com.devson.nvplayer.repository.DoubleTapAction) {
         viewModelScope.launch { settingsRepo.updateDoubleTapAction(action) }
     }
+
+    fun updateSubtitleTextSizeScale(scale: Float) {
+        viewModelScope.launch { settingsRepo.updateSubtitleTextSizeScale(scale) }
+    }
+
+    fun updateSubtitleBgStyle(style: Int) {
+        viewModelScope.launch { settingsRepo.updateSubtitleBgStyle(style) }
+    }
+
+    fun updateSubtitleDelay(delayMs: Long) {
+        viewModelScope.launch { settingsRepo.updateSubtitleDelay(delayMs) }
+    }
+
+    fun updateSubtitleVerticalOffset(offset: Float) {
+        viewModelScope.launch { settingsRepo.updateSubtitleVerticalOffset(offset) }
+    }
+
+    fun updateSubtitleGesturesEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateSubtitleGesturesEnabled(enabled) }
+    }
 }
