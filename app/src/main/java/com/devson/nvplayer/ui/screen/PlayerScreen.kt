@@ -78,10 +78,6 @@ fun PlayerScreen(
     onNextClick: () -> Unit = {},
     onPrevClick: () -> Unit = {}
 ) {
-    val deepCharcoal = Color(0xFF0F0F11)
-    val obsidian = Color(0xFF050505)
-    val neonCyan = Color(0xFF00E5FF)
-
     var controlsVisible by remember { mutableStateOf(true) }
     var isDragging by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -182,13 +178,16 @@ fun PlayerScreen(
                         .fillMaxSize()
                         .background(
                             Brush.radialGradient(
-                                colors = listOf(Color(0xFF1E1035), deepCharcoal),
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                                    MaterialTheme.colorScheme.background
+                                ),
                                 radius = 2200f
                             )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = neonCyan)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -196,7 +195,7 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(obsidian),
+                        .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -288,7 +287,7 @@ fun PlayerScreen(
                 // Separate Buffering overlay if video stalls during playback
                 if (playbackState is PlayerState.Loading) {
                     CircularProgressIndicator(
-                        color = neonCyan,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 4.dp,
                         modifier = Modifier
                             .size(56.dp)
