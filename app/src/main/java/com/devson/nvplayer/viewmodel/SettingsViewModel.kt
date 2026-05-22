@@ -24,7 +24,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Returns the DefaultScreen that was persisted in SharedPreferences.
      * Unlike [viewSettings].value (which starts with the data-class default until the flow
      * subscribes), this reads the repository's MutableStateFlow which is populated
-     * synchronously in ViewSettingsRepository's constructor — safe to call at composition time.
+     * synchronously in ViewSettingsRepository's constructor - safe to call at composition time.
      */
     fun getInitialDefaultScreen(): com.devson.nvplayer.model.DefaultScreen =
         viewSettingsRepo.viewSettingsFlow.value.defaultScreen
@@ -344,6 +344,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateAutoPlayEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.updateAutoPlayEnabled(enabled) }
+    }
+
+    fun updateShowNextPrevButtons(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowNextPrevButtons(show) }
     }
 
     fun updateFastplaySpeed(speed: Float) {

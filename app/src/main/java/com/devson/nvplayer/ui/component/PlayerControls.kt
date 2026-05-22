@@ -70,11 +70,13 @@ fun PlayerControls(
     onNextClick: () -> Unit = {},
     onPrevClick: () -> Unit = {},
     showSeekButtons: Boolean = true,
+    showNextPrevButtons: Boolean = true,
     showElapsedTimeOverlay: Boolean = false,
     showRemainingTime: Boolean = false,
     showBatteryClockOverlay: Boolean = false,
     showScreenRotationButton: Boolean = true,
     seekDurationSeconds: Int = 10,
+    controlIconSize: String = "medium",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -272,11 +274,30 @@ fun PlayerControls(
         }
 
         // --- 2. CENTER PANEL (Playback Actions) ---
+        // Icon sizes derived from the controlIconSize setting
+        val sizeKey = controlIconSize.lowercase()
+        val playCircleSize = when (sizeKey) {
+            "small" -> if (isPortrait) 60.dp else 68.dp
+            "large" -> if (isPortrait) 76.dp else 84.dp
+            else    -> if (isPortrait) 68.dp else 76.dp  // "medium" default
+        }
+        val playIconSize = when (sizeKey) {
+            "small" -> if (isPortrait) 32.dp else 36.dp
+            "large" -> if (isPortrait) 44.dp else 50.dp
+            else    -> if (isPortrait) 38.dp else 44.dp
+        }
+        val actionCircleSize = when (sizeKey) {
+            "small" -> if (isPortrait) 40.dp else 46.dp
+            "large" -> if (isPortrait) 54.dp else 60.dp
+            else    -> if (isPortrait) 46.dp else 52.dp
+        }
+        val actionIconSize = when (sizeKey) {
+            "small" -> if (isPortrait) 18.dp else 22.dp
+            "large" -> if (isPortrait) 26.dp else 30.dp
+            else    -> if (isPortrait) 22.dp else 26.dp
+        }
+
         val centerSpacing = if (isPortrait) 14.dp else 24.dp
-        val playCircleSize = if (isPortrait) 68.dp else 76.dp
-        val playIconSize = if (isPortrait) 38.dp else 44.dp
-        val actionCircleSize = if (isPortrait) 46.dp else 52.dp
-        val actionIconSize = if (isPortrait) 22.dp else 26.dp
 
         Row(
             modifier = Modifier.align(Alignment.Center),
@@ -284,21 +305,23 @@ fun PlayerControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Skip Previous
-            Box(
-                modifier = Modifier
-                    .size(actionCircleSize)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
-                    .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
-                    .clickable(enabled = hasPrevious) { onPrevClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SkipPrevious,
-                    contentDescription = "Previous Video",
-                    tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
-                    modifier = Modifier.size(actionIconSize)
-                )
+            if (showNextPrevButtons) {
+                Box(
+                    modifier = Modifier
+                        .size(actionCircleSize)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
+                        .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
+                        .clickable(enabled = hasPrevious) { onPrevClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous Video",
+                        tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
+                        modifier = Modifier.size(actionIconSize)
+                    )
+                }
             }
 
             // Rewind Button
@@ -375,21 +398,23 @@ fun PlayerControls(
             }
 
             // Skip Next
-            Box(
-                modifier = Modifier
-                    .size(actionCircleSize)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
-                    .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
-                    .clickable(enabled = hasNext) { onNextClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SkipNext,
-                    contentDescription = "Next Video",
-                    tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
-                    modifier = Modifier.size(actionIconSize)
-                )
+            if (showNextPrevButtons) {
+                Box(
+                    modifier = Modifier
+                        .size(actionCircleSize)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
+                        .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
+                        .clickable(enabled = hasNext) { onNextClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "Next Video",
+                        tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
+                        modifier = Modifier.size(actionIconSize)
+                    )
+                }
             }
         }
 

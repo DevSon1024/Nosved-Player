@@ -81,6 +81,14 @@ class PlayerViewModel(
                 }
             }
         }
+        // Auto-play next video when current finishes, if setting is enabled
+        viewModelScope.launch {
+            playbackState.collect { state ->
+                if (state is PlayerState.Ended && playbackSettings.value.autoPlayEnabled) {
+                    playNext()
+                }
+            }
+        }
     }
 
     private fun restorePlaybackProgress() {

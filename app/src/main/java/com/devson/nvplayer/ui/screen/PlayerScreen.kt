@@ -215,27 +215,38 @@ fun PlayerScreen(
         }
     }
 
-    // Dynamically adjust screen orientation to fit the natural display orientation of the loaded video
-    LaunchedEffect(videoWidth, videoHeight, videoRotation) {
-        if (videoWidth > 0 && videoHeight > 0) {
-            var currentContext = context
-            while (currentContext is ContextWrapper) {
-                if (currentContext is Activity) {
-                    val isRotated = videoRotation == 90L || videoRotation == 270L
-                    val displayWidth = if (isRotated) videoHeight else videoWidth
-                    val displayHeight = if (isRotated) videoWidth else videoHeight
-
-                    if (displayWidth > displayHeight) {
-                        // Landscape video -> Rotate screen to sensor landscape layout
+    // Dynamically adjust screen orientation based on user setting or video dimensions
+    LaunchedEffect(videoWidth, videoHeight, videoRotation, playbackSettings.orientationMode) {
+        var currentContext = context
+        while (currentContext is ContextWrapper) {
+            if (currentContext is Activity) {
+                val orientationMode = playbackSettings.orientationMode
+                when (orientationMode) {
+                    com.devson.nvplayer.repository.OrientationMode.LANDSCAPE,
+                    com.devson.nvplayer.repository.OrientationMode.AUTO -> {
+                        // Force landscape regardless of video dimensions
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                    } else {
-                        // Portrait video -> Keep screen in vertical portrait layout
+                    }
+                    com.devson.nvplayer.repository.OrientationMode.PORTRAIT -> {
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
-                    break
+                    com.devson.nvplayer.repository.OrientationMode.SYSTEM_DEFAULT -> {
+                        // Auto-detect from video dimensions (original behaviour)
+                        if (videoWidth > 0 && videoHeight > 0) {
+                            val isRotated = videoRotation == 90L || videoRotation == 270L
+                            val displayWidth = if (isRotated) videoHeight else videoWidth
+                            val displayHeight = if (isRotated) videoWidth else videoHeight
+                            if (displayWidth > displayHeight) {
+                                currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            } else {
+                                currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                        }
+                    }
                 }
-                currentContext = currentContext.baseContext
+                break
             }
+            currentContext = currentContext.baseContext
         }
     }
 
@@ -289,7 +300,7 @@ fun PlayerScreen(
 
         // ALWAYS keep the AndroidView in the hierarchy so that surface attaches immediately.
         // graphicsLayer applies the zoom/pan state driven by GestureOverlay's onZoomChange.
-        // No `transformable` modifier here — it would never receive events because
+        // No `transformable` modifier here - it would never receive events because
         // GestureOverlay sits on top and captures all touches first.
         AndroidView(
             factory = { ctx ->
@@ -463,11 +474,13 @@ fun PlayerScreen(
                         onNextClick = onNextClick,
                         onPrevClick = onPrevClick,
                         showSeekButtons = playbackSettings.showSeekButtons,
+                        showNextPrevButtons = playbackSettings.showNextPrevButtons,
                         showElapsedTimeOverlay = playbackSettings.showElapsedTimeOverlay,
                         showRemainingTime = playbackSettings.showRemainingTime,
                         showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay,
                         showScreenRotationButton = playbackSettings.showScreenRotationButton,
                         seekDurationSeconds = playbackSettings.seekDurationSeconds,
+                        controlIconSize = playbackSettings.controlIconSize,
                         modifier = Modifier
                     )
                 }

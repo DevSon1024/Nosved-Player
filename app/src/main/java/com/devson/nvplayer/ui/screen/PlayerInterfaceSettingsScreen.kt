@@ -139,6 +139,16 @@ fun PlayerInterfaceSettingsScreen(
                     checked = playbackSettings.autoPlayEnabled,
                     onCheckedChange = { settingsViewModel.updateAutoPlayEnabled(it) }
                 )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
+                    icon = Icons.Default.SkipNext,
+                    title = "Show Skip Prev/Next Buttons",
+                    subtitle = "Show previous/next chapter skip buttons in player controls",
+                    checked = playbackSettings.showNextPrevButtons,
+                    onCheckedChange = { settingsViewModel.updateShowNextPrevButtons(it) }
+                )
             }
 
             Spacer(Modifier.height(20.dp))

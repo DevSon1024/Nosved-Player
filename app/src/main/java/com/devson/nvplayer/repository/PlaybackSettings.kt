@@ -29,6 +29,7 @@ data class PlaybackSettings(
     val seekBarStyle: String = "line",
     val controlIconSize: String = "medium",
     val autoPlayEnabled: Boolean = false,
+    val showNextPrevButtons: Boolean = true,
     val showSeekButtons: Boolean = true,
     val fastplaySpeed: Float = 2.0f,
     val orientationMode: OrientationMode = OrientationMode.SYSTEM_DEFAULT,

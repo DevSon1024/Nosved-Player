@@ -663,7 +663,7 @@ private fun FullListDialog(
 
                 HorizontalDivider()
 
-                // Full scrollable list — all options always visible
+                // Full scrollable list - all options always visible
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()

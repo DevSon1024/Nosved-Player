@@ -104,6 +104,7 @@ class PlaybackSettingsRepository(context: Context) {
             seekBarStyle = prefs.getString("seek_bar_style", "line") ?: "line",
             controlIconSize = prefs.getString("control_icon_size", "medium") ?: "medium",
             autoPlayEnabled = prefs.getBoolean("auto_play_enabled", false),
+            showNextPrevButtons = prefs.getBoolean("show_next_prev_buttons", true),
             showSeekButtons = prefs.getBoolean("show_seek_buttons", true),
             fastplaySpeed = prefs.getFloat("fastplay_speed", 2.0f),
             orientationMode = try {
@@ -178,6 +179,7 @@ class PlaybackSettingsRepository(context: Context) {
             putString("seek_bar_style", updated.seekBarStyle)
             putString("control_icon_size", updated.controlIconSize)
             putBoolean("auto_play_enabled", updated.autoPlayEnabled)
+            putBoolean("show_next_prev_buttons", updated.showNextPrevButtons)
             putBoolean("show_seek_buttons", updated.showSeekButtons)
             putFloat("fastplay_speed", updated.fastplaySpeed)
             putString("orientation_mode", updated.orientationMode.name)
@@ -410,6 +412,10 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateAutoPlayEnabled(enabled: Boolean) {
         updatePlaybackSettings { it.copy(autoPlayEnabled = enabled) }
+    }
+
+    suspend fun updateShowNextPrevButtons(show: Boolean) {
+        updatePlaybackSettings { it.copy(showNextPrevButtons = show) }
     }
 
     suspend fun updateFastplaySpeed(speed: Float) {
