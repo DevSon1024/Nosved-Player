@@ -21,6 +21,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.devson.nvplayer.model.ViewSettings())
 
     /**
+     * Returns the DefaultScreen that was persisted in SharedPreferences.
+     * Unlike [viewSettings].value (which starts with the data-class default until the flow
+     * subscribes), this reads the repository's MutableStateFlow which is populated
+     * synchronously in ViewSettingsRepository's constructor — safe to call at composition time.
+     */
+    fun getInitialDefaultScreen(): com.devson.nvplayer.model.DefaultScreen =
+        viewSettingsRepo.viewSettingsFlow.value.defaultScreen
+
+    /**
      * Emits null = follow system, true = force dark, false = force light.
      */
     val isDarkTheme: StateFlow<Boolean?> = settingsRepo.isDarkThemeFlow

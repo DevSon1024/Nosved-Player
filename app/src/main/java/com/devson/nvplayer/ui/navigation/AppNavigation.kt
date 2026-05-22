@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.devson.nvplayer.model.DefaultScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,9 +51,17 @@ fun AppNavigation(
         }
     }
 
+    val startDestination = remember {
+        if (settingsViewModel.getInitialDefaultScreen() == DefaultScreen.VIDEO_LIST) {
+            "video_list"
+        } else {
+            "home"
+        }
+    }
+
     NavHost(
         navController = navController,
-        startDestination = "home",
+        startDestination = startDestination,
         enterTransition = {
             slideIntoContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Left,

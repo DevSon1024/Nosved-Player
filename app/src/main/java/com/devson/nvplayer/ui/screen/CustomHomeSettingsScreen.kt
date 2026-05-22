@@ -1,5 +1,7 @@
 package com.devson.nvplayer.ui.screen
 
+import android.app.PendingIntent
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,10 +34,26 @@ fun CustomHomeSettingsScreen(
     onNavigateBack: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val viewSettings by settingsViewModel.viewSettings.collectAsState()
     val scrollState = rememberScrollState()
 
     var showDefaultScreenDialog by remember { mutableStateOf(false) }
+    var showRestartDialog by remember { mutableStateOf(false) }
+
+    // Restarts the app by relaunching MainActivity from scratch via PendingIntent
+    val restartApp: () -> Unit = {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
+            .apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        pendingIntent.send()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
 
     Scaffold(
         topBar = {
@@ -156,7 +175,7 @@ fun CustomHomeSettingsScreen(
             title = { Text("Default Launch Screen") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    DefaultScreen.values().forEach { screen ->
+                    listOf(DefaultScreen.HOME, DefaultScreen.VIDEO_LIST).forEach { screen ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -164,8 +183,13 @@ fun CustomHomeSettingsScreen(
                                 .selectable(
                                     selected = (viewSettings.defaultScreen == screen),
                                     onClick = {
-                                        settingsViewModel.updateDefaultScreen(screen)
-                                        showDefaultScreenDialog = false
+                                        if (viewSettings.defaultScreen != screen) {
+                                            settingsViewModel.updateDefaultScreen(screen)
+                                            showDefaultScreenDialog = false
+                                            showRestartDialog = true
+                                        } else {
+                                            showDefaultScreenDialog = false
+                                        }
                                     },
                                     role = Role.RadioButton
                                 )
@@ -193,6 +217,26 @@ fun CustomHomeSettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showDefaultScreenDialog = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showRestartDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestartDialog = false },
+            title = { Text("Restart Required") },
+            text = {
+                Text("The default launch screen has been changed. Restart the app now to apply this setting?")
+            },
+            confirmButton = {
+                Button(onClick = restartApp) {
+                    Text("Restart Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestartDialog = false }) {
+                    Text("Later")
                 }
             }
         )
