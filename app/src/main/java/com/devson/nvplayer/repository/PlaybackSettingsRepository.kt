@@ -45,7 +45,7 @@ class PlaybackSettingsRepository(context: Context) {
             "show_seek_buttons", "fastplay_speed", "orientation_mode", "fullscreen_mode", "soft_button_mode",
             "show_elapsed_time_overlay", "show_battery_clock_overlay", "show_screen_rotation_button",
             "pause_when_obstructed", "show_remaining_time", "use_system_caption_style", "subtitle_font",
-            "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_sensitivity",
+            "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_speed_sec_cm",
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
             "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
@@ -136,7 +136,7 @@ class PlaybackSettingsRepository(context: Context) {
             isSubtitleBold = prefs.getBoolean("is_subtitle_bold", false),
             forceAssSubtitleOverride = prefs.getBoolean("force_ass_subtitle_override", false),
             seekGestureEnabled = prefs.getBoolean("seek_gesture_enabled", true),
-            seekSensitivity = prefs.getFloat("seek_sensitivity", 0.5f),
+            seekSpeedSecPerCm = prefs.getInt("seek_speed_sec_cm", 10),
             brightnessGestureEnabled = prefs.getBoolean("brightness_gesture_enabled", true),
             brightnessSensitivity = prefs.getFloat("brightness_sensitivity", 0.5f),
             volumeGestureEnabled = prefs.getBoolean("volume_gesture_enabled", true),
@@ -196,7 +196,7 @@ class PlaybackSettingsRepository(context: Context) {
             putBoolean("is_subtitle_bold", updated.isSubtitleBold)
             putBoolean("force_ass_subtitle_override", updated.forceAssSubtitleOverride)
             putBoolean("seek_gesture_enabled", updated.seekGestureEnabled)
-            putFloat("seek_sensitivity", updated.seekSensitivity)
+            putInt("seek_speed_sec_cm", updated.seekSpeedSecPerCm)
             putBoolean("brightness_gesture_enabled", updated.brightnessGestureEnabled)
             putFloat("brightness_sensitivity", updated.brightnessSensitivity)
             putBoolean("volume_gesture_enabled", updated.volumeGestureEnabled)
@@ -332,8 +332,8 @@ class PlaybackSettingsRepository(context: Context) {
         updatePlaybackSettings { it.copy(seekGestureEnabled = enabled) }
     }
 
-    suspend fun updateSeekSensitivity(sensitivity: Float) {
-        updatePlaybackSettings { it.copy(seekSensitivity = sensitivity) }
+    suspend fun updateSeekSpeedSecPerCm(speed: Int) {
+        updatePlaybackSettings { it.copy(seekSpeedSecPerCm = speed) }
     }
 
     suspend fun updateBrightnessGestureEnabled(enabled: Boolean) {

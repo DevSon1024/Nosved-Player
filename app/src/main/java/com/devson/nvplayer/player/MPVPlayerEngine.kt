@@ -126,11 +126,12 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
-    override fun seekTo(position: Long) {
+    override fun seekTo(position: Long, precise: Boolean) {
         val seconds = position / 1000.0
-        Log.d("MPVPlayerEngine", "Seeking to position: $position ms ($seconds s)")
+        Log.d("MPVPlayerEngine", "Seeking to position: $position ms ($seconds s), precise: $precise")
         try {
-            MPVLib.command("seek", seconds.toString(), "absolute")
+            val mode = if (precise) "absolute" else "absolute+keyframes"
+            MPVLib.command("seek", seconds.toString(), mode)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to seek to position", e)
         }

@@ -181,7 +181,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 forceAssSubtitleOverride = false,
                 // New Gesture Defaults
                 seekGestureEnabled = true,
-                seekSensitivity = 0.5f,
+                seekSpeedSecPerCm = 10,
                 brightnessGestureEnabled = true,
                 brightnessSensitivity = 0.5f,
                 volumeGestureEnabled = true,
@@ -263,8 +263,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateSeekGestureEnabled(enabled) }
     }
 
-    fun updateSeekSensitivity(sensitivity: Float) {
-        viewModelScope.launch { settingsRepo.updateSeekSensitivity(sensitivity) }
+    fun updateSeekSpeedSecPerCm(speed: Int) {
+        viewModelScope.launch { settingsRepo.updateSeekSpeedSecPerCm(speed) }
     }
 
     fun updateBrightnessGesture(enabled: Boolean) {

@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -62,7 +63,7 @@ fun GestureOverlay(
     savedBrightness: Float,
     savedVolume: Int,
     onPlayPauseToggle: () -> Unit,
-    onSeek: (Long) -> Unit,
+    onSeek: (Long, Boolean) -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onSaveBrightness: (Float) -> Unit,
     onSaveVolume: (Int) -> Unit,
@@ -74,7 +75,6 @@ fun GestureOverlay(
     playbackSettings: PlaybackSettings = PlaybackSettings(),
     onShowMuteIcon: (Boolean) -> Unit = {},
     onTakeVideoScreenshot: () -> Unit = {},
-    // Callback fired during pinch-to-zoom (only when twoFingerAction == PINCH_ZOOM)
     onZoomChange: ((scaleMultiplier: Float, pan: Offset) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -83,6 +83,11 @@ fun GestureOverlay(
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember(audioManager) { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+
+    val density = LocalDensity.current
+    var showSeekIndicator by remember { mutableStateOf(false) }
+    var currentSeekPos by remember { mutableLongStateOf(0L) }
+    var seekDeltaSeconds by remember { mutableIntStateOf(0) }
 
     var lastUnmutedVolume by remember { mutableIntStateOf(maxVolume / 2) }
     var muteOverlayVisible by remember { mutableStateOf(false) }
@@ -249,6 +254,8 @@ fun GestureOverlay(
                         val startPosition = down.position
                         lastDragY = startPosition.y
                         dragStarted = false
+                        var isSeekDrag = false
+                        var seekStartPos = 0L
                         isLeftHalfDrag = startPosition.x < size.width / 2f
 
                         val isEdge = startPosition.x < size.width * 0.35f || startPosition.x > size.width * 0.65f
@@ -276,11 +283,11 @@ fun GestureOverlay(
                                 val diffX = currentPos.x - startPosition.x
 
                                 if (!dragStarted && !isLongPressSpeedActive && maxPointerCount == 1) {
+                                    val settings = playbackSettingsState.value
                                     if (Math.abs(diffY) > viewConfiguration.touchSlop && Math.abs(diffY) > Math.abs(diffX)) {
                                         longPressJob?.cancel()
                                         dragStarted = true
 
-                                        val settings = playbackSettingsState.value
                                         if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
                                             val lp = activity?.window?.attributes
                                             currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
@@ -293,31 +300,48 @@ fun GestureOverlay(
                                         } else {
                                             dragStarted = false // disable drag if gesture is off
                                         }
+                                    } else if (Math.abs(diffX) > viewConfiguration.touchSlop && Math.abs(diffX) > Math.abs(diffY) && settings.seekGestureEnabled) {
+                                        longPressJob?.cancel()
+                                        dragStarted = true
+                                        isSeekDrag = true
+                                        seekStartPos = currentPositionState.value
+                                        currentSeekPos = seekStartPos
+                                        seekDeltaSeconds = 0
+                                        showSeekIndicator = true
                                     }
                                 }
 
                                 if (dragStarted && maxPointerCount == 1) {
-                                    val deltaY = currentPos.y - lastDragY
-                                    lastDragY = currentPos.y
+                                    if (isSeekDrag) {
+                                        val settings = playbackSettingsState.value
+                                        val pixelsPerCm = density.density * 160f / 2.54f
+                                        val secondsDelta = (diffX / pixelsPerCm) * settings.seekSpeedSecPerCm
+                                        seekDeltaSeconds = secondsDelta.toInt()
+                                        currentSeekPos = (seekStartPos + (secondsDelta * 1000).toLong()).coerceIn(0L, durationState.value)
+                                        onSeekState.value(currentSeekPos, false)
+                                    } else {
+                                        val deltaY = currentPos.y - lastDragY
+                                        lastDragY = currentPos.y
 
-                                    val screenHeight = size.height.toFloat().coerceAtLeast(1f)
-                                    val settings = playbackSettingsState.value
-                                    val sensitivity = if (isLeftHalfDrag) settings.brightnessSensitivity else settings.volumeSensitivity
-                                    val deltaPercent = -deltaY / screenHeight * (0.5f + sensitivity * 1.5f)
+                                        val screenHeight = size.height.toFloat().coerceAtLeast(1f)
+                                        val settings = playbackSettingsState.value
+                                        val sensitivity = if (isLeftHalfDrag) settings.brightnessSensitivity else settings.volumeSensitivity
+                                        val deltaPercent = -deltaY / screenHeight * (0.5f + sensitivity * 1.5f)
 
-                                    if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
-                                        currentBrightnessFloat = (currentBrightnessFloat + deltaPercent).coerceIn(0.01f, 1.0f)
-                                        activity?.let { act ->
-                                            val lp = act.window.attributes
-                                            lp.screenBrightness = currentBrightnessFloat
-                                            act.window.attributes = lp
+                                        if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
+                                            currentBrightnessFloat = (currentBrightnessFloat + deltaPercent).coerceIn(0.01f, 1.0f)
+                                            activity?.let { act ->
+                                                val lp = act.window.attributes
+                                                lp.screenBrightness = currentBrightnessFloat
+                                                act.window.attributes = lp
+                                            }
+                                            currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
+                                        } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
+                                            currentVolumeFloat = (currentVolumeFloat + deltaPercent * maxVolume).coerceIn(0f, maxVolume.toFloat())
+                                            val newVol = currentVolumeFloat.toInt()
+                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                            currentVolumePercent = ((newVol.toFloat() / maxVolume) * 100).toInt()
                                         }
-                                        currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
-                                    } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
-                                        currentVolumeFloat = (currentVolumeFloat + deltaPercent * maxVolume).coerceIn(0f, maxVolume.toFloat())
-                                        val newVol = currentVolumeFloat.toInt()
-                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                        currentVolumePercent = ((newVol.toFloat() / maxVolume) * 100).toInt()
                                     }
                                     dragChange.consume()
                                 }
@@ -362,7 +386,11 @@ fun GestureOverlay(
                                         }
                                     )
                                 } else if (dragStarted) {
-                                    if (isLeftHalfDrag) {
+                                    if (isSeekDrag) {
+                                        isSeekDrag = false
+                                        showSeekIndicator = false
+                                        onSeekState.value(currentSeekPos, true)
+                                    } else if (isLeftHalfDrag) {
                                         onSaveBrightnessState.value(currentBrightnessFloat)
                                         brightnessHideJob = launch {
                                             delay(1000L)
@@ -393,7 +421,7 @@ fun GestureOverlay(
                                             DoubleTapAction.BOTH -> {
                                                 if (x < width * 0.4f) {
                                                     val newPos = (currentPositionState.value - doubleTapSeekDurationMs).coerceAtLeast(0L)
-                                                    onSeekState.value(newPos)
+                                                    onSeekState.value(newPos, true)
                                                     leftClearJob?.cancel()
                                                     leftAccumulatedMs += doubleTapSeekDurationMs
                                                     leftRippleTick++
@@ -405,7 +433,7 @@ fun GestureOverlay(
                                                     }
                                                 } else if (x > width * 0.6f) {
                                                     val newPos = (currentPositionState.value + doubleTapSeekDurationMs).coerceAtMost(durationState.value)
-                                                    onSeekState.value(newPos)
+                                                    onSeekState.value(newPos, true)
                                                     rightClearJob?.cancel()
                                                     rightAccumulatedMs += doubleTapSeekDurationMs
                                                     rightRippleTick++
@@ -424,7 +452,7 @@ fun GestureOverlay(
                                             }
                                             DoubleTapAction.FAST_FORWARD -> {
                                                 val newPos = (currentPositionState.value + doubleTapSeekDurationMs).coerceAtMost(durationState.value)
-                                                onSeekState.value(newPos)
+                                                onSeekState.value(newPos, true)
                                                 rightClearJob?.cancel()
                                                 rightAccumulatedMs += doubleTapSeekDurationMs
                                                 rightRippleTick++
@@ -437,7 +465,7 @@ fun GestureOverlay(
                                             }
                                             DoubleTapAction.REWIND -> {
                                                 val newPos = (currentPositionState.value - doubleTapSeekDurationMs).coerceAtLeast(0L)
-                                                onSeekState.value(newPos)
+                                                onSeekState.value(newPos, true)
                                                 leftClearJob?.cancel()
                                                 leftAccumulatedMs += doubleTapSeekDurationMs
                                                 leftRippleTick++
@@ -523,6 +551,7 @@ fun GestureOverlay(
             }
         }
 
+        // Brighness bar
         AnimatedVisibility(
             visible = showBrightnessIndicator,
             enter = fadeIn() + slideInHorizontally(initialOffsetX = { it }),
@@ -572,6 +601,7 @@ fun GestureOverlay(
             }
         }
 
+        // volume bar
         AnimatedVisibility(
             visible = showVolumeIndicator,
             enter = fadeIn() + slideInHorizontally(initialOffsetX = { -it }),
@@ -636,6 +666,7 @@ fun GestureOverlay(
             FastForwardBadge(speed = tapAndHoldSpeed)
         }
 
+        // Mute/Unmute Toggle
         AnimatedVisibility(
             visible = muteOverlayVisible,
             enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
@@ -657,6 +688,28 @@ fun GestureOverlay(
                     modifier = Modifier.size(40.dp)
                 )
             }
+        }
+
+        // Horizontal Seek Indicator
+        AnimatedVisibility(
+            visible = showSeekIndicator,
+            enter = fadeIn(animationSpec = tween(120)) + slideInVertically(
+                initialOffsetY = { -it / 3 },
+                animationSpec = tween(180, easing = FastOutSlowInEasing)
+            ),
+            exit = fadeOut(animationSpec = tween(120)) + slideOutVertically(
+                targetOffsetY = { -it / 3 },
+                animationSpec = tween(150)
+            ),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 50.dp)
+        ) {
+            SeekIndicatorOverlay(
+                currentSeekPos = currentSeekPos,
+                duration = duration,
+                seekDeltaSeconds = seekDeltaSeconds
+            )
         }
     }
 }
@@ -877,6 +930,116 @@ private fun AccumulatingSeekRipple(isRightSide: Boolean, accumulatedMs: Long, ri
             }
             Text(text = label, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Text(text = if (isRightSide) "Forward" else "Rewind", color = Color.White.copy(alpha = 0.70f), fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun SeekIndicatorOverlay(
+    currentSeekPos: Long,
+    duration: Long,
+    seekDeltaSeconds: Int
+) {
+    val isForward = seekDeltaSeconds >= 0
+    val accentColor = if (isForward) Color(0xFF00E5FF) else Color(0xFFFF6B6B)
+    val progressFraction = if (duration > 0L) (currentSeekPos.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
+    val deltaLabel = if (isForward) "+${seekDeltaSeconds}s" else "${seekDeltaSeconds}s"
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+        modifier = Modifier
+            .widthIn(min = 200.dp, max = 320.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.55f),
+                        Color.Black.copy(alpha = 0.40f)
+                    )
+                )
+            )
+            .border(
+                width = 0.8.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.18f),
+                        Color.White.copy(alpha = 0.06f)
+                    )
+                ),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+    ) {
+        // Direction chip + time row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Direction pill chip
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(accentColor.copy(alpha = 0.18f))
+                    .border(0.6.dp, accentColor.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isForward) Icons.Rounded.FastForward else Icons.Rounded.FastRewind,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = deltaLabel,
+                        color = accentColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.3.sp
+                    )
+                }
+            }
+
+            // Current / Total time
+            Text(
+                text = "${formatTime(currentSeekPos)}  /  ${formatTime(duration)}",
+                color = Color.White.copy(alpha = 0.95f),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Seek progress bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.White.copy(alpha = 0.15f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progressFraction)
+                    .fillMaxHeight()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                accentColor.copy(alpha = 0.7f),
+                                accentColor
+                            )
+                        ),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            )
+            // Thumb dot — drawn as a small overlay box pinned to fill-end via the progress box above
         }
     }
 }

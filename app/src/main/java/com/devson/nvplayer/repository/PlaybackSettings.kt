@@ -45,7 +45,7 @@ data class PlaybackSettings(
     val isSubtitleBold: Boolean = false,
     val forceAssSubtitleOverride: Boolean = false,
     val seekGestureEnabled: Boolean = true,
-    val seekSensitivity: Float = 0.5f,
+    val seekSpeedSecPerCm: Int = 10,
     val brightnessGestureEnabled: Boolean = true,
     val brightnessSensitivity: Float = 0.5f,
     val volumeGestureEnabled: Boolean = true,

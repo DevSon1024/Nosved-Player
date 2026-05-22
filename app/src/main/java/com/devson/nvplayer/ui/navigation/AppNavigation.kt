@@ -246,7 +246,7 @@ fun AppNavigation(
                 savedBrightness = savedBrightness,
                 savedVolume = savedVolume,
                 onPlayPauseToggle = { playerViewModel.togglePlayback() },
-                onSeek = { playerViewModel.seekTo(it) },
+                onSeek = { pos, precise -> playerViewModel.seekTo(pos, precise) },
                 onSetPlaybackSpeed = { playerViewModel.setPlaybackSpeed(it) },
                 onCycleSubtitle = { playerViewModel.cycleSubtitle() },
                 onCycleAudio = { playerViewModel.cycleAudio() },

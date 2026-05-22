@@ -262,8 +262,8 @@ class PlayerViewModel(
         playerEngine.togglePlayback()
     }
 
-    fun seekTo(position: Long) {
-        playerEngine.seekTo(position)
+    fun seekTo(position: Long, precise: Boolean = true) {
+        playerEngine.seekTo(position, precise)
     }
 
     fun setPlaybackSpeed(speed: Float) {

@@ -58,7 +58,7 @@ fun PlayerControls(
     isDragging: Boolean,
     onDraggingChanged: (Boolean) -> Unit,
     onPlayPauseToggle: () -> Unit,
-    onSeek: (Long) -> Unit,
+    onSeek: (Long, Boolean) -> Unit,
     onSpeedClick: () -> Unit,
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
@@ -87,6 +87,7 @@ fun PlayerControls(
     // Decouple local slider state to stop the visual slider jumping backwards while dragging
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
     var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
     var draggingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -337,7 +338,7 @@ fun PlayerControls(
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.06f))
                         .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                        .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L)) },
+                        .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -385,7 +386,7 @@ fun PlayerControls(
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.06f))
                         .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                        .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration)) },
+                        .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -600,10 +601,14 @@ fun PlayerControls(
                     draggingJob?.cancel()
                     onDraggingChanged(true)
                     sliderPosition = newVal
-                    onSeek(newVal.toLong())
+                    val now = System.currentTimeMillis()
+                    if (now - lastSeekTime > 150L) {
+                        lastSeekTime = now
+                        onSeek(newVal.toLong(), false)
+                    }
                 },
                 onValueChangeFinished = {
-                    onSeek(sliderPosition.toLong())
+                    onSeek(sliderPosition.toLong(), true)
                     draggingJob = scope.launch {
                         delay(800) // Provides ExoPlayer/MPV debounce buffering window
                         onDraggingChanged(false)

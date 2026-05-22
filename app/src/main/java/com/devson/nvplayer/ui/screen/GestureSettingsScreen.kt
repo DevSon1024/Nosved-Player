@@ -111,11 +111,13 @@ fun GestureSettingsScreen(
                 )
                 if (playbackSettings.seekGestureEnabled) {
                     GestureSliderRow(
-                        title = "Seek Sensitivity",
-                        value = playbackSettings.seekSensitivity,
-                        defaultValue = 0.5f,
-                        onValueChange = { settingsViewModel.updateSeekSensitivity(it) },
-                        onReset = { settingsViewModel.updateSeekSensitivity(0.5f) }
+                        title = "Swipe Seek Speed",
+                        value = playbackSettings.seekSpeedSecPerCm.toFloat(),
+                        defaultValue = 10f,
+                        valueRange = 2f..400f,
+                        valueFormatter = { "${it.toInt()}s/cm" },
+                        onValueChange = { settingsViewModel.updateSeekSpeedSecPerCm(it.toInt()) },
+                        onReset = { settingsViewModel.updateSeekSpeedSecPerCm(10) }
                     )
                 }
 

@@ -82,7 +82,7 @@ fun PlayerScreen(
     savedBrightness: Float,
     savedVolume: Int,
     onPlayPauseToggle: () -> Unit,
-    onSeek: (Long) -> Unit,
+    onSeek: (Long, Boolean) -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
