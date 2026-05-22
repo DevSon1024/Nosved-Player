@@ -217,6 +217,16 @@ fun PlayerInterfaceSettingsScreen(
                     checked = playbackSettings.pauseWhenObstructed,
                     onCheckedChange = { settingsViewModel.updatePauseWhenObstructed(it) }
                 )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
+                    icon = Icons.Default.WbSunny,
+                    title = "Keep Screen Awake Always",
+                    subtitle = "Prevent screen from turning off when playback is paused or active",
+                    checked = playbackSettings.keepAwakeAlways,
+                    onCheckedChange = { settingsViewModel.updateKeepAwakeAlways(it) }
+                )
             }
 
             Spacer(Modifier.height(24.dp))

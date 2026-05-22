@@ -288,6 +288,18 @@ fun PlayerScreen(
         }
     }
 
+    // Keep device screen awake during playing, and also when paused if keepAwakeAlways is enabled
+    val keepScreenOn = isPlaying || playbackSettings.keepAwakeAlways
+    LaunchedEffect(keepScreenOn) {
+        activity?.let { act ->
+            if (keepScreenOn) {
+                act.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                act.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
+
     // Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio,
     // and restore default screen brightness. Restore system bars on exit.
     DisposableEffect(Unit) {
@@ -296,6 +308,8 @@ fun PlayerScreen(
                 val window = act.window
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                // Explicitly clear keep screen awake flag when leaving the player
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             var currentContext = context
             while (currentContext is ContextWrapper) {

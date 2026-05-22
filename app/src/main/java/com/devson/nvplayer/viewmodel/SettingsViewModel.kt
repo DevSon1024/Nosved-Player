@@ -194,7 +194,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 customPlaybackSpeed = 1.0f,
                 tapAndHoldSpeed = 2.0f,
                 doubleTapSeekDuration = 10000L,
-                screenshotLocation = "Pictures/NVPlayer/Screenshot"
+                screenshotLocation = "Pictures/NVPlayer/Screenshot",
+                keepAwakeAlways = false
             )
         )
 
@@ -381,5 +382,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             settingsRepo.updateBlacklistedFolders(emptySet())
         }
+    }
+
+    fun updateKeepAwakeAlways(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateKeepAwakeAlways(enabled) }
     }
 }

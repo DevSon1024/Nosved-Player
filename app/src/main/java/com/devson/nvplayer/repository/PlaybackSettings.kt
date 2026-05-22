@@ -64,6 +64,7 @@ data class PlaybackSettings(
     val tapAndHoldSpeed: Float = 2.0f,
     val doubleTapSeekDuration: Long = 10000L,
     val screenshotLocation: String = "Pictures/NVPlayer/Screenshot",
-    val blacklistedFolders: Set<String> = emptySet()
+    val blacklistedFolders: Set<String> = emptySet(),
+    val keepAwakeAlways: Boolean = false
 )
 
