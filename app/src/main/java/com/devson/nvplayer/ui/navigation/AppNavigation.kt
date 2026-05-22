@@ -20,6 +20,7 @@ import com.devson.nvplayer.ui.screen.RecycleBinScreen
 import com.devson.nvplayer.ui.screen.GestureSettingsScreen
 import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
 import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
+import com.devson.nvplayer.ui.screen.AboutScreen
 import com.devson.nvplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
@@ -147,7 +148,7 @@ fun AppNavigation(
         composable("settings") {
             SettingsScreen(
                 onBack = safePopBackStack, // 2. Use the safe helper
-                onNavigateToAbout = {},
+                onNavigateToAbout = { navController.navigate("about") },
                 onNavigateToLogs = {},
                 onNavigateToPrivacyPolicy = {},
                 onNavigateToAppearance = { navController.navigate("appearance") },
@@ -155,6 +156,12 @@ fun AppNavigation(
                 onNavigateToCustomHome = { navController.navigate("custom_home") },
                 onNavigateToPlayerInterface = { navController.navigate("player_interface") },
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("about") {
+            AboutScreen(
+                onBack = safePopBackStack
             )
         }
 
