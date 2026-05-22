@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -126,6 +127,7 @@ fun PlayerScreen(
     var showAudioSettingsSideSheet by remember { mutableStateOf(false) }
     var showPlaybackSpeedSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val windowInfo = LocalWindowInfo.current
 
     //  Pinch-to-Zoom state 
     // videoScale and videoOffset are owned here so they can be applied to the
@@ -253,15 +255,41 @@ fun PlayerScreen(
     val currentOnPlayPauseToggle by rememberUpdatedState(onPlayPauseToggle)
     val currentIsPlaying by rememberUpdatedState(isPlaying)
 
-    // Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio,
-    // and restore default screen brightness. Hide system bars on entry and restore on exit.
-    DisposableEffect(Unit) {
+    // Observe and apply system navigation (soft button mode) settings dynamically
+    LaunchedEffect(playbackSettings.softButtonMode, controlsVisible) {
         activity?.let { act ->
             val window = act.window
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-            insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            when (playbackSettings.softButtonMode) {
+                com.devson.nvplayer.repository.SoftButtonMode.AUTO_HIDE -> {
+                    insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (controlsVisible) {
+                        insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                    } else {
+                        insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                    }
+                }
+                com.devson.nvplayer.repository.SoftButtonMode.SHOW -> {
+                    insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                }
+                com.devson.nvplayer.repository.SoftButtonMode.HIDE -> {
+                    insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+                }
+            }
         }
+    }
+
+    // Pause playback when the window focus is lost and the pauseWhenObstructed setting is enabled
+    LaunchedEffect(windowInfo.isWindowFocused, playbackSettings.pauseWhenObstructed) {
+        if (!windowInfo.isWindowFocused && playbackSettings.pauseWhenObstructed && currentIsPlaying) {
+            currentOnPlayPauseToggle()
+        }
+    }
+
+    // Enforce standard vertical layout when leaving PlayerScreen to return to lists and pause audio,
+    // and restore default screen brightness. Restore system bars on exit.
+    DisposableEffect(Unit) {
         onDispose {
             activity?.let { act ->
                 val window = act.window

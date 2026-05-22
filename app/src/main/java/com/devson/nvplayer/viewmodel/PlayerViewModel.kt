@@ -65,11 +65,6 @@ class PlayerViewModel(
 
     private val settingsRepo = com.devson.nvplayer.repository.PlaybackSettingsRepository(application.applicationContext)
     val playbackSettings = settingsRepo.playbackSettingsFlow
-        .stateIn(
-            viewModelScope,
-            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
-            com.devson.nvplayer.repository.PlaybackSettings()
-        )
 
     init {
         _savedBrightness.value = playerPrefs.getFloat("brightness", 0.5f)

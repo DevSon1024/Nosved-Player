@@ -143,6 +143,16 @@ fun PlayerInterfaceSettingsScreen(
                 InterfaceDivider()
 
                 InterfaceToggleRow(
+                    icon = Icons.Default.FastForward,
+                    title = "Show Seek Buttons",
+                    subtitle = "Show fast forward and rewind seek buttons in player controls",
+                    checked = playbackSettings.showSeekButtons,
+                    onCheckedChange = { settingsViewModel.updateShowSeekButtons(it) }
+                )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
                     icon = Icons.Default.SkipNext,
                     title = "Show Skip Prev/Next Buttons",
                     subtitle = "Show previous/next chapter skip buttons in player controls",

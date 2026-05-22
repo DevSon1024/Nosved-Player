@@ -60,11 +60,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Register event listener
             MPVLib.addObserver(this)
 
-            // Register standard property observers
-            // Format 5 is MPV_FORMAT_DOUBLE, Format 3 is MPV_FORMAT_FLAG (boolean)
             MPVLib.observeProperty("time-pos", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
             MPVLib.observeProperty("duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
             MPVLib.observeProperty("pause", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
+            MPVLib.observeProperty("eof-reached", MPVLib.MpvFormat.MPV_FORMAT_FLAG)
             
             // Observe video dimension properties as standard long integers
             MPVLib.observeProperty("video-params/w", MPVLib.MpvFormat.MPV_FORMAT_INT64)
@@ -306,7 +305,22 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         if (property == "pause") {
             Log.d("MPVPlayerEngine", "Property Changed: pause = $value")
             _isPlaying.value = !value
-            _playbackState.value = if (value) PlayerState.Paused else PlayerState.Playing
+            val isEof = try {
+                MPVLib.getPropertyBoolean("eof-reached") ?: false
+            } catch (e: Exception) {
+                false
+            }
+            _playbackState.value = if (isEof) {
+                PlayerState.Ended
+            } else {
+                if (value) PlayerState.Paused else PlayerState.Playing
+            }
+        } else if (property == "eof-reached") {
+            Log.d("MPVPlayerEngine", "Property Changed: eof-reached = $value")
+            if (value) {
+                _playbackState.value = PlayerState.Ended
+                _isPlaying.value = false
+            }
         }
     }
 
