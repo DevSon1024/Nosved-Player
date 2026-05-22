@@ -47,9 +47,11 @@ private data class FileNode(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageExplorerScreen(
-    operationType: String, // "MOVE" or "COPY"
-    sourceUris: List<Uri>,
-    onComplete: () -> Unit,
+    operationType: String = "MOVE", // "MOVE" or "COPY"
+    sourceUris: List<Uri> = emptyList(),
+    isBlacklistMode: Boolean = false,
+    onFoldersBlacklisted: (List<String>) -> Unit = {},
+    onComplete: () -> Unit = {},
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
@@ -61,6 +63,7 @@ fun StorageExplorerScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isProcessing by remember { mutableStateOf(false) }
     var showNewFolderDialog by remember { mutableStateOf(false) }
+    val selectedFolders = remember { mutableStateListOf<String>() }
 
     // Reload entries whenever the directory changes
     LaunchedEffect(currentDir) {
@@ -145,7 +148,7 @@ fun StorageExplorerScreen(
                 title = {
                     Column {
                         Text(
-                            text = if (operationType == "MOVE") "Move to…" else "Copy to…",
+                            text = if (isBlacklistMode) "Add to Blacklist" else if (operationType == "MOVE") "Move to…" else "Copy to…",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -176,12 +179,14 @@ fun StorageExplorerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showNewFolderDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Rounded.CreateNewFolder,
-                            contentDescription = "New Folder",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    if (!isBlacklistMode) {
+                        IconButton(onClick = { showNewFolderDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.CreateNewFolder,
+                                contentDescription = "New Folder",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -198,97 +203,137 @@ fun StorageExplorerScreen(
             ) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                // Destination path indicator
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.FolderSpecial,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = targetRelativePath,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                if (isBlacklistMode) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("Cancel")
-                    }
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Cancel")
+                        }
 
-                    Button(
-                        onClick = {
-                            isProcessing = true
-                            coroutineScope.launch {
-                                val success = executeFileOperation(
-                                    context = context,
-                                    type = operationType,
-                                    uris = sourceUris,
-                                    targetRelativePath = targetRelativePath
-                                )
-                                isProcessing = false
-                                val verb = if (operationType == "MOVE") "Moved" else "Copied"
-                                if (success) {
-                                    Toast.makeText(
-                                        context,
-                                        "$verb to ${if (currentDir == root) "Internal Storage" else currentDir.name}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    onComplete()
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "$verb to ${if (currentDir == root) "Internal Storage" else currentDir.name} (may need refresh)",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    onComplete()
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(2f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        Button(
+                            onClick = {
+                                onFoldersBlacklisted(selectedFolders.toList())
+                            },
+                            enabled = selectedFolders.isNotEmpty(),
+                            modifier = Modifier.weight(2f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Block,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Blacklist Selected (${selectedFolders.size})",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                } else {
+                    // Destination path indicator
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                            .border(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            imageVector = if (operationType == "MOVE") Icons.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
+                            imageVector = Icons.Rounded.FolderSpecial,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (operationType == "MOVE") "Move Here" else "Copy Here",
-                            fontWeight = FontWeight.SemiBold
+                            text = targetRelativePath,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        Button(
+                            onClick = {
+                                isProcessing = true
+                                coroutineScope.launch {
+                                    val success = executeFileOperation(
+                                        context = context,
+                                        type = operationType,
+                                        uris = sourceUris,
+                                        targetRelativePath = targetRelativePath
+                                    )
+                                    isProcessing = false
+                                    val verb = if (operationType == "MOVE") "Moved" else "Copied"
+                                    if (success) {
+                                        Toast.makeText(
+                                            context,
+                                            "$verb to ${if (currentDir == root) "Internal Storage" else currentDir.name}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        onComplete()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "$verb to ${if (currentDir == root) "Internal Storage" else currentDir.name} (may need refresh)",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        onComplete()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(2f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (operationType == "MOVE") Icons.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (operationType == "MOVE") "Move Here" else "Copy Here",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -414,6 +459,15 @@ fun StorageExplorerScreen(
                             items(entries, key = { it.file.absolutePath }) { node ->
                                 ExplorerFolderRow(
                                     node = node,
+                                    isBlacklistMode = isBlacklistMode,
+                                    isSelected = selectedFolders.contains(node.file.absolutePath),
+                                    onSelectedChange = { selected ->
+                                        if (selected) {
+                                            selectedFolders.add(node.file.absolutePath)
+                                        } else {
+                                            selectedFolders.remove(node.file.absolutePath)
+                                        }
+                                    },
                                     onClick = { currentDir = node.file }
                                 )
                             }
@@ -467,7 +521,13 @@ fun StorageExplorerScreen(
 }
 
 @Composable
-private fun ExplorerFolderRow(node: FileNode, onClick: () -> Unit) {
+private fun ExplorerFolderRow(
+    node: FileNode,
+    isBlacklistMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectedChange: (Boolean) -> Unit = {},
+    onClick: () -> Unit
+) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -482,6 +542,14 @@ private fun ExplorerFolderRow(node: FileNode, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (isBlacklistMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = onSelectedChange,
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+            }
+
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier

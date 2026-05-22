@@ -49,7 +49,7 @@ class PlaybackSettingsRepository(context: Context) {
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
             "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
-            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location" -> {
+            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -166,7 +166,8 @@ class PlaybackSettingsRepository(context: Context) {
             customPlaybackSpeed = prefs.getFloat("custom_playback_speed", 1.0f),
             tapAndHoldSpeed = prefs.getFloat("tap_and_hold_speed", 2.0f),
             doubleTapSeekDuration = prefs.getLong("double_tap_seek_duration", 10000L),
-            screenshotLocation = prefs.getString("screenshot_location", "Pictures/NVPlayer/Screenshot") ?: "Pictures/NVPlayer/Screenshot"
+            screenshotLocation = prefs.getString("screenshot_location", "Pictures/NVPlayer/Screenshot") ?: "Pictures/NVPlayer/Screenshot",
+            blacklistedFolders = prefs.getStringSet("blacklisted_folders", emptySet()) ?: emptySet()
         )
     }
 
@@ -215,8 +216,13 @@ class PlaybackSettingsRepository(context: Context) {
             putFloat("tap_and_hold_speed", updated.tapAndHoldSpeed)
             putLong("double_tap_seek_duration", updated.doubleTapSeekDuration)
             putString("screenshot_location", updated.screenshotLocation)
+            putStringSet("blacklisted_folders", updated.blacklistedFolders)
             apply()
         }
+    }
+
+    suspend fun updateBlacklistedFolders(folders: Set<String>) {
+        updatePlaybackSettings { it.copy(blacklistedFolders = folders) }
     }
 
     // Setters for Theme / General Settings

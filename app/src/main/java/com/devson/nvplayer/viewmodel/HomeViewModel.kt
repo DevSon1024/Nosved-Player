@@ -32,14 +32,20 @@ class HomeViewModel(
     }
 
     fun loadWatchHistory() {
-        val allPrefs = sharedPrefs.all
-        val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
-        val historyList = allPrefs.mapNotNull { (key, value) ->
-            val pos = value as? Long ?: (value as? Int)?.toLong() ?: return@mapNotNull null
-            val timestamp = timePrefs.getLong(key, 0L)
-            WatchHistory(uri = key, lastPositionMs = pos, lastPlayedAt = timestamp)
-        }.sortedByDescending { it.lastPlayedAt }
-        _history.value = historyList
+        viewModelScope.launch {
+            val allPrefs = sharedPrefs.all
+            val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
+            val historyList = allPrefs.mapNotNull { (key, value) ->
+                val pos = value as? Long ?: (value as? Int)?.toLong() ?: return@mapNotNull null
+                val timestamp = timePrefs.getLong(key, 0L)
+                WatchHistory(uri = key, lastPositionMs = pos, lastPlayedAt = timestamp)
+            }.sortedByDescending { it.lastPlayedAt }
+
+            val visibleVideos = repository.getAllVideos()
+            val visibleUris = visibleVideos.map { it.uri.toString() }.toSet()
+
+            _history.value = historyList.filter { visibleUris.contains(it.uri) }
+        }
     }
 
     fun setWatchStatus(video: Video, position: Long) {

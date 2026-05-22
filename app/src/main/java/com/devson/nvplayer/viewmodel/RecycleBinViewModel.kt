@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class RecycleBinViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = VideoRepository(MediaStoreHelper(application))
+    private val repository = VideoRepository(MediaStoreHelper(application), application)
 
     private val _trashedVideos = MutableStateFlow<List<Video>>(emptyList())
     val trashedVideos: StateFlow<List<Video>> = _trashedVideos.asStateFlow()

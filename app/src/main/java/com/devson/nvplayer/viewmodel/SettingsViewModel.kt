@@ -362,4 +362,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateScreenshotLocation(location: String) {
         viewModelScope.launch { settingsRepo.updateScreenshotLocation(location) }
     }
+
+    fun addToBlacklist(paths: List<String>) {
+        viewModelScope.launch {
+            val current = settingsRepo.playbackSettingsFlow.value.blacklistedFolders
+            settingsRepo.updateBlacklistedFolders(current + paths)
+        }
+    }
+
+    fun removeFromBlacklist(path: String) {
+        viewModelScope.launch {
+            val current = settingsRepo.playbackSettingsFlow.value.blacklistedFolders
+            settingsRepo.updateBlacklistedFolders(current - path)
+        }
+    }
+
+    fun clearBlacklist() {
+        viewModelScope.launch {
+            settingsRepo.updateBlacklistedFolders(emptySet())
+        }
+    }
 }

@@ -146,7 +146,7 @@ fun SettingsScreen(
                 )
                 SettingsRow(
                     icon     = Icons.Default.Folder,
-                    title    = stringResource(R.string.settings_folders),
+                    title    = "Folders",
                     subtitle = stringResource(R.string.settings_about_folders),
                     onClick  = onNavigateToScanFolders
                 )

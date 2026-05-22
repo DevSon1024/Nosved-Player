@@ -21,6 +21,8 @@ import com.devson.nvplayer.ui.screen.GestureSettingsScreen
 import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
 import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
 import com.devson.nvplayer.ui.screen.AboutScreen
+import com.devson.nvplayer.ui.screen.FolderScreen
+import com.devson.nvplayer.ui.screens.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.VideoListScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
@@ -155,7 +157,29 @@ fun AppNavigation(
                 onNavigateToGestures = { navController.navigate("gestures") },
                 onNavigateToCustomHome = { navController.navigate("custom_home") },
                 onNavigateToPlayerInterface = { navController.navigate("player_interface") },
+                onNavigateToScanFolders = { navController.navigate("folder_settings") },
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("folder_settings") {
+            FolderScreen(
+                onNavigateBack = safePopBackStack,
+                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("storage_explorer_blacklist") {
+            StorageExplorerScreen(
+                isBlacklistMode = true,
+                onFoldersBlacklisted = { selectedPaths ->
+                    settingsViewModel.addToBlacklist(selectedPaths)
+                    navController.popBackStack()
+                },
+                onCancel = {
+                    navController.popBackStack()
+                }
             )
         }
 

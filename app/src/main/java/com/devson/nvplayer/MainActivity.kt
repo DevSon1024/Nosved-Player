@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         Coil.setImageLoader(imageLoader)
 
         val mediaStoreHelper = MediaStoreHelper(this)
-        val repository = VideoRepository(mediaStoreHelper)
+        val repository = VideoRepository(mediaStoreHelper, this)
         val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository(applicationContext)
         
         homeViewModel = HomeViewModel(applicationContext, repository)
