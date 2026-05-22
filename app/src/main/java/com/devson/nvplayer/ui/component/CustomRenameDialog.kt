@@ -5,27 +5,41 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Reusable dialog for renaming files/folders or naming a new folder.
+ *
+ * @param initialName  Pre-filled text (use "" for new-folder flow).
+ * @param title        Dialog heading.
+ * @param confirmLabel Label for the confirm button (default "Rename").
+ * @param placeholder  TextField placeholder text.
+ * @param subtitle     Optional secondary description line.
+ * @param onConfirm    Called with the trimmed, non-blank value.
+ * @param onDismiss    Called when the dialog is dismissed without confirmation.
+ */
 @Composable
 fun CustomRenameDialog(
     initialName: String,
     title: String = "Rename",
+    confirmLabel: String = "Rename",
+    placeholder: String = "New name",
+    subtitle: String? = null,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var text by remember { mutableStateOf(initialName) }
-    
+    val isNewFolder = confirmLabel != "Rename"
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -48,7 +62,7 @@ fun CustomRenameDialog(
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon Header
+                // Icon badge
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -57,10 +71,11 @@ fun CustomRenameDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.DriveFileRenameOutline,
+                        imageVector = if (isNewFolder) Icons.Rounded.CreateNewFolder
+                        else Icons.Filled.DriveFileRenameOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(30.dp)
                     )
                 }
 
@@ -73,10 +88,10 @@ fun CustomRenameDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Enter a new name below",
+                    text = subtitle ?: "Enter a new name below",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -88,7 +103,7 @@ fun CustomRenameDialog(
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    placeholder = { Text("New name") },
+                    placeholder = { Text(placeholder) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -107,22 +122,27 @@ fun CustomRenameDialog(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, MaterialTheme.colorScheme.outline
+                        )
                     ) {
                         Text("Cancel", fontWeight = FontWeight.SemiBold)
                     }
 
+                    val isValid = text.isNotBlank() &&
+                            (isNewFolder || text.trim() != initialName)
+
                     Button(
-                        onClick = { if (text.isNotBlank()) onConfirm(text.trim()) },
+                        onClick = { if (isValid) onConfirm(text.trim()) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = text.isNotBlank() && text != initialName,
+                        enabled = isValid,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Text("Rename", fontWeight = FontWeight.SemiBold)
+                        Text(confirmLabel, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

@@ -11,9 +11,14 @@ import android.media.MediaScannerConnection
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.devson.nvplayer.data.media.FileTransferOps
+import com.devson.nvplayer.data.model.VideoItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,9 +55,88 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     /** Stored so we know what to execute once the user grants permission. */
     private var pendingAction: PendingFileAction? = null
 
-    // 
+    private val _transferringFileName = MutableStateFlow<String?>(null)
+    val transferringFileName: StateFlow<String?> = _transferringFileName.asStateFlow()
+
+    private val _transferPercentage = MutableStateFlow(0)
+    val transferPercentage: StateFlow<Int> = _transferPercentage.asStateFlow()
+
+    private val _isTransferring = MutableStateFlow(false)
+    val isTransferring: StateFlow<Boolean> = _isTransferring.asStateFlow()
+
+    private val _pendingDeletionsFlow = MutableSharedFlow<List<Uri>>()
+    val pendingDeletionsFlow: SharedFlow<List<Uri>> = _pendingDeletionsFlow.asSharedFlow()
+
     // PUBLIC API
-    // 
+
+    fun moveVideos(context: Context, videos: List<VideoItem>, destRelativePath: String) {
+        viewModelScope.launch {
+            _isTransferring.value = true
+            _operationInProgress.value = true
+            val pendingDeletions = mutableListOf<Uri>()
+            var successCount = 0
+            var failCount = 0
+            try {
+                for (video in videos) {
+                    _transferringFileName.value = video.title
+                    _transferPercentage.value = 0
+                    val result = FileTransferOps.copyVideoScoped(context, video, destRelativePath) { progress ->
+                        _transferPercentage.value = progress
+                    }
+                    if (result.isSuccess) {
+                        pendingDeletions.add(video.uri)
+                        successCount++
+                    } else {
+                        failCount++
+                    }
+                }
+                if (pendingDeletions.isNotEmpty()) {
+                    _pendingDeletionsFlow.emit(pendingDeletions)
+                }
+                _operationResult.value = buildOpResult("Moved", successCount, failCount)
+            } catch (e: Exception) {
+                _operationResult.value = "Move failed: ${e.localizedMessage}"
+            } finally {
+                _isTransferring.value = false
+                _transferringFileName.value = null
+                _transferPercentage.value = 0
+                _operationInProgress.value = false
+                _needsRefresh.value = true
+            }
+        }
+    }
+
+    fun copyVideosToTreeUri(context: Context, videos: List<VideoItem>, destTreeUri: Uri) {
+        viewModelScope.launch {
+            _isTransferring.value = true
+            _operationInProgress.value = true
+            var successCount = 0
+            var failCount = 0
+            try {
+                for (video in videos) {
+                    _transferringFileName.value = video.title
+                    _transferPercentage.value = 0
+                    val result = FileTransferOps.copyVideoToTreeUri(context, video, destTreeUri) { progress ->
+                        _transferPercentage.value = progress
+                    }
+                    if (result.isSuccess) {
+                        successCount++
+                    } else {
+                        failCount++
+                    }
+                }
+                _operationResult.value = buildOpResult("Copied", successCount, failCount)
+            } catch (e: Exception) {
+                _operationResult.value = "Copy failed: ${e.localizedMessage}"
+            } finally {
+                _isTransferring.value = false
+                _transferringFileName.value = null
+                _transferPercentage.value = 0
+                _operationInProgress.value = false
+                _needsRefresh.value = true
+            }
+        }
+    }
 
     fun clearResult() { _operationResult.value = null }
     fun clearPendingIntentSender() { _pendingIntentSender.value = null }
