@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist
+package com.devson.nvplayer.ui.screen.videolist
 
 import android.Manifest
 import android.app.Activity
@@ -46,7 +46,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
 import com.devson.nvplayer.ui.screen.InformationBottomSheet
-import com.devson.nvplayer.ui.screens.StorageExplorerScreen
+import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
 import com.devson.nvplayer.ui.screens.videolist.components.explorer.ExplorerListContent
@@ -57,6 +57,7 @@ import com.devson.nvplayer.util.SelectionBottomAppBar
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
+import kotlin.collections.get
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable

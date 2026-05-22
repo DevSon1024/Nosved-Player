@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens
+package com.devson.nvplayer.ui.screen
 
 import android.content.ContentValues
 import android.content.Context
@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -324,7 +325,7 @@ fun StorageExplorerScreen(
                             )
                         ) {
                             Icon(
-                                imageVector = if (operationType == "MOVE") Icons.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
+                                imageVector = if (operationType == "MOVE") Icons.AutoMirrored.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )

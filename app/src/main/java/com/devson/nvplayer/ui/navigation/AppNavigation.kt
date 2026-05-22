@@ -22,8 +22,8 @@ import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
 import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
 import com.devson.nvplayer.ui.screen.AboutScreen
 import com.devson.nvplayer.ui.screen.FolderScreen
-import com.devson.nvplayer.ui.screens.StorageExplorerScreen
-import com.devson.nvplayer.ui.screens.videolist.VideoListScreen
+import com.devson.nvplayer.ui.screen.StorageExplorerScreen
+import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
