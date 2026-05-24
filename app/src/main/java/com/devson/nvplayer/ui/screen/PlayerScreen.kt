@@ -58,6 +58,8 @@ import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
 import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
 import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
+import com.devson.nvplayer.player.ChapterInfo
+import com.devson.nvplayer.ui.component.ChaptersSideSheet
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -136,6 +138,8 @@ fun PlayerScreen(
     onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
     onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
+    chapters: List<ChapterInfo> = emptyList(),
+    onSelectChapter: (Int) -> Unit = {},
     onTakeVideoScreenshot: () -> Unit = {}
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
@@ -143,6 +147,7 @@ fun PlayerScreen(
     var showSubtitleSettingsSideSheet by remember { mutableStateOf(false) }
     var showAudioSettingsSideSheet by remember { mutableStateOf(false) }
     var showPlayerSettingsSideSheet by remember { mutableStateOf(false) }
+    var showChaptersSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val windowInfo = LocalWindowInfo.current
 
@@ -521,6 +526,9 @@ fun PlayerScreen(
                         onSpeedClick = {
                             showPlayerSettingsSideSheet = true
                         },
+                        onShowChapters = {
+                            showChaptersSideSheet = true
+                        },
                         onCycleSubtitle = {
                             showSubtitleSettingsSideSheet = true
                         },
@@ -612,6 +620,13 @@ fun PlayerScreen(
             onUpdatePauseWhenObstructed = onUpdatePauseWhenObstructed,
             onUpdateKeepAwakeAlways = onUpdateKeepAwakeAlways,
             onDismiss = { showPlayerSettingsSideSheet = false }
+        )
+
+        ChaptersSideSheet(
+            visible = showChaptersSideSheet,
+            chapters = chapters,
+            onSelectChapter = onSelectChapter,
+            onDismiss = { showChaptersSideSheet = false }
         )
     }
 }

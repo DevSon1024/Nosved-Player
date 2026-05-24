@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.player.PlayerEngine
 import com.devson.nvplayer.player.PlayerState
 import com.devson.nvplayer.player.TrackInfo
+import com.devson.nvplayer.player.ChapterInfo
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,7 @@ class PlayerViewModel(
     val currentSubtitleText: StateFlow<String> = playerEngine.currentSubtitleText
     val subtitleTracks: StateFlow<List<TrackInfo>> = playerEngine.subtitleTracks
     val audioTracks: StateFlow<List<TrackInfo>> = playerEngine.audioTracks
+    val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
 
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
@@ -298,6 +300,10 @@ class PlayerViewModel(
 
     fun selectAudioTrack(id: Int) {
         playerEngine.selectAudioTrack(id)
+    }
+
+    fun selectChapter(index: Int) {
+        playerEngine.selectChapter(index)
     }
 
     fun setSubtitleDelay(delayMs: Long) {

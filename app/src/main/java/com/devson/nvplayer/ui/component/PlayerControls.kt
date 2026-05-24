@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -60,6 +61,7 @@ fun PlayerControls(
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long, Boolean) -> Unit,
     onSpeedClick: () -> Unit,
+    onShowChapters: () -> Unit = {},
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
     onBackClick: () -> Unit,
@@ -161,19 +163,30 @@ fun PlayerControls(
                 }
             }
 
-            if (!isPortrait && showBatteryClockOverlay) {
-                Spacer(modifier = Modifier.width(12.dp))
-                BatteryAndClockOverlay()
-            }
-
             if (isPortrait) {
                 if (showBatteryClockOverlay) {
                     BatteryAndClockOverlay()
                 }
             } else {
-                if (showBatteryClockOverlay) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .clickable { onShowChapters() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                        contentDescription = "Chapters",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -394,6 +407,35 @@ fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Chapters Quick Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .clickable { onShowChapters() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                                contentDescription = "Chapters",
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "Chapters",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
                     // Subtitles Quick Button
                     Box(
                         modifier = Modifier

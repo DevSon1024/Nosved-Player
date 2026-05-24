@@ -14,6 +14,7 @@ interface PlayerEngine {
     val currentSubtitleText: StateFlow<String>
     val subtitleTracks: StateFlow<List<TrackInfo>>
     val audioTracks: StateFlow<List<TrackInfo>>
+    val chapters: StateFlow<List<ChapterInfo>>
 
     fun loadVideo(uri: Uri)
     fun play()
@@ -25,6 +26,7 @@ interface PlayerEngine {
     fun cycleAudio()
     fun selectSubtitleTrack(id: Int)
     fun selectAudioTrack(id: Int)
+    fun selectChapter(index: Int)
     fun setSubtitleDelay(delayMs: Long)
     fun setSubtitleStyle(scale: Float, font: String, bold: Boolean)
     fun seekNextSubtitle()

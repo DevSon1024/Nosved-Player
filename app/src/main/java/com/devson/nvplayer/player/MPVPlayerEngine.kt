@@ -41,6 +41,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _audioTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     override val audioTracks: StateFlow<List<TrackInfo>> = _audioTracks.asStateFlow()
 
+    private val _chapters = MutableStateFlow<List<ChapterInfo>>(emptyList())
+    override val chapters: StateFlow<List<ChapterInfo>> = _chapters.asStateFlow()
+
     init {
         try {
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
@@ -87,6 +90,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _videoWidth.value = 0L
         _videoHeight.value = 0L
         _videoRotation.value = 0L
+        _chapters.value = emptyList()
         
         val uriString = uri.toString()
         Log.d("MPVPlayerEngine", "Loading media file: $uriString")
@@ -194,6 +198,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    override fun selectChapter(index: Int) {
+        Log.d("MPVPlayerEngine", "Selecting chapter index: $index")
+        try {
+            MPVLib.setPropertyInt("chapter", index)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to select chapter: $index", e)
+        }
+    }
+
     override fun setSubtitleDelay(delayMs: Long) {
         Log.d("MPVPlayerEngine", "Setting subtitle delay: $delayMs ms")
         try {
@@ -276,6 +289,23 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             Log.d("MPVPlayerEngine", "Tracks updated. Subs: ${subs.size}, Audios: ${audios.size}")
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to update track list", e)
+        }
+    }
+
+    private fun updateChapters() {
+        try {
+            val count = MPVLib.getPropertyInt("chapter-list/count") ?: 0
+            val list = mutableListOf<ChapterInfo>()
+            for (i in 0 until count) {
+                val title = MPVLib.getPropertyString("chapter-list/$i/title") ?: "Chapter ${i + 1}"
+                val timeSecStr = MPVLib.getPropertyString("chapter-list/$i/time") ?: "0.0"
+                val timeSec = timeSecStr.toDoubleOrNull() ?: 0.0
+                list.add(ChapterInfo(i, title, (timeSec * 1000).toLong()))
+            }
+            _chapters.value = list
+            Log.d("MPVPlayerEngine", "Chapters updated: ${list.size}")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to update chapters", e)
         }
     }
 
@@ -367,6 +397,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _playbackState.value = PlayerState.Playing
                 _isPlaying.value = true
                 updateTracks()
+                updateChapters()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 _playbackState.value = PlayerState.Ended

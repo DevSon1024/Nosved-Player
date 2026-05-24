@@ -257,6 +257,7 @@ fun AppNavigation(
             val subtitleTracks by playerViewModel.subtitleTracks.collectAsState()
             val audioTracks by playerViewModel.audioTracks.collectAsState()
             val audioBoosterEnabled by playerViewModel.audioBoosterEnabled.collectAsState()
+            val chapters by playerViewModel.chapters.collectAsState()
 
             PlayerScreen(
                 playbackState = playbackState,
@@ -324,7 +325,9 @@ fun AppNavigation(
                 onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },
                 onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
-                onTakeVideoScreenshot = { playerViewModel.takeVideoScreenshot() }
+                onTakeVideoScreenshot = { playerViewModel.takeVideoScreenshot() },
+                chapters = chapters,
+                onSelectChapter = { playerViewModel.selectChapter(it) }
             )
         }
     }
