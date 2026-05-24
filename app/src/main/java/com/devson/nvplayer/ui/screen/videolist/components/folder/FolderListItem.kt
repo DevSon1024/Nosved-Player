@@ -95,7 +95,7 @@ fun FolderMediaPreview(
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
             VideoThumbnail(
-                uri = videos.first().uri,
+                uri = videos.first().thumbnailUri ?: videos.first().uri,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )

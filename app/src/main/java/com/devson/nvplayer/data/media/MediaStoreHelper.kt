@@ -16,6 +16,7 @@ class MediaStoreHelper(private val context: Context) {
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
         val videos = mutableListOf<VideoItem>()
         val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val thumbnailsMap = getThumbnailsMap(context)
 
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
@@ -55,6 +56,7 @@ class MediaStoreHelper(private val context: Context) {
 
                 val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                 val folderName = File(data).parentFile?.name ?: "Unknown"
+                val thumbnailUri = thumbnailsMap[id] ?: contentUri
 
                 videos.add(
                     VideoItem(
@@ -63,7 +65,7 @@ class MediaStoreHelper(private val context: Context) {
                         duration = duration,
                         folderName = folderName,
                         path = data,
-                        thumbnailUri = contentUri,
+                        thumbnailUri = thumbnailUri,
                         size = size,
                         width = width,
                         height = height
@@ -85,6 +87,8 @@ class MediaStoreHelper(private val context: Context) {
         }
         val videos = mutableListOf<VideoItem>()
         val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val thumbnailsMap = getThumbnailsMap(context)
+
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
@@ -122,6 +126,7 @@ class MediaStoreHelper(private val context: Context) {
                 val height = cursor.getInt(heightColumn)
                 val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                 val folderName = java.io.File(data).parentFile?.name ?: "Unknown"
+                val thumbnailUri = thumbnailsMap[id] ?: contentUri
                 videos.add(
                     VideoItem(
                         uri = contentUri,
@@ -129,7 +134,7 @@ class MediaStoreHelper(private val context: Context) {
                         duration = duration,
                         folderName = folderName,
                         path = data,
-                        thumbnailUri = contentUri,
+                        thumbnailUri = thumbnailUri,
                         size = size,
                         width = width,
                         height = height
@@ -155,8 +160,32 @@ class MediaStoreHelper(private val context: Context) {
             FolderItem(
                 name = folderName,
                 videoCount = videos.size,
-                thumbnailUri = videos.firstOrNull()?.uri
+                thumbnailUri = videos.firstOrNull()?.thumbnailUri
             )
         }.sortedBy { it.name }
+    }
+
+    private suspend fun getThumbnailsMap(context: Context): Map<Long, Uri> = withContext(Dispatchers.IO) {
+        val thumbnailsMap = mutableMapOf<Long, Uri>()
+        try {
+            val collection = MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI
+            val projection = arrayOf(
+                MediaStore.Video.Thumbnails.VIDEO_ID,
+                MediaStore.Video.Thumbnails._ID
+            )
+            context.contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
+                val videoIdCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Thumbnails.VIDEO_ID)
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Thumbnails._ID)
+                while (cursor.moveToNext()) {
+                    val videoId = cursor.getLong(videoIdCol)
+                    val thumbId = cursor.getLong(idCol)
+                    val thumbUri = ContentUris.withAppendedId(MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, thumbId)
+                    thumbnailsMap[videoId] = thumbUri
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        thumbnailsMap
     }
 }

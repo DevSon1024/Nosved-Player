@@ -115,7 +115,7 @@ fun VideoListItem(
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri         = video.uri,
+                        uri         = video.thumbnailUri ?: video.uri,
                         modifier    = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected
                     )

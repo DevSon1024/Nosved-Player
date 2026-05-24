@@ -10,23 +10,34 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
 import coil3.decode.DataSource
-import coil3.fetch.ImageFetchResult
+import coil3.decode.ImageSource
+import coil3.fetch.SourceFetchResult
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.request.Options
 import coil3.size.Dimension
-import coil3.asImage
+import okio.Buffer
 import coil3.video.videoFrameMicros
 import coil3.video.videoFramePercent
 import coil3.video.videoFrameIndex
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
+
+private val extractionDispatcher = Executors.newFixedThreadPool(2) { runnable ->
+    Thread(runnable, "thumbnail-extractor").apply {
+        priority = Thread.MIN_PRIORITY
+    }
+}.asCoroutineDispatcher()
 
 class VideoThumbnailFetcher(
     private val data: Uri,
     private val options: Options
 ) : Fetcher {
 
-    override suspend fun fetch(): FetchResult? {
+    override suspend fun fetch(): FetchResult? = withContext(extractionDispatcher) {
         val context = options.context
         val uri = data
         
@@ -68,15 +79,22 @@ class VideoThumbnailFetcher(
         }
 
         if (bitmap != null) {
-            val drawable = BitmapDrawable(context.resources, bitmap)
-            return ImageFetchResult(
-                image = drawable.asImage(),
-                isSampled = false,
-                dataSource = DataSource.DISK
+            val outputStream = java.io.ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+            val bytes = outputStream.toByteArray()
+            val buffer = okio.Buffer().apply { write(bytes) }
+            
+            SourceFetchResult(
+                source = ImageSource(
+                    source = buffer,
+                    fileSystem = options.fileSystem
+                ),
+                mimeType = "image/jpeg",
+                dataSource = DataSource.MEMORY
             )
+        } else {
+            null
         }
-        
-        return null
     }
 
     private fun getVideoIdFromPath(context: Context, path: String): Long {
@@ -123,8 +141,16 @@ class VideoThumbnailFetcher(
             // Check if this is a video URI
             val scheme = data.scheme
             val isVideo = if (scheme == ContentResolver.SCHEME_CONTENT) {
-                val type = context.contentResolver.getType(data)
-                type?.startsWith("video/") == true || data.pathSegments.contains("video")
+                val type = try {
+                    context.contentResolver.getType(data)
+                } catch (e: Exception) {
+                    null
+                }
+                if (type != null) {
+                    type.startsWith("video/")
+                } else {
+                    data.pathSegments.contains("video") && !data.pathSegments.contains("thumbnails")
+                }
             } else if (scheme == ContentResolver.SCHEME_FILE) {
                 val path = data.path
                 path != null && (
@@ -144,6 +170,17 @@ class VideoThumbnailFetcher(
             } else {
                 null
             }
+        }
+    }
+
+    class StringFactory(private val context: Context) : Fetcher.Factory<String> {
+        override fun create(data: String, options: Options, imageLoader: coil3.ImageLoader): Fetcher? {
+            val uri = try {
+                Uri.parse(data)
+            } catch (e: Exception) {
+                return null
+            }
+            return Factory(context).create(uri, options, imageLoader)
         }
     }
 }

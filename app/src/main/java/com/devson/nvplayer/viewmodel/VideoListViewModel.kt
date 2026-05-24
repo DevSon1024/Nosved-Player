@@ -106,7 +106,8 @@ class VideoListViewModel(
                                 playedTime = null,
                                 lastPlayedAt = null,
                                 resolution = "${item.width}x${item.height}",
-                                frameRate = 30.0f
+                                frameRate = 30.0f,
+                                thumbnailUri = item.thumbnailUri?.toString()
                             )
                         }
                         if (videos.isNotEmpty()) {

@@ -36,7 +36,7 @@ class VideoRepository(
             FolderItem(
                 name = folderName,
                 videoCount = videos.size,
-                thumbnailUri = videos.firstOrNull()?.uri
+                thumbnailUri = videos.firstOrNull()?.thumbnailUri
             )
         }.sortedBy { it.name }
     }
@@ -69,7 +69,8 @@ class VideoRepository(
                     path = item.path,
                     size = item.size,
                     width = item.width,
-                    height = item.height
+                    height = item.height,
+                    thumbnailUri = item.thumbnailUri?.toString()
                 )
             }
     }

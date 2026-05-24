@@ -509,7 +509,7 @@ fun ContinueWatchingCard(
                     .height(120.dp)
             ) {
                 VideoThumbnail(
-                    uri = video.uri,
+                    uri = video.thumbnailUri ?: video.uri,
                     modifier = Modifier.fillMaxSize(),
                     showPlayIcon = true
                 )
