@@ -411,7 +411,7 @@ fun PlayerControls(
 
 
 
-        // --- 3. BOTTOM PANEL (Timers, Seekbar & Up Next Hint) ---
+        // --- 3. BOTTOM PANEL (Timers & Seekbar) ---
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -784,29 +784,6 @@ fun PlayerControls(
                     }
                 }
             )
-
-            // Up Next Footer Drag Handle styling
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Up Next",
-                    tint = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Up Next",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
         }
     }
 }
