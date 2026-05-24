@@ -497,11 +497,9 @@ fun PlayerScreen(
                     onSeekPrev = onSeekPrevSubtitle
                 )
 
-                // Persistent top bar overlay when controls are hidden (landscape only for battery/clock)
-                val configuration = LocalConfiguration.current
-                val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                // Persistent top bar overlay when controls are hidden
                 AnimatedVisibility(
-                    visible = !controlsVisible && isLandscape && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
+                    visible = !controlsVisible && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
                     enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
                     exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
                     modifier = Modifier.align(Alignment.TopCenter)
