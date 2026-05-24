@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
 
         val mediaStoreHelper = MediaStoreHelper(this)
         val repository = VideoRepository(mediaStoreHelper, this)
-        val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository(applicationContext)
+        val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(applicationContext)
         
         homeViewModel = HomeViewModel(applicationContext, repository)
         settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]

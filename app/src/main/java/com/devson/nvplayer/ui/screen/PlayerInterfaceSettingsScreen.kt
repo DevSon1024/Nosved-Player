@@ -40,6 +40,7 @@ fun PlayerInterfaceSettingsScreen(
     var showScalingDialog by remember { mutableStateOf(false) }
     var showSoftButtonDialog by remember { mutableStateOf(false) }
     var showIconSizeDialog by remember { mutableStateOf(false) }
+    var showSeekBarStyleDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -128,6 +129,19 @@ fun PlayerInterfaceSettingsScreen(
                     title = "Controls Icon Size",
                     subtitle = playbackSettings.controlIconSize.replaceFirstChar { it.uppercase() },
                     onClick = { showIconSizeDialog = true }
+                )
+
+                InterfaceDivider()
+
+                InterfaceRow(
+                    icon = Icons.Default.Waves,
+                    title = "Seekbar Style",
+                    subtitle = when (playbackSettings.seekBarStyle) {
+                        "wavy" -> "Wavy"
+                        "thick" -> "Thick"
+                        else -> "Standard"
+                    },
+                    onClick = { showSeekBarStyleDialog = true }
                 )
 
                 InterfaceDivider()
@@ -421,6 +435,53 @@ fun PlayerInterfaceSettingsScreen(
         )
     }
 
+    if (showSeekBarStyleDialog) {
+        val styles = listOf("standard", "wavy", "thick")
+        AlertDialog(
+            onDismissRequest = { showSeekBarStyleDialog = false },
+            title = { Text("Seekbar Style") },
+            text = {
+                Column(Modifier.selectableGroup()) {
+                    styles.forEach { style ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .selectable(
+                                    selected = (playbackSettings.seekBarStyle == style),
+                                    onClick = {
+                                        settingsViewModel.updateSeekBarStyle(style)
+                                        showSeekBarStyleDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (playbackSettings.seekBarStyle == style),
+                                onClick = null
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = when (style) {
+                                    "wavy" -> "Wavy"
+                                    "thick" -> "Thick"
+                                    else -> "Standard"
+                                },
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSeekBarStyleDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
 }
 

@@ -57,7 +57,6 @@ fun AppearanceSettingsScreen(
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
-    var showSeekBarStyleDialog by remember { mutableStateOf(false) }
 
     //  Theme picker dialog
     if (showThemeDialog) {
@@ -166,63 +165,6 @@ fun AppearanceSettingsScreen(
         )
     }
 
-    //  Seekbar Style picker dialog
-    if (showSeekBarStyleDialog) {
-        AlertDialog(
-            onDismissRequest = { showSeekBarStyleDialog = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = MaterialTheme.colorScheme.background,
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Waves,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text("Seekbar Style", style = MaterialTheme.typography.titleMedium)
-                }
-            },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    ThemeOption(
-                        text        = "Standard",
-                        selected    = seekBarStyle != "wavy" && seekBarStyle != "thick",
-                        icon        = Icons.Default.LinearScale,
-                        onClick     = {
-                            settingsViewModel.updateSeekBarStyle("standard")
-                            showSeekBarStyleDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text        = "Wavy",
-                        selected    = seekBarStyle == "wavy",
-                        icon        = Icons.Default.Waves,
-                        onClick     = {
-                            settingsViewModel.updateSeekBarStyle("wavy")
-                            showSeekBarStyleDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text        = "Thick",
-                        selected    = seekBarStyle == "thick",
-                        icon        = Icons.Default.LineWeight,
-                        onClick     = {
-                            settingsViewModel.updateSeekBarStyle("thick")
-                            showSeekBarStyleDialog = false
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSeekBarStyleDialog = false }) { Text(stringResource(R.string.appearance_close)) }
-            }
-        )
-    }
-
     //  Main scaffold
     Scaffold(
         topBar = {
@@ -322,17 +264,6 @@ fun AppearanceSettingsScreen(
                     onCheckedChange = { settingsViewModel.setNavBarTransparent(it) }
                 )
 
-                AppearanceDivider()
-                AppearanceNavRow(
-                    icon     = Icons.Default.Waves,
-                    title    = "Seekbar Style",
-                    subtitle = when (seekBarStyle) {
-                        "wavy" -> "Wavy"
-                        "thick" -> "Thick"
-                        else -> "Standard"
-                    },
-                    onClick  = { showSeekBarStyleDialog = true }
-                )
             }
 
             Spacer(Modifier.height(16.dp))

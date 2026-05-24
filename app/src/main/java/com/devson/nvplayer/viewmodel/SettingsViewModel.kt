@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
-    private val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository(application.applicationContext)
+    private val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(application.applicationContext)
 
     val viewSettings = viewSettingsRepo.viewSettingsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.devson.nvplayer.model.ViewSettings())
@@ -114,14 +114,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Call when the user finishes or skips the onboarding screen. */
     fun markOnboardingComplete() {
         viewModelScope.launch { settingsRepo.setHasSeenOnboarding(true) }
-    }
-
-    fun updateRecognizeNoMedia(recognize: Boolean) {
-        viewModelScope.launch { viewSettingsRepo.updateRecognizeNoMedia(recognize) }
-    }
-
-    fun updateShowHiddenFiles(show: Boolean) {
-        viewModelScope.launch { viewSettingsRepo.updateShowHiddenFiles(show) }
     }
 
     fun updateShowQuickFab(show: Boolean) {

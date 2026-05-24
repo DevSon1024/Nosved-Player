@@ -12,7 +12,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class ViewSettingsRepository(context: Context) {
+class ViewSettingsRepository private constructor(context: Context) {
+    companion object {
+        @Volatile
+        private var INSTANCE: ViewSettingsRepository? = null
+
+        fun getInstance(context: Context): ViewSettingsRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: ViewSettingsRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
     private val prefs: SharedPreferences = context.getSharedPreferences("view_settings", Context.MODE_PRIVATE)
 
     private val _viewSettingsFlow = MutableStateFlow(loadSettings())
@@ -28,8 +38,6 @@ class ViewSettingsRepository(context: Context) {
 
     private fun loadSettings(): ViewSettings {
         return ViewSettings(
-            recognizeNoMedia = prefs.getBoolean("recognize_no_media", false),
-            showHiddenFiles = prefs.getBoolean("show_hidden_files", false),
             showQuickFab = prefs.getBoolean("show_quick_fab", true),
             selectByThumbnail = prefs.getBoolean("select_by_thumbnail", false),
             enableFabPreview = prefs.getBoolean("enable_fab_preview", true),
@@ -82,8 +90,6 @@ class ViewSettingsRepository(context: Context) {
         _viewSettingsFlow.value = updated
         
         prefs.edit().apply {
-            putBoolean("recognize_no_media", updated.recognizeNoMedia)
-            putBoolean("show_hidden_files", updated.showHiddenFiles)
             putBoolean("show_quick_fab", updated.showQuickFab)
             putBoolean("select_by_thumbnail", updated.selectByThumbnail)
             putBoolean("enable_fab_preview", updated.enableFabPreview)
@@ -110,14 +116,6 @@ class ViewSettingsRepository(context: Context) {
             putString("view_mode", updated.viewMode.name)
             apply()
         }
-    }
-
-    suspend fun updateRecognizeNoMedia(recognize: Boolean) {
-        updateSettings { it.copy(recognizeNoMedia = recognize) }
-    }
-
-    suspend fun updateShowHiddenFiles(show: Boolean) {
-        updateSettings { it.copy(showHiddenFiles = show) }
     }
 
     suspend fun updateShowQuickFab(show: Boolean) {

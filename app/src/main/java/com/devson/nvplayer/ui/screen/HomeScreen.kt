@@ -206,6 +206,29 @@ fun HomeScreen(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                 )
             )
+            // 5. Quick Navigation Dashboard
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Quick Navigation",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                QuickActionCard(
+                    title = "Browse Video Library",
+                    subtitle = "Explore all folders, files, and playlists",
+                    icon = { Icon(Icons.Default.VideoLibrary, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
+                    onClick = onBrowseClick
+                )
+                QuickActionCard(
+                    title = "Recycle Bin",
+                    subtitle = "View and restore deleted media files",
+                    icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
+                    onClick = onRecycleBinClick
+                )
+            }
 
             // 3. Stats Dashboard Section
             Row(
@@ -338,30 +361,6 @@ fun HomeScreen(
                         }
                     }
                 }
-            }
-
-            // 5. Quick Navigation Dashboard
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Quick Navigation",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                QuickActionCard(
-                    title = "Browse Video Library",
-                    subtitle = "Explore all folders, files, and playlists",
-                    icon = { Icon(Icons.Default.VideoLibrary, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
-                    onClick = onBrowseClick
-                )
-                QuickActionCard(
-                    title = "Recycle Bin",
-                    subtitle = "View and restore deleted media files",
-                    icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
-                    onClick = onRecycleBinClick
-                )
             }
 
             // 6. Recent Folders

@@ -53,26 +53,13 @@ class VideoListViewModel(
      * no disk I/O is triggered by toggling showHiddenFiles / recognizeNoMedia.
      */
     val videosByFolder: StateFlow<Map<VideoFolder, List<Video>>> =
-        combine(_rawVideosByFolder, viewSettingsRepo.viewSettingsFlow) { raw, settings ->
+        combine(_rawVideosByFolder, viewSettingsRepo.viewSettingsFlow) { raw, _ ->
             raw.mapValues { (_, videos) ->
                 videos.filter { video ->
-                    val passHidden = settings.showHiddenFiles ||
-                        !video.path.split("/").any { seg -> seg.startsWith(".") && seg.length > 1 }
-                    val passNoMedia = !settings.recognizeNoMedia || !hasNoMediaAncestor(video.path)
-                    passHidden && passNoMedia
+                    !video.path.split("/").any { seg -> seg.startsWith(".") && seg.length > 1 }
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    /** Returns true if any ancestor directory of [filePath] contains a .nomedia file. */
-    private fun hasNoMediaAncestor(filePath: String): Boolean {
-        var dir = File(filePath).parentFile
-        while (dir != null) {
-            if (File(dir, ".nomedia").exists()) return true
-            dir = dir.parentFile
-        }
-        return false
-    }
 
     fun loadVideos(forceRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -300,20 +287,6 @@ class VideoListViewModel(
         viewModelScope.launch {
             viewSettingsRepo.updateDisplayLengthOverThumbnail(show)
         }
-    }
-
-    fun updateShowHiddenFiles(show: Boolean) {
-        viewModelScope.launch {
-            viewSettingsRepo.updateShowHiddenFiles(show)
-        }
-        // No loadVideos() — combine flow re-filters _rawVideosByFolder instantly
-    }
-
-    fun updateRecognizeNoMedia(show: Boolean) {
-        viewModelScope.launch {
-            viewSettingsRepo.updateRecognizeNoMedia(show)
-        }
-        // No loadVideos() — combine flow re-filters _rawVideosByFolder instantly
     }
 
     fun updateShowFrameRate(show: Boolean) {
