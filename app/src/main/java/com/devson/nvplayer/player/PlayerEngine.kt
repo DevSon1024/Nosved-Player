@@ -15,6 +15,7 @@ interface PlayerEngine {
     val subtitleTracks: StateFlow<List<TrackInfo>>
     val audioTracks: StateFlow<List<TrackInfo>>
     val chapters: StateFlow<List<ChapterInfo>>
+    val hwdecCurrent: StateFlow<String>
 
     fun loadVideo(uri: Uri)
     fun play()

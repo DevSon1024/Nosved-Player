@@ -11,6 +11,7 @@ import android.os.Environment
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -46,6 +48,10 @@ class PlayerViewModel(
     val subtitleTracks: StateFlow<List<TrackInfo>> = playerEngine.subtitleTracks
     val audioTracks: StateFlow<List<TrackInfo>> = playerEngine.audioTracks
     val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
+    val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
+
+    private val _isHwSupported = MutableStateFlow(true)
+    val isHwSupported: StateFlow<Boolean> = _isHwSupported.asStateFlow()
 
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
@@ -94,6 +100,57 @@ class PlayerViewModel(
             playbackState.collect { state ->
                 if (state is PlayerState.Ended && playbackSettings.value.autoPlayEnabled) {
                     playNext()
+                }
+            }
+        }
+
+        // Observe decoder mode changes from settings and apply immediately if video is active
+        viewModelScope.launch {
+            var lastDecoderMode: DecoderMode? = null
+            playbackSettings.collect { settings ->
+                if (lastDecoderMode != settings.decoderMode) {
+                    lastDecoderMode = settings.decoderMode
+                    if (isVideoLoaded) {
+                        Log.d("PlayerViewModel", "Applying decoder change immediately: ${settings.decoderMode}")
+                        playerEngine.setDecoder(settings.decoderMode)
+                    }
+                }
+            }
+        }
+
+        // Detect decoder fallback during playback
+        viewModelScope.launch {
+            combine(
+                playerEngine.hwdecCurrent,
+                playbackSettings,
+                playbackState
+            ) { actual, settings, state ->
+                Triple(actual, settings.decoderMode, state)
+            }.collect { (actual, preferred, state) ->
+                if (state is PlayerState.Playing || state is PlayerState.Paused) {
+                    val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
+                    if (preferredIsHw && actual == "no" && _isHwSupported.value) {
+                        // Wait a short moment to allow decoder initialization to settle
+                        delay(1000L)
+                        val currentActual = playerEngine.hwdecCurrent.value
+                        val currentPreferred = playbackSettings.value.decoderMode
+                        val currentPreferredIsHw = currentPreferred == DecoderMode.HW || currentPreferred == DecoderMode.HW_PLUS || currentPreferred == DecoderMode.AUTO
+                        if (currentPreferredIsHw && currentActual == "no" && _isHwSupported.value) {
+                            Log.w("PlayerViewModel", "Decoder fallback detected! Current active decoder is SW but preferred was HW. Marking unsupported.")
+                            _isHwSupported.value = false
+                            
+                            // Revert settings to SW automatically
+                            settingsRepo.updateDecoderMode(DecoderMode.SW)
+                            
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    getApplication(),
+                                    "Hardware decoding is not supported for this video. Falling back to Software decoding.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -157,6 +214,7 @@ class PlayerViewModel(
         updateNavigationStates()
         isVideoLoaded = false
         isPositionRestored = false
+        _isHwSupported.value = true
 
         // Save progress as 0 if not already present, and update timestamp
         val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
@@ -236,6 +294,7 @@ class PlayerViewModel(
         _currentUri.value = uri
         isVideoLoaded = false
         isPositionRestored = false
+        _isHwSupported.value = true
 
         // Save progress as 0 if not already present, and update timestamp
         val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)

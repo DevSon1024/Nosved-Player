@@ -44,6 +44,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _chapters = MutableStateFlow<List<ChapterInfo>>(emptyList())
     override val chapters: StateFlow<List<ChapterInfo>> = _chapters.asStateFlow()
 
+    private val _hwdecCurrent = MutableStateFlow("no")
+    override val hwdecCurrent: StateFlow<String> = _hwdecCurrent.asStateFlow()
+
     init {
         try {
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
@@ -74,6 +77,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
             // Observe subtitle text changes
             MPVLib.observeProperty("sub-text", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+
+            // Observe active hardware decoder changes
+            MPVLib.observeProperty("hwdec-current", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
@@ -377,6 +383,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         val safeVal: String? = value
         if (property == "sub-text") {
             _currentSubtitleText.value = safeVal ?: ""
+        } else if (property == "hwdec-current") {
+            _hwdecCurrent.value = safeVal ?: "no"
+            Log.d("MPVPlayerEngine", "Active hardware decoder changed: $safeVal")
         }
     }
 

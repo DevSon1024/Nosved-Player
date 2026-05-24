@@ -144,7 +144,6 @@ fun PlayerScreen(
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
     chapters: List<ChapterInfo> = emptyList(),
     onSelectChapter: (Int) -> Unit = {},
-    onCycleDecoder: () -> Unit = {},
     currentDecoder: String = "AUTO",
     onUpdateDecoderMode: (DecoderMode) -> Unit = {},
     onTakeVideoScreenshot: () -> Unit = {}
@@ -540,7 +539,6 @@ fun PlayerScreen(
                             showChaptersSideSheet = true
                         },
                         currentDecoder = currentDecoder,
-                        onCycleDecoder = onCycleDecoder,
                         onShowDecoder = {
                             showDecoderSideSheet = true
                         },

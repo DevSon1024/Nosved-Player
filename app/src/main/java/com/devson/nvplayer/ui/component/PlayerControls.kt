@@ -63,7 +63,6 @@ fun PlayerControls(
     onSpeedClick: () -> Unit,
     onShowChapters: () -> Unit = {},
     currentDecoder: String = "AUTO",
-    onCycleDecoder: () -> Unit = {},
     onShowDecoder: () -> Unit = {},
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
@@ -178,11 +177,11 @@ fun PlayerControls(
                         .clickable { onShowDecoder() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Memory,
-                        contentDescription = "Decoder Selection",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        text = currentDecoder,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
@@ -441,11 +440,12 @@ fun PlayerControls(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Memory,
-                                contentDescription = "Decoder",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                            Text(
+                                text = currentDecoder,
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
                     }
