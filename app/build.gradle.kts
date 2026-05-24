@@ -34,9 +34,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        ndk {
-            abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a"))
-        }
     }
     signingConfigs {
         create("release") {
@@ -71,14 +68,12 @@ android {
             }
         }
     }
-    if (splitApks) {
-        splits {
-            abi {
-                isEnable = true
-                reset()
-                include("arm64-v8a", "armeabi-v7a")
-                isUniversalApk = true
-            }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
         }
     }
     applicationVariants.all {
@@ -121,7 +116,7 @@ dependencies {
     implementation(files("libs/mpv-android-lib-v0.0.1.aar"))
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.graphics.shapes)
-    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
 
     implementation(libs.androidx.core.ktx)
@@ -133,9 +128,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("io.coil-kt:coil-video:2.6.0")
+    implementation("androidx.navigation:navigation-compose:2.8.9")
+    implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+    implementation("io.coil-kt.coil3:coil-video:3.1.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

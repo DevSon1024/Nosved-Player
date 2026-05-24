@@ -27,9 +27,9 @@ import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
-import coil.ImageLoader
-import coil.Coil
-import coil.decode.VideoFrameDecoder
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.video.VideoFrameDecoder
 import com.devson.nvplayer.util.VideoThumbnailFetcher
 
 class MainActivity : ComponentActivity() {
@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
                 add(VideoFrameDecoder.Factory())
             }
             .build()
-        Coil.setImageLoader(imageLoader)
+        SingletonImageLoader.setSafe { imageLoader }
 
         val mediaStoreHelper = MediaStoreHelper(this)
         val repository = VideoRepository(mediaStoreHelper, this)

@@ -25,7 +25,3 @@
 
 # Protect your own player package just in case it relies on JNI reflection
 -keep class com.devson.nvplayer.player.** { *; }
-
-# Keep Coil (your image loader) running smoothly in release
--keep class coil.** { *; }
--keep interface coil.** { *; }

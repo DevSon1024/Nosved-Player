@@ -18,13 +18,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.decode.VideoFrameDecoder
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
-import coil.request.videoFrameMillis
 import com.devson.nvplayer.data.model.FolderItem
 import androidx.compose.material3.MaterialTheme
+import coil3.request.crossfade
 
 @Composable
 fun FolderCard(
@@ -51,8 +50,6 @@ fun FolderCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(folderItem.thumbnailUri)
-                        .videoFrameMillis(1000)
-                        .decoderFactory(VideoFrameDecoder.Factory())
                         .crossfade(true)
                         .build(),
                     contentDescription = "Thumbnail",

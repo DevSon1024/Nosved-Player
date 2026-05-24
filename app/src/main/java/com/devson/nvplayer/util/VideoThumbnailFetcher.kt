@@ -9,12 +9,16 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
-import coil.decode.DataSource
-import coil.fetch.DrawableResult
-import coil.fetch.FetchResult
-import coil.fetch.Fetcher
-import coil.request.Options
-import coil.size.Dimension
+import coil3.decode.DataSource
+import coil3.fetch.ImageFetchResult
+import coil3.fetch.FetchResult
+import coil3.fetch.Fetcher
+import coil3.request.Options
+import coil3.size.Dimension
+import coil3.asImage
+import coil3.video.videoFrameMicros
+import coil3.video.videoFramePercent
+import coil3.video.videoFrameIndex
 import java.io.File
 
 class VideoThumbnailFetcher(
@@ -65,8 +69,8 @@ class VideoThumbnailFetcher(
 
         if (bitmap != null) {
             val drawable = BitmapDrawable(context.resources, bitmap)
-            return DrawableResult(
-                drawable = drawable,
+            return ImageFetchResult(
+                image = drawable.asImage(),
                 isSampled = false,
                 dataSource = DataSource.DISK
             )
@@ -107,9 +111,11 @@ class VideoThumbnailFetcher(
     }
 
     class Factory(private val context: Context) : Fetcher.Factory<Uri> {
-        override fun create(data: Uri, options: Options, imageLoader: coil.ImageLoader): Fetcher? {
+        override fun create(data: Uri, options: Options, imageLoader: coil3.ImageLoader): Fetcher? {
             // If the request specifies a video frame time/micros, don't intercept it (let VideoFrameDecoder handle it)
-            val hasFrameSpec = options.parameters.any { it.first.contains("video_frame", ignoreCase = true) }
+            val hasFrameSpec = options.videoFrameMicros >= 0L ||
+                    options.videoFramePercent >= 0.0 ||
+                    options.videoFrameIndex >= 0
             if (hasFrameSpec) {
                 return null
             }
