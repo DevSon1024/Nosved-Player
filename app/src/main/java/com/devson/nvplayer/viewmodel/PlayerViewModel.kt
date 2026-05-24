@@ -92,6 +92,8 @@ class PlayerViewModel(
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && !isPositionRestored) {
                     restorePlaybackProgress()
+                } else if (state is PlayerState.Ended) {
+                    clearPlaybackProgress()
                 }
             }
         }
@@ -316,12 +318,26 @@ class PlayerViewModel(
     }
 
     fun play() {
+        if (playbackState.value is PlayerState.Ended) {
+            seekTo(0L)
+        }
         playerEngine.play()
     }
 
     fun savePlaybackProgress() {
         val uri = _currentUri.value ?: return
         val pos = currentPosition.value
+        val dur = duration.value
+        
+        // If the video is close to the end (e.g. less than 5 seconds remaining, or past 98% of duration),
+        // clear the progress so that it starts from the beginning next time.
+        val isNearEnd = dur > 0 && (dur - pos < 5000 || pos > dur * 0.98f)
+        
+        if (isNearEnd) {
+            clearPlaybackProgress()
+            return
+        }
+        
         if (pos > 0) {
             val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong(uri.toString(), pos).apply()
@@ -331,13 +347,25 @@ class PlayerViewModel(
         }
     }
 
+    fun clearPlaybackProgress() {
+        val uri = _currentUri.value ?: return
+        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
+        prefs.edit().remove(uri.toString()).apply()
+        Log.d("PlayerViewModel", "Cleared watch progress for URI: $uri")
+    }
+
     fun pause() {
         playerEngine.pause()
         savePlaybackProgress()
     }
 
     fun togglePlayback() {
-        playerEngine.togglePlayback()
+        if (playbackState.value is PlayerState.Ended) {
+            seekTo(0L)
+            play()
+        } else {
+            playerEngine.togglePlayback()
+        }
     }
 
     fun seekTo(position: Long, precise: Boolean = true) {
