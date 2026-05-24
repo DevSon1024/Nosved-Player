@@ -60,15 +60,19 @@ import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
 import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
 import com.devson.nvplayer.player.ChapterInfo
 import com.devson.nvplayer.ui.component.ChaptersSideSheet
+import com.devson.nvplayer.player.DecoderMode
+import com.devson.nvplayer.ui.component.DecoderSideSheet
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import android.os.BatteryManager
+import android.content.res.Configuration
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.devson.nvplayer.ui.component.formatTime
+import androidx.compose.ui.platform.LocalConfiguration
 
 @Composable
 fun PlayerScreen(
@@ -140,6 +144,9 @@ fun PlayerScreen(
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
     chapters: List<ChapterInfo> = emptyList(),
     onSelectChapter: (Int) -> Unit = {},
+    onCycleDecoder: () -> Unit = {},
+    currentDecoder: String = "AUTO",
+    onUpdateDecoderMode: (DecoderMode) -> Unit = {},
     onTakeVideoScreenshot: () -> Unit = {}
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
@@ -148,6 +155,7 @@ fun PlayerScreen(
     var showAudioSettingsSideSheet by remember { mutableStateOf(false) }
     var showPlayerSettingsSideSheet by remember { mutableStateOf(false) }
     var showChaptersSideSheet by remember { mutableStateOf(false) }
+    var showDecoderSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val windowInfo = LocalWindowInfo.current
 
@@ -490,9 +498,11 @@ fun PlayerScreen(
                     onSeekPrev = onSeekPrevSubtitle
                 )
 
-                // Persistent top bar overlay when controls are hidden
+                // Persistent top bar overlay when controls are hidden (landscape only for battery/clock)
+                val configuration = LocalConfiguration.current
+                val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 AnimatedVisibility(
-                    visible = !controlsVisible && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
+                    visible = !controlsVisible && isLandscape && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
                     enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
                     exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
                     modifier = Modifier.align(Alignment.TopCenter)
@@ -528,6 +538,11 @@ fun PlayerScreen(
                         },
                         onShowChapters = {
                             showChaptersSideSheet = true
+                        },
+                        currentDecoder = currentDecoder,
+                        onCycleDecoder = onCycleDecoder,
+                        onShowDecoder = {
+                            showDecoderSideSheet = true
                         },
                         onCycleSubtitle = {
                             showSubtitleSettingsSideSheet = true
@@ -627,6 +642,15 @@ fun PlayerScreen(
             chapters = chapters,
             onSelectChapter = onSelectChapter,
             onDismiss = { showChaptersSideSheet = false }
+        )
+
+        DecoderSideSheet(
+            visible = showDecoderSideSheet,
+            currentMode = playbackSettings.decoderMode,
+            onSelectMode = { mode ->
+                onUpdateDecoderMode(mode)
+            },
+            onDismiss = { showDecoderSideSheet = false }
         )
     }
 }

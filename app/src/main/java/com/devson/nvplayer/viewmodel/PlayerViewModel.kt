@@ -18,6 +18,7 @@ import com.devson.nvplayer.player.PlayerEngine
 import com.devson.nvplayer.player.PlayerState
 import com.devson.nvplayer.player.TrackInfo
 import com.devson.nvplayer.player.ChapterInfo
+import com.devson.nvplayer.player.DecoderMode
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -191,6 +192,9 @@ class PlayerViewModel(
 
             // Apply saved audio boost
             playerEngine.setAudioBoost(_audioBoosterEnabled.value)
+
+            // Apply saved decoder setting
+            playerEngine.setDecoder(playbackSettings.value.decoderMode)
         }
     }
 
@@ -304,6 +308,15 @@ class PlayerViewModel(
 
     fun selectChapter(index: Int) {
         playerEngine.selectChapter(index)
+    }
+
+    fun cycleDecoder() {
+        val currentMode = playbackSettings.value.decoderMode
+        val nextMode = currentMode.next()
+        playerEngine.setDecoder(nextMode)
+        viewModelScope.launch {
+            settingsRepo.updateDecoderMode(nextMode)
+        }
     }
 
     fun setSubtitleDelay(delayMs: Long) {

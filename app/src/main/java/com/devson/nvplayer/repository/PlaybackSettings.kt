@@ -65,6 +65,7 @@ data class PlaybackSettings(
     val doubleTapSeekDuration: Long = 10000L,
     val screenshotLocation: String = "Pictures/NVPlayer/Screenshot",
     val blacklistedFolders: Set<String> = emptySet(),
-    val keepAwakeAlways: Boolean = false
+    val keepAwakeAlways: Boolean = false,
+    val decoderMode: com.devson.nvplayer.player.DecoderMode = com.devson.nvplayer.player.DecoderMode.AUTO
 )
 

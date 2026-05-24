@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.devson.nvplayer.player.DecoderMode
 
 class PlaybackSettingsRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE)
@@ -49,7 +50,7 @@ class PlaybackSettingsRepository(context: Context) {
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
             "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
-            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always" -> {
+            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always", "decoder_mode" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -168,7 +169,12 @@ class PlaybackSettingsRepository(context: Context) {
             doubleTapSeekDuration = prefs.getLong("double_tap_seek_duration", 10000L),
             screenshotLocation = prefs.getString("screenshot_location", "Pictures/NVPlayer/Screenshot") ?: "Pictures/NVPlayer/Screenshot",
             blacklistedFolders = prefs.getStringSet("blacklisted_folders", emptySet()) ?: emptySet(),
-            keepAwakeAlways = prefs.getBoolean("keep_awake_always", false)
+            keepAwakeAlways = prefs.getBoolean("keep_awake_always", false),
+            decoderMode = try {
+                DecoderMode.valueOf(prefs.getString("decoder_mode", DecoderMode.AUTO.name) ?: DecoderMode.AUTO.name)
+            } catch (e: Exception) {
+                DecoderMode.AUTO
+            }
         )
     }
 
@@ -219,6 +225,7 @@ class PlaybackSettingsRepository(context: Context) {
             putString("screenshot_location", updated.screenshotLocation)
             putStringSet("blacklisted_folders", updated.blacklistedFolders)
             putBoolean("keep_awake_always", updated.keepAwakeAlways)
+            putString("decoder_mode", updated.decoderMode.name)
             apply()
         }
     }
@@ -442,5 +449,9 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateKeepAwakeAlways(enabled: Boolean) {
         updatePlaybackSettings { it.copy(keepAwakeAlways = enabled) }
+    }
+
+    suspend fun updateDecoderMode(mode: DecoderMode) {
+        updatePlaybackSettings { it.copy(decoderMode = mode) }
     }
 }

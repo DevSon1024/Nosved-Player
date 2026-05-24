@@ -327,7 +327,10 @@ fun AppNavigation(
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
                 onTakeVideoScreenshot = { playerViewModel.takeVideoScreenshot() },
                 chapters = chapters,
-                onSelectChapter = { playerViewModel.selectChapter(it) }
+                onSelectChapter = { playerViewModel.selectChapter(it) },
+                currentDecoder = playbackSettings.decoderMode.displayName,
+                onCycleDecoder = { playerViewModel.cycleDecoder() },
+                onUpdateDecoderMode = { settingsViewModel.updateDecoderMode(it) }
             )
         }
     }

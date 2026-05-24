@@ -52,7 +52,6 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Configure standard MPV playback options for modern android
             MPVLib.setOptionString("vo", "gpu")
             MPVLib.setOptionString("gpu-context", "android")
-            MPVLib.setOptionString("hwdec", "auto")
             MPVLib.setOptionString("force-window", "yes")
             
             // Keep native player responsive and smooth
@@ -316,6 +315,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setPropertyDouble("volume", volumeValue)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to set audio boost property", e)
+        }
+    }
+
+    override fun setDecoder(mode: DecoderMode) {
+        Log.d("MPVPlayerEngine", "Setting decoder to: ${mode.displayName} (${mode.value})")
+        try {
+            MPVLib.setPropertyString("hwdec", mode.value)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set decoder", e)
         }
     }
 

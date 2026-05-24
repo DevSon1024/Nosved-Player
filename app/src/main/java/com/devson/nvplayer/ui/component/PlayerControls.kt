@@ -62,6 +62,9 @@ fun PlayerControls(
     onSeek: (Long, Boolean) -> Unit,
     onSpeedClick: () -> Unit,
     onShowChapters: () -> Unit = {},
+    currentDecoder: String = "AUTO",
+    onCycleDecoder: () -> Unit = {},
+    onShowDecoder: () -> Unit = {},
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
     onBackClick: () -> Unit,
@@ -163,11 +166,28 @@ fun PlayerControls(
                 }
             }
 
-            if (isPortrait) {
-                if (showBatteryClockOverlay) {
-                    BatteryAndClockOverlay()
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (!isPortrait) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .clickable { onShowDecoder() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Memory,
+                        contentDescription = "Decoder Selection",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-            } else {
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -407,6 +427,29 @@ fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Decoder Quick Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .clickable { onShowDecoder() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Memory,
+                                contentDescription = "Decoder",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     // Chapters Quick Button
                     Box(
                         modifier = Modifier
@@ -425,13 +468,7 @@ fun PlayerControls(
                                 imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
                                 contentDescription = "Chapters",
                                 tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = "Chapters",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -454,13 +491,7 @@ fun PlayerControls(
                                 imageVector = Icons.Rounded.Subtitles,
                                 contentDescription = "Subtitles",
                                 tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = "Subtitles",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -483,13 +514,7 @@ fun PlayerControls(
                                 imageVector = Icons.Rounded.Audiotrack,
                                 contentDescription = "Audio Track",
                                 tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = "Audio",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -509,21 +534,10 @@ fun PlayerControls(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Speed,
-                                contentDescription = "Playback Speed",
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = "Media Settings",
                                 tint = Color.White,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            val speedText = if (playbackSpeed % 1.0f == 0.0f) {
-                                "${playbackSpeed.toInt()}x"
-                            } else {
-                                String.format(java.util.Locale.US, "%.2fx", playbackSpeed).trimEnd('0').trimEnd('.') + "x"
-                            }
-                            Text(
-                                text = speedText,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -557,13 +571,7 @@ fun PlayerControls(
                                     imageVector = Icons.Rounded.ScreenRotation,
                                     contentDescription = "Rotate Screen",
                                     tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "Rotate",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }

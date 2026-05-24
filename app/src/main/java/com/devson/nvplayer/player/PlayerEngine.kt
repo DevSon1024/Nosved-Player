@@ -32,5 +32,6 @@ interface PlayerEngine {
     fun seekNextSubtitle()
     fun seekPrevSubtitle()
     fun setAudioBoost(boost: Boolean)
+    fun setDecoder(mode: DecoderMode)
     fun release()
 }

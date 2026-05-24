@@ -379,4 +379,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateKeepAwakeAlways(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.updateKeepAwakeAlways(enabled) }
     }
+
+    fun updateDecoderMode(mode: com.devson.nvplayer.player.DecoderMode) {
+        viewModelScope.launch { settingsRepo.updateDecoderMode(mode) }
+    }
 }
