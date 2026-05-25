@@ -22,6 +22,11 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.shape.CircleShape
+import com.devson.nvplayer.util.repeatingClickable
+import com.devson.nvplayer.util.roundToTwoDecimals
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -205,30 +210,32 @@ fun SubtitleSettingsSideSheet(
                                         .fillMaxWidth()
                                         .padding(top = 4.dp)
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            val newScale = (playbackSettings.subtitleTextSizeScale - 0.1f).coerceAtLeast(0.5f)
+                                    LongPressStepButton(
+                                        icon = Icons.Rounded.Remove,
+                                        contentDescription = "Decrease size",
+                                        onStep = {
+                                            val newScale = (playbackSettings.subtitleTextSizeScale - 0.1f)
+                                                .coerceAtLeast(0.5f)
+                                                .roundToTwoDecimals()
                                             onUpdateSubtitleTextSizeScale(newScale)
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Remove, contentDescription = "Decrease size")
-                                    }
+                                        }
+                                    )
                                     Slider(
                                         value = playbackSettings.subtitleTextSizeScale,
-                                        onValueChange = { onUpdateSubtitleTextSizeScale(it) },
+                                        onValueChange = { onUpdateSubtitleTextSizeScale(it.roundToTwoDecimals()) },
                                         valueRange = 0.5f..3.0f,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            val newScale = (playbackSettings.subtitleTextSizeScale + 0.1f).coerceAtMost(3.0f)
+                                    LongPressStepButton(
+                                        icon = Icons.Rounded.Add,
+                                        contentDescription = "Increase size",
+                                        onStep = {
+                                            val newScale = (playbackSettings.subtitleTextSizeScale + 0.1f)
+                                                .coerceAtMost(3.0f)
+                                                .roundToTwoDecimals()
                                             onUpdateSubtitleTextSizeScale(newScale)
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Add, contentDescription = "Increase size")
-                                    }
+                                        }
+                                    )
                                 }
                             }
 
@@ -399,33 +406,25 @@ fun SubtitleSettingsSideSheet(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Button(
-                                        onClick = { onSetSubtitleDelay(playbackSettings.subtitleDelayMs - 100L)
-                                                    onUpdateSubtitleDelay(playbackSettings.subtitleDelayMs - 100L) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(0.dp),
+                                    LongPressTextButton(
+                                        text = "-100ms",
+                                        onClick = {
+                                            val newDelay = (playbackSettings.subtitleDelayMs - 100L).coerceIn(-600000L, 600000L)
+                                            onSetSubtitleDelay(newDelay)
+                                            onUpdateSubtitleDelay(newDelay)
+                                        },
                                         modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Text("-100ms", fontSize = 12.sp)
-                                    }
+                                    )
 
-                                    Button(
-                                        onClick = { onSetSubtitleDelay(playbackSettings.subtitleDelayMs - 50L)
-                                                    onUpdateSubtitleDelay(playbackSettings.subtitleDelayMs - 50L) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(0.dp),
+                                    LongPressTextButton(
+                                        text = "-50ms",
+                                        onClick = {
+                                            val newDelay = (playbackSettings.subtitleDelayMs - 50L).coerceIn(-600000L, 600000L)
+                                            onSetSubtitleDelay(newDelay)
+                                            onUpdateSubtitleDelay(newDelay)
+                                        },
                                         modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Text("-50ms", fontSize = 12.sp)
-                                    }
+                                    )
 
                                     IconButton(
                                         onClick = { onSetSubtitleDelay(0L)
@@ -442,33 +441,25 @@ fun SubtitleSettingsSideSheet(
                                         )
                                     }
 
-                                    Button(
-                                        onClick = { onSetSubtitleDelay(playbackSettings.subtitleDelayMs + 50L)
-                                                    onUpdateSubtitleDelay(playbackSettings.subtitleDelayMs + 50L) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(0.dp),
+                                    LongPressTextButton(
+                                        text = "+50ms",
+                                        onClick = {
+                                            val newDelay = (playbackSettings.subtitleDelayMs + 50L).coerceIn(-600000L, 600000L)
+                                            onSetSubtitleDelay(newDelay)
+                                            onUpdateSubtitleDelay(newDelay)
+                                        },
                                         modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Text("+50ms", fontSize = 12.sp)
-                                    }
+                                    )
 
-                                    Button(
-                                        onClick = { onSetSubtitleDelay(playbackSettings.subtitleDelayMs + 100L)
-                                                    onUpdateSubtitleDelay(playbackSettings.subtitleDelayMs + 100L) },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            contentColor = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(0.dp),
+                                    LongPressTextButton(
+                                        text = "+100ms",
+                                        onClick = {
+                                            val newDelay = (playbackSettings.subtitleDelayMs + 100L).coerceIn(-600000L, 600000L)
+                                            onSetSubtitleDelay(newDelay)
+                                            onUpdateSubtitleDelay(newDelay)
+                                        },
                                         modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Text("+100ms", fontSize = 12.sp)
-                                    }
+                                    )
                                 }
                             }
 
@@ -497,30 +488,32 @@ fun SubtitleSettingsSideSheet(
                                         .fillMaxWidth()
                                         .padding(top = 4.dp)
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            val newOffset = (playbackSettings.subtitleVerticalOffset - 0.05f).coerceAtLeast(0f)
+                                    LongPressStepButton(
+                                        icon = Icons.Rounded.Remove,
+                                        contentDescription = "Lower subtitles",
+                                        onStep = {
+                                            val newOffset = (playbackSettings.subtitleVerticalOffset - 0.05f)
+                                                .coerceAtLeast(0f)
+                                                .roundToTwoDecimals()
                                             onUpdateSubtitleVerticalOffset(newOffset)
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Remove, contentDescription = "Lower subtitles")
-                                    }
+                                        }
+                                    )
                                     Slider(
                                         value = playbackSettings.subtitleVerticalOffset,
-                                        onValueChange = { onUpdateSubtitleVerticalOffset(it) },
+                                        onValueChange = { onUpdateSubtitleVerticalOffset(it.roundToTwoDecimals()) },
                                         valueRange = 0f..0.85f,
                                         modifier = Modifier.weight(1f)
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            val newOffset = (playbackSettings.subtitleVerticalOffset + 0.05f).coerceAtMost(0.85f)
+                                    LongPressStepButton(
+                                        icon = Icons.Rounded.Add,
+                                        contentDescription = "Raise subtitles",
+                                        onStep = {
+                                            val newOffset = (playbackSettings.subtitleVerticalOffset + 0.05f)
+                                                .coerceAtMost(0.85f)
+                                                .roundToTwoDecimals()
                                             onUpdateSubtitleVerticalOffset(newOffset)
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Add, contentDescription = "Raise subtitles")
-                                    }
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -628,6 +621,71 @@ private fun ToggleRow(
                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                 checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
             )
+        )
+    }
+}
+
+@Composable
+private fun LongPressStepButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onStep: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(
+                if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                else MaterialTheme.colorScheme.secondaryContainer
+            )
+            .repeatingClickable(
+                initialDelayMillis = 500,
+                delayMillis = 100,
+                interactionSource = interactionSource,
+                onClick = onStep
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(16.dp),
+            tint = if (isPressed) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    }
+}
+
+@Composable
+private fun LongPressTextButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            )
+            .repeatingClickable(
+                interactionSource = interactionSource,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isPressed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         )
     }
 }

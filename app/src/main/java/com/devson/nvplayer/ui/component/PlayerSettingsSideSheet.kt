@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.devson.nvplayer.repository.*
+import com.devson.nvplayer.util.repeatingClickable
+import com.devson.nvplayer.util.roundToTwoDecimals
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1357,8 +1359,8 @@ private fun StepSlider(
             icon = Icons.Default.Remove,
             contentDescription = "Decrease",
             onStep = {
-                val next = (value - step).coerceIn(valueRange.start, valueRange.endInclusive)
-                val snapped = (next / step).roundToInt() * step
+                val next = (value - step).coerceIn(valueRange.start, valueRange.endInclusive).roundToTwoDecimals()
+                val snapped = ((next / step).roundToInt() * step).roundToTwoDecimals()
                 onValueChange(snapped.coerceIn(valueRange.start, valueRange.endInclusive))
             }
         )
@@ -1366,7 +1368,7 @@ private fun StepSlider(
         Slider(
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = { raw ->
-                val snapped = ((raw / step).roundToInt() * step)
+                val snapped = ((raw / step).roundToInt() * step).roundToTwoDecimals()
                     .coerceIn(valueRange.start, valueRange.endInclusive)
                 onValueChange(snapped)
             },
@@ -1378,8 +1380,8 @@ private fun StepSlider(
             icon = Icons.Default.Add,
             contentDescription = "Increase",
             onStep = {
-                val next = (value + step).coerceIn(valueRange.start, valueRange.endInclusive)
-                val snapped = (next / step).roundToInt() * step
+                val next = (value + step).coerceIn(valueRange.start, valueRange.endInclusive).roundToTwoDecimals()
+                val snapped = ((next / step).roundToInt() * step).roundToTwoDecimals()
                 onValueChange(snapped.coerceIn(valueRange.start, valueRange.endInclusive))
             }
         )
@@ -1418,52 +1420,6 @@ private fun LongPressStepButton(
             tint = if (isPressed) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSecondaryContainer
         )
-    }
-}
-
-fun Modifier.repeatingClickable(
-    initialDelayMillis: Long = 500,
-    delayMillis: Long = 100,
-    interactionSource: MutableInteractionSource? = null,
-    onClick: () -> Unit
-): Modifier = composed {
-    val scope = rememberCoroutineScope()
-    val localInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-
-    this.pointerInput(onClick, initialDelayMillis, delayMillis) {
-        coroutineScope {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                var pressed = true
-
-                val press = PressInteraction.Press(down.position)
-                scope.launch {
-                    localInteractionSource.emit(press)
-                }
-
-                val job = launch {
-                    onClick()
-                    delay(initialDelayMillis)
-                    while (pressed) {
-                        onClick()
-                        delay(delayMillis)
-                    }
-                }
-
-                do {
-                    val event = awaitPointerEvent()
-                    val anyPressed = event.changes.any { it.pressed }
-                    if (!anyPressed) {
-                        pressed = false
-                    }
-                } while (pressed)
-
-                job.cancel()
-                scope.launch {
-                    localInteractionSource.emit(PressInteraction.Release(press))
-                }
-            }
-        }
     }
 }
 

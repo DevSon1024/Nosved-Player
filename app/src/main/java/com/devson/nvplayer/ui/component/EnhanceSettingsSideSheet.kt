@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.repository.EnhanceMode
 import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.util.repeatingClickable
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -379,18 +380,13 @@ private fun LongPressStepButton(
                 else if (isPressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
                 else MaterialTheme.colorScheme.secondaryContainer
             )
-            .let {
-                if (enabled) {
-                    it.repeatingClickableEnhance(
-                        initialDelayMillis = 500,
-                        delayMillis = 100,
-                        interactionSource = interactionSource,
-                        onClick = onStep
-                    )
-                } else {
-                    it
-                }
-            },
+            .repeatingClickable(
+                initialDelayMillis = 500,
+                delayMillis = 100,
+                interactionSource = interactionSource,
+                enabled = enabled,
+                onClick = onStep
+            ),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -401,52 +397,6 @@ private fun LongPressStepButton(
             else if (isPressed) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSecondaryContainer
         )
-    }
-}
-
-private fun Modifier.repeatingClickableEnhance(
-    initialDelayMillis: Long = 500,
-    delayMillis: Long = 100,
-    interactionSource: MutableInteractionSource? = null,
-    onClick: () -> Unit
-): Modifier = composed {
-    val scope = rememberCoroutineScope()
-    val localInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-
-    this.pointerInput(onClick, initialDelayMillis, delayMillis) {
-        coroutineScope {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                var pressed = true
-
-                val press = PressInteraction.Press(down.position)
-                scope.launch {
-                    localInteractionSource.emit(press)
-                }
-
-                val job = launch {
-                    onClick()
-                    delay(initialDelayMillis)
-                    while (pressed) {
-                        onClick()
-                        delay(delayMillis)
-                    }
-                }
-
-                do {
-                    val event = awaitPointerEvent()
-                    val anyPressed = event.changes.any { it.pressed }
-                    if (!anyPressed) {
-                        pressed = false
-                    }
-                } while (pressed)
-
-                job.cancel()
-                scope.launch {
-                    localInteractionSource.emit(PressInteraction.Release(press))
-                }
-            }
-        }
     }
 }
 
