@@ -338,7 +338,7 @@ fun AppNavigation(
                 chapters = chapters,
                 onSelectChapter = { playerViewModel.selectChapter(it) },
                 currentDecoder = playbackSettings.decoderMode.displayName,
-                onUpdateDecoderMode = { settingsViewModel.updateDecoderMode(it) }
+                onUpdateDecoderMode = { playerViewModel.updateDecoderMode(it) }
             )
         }
     }

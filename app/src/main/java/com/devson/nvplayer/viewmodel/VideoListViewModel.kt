@@ -19,7 +19,7 @@ class VideoListViewModel(
     private val viewSettingsRepo: ViewSettingsRepository
 ) : ViewModel() {
 
-    // --- Raw (unfiltered) scan result — populated once per disk scan ---
+    // Raw (unfiltered) scan result - populated once per disk scan
     private val _rawVideosByFolder = MutableStateFlow<Map<VideoFolder, List<Video>>>(emptyMap())
 
     private val _isLoading = MutableStateFlow(false)
@@ -49,7 +49,7 @@ class VideoListViewModel(
 
     /**
      * Public, filtered view of videos by folder.
-     * Instantly re-derived in memory whenever raw data or settings change —
+     * Instantly re-derived in memory whenever raw data or settings change -
      * no disk I/O is triggered by toggling showHiddenFiles / recognizeNoMedia.
      */
     val videosByFolder: StateFlow<Map<VideoFolder, List<Video>>> =
@@ -108,7 +108,7 @@ class VideoListViewModel(
                 }
 
                 _loadingProgress.value = 1f
-                // Store raw (unfiltered) — the combine flow handles filtering reactively
+                // Store raw (unfiltered) - the combine flow handles filtering reactively
                 _rawVideosByFolder.value = mappedVideos
                 updateExplorerNodes()
                 performSearch()
@@ -159,7 +159,7 @@ class VideoListViewModel(
         _rawVideosByFolder.value = filtered
     }
 
-    // --- Explorer Path Navigation ---
+    // Explorer Path Navigation 
 
     fun navigateToExplorerPath(path: String) {
         _currentExplorerPath.value = path
@@ -200,7 +200,7 @@ class VideoListViewModel(
         _explorerNodes.value = Pair(folders.distinctBy { it.id }, videos.distinctBy { it.uri })
     }
 
-    // --- View Settings Update Callbacks ---
+    // View Settings Update Callbacks
 
     fun updateViewMode(mode: ViewMode) {
         viewModelScope.launch {

@@ -1087,7 +1087,7 @@ private fun SeekIndicatorOverlay(
                         shape = RoundedCornerShape(2.dp)
                     )
             )
-            // Thumb dot — drawn as a small overlay box pinned to fill-end via the progress box above
+            // Thumb dot - drawn as a small overlay box pinned to fill-end via the progress box above
         }
     }
 }

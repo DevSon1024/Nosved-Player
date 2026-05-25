@@ -250,7 +250,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateForceAssSubtitleOverride(force) }
     }
 
-    // --- New Gesture Dispatchers ---
+    // New Gesture Dispatchers
 
     fun updateSeekGesture(enabled: Boolean) {
         viewModelScope.launch { settingsRepo.updateSeekGestureEnabled(enabled) }

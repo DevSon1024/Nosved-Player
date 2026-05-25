@@ -137,27 +137,33 @@ class PlayerViewModel(
             }.collect { (actual, preferred, state) ->
                 if (state is PlayerState.Playing || state is PlayerState.Paused) {
                     val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
-                    if (preferredIsHw && actual == "no" && _isHwSupported.value) {
+                    if (preferredIsHw && actual == "no") {
                         // Wait a short moment to allow decoder initialization to settle
                         delay(1000L)
                         val currentActual = playerEngine.hwdecCurrent.value
                         val currentPreferred = playbackSettings.value.decoderMode
                         val currentPreferredIsHw = currentPreferred == DecoderMode.HW || currentPreferred == DecoderMode.HW_PLUS || currentPreferred == DecoderMode.AUTO
-                        if (currentPreferredIsHw && currentActual == "no" && _isHwSupported.value) {
+                        if (currentPreferredIsHw && currentActual == "no") {
                             Log.w("PlayerViewModel", "Decoder fallback detected! Current active decoder is SW but preferred was HW. Marking unsupported.")
+                            val wasHwSupported = _isHwSupported.value
                             _isHwSupported.value = false
                             
                             // Revert settings to SW automatically
                             settingsRepo.updateDecoderMode(DecoderMode.SW)
+                            playerEngine.setDecoder(DecoderMode.SW)
                             
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    getApplication(),
-                                    "Hardware decoding is not supported for this video. Falling back to Software decoding.",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                            if (wasHwSupported) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        getApplication(),
+                                        "Hardware decoding is not supported for this video. Falling back to Software decoding.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                         }
+                    } else if (preferredIsHw && actual != "no") {
+                        _isHwSupported.value = true
                     }
                 }
             }
@@ -457,10 +463,31 @@ class PlayerViewModel(
 
     fun cycleDecoder() {
         val currentMode = playbackSettings.value.decoderMode
-        val nextMode = currentMode.next()
+        var nextMode = currentMode.next()
+        if (!_isHwSupported.value && (nextMode == DecoderMode.HW || nextMode == DecoderMode.HW_PLUS || nextMode == DecoderMode.AUTO)) {
+            nextMode = DecoderMode.SW
+            Toast.makeText(getApplication(), "HW skipped (Unsupported)", Toast.LENGTH_SHORT).show()
+        }
         playerEngine.setDecoder(nextMode)
         viewModelScope.launch {
             settingsRepo.updateDecoderMode(nextMode)
+        }
+    }
+
+    fun updateDecoderMode(mode: DecoderMode) {
+        if (!_isHwSupported.value && (mode == DecoderMode.HW || mode == DecoderMode.HW_PLUS || mode == DecoderMode.AUTO)) {
+            Toast.makeText(
+                getApplication(),
+                "Hardware decoding not supported for this video",
+                Toast.LENGTH_LONG
+            ).show()
+            viewModelScope.launch {
+                settingsRepo.updateDecoderMode(DecoderMode.SW)
+            }
+        } else {
+            viewModelScope.launch {
+                settingsRepo.updateDecoderMode(mode)
+            }
         }
     }
 

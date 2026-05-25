@@ -728,7 +728,7 @@ fun VideoListScreen(
         }
     }
 
-    // ---- INFORMATION BOTTOM SHEET ----
+    // INFORMATION BOTTOM SHEET
     if (showInfoBottomSheet && isSelectionActive) {
         val videosToShow = when (viewSettings.viewMode) {
             ViewMode.FILES -> selectedVideos
@@ -753,7 +753,7 @@ fun VideoListScreen(
         )
     }
 
-    // ---- RENAME DIALOG ----
+    //RENAME DIALOG
     if (showRenameDialog && (selectedFolders.size == 1 || selectedVideos.size == 1)) {
         val isFolder = selectedFolders.size == 1 && selectedFolder == null
         val title = if (isFolder) "Rename Folder" else "Rename Video"
