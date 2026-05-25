@@ -24,6 +24,10 @@ enum class DoubleTapAction {
     BOTH, PLAY_PAUSE, FAST_FORWARD, REWIND, NONE
 }
 
+enum class EnhanceMode {
+    OFF, DEFAULT, CUSTOM
+}
+
 data class PlaybackSettings(
     val seekDurationSeconds: Int = 10,
     val seekBarStyle: String = "line",
@@ -66,6 +70,12 @@ data class PlaybackSettings(
     val screenshotLocation: String = "Pictures/NVPlayer/Screenshot",
     val blacklistedFolders: Set<String> = emptySet(),
     val keepAwakeAlways: Boolean = false,
-    val decoderMode: com.devson.nvplayer.player.DecoderMode = com.devson.nvplayer.player.DecoderMode.AUTO
+    val decoderMode: com.devson.nvplayer.player.DecoderMode = com.devson.nvplayer.player.DecoderMode.AUTO,
+    val enhanceMode: EnhanceMode = EnhanceMode.OFF,
+    val enhanceSaturation: Int = 0,
+    val enhanceContrast: Int = 0,
+    val enhanceBrightness: Int = 0,
+    val enhanceGamma: Int = 0,
+    val enhanceHue: Int = 0
 )
 

@@ -61,7 +61,9 @@ fun PlayerControls(
     onPlayPauseToggle: () -> Unit,
     onSeek: (Long, Boolean) -> Unit,
     onSpeedClick: () -> Unit,
+    onEnhanceClick: () -> Unit,
     onShowChapters: () -> Unit = {},
+    hasChapters: Boolean = false,
     currentDecoder: String = "AUTO",
     onShowDecoder: () -> Unit = {},
     onCycleSubtitle: () -> Unit,
@@ -185,23 +187,25 @@ fun PlayerControls(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                if (hasChapters) {
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onShowChapters() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
-                        contentDescription = "Chapters",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .clickable { onShowChapters() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                            contentDescription = "Chapters",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -237,6 +241,25 @@ fun PlayerControls(
                     Icon(
                         imageVector = Icons.Rounded.Audiotrack,
                         contentDescription = "Audio Track",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .clickable { onEnhanceClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = "Smart Enhance",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -451,25 +474,27 @@ fun PlayerControls(
                     }
 
                     // Chapters Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .clickable { onShowChapters() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    if (hasChapters) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .clickable { onShowChapters() }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
-                                contentDescription = "Chapters",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
+                                    contentDescription = "Chapters",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -513,6 +538,29 @@ fun PlayerControls(
                             Icon(
                                 imageVector = Icons.Rounded.Audiotrack,
                                 contentDescription = "Audio Track",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Smart Enhance Quick Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .clickable { onEnhanceClick() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = "Smart Enhance",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )

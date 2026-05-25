@@ -53,11 +53,13 @@ import android.content.Context
 import com.devson.nvplayer.player.TrackInfo
 import com.devson.nvplayer.repository.SubtitleFont
 import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.repository.EnhanceMode
 import android.provider.MediaStore
 import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
 import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
 import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
+import com.devson.nvplayer.ui.component.EnhanceSettingsSideSheet
 import com.devson.nvplayer.player.ChapterInfo
 import com.devson.nvplayer.ui.component.ChaptersSideSheet
 import com.devson.nvplayer.player.DecoderMode
@@ -142,6 +144,12 @@ fun PlayerScreen(
     onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
     onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
+    onUpdateEnhanceMode: (EnhanceMode) -> Unit = {},
+    onUpdateEnhanceSaturation: (Int) -> Unit = {},
+    onUpdateEnhanceContrast: (Int) -> Unit = {},
+    onUpdateEnhanceBrightness: (Int) -> Unit = {},
+    onUpdateEnhanceGamma: (Int) -> Unit = {},
+    onUpdateEnhanceHue: (Int) -> Unit = {},
     chapters: List<ChapterInfo> = emptyList(),
     onSelectChapter: (Int) -> Unit = {},
     currentDecoder: String = "AUTO",
@@ -155,6 +163,7 @@ fun PlayerScreen(
     var showPlayerSettingsSideSheet by remember { mutableStateOf(false) }
     var showChaptersSideSheet by remember { mutableStateOf(false) }
     var showDecoderSideSheet by remember { mutableStateOf(false) }
+    var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val windowInfo = LocalWindowInfo.current
 
@@ -533,9 +542,13 @@ fun PlayerScreen(
                         onSpeedClick = {
                             showPlayerSettingsSideSheet = true
                         },
+                        onEnhanceClick = {
+                            showEnhanceSettingsSideSheet = true
+                        },
                         onShowChapters = {
                             showChaptersSideSheet = true
                         },
+                        hasChapters = chapters.isNotEmpty(),
                         currentDecoder = currentDecoder,
                         onShowDecoder = {
                             showDecoderSideSheet = true
@@ -647,6 +660,18 @@ fun PlayerScreen(
                 onUpdateDecoderMode(mode)
             },
             onDismiss = { showDecoderSideSheet = false }
+        )
+
+        EnhanceSettingsSideSheet(
+            visible = showEnhanceSettingsSideSheet,
+            playbackSettings = playbackSettings,
+            onUpdateEnhanceMode = onUpdateEnhanceMode,
+            onUpdateEnhanceSaturation = onUpdateEnhanceSaturation,
+            onUpdateEnhanceContrast = onUpdateEnhanceContrast,
+            onUpdateEnhanceBrightness = onUpdateEnhanceBrightness,
+            onUpdateEnhanceGamma = onUpdateEnhanceGamma,
+            onUpdateEnhanceHue = onUpdateEnhanceHue,
+            onDismiss = { showEnhanceSettingsSideSheet = false }
         )
     }
 }

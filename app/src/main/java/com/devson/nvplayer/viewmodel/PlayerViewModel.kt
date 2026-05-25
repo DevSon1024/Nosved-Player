@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import com.devson.nvplayer.repository.EnhanceMode
+import com.devson.nvplayer.repository.PlaybackSettings
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -156,6 +158,38 @@ class PlayerViewModel(
                 }
             }
         }
+
+        // Observe Smart Enhance settings and apply immediately if video is active
+        viewModelScope.launch {
+            var lastMode: EnhanceMode? = null
+            var lastSat: Int? = null
+            var lastCon: Int? = null
+            var lastBright: Int? = null
+            var lastGam: Int? = null
+            var lastHue: Int? = null
+
+            playbackSettings.collect { settings ->
+                val changed = lastMode != settings.enhanceMode ||
+                        lastSat != settings.enhanceSaturation ||
+                        lastCon != settings.enhanceContrast ||
+                        lastBright != settings.enhanceBrightness ||
+                        lastGam != settings.enhanceGamma ||
+                        lastHue != settings.enhanceHue
+
+                if (changed) {
+                    lastMode = settings.enhanceMode
+                    lastSat = settings.enhanceSaturation
+                    lastCon = settings.enhanceContrast
+                    lastBright = settings.enhanceBrightness
+                    lastGam = settings.enhanceGamma
+                    lastHue = settings.enhanceHue
+
+                    if (isVideoLoaded) {
+                        applyEnhanceSettings(settings)
+                    }
+                }
+            }
+        }
     }
 
     private fun restorePlaybackProgress() {
@@ -255,6 +289,9 @@ class PlayerViewModel(
 
             // Apply saved decoder setting
             playerEngine.setDecoder(playbackSettings.value.decoderMode)
+
+            // Apply smart enhance settings
+            applyEnhanceSettings(playbackSettings.value)
         }
     }
 
@@ -441,6 +478,42 @@ class PlayerViewModel(
         }
     }
 
+    fun updateEnhanceMode(mode: EnhanceMode) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceMode(mode)
+        }
+    }
+
+    fun updateEnhanceSaturation(value: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceSaturation(value)
+        }
+    }
+
+    fun updateEnhanceContrast(value: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceContrast(value)
+        }
+    }
+
+    fun updateEnhanceBrightness(value: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceBrightness(value)
+        }
+    }
+
+    fun updateEnhanceGamma(value: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceGamma(value)
+        }
+    }
+
+    fun updateEnhanceHue(value: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateEnhanceHue(value)
+        }
+    }
+
     fun takeVideoScreenshot() {
         viewModelScope.launch {
             val context = getApplication<Application>()
@@ -515,6 +588,47 @@ class PlayerViewModel(
             defaultDir.mkdirs()
         }
         return defaultDir.absolutePath
+    }
+
+    private fun applyEnhanceSettings(settings: PlaybackSettings) {
+        val sat: Int
+        val con: Int
+        val bright: Int
+        val gam: Int
+        val hue: Int
+        when (settings.enhanceMode) {
+            EnhanceMode.OFF -> {
+                sat = 0
+                con = 0
+                bright = 0
+                gam = 0
+                hue = 0
+            }
+            EnhanceMode.DEFAULT -> {
+                sat = 25
+                con = 8
+                bright = 0
+                gam = 3
+                hue = 0
+            }
+            EnhanceMode.CUSTOM -> {
+                sat = settings.enhanceSaturation
+                con = settings.enhanceContrast
+                bright = settings.enhanceBrightness
+                gam = settings.enhanceGamma
+                hue = settings.enhanceHue
+            }
+        }
+        try {
+            Log.d("PlayerViewModel", "Applying enhance settings: mode=${settings.enhanceMode}, sat=$sat, con=$con, bright=$bright, gam=$gam, hue=$hue")
+            `is`.xyz.mpv.MPVLib.setPropertyInt("saturation", sat)
+            `is`.xyz.mpv.MPVLib.setPropertyInt("contrast", con)
+            `is`.xyz.mpv.MPVLib.setPropertyInt("brightness", bright)
+            `is`.xyz.mpv.MPVLib.setPropertyInt("gamma", gam)
+            `is`.xyz.mpv.MPVLib.setPropertyInt("hue", hue)
+        } catch (e: Exception) {
+            Log.e("PlayerViewModel", "Failed to apply enhance settings", e)
+        }
     }
 
     override fun onCleared() {

@@ -50,7 +50,8 @@ class PlaybackSettingsRepository(context: Context) {
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
             "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
-            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always", "decoder_mode" -> {
+            "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always", "decoder_mode",
+            "enhance_mode", "enhance_saturation", "enhance_contrast", "enhance_brightness", "enhance_gamma", "enhance_hue" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -174,7 +175,17 @@ class PlaybackSettingsRepository(context: Context) {
                 DecoderMode.valueOf(prefs.getString("decoder_mode", DecoderMode.AUTO.name) ?: DecoderMode.AUTO.name)
             } catch (e: Exception) {
                 DecoderMode.AUTO
-            }
+            },
+            enhanceMode = try {
+                EnhanceMode.valueOf(prefs.getString("enhance_mode", EnhanceMode.OFF.name) ?: EnhanceMode.OFF.name)
+            } catch (e: Exception) {
+                EnhanceMode.OFF
+            },
+            enhanceSaturation = prefs.getInt("enhance_saturation", 0),
+            enhanceContrast = prefs.getInt("enhance_contrast", 0),
+            enhanceBrightness = prefs.getInt("enhance_brightness", 0),
+            enhanceGamma = prefs.getInt("enhance_gamma", 0),
+            enhanceHue = prefs.getInt("enhance_hue", 0)
         )
     }
 
@@ -226,6 +237,12 @@ class PlaybackSettingsRepository(context: Context) {
             putStringSet("blacklisted_folders", updated.blacklistedFolders)
             putBoolean("keep_awake_always", updated.keepAwakeAlways)
             putString("decoder_mode", updated.decoderMode.name)
+            putString("enhance_mode", updated.enhanceMode.name)
+            putInt("enhance_saturation", updated.enhanceSaturation)
+            putInt("enhance_contrast", updated.enhanceContrast)
+            putInt("enhance_brightness", updated.enhanceBrightness)
+            putInt("enhance_gamma", updated.enhanceGamma)
+            putInt("enhance_hue", updated.enhanceHue)
             apply()
         }
     }
@@ -453,5 +470,29 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateDecoderMode(mode: DecoderMode) {
         updatePlaybackSettings { it.copy(decoderMode = mode) }
+    }
+
+    suspend fun updateEnhanceMode(mode: EnhanceMode) {
+        updatePlaybackSettings { it.copy(enhanceMode = mode) }
+    }
+
+    suspend fun updateEnhanceSaturation(value: Int) {
+        updatePlaybackSettings { it.copy(enhanceSaturation = value) }
+    }
+
+    suspend fun updateEnhanceContrast(value: Int) {
+        updatePlaybackSettings { it.copy(enhanceContrast = value) }
+    }
+
+    suspend fun updateEnhanceBrightness(value: Int) {
+        updatePlaybackSettings { it.copy(enhanceBrightness = value) }
+    }
+
+    suspend fun updateEnhanceGamma(value: Int) {
+        updatePlaybackSettings { it.copy(enhanceGamma = value) }
+    }
+
+    suspend fun updateEnhanceHue(value: Int) {
+        updatePlaybackSettings { it.copy(enhanceHue = value) }
     }
 }
