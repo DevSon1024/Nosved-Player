@@ -108,7 +108,9 @@ fun PlayerScreen(
     subtitleTracks: List<TrackInfo> = emptyList(),
     audioTracks: List<TrackInfo> = emptyList(),
     audioBoosterEnabled: Boolean = false,
+    audioBoostVolume: Int = 100,
     onToggleAudioBooster: (Boolean) -> Unit = {},
+    onSetAudioBoostVolume: (Int) -> Unit = {},
     playbackSettings: PlaybackSettings = PlaybackSettings(),
     onSelectSubtitleTrack: (Int) -> Unit = {},
     onSelectAudioTrack: (Int) -> Unit = {},
@@ -488,7 +490,10 @@ fun PlayerScreen(
                     playbackSettings = playbackSettings,
                     onShowMuteIcon = {},
                     onTakeVideoScreenshot = onTakeVideoScreenshot,
-                    onZoomChange = onZoomChange
+                    onZoomChange = onZoomChange,
+                    audioBoosterEnabled = audioBoosterEnabled,
+                    audioBoostVolume = audioBoostVolume,
+                    onSetAudioBoostVolume = onSetAudioBoostVolume
                 )
 
                 ComposeSubtitleOverlay(

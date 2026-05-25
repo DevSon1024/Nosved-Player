@@ -76,6 +76,9 @@ fun GestureOverlay(
     onShowMuteIcon: (Boolean) -> Unit = {},
     onTakeVideoScreenshot: () -> Unit = {},
     onZoomChange: ((scaleMultiplier: Float, pan: Offset) -> Unit)? = null,
+    audioBoosterEnabled: Boolean = false,
+    audioBoostVolume: Int = 100,
+    onSetAudioBoostVolume: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -83,6 +86,10 @@ fun GestureOverlay(
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember(audioManager) { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+
+    val audioBoosterEnabledState = rememberUpdatedState(audioBoosterEnabled)
+    val audioBoostVolumeState = rememberUpdatedState(audioBoostVolume)
+    val onSetAudioBoostVolumeState = rememberUpdatedState(onSetAudioBoostVolume)
 
     val density = LocalDensity.current
     var showSeekIndicator by remember { mutableStateOf(false) }
@@ -294,7 +301,13 @@ fun GestureOverlay(
                                             showBrightnessIndicator = true
                                             brightnessHideJob?.cancel()
                                         } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
-                                            currentVolumeFloat = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+                                            val sysVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            if (audioBoosterEnabledState.value && sysVol >= maxVolume) {
+                                                currentVolumeFloat = 1.0f + (audioBoostVolumeState.value - 100) / 100f
+                                            } else {
+                                                currentVolumeFloat = sysVol.toFloat() / maxVolume.coerceAtLeast(1)
+                                            }
+                                            currentVolumePercent = (currentVolumeFloat * 100).toInt()
                                             showVolumeIndicator = true
                                             volumeHideJob?.cancel()
                                         } else {
@@ -337,10 +350,20 @@ fun GestureOverlay(
                                             }
                                             currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
                                         } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
-                                            currentVolumeFloat = (currentVolumeFloat + deltaPercent * maxVolume).coerceIn(0f, maxVolume.toFloat())
-                                            val newVol = currentVolumeFloat.toInt()
-                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                            currentVolumePercent = ((newVol.toFloat() / maxVolume) * 100).toInt()
+                                            val volumeRangeMax = if (audioBoosterEnabledState.value) 2.0f else 1.0f
+                                            currentVolumeFloat = (currentVolumeFloat + deltaPercent * volumeRangeMax).coerceIn(0f, volumeRangeMax)
+                                            if (currentVolumeFloat <= 1.0f) {
+                                                val newVol = (currentVolumeFloat * maxVolume).toInt().coerceIn(0, maxVolume)
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                                onSetAudioBoostVolumeState.value(100)
+                                                currentVolumePercent = (currentVolumeFloat * 100).toInt()
+                                            } else {
+                                                val newVol = maxVolume
+                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                                val boostVolPercent = (100 + (currentVolumeFloat - 1.0f) * 100).toInt().coerceIn(100, 200)
+                                                onSetAudioBoostVolumeState.value(boostVolPercent)
+                                                currentVolumePercent = (currentVolumeFloat * 100).toInt()
+                                            }
                                         }
                                     }
                                     dragChange.consume()
@@ -551,7 +574,7 @@ fun GestureOverlay(
             }
         }
 
-        // Brighness bar
+        // Brightness bar
         AnimatedVisibility(
             visible = showBrightnessIndicator,
             enter = fadeIn() + slideInHorizontally(initialOffsetX = { it }),
@@ -563,45 +586,54 @@ fun GestureOverlay(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .width(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.65f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
-                    .padding(vertical = 20.dp, horizontal = 8.dp)
+                    .width(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                    .padding(vertical = 24.dp, horizontal = 6.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Brightness5,
+                    imageVector = when {
+                        currentBrightnessPercent < 33 -> Icons.Rounded.BrightnessLow
+                        currentBrightnessPercent < 66 -> Icons.Rounded.BrightnessMedium
+                        else -> Icons.Rounded.BrightnessHigh
+                    },
                     contentDescription = "Brightness",
-                    tint = Color.White,
+                    tint = Color(0xFFFFB300),
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
-                        .width(6.dp)
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
+                        .width(12.dp)
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight((currentBrightnessPercent / 100f).coerceIn(0f, 1f))
-                            .background(Color(0xFFFFD600))
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color(0xFFFFD600), Color(0xFFFF8F00))
+                                )
+                            )
                             .align(Alignment.BottomStart)
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "$currentBrightnessPercent%",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
                 )
             }
         }
 
-        // volume bar
+        // Volume bar
         AnimatedVisibility(
             visible = showVolumeIndicator,
             enter = fadeIn() + slideInHorizontally(initialOffsetX = { -it }),
@@ -610,47 +642,63 @@ fun GestureOverlay(
                 .align(Alignment.CenterStart)
                 .padding(start = 32.dp)
         ) {
+            val isBoosted = currentVolumePercent > 100
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .width(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.65f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
-                    .padding(vertical = 20.dp, horizontal = 8.dp)
+                    .width(56.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                    .border(
+                        1.dp,
+                        if (isBoosted) MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                        RoundedCornerShape(28.dp)
+                    )
+                    .padding(vertical = 24.dp, horizontal = 6.dp)
             ) {
                 Icon(
                     imageVector = when {
-                        currentVolumePercent == 0 -> Icons.AutoMirrored.Rounded.VolumeMute
-                        currentVolumePercent < 50 -> Icons.AutoMirrored.Rounded.VolumeDown
+                        currentVolumePercent == 0 -> Icons.AutoMirrored.Rounded.VolumeOff
+                        currentVolumePercent <= 50 -> Icons.AutoMirrored.Rounded.VolumeDown
                         else -> Icons.AutoMirrored.Rounded.VolumeUp
                     },
                     contentDescription = "Volume",
-                    tint = Color.White,
+                    tint = if (isBoosted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Box(
                     modifier = Modifier
-                        .width(6.dp)
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
+                        .width(12.dp)
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                 ) {
+                    val maxVolumeVal = if (audioBoosterEnabledState.value) 2.0f else 1.0f
+                    val volumeFraction = (currentVolumePercent / 100f) / maxVolumeVal
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight((currentVolumePercent / 100f).coerceIn(0f, 1f))
-                            .background(Color(0xFF00E5FF))
+                            .fillMaxHeight(volumeFraction.coerceIn(0f, 1f))
+                            .background(
+                                if (isBoosted) Brush.verticalGradient(
+                                    colors = listOf(MaterialTheme.colorScheme.error, Color(0xFFFF5252))
+                                )
+                                else Brush.verticalGradient(
+                                    colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                                )
+                            )
                             .align(Alignment.BottomStart)
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "$currentVolumePercent%",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (isBoosted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
                 )
             }
         }

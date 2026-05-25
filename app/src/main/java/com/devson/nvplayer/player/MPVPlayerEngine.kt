@@ -324,6 +324,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    override fun setMpvVolume(volume: Double) {
+        Log.d("MPVPlayerEngine", "Setting MPV volume: $volume")
+        try {
+            MPVLib.setPropertyDouble("volume", volume)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set MPV volume", e)
+        }
+    }
+
     override fun setDecoder(mode: DecoderMode) {
         Log.d("MPVPlayerEngine", "Setting decoder to: ${mode.displayName} (${mode.value})")
         try {

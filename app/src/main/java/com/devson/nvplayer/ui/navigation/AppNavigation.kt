@@ -257,9 +257,12 @@ fun AppNavigation(
             val subtitleTracks by playerViewModel.subtitleTracks.collectAsState()
             val audioTracks by playerViewModel.audioTracks.collectAsState()
             val audioBoosterEnabled by playerViewModel.audioBoosterEnabled.collectAsState()
+            val audioBoostVolume by playerViewModel.audioBoostVolume.collectAsState()
             val chapters by playerViewModel.chapters.collectAsState()
 
             PlayerScreen(
+                audioBoostVolume = audioBoostVolume,
+                onSetAudioBoostVolume = { playerViewModel.setAudioBoostVolume(it) },
                 playbackState = playbackState,
                 isPlaying = isPlaying,
                 currentPosition = currentPosition,

@@ -83,6 +83,9 @@ class PlayerViewModel(
     private val _audioBoosterEnabled = MutableStateFlow(false)
     val audioBoosterEnabled: StateFlow<Boolean> = _audioBoosterEnabled.asStateFlow()
 
+    private val _audioBoostVolume = MutableStateFlow(100)
+    val audioBoostVolume: StateFlow<Int> = _audioBoostVolume.asStateFlow()
+
     private val settingsRepo = com.devson.nvplayer.repository.PlaybackSettingsRepository(application.applicationContext)
     val playbackSettings = settingsRepo.playbackSettingsFlow
 
@@ -90,6 +93,7 @@ class PlayerViewModel(
         _savedBrightness.value = playerPrefs.getFloat("brightness", 0.5f)
         _savedVolume.value = playerPrefs.getInt("volume", -1)
         _audioBoosterEnabled.value = playerPrefs.getBoolean("audio_booster_enabled", false)
+        _audioBoostVolume.value = playerPrefs.getInt("audio_boost_volume", 200)
         viewModelScope.launch {
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && !isPositionRestored) {
@@ -216,7 +220,20 @@ class PlayerViewModel(
     fun toggleAudioBooster(enabled: Boolean) {
         _audioBoosterEnabled.value = enabled
         playerPrefs.edit().putBoolean("audio_booster_enabled", enabled).apply()
-        playerEngine.setAudioBoost(enabled)
+        if (enabled) {
+            playerEngine.setMpvVolume(_audioBoostVolume.value.toDouble())
+        } else {
+            playerEngine.setMpvVolume(100.0)
+        }
+    }
+
+    fun setAudioBoostVolume(volume: Int) {
+        val clamped = volume.coerceIn(100, 200)
+        _audioBoostVolume.value = clamped
+        playerPrefs.edit().putInt("audio_boost_volume", clamped).apply()
+        if (_audioBoosterEnabled.value) {
+            playerEngine.setMpvVolume(clamped.toDouble())
+        }
     }
 
     private var isVideoLoaded = false
@@ -285,7 +302,11 @@ class PlayerViewModel(
             setPlaybackSpeed(customSpeed)
 
             // Apply saved audio boost
-            playerEngine.setAudioBoost(_audioBoosterEnabled.value)
+            if (_audioBoosterEnabled.value) {
+                playerEngine.setMpvVolume(_audioBoostVolume.value.toDouble())
+            } else {
+                playerEngine.setMpvVolume(100.0)
+            }
 
             // Apply saved decoder setting
             playerEngine.setDecoder(playbackSettings.value.decoderMode)
