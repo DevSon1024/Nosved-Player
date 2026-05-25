@@ -69,7 +69,7 @@ fun PlayerControls(
     onCycleAudio: () -> Unit,
     onBackClick: () -> Unit,
     playbackSpeed: Float,
-    seekBarStyle: String = "line",
+    seekBarStyle: String = "standard",
     hasNext: Boolean = false,
     hasPrevious: Boolean = false,
     onNextClick: () -> Unit = {},
@@ -118,7 +118,7 @@ fun PlayerControls(
                 )
             )
     ) {
-        // --- 1. TOP PANEL (Title & Track Selectors) ---
+        // 1. TOP PANEL (Title & Track Selectors)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -285,7 +285,7 @@ fun PlayerControls(
             }
         }
 
-        // --- 2. CENTER PANEL (Playback Actions) ---
+        // 2. CENTER PANEL (Playback Actions)
         // Icon sizes derived from the controlIconSize setting
         val sizeKey = controlIconSize.lowercase()
         val playCircleSize = when (sizeKey) {
@@ -430,9 +430,7 @@ fun PlayerControls(
             }
         }
 
-
-
-        // --- 3. BOTTOM PANEL (Timers & Seekbar) ---
+        // 3. BOTTOM PANEL (Timers & Seekbar)
         Column(
             modifier = Modifier
                 .fillMaxWidth()

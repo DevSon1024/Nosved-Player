@@ -154,7 +154,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             SharingStarted.WhileSubscribed(5_000),
             com.devson.nvplayer.repository.PlaybackSettings(
                 seekDurationSeconds = 10,
-                seekBarStyle = "line",
+                seekBarStyle = "standard",
                 controlIconSize = "medium",
                 autoPlayEnabled = false,
                 showSeekButtons = true,

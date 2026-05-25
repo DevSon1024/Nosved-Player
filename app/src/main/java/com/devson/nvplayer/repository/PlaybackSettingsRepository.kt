@@ -103,7 +103,9 @@ class PlaybackSettingsRepository(context: Context) {
     private fun loadPlaybackSettings(): PlaybackSettings {
         return PlaybackSettings(
             seekDurationSeconds = prefs.getInt("seek_duration_seconds", 10),
-            seekBarStyle = prefs.getString("seek_bar_style", "line") ?: "line",
+            seekBarStyle = prefs.getString("seek_bar_style", "standard")?.let {
+                if (it == "line") "standard" else it
+            } ?: "standard",
             controlIconSize = prefs.getString("control_icon_size", "medium") ?: "medium",
             autoPlayEnabled = prefs.getBoolean("auto_play_enabled", false),
             showNextPrevButtons = prefs.getBoolean("show_next_prev_buttons", true),

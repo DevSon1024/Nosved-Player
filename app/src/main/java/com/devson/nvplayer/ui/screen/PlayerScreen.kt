@@ -99,7 +99,7 @@ fun PlayerScreen(
     onSaveBrightness: (Float) -> Unit,
     onSaveVolume: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    seekBarStyle: String = "line",
+    seekBarStyle: String = "standard",
     hasNext: Boolean = false,
     hasPrevious: Boolean = false,
     onNextClick: () -> Unit = {},

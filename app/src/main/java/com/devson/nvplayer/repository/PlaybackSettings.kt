@@ -30,7 +30,7 @@ enum class EnhanceMode {
 
 data class PlaybackSettings(
     val seekDurationSeconds: Int = 10,
-    val seekBarStyle: String = "line",
+    val seekBarStyle: String = "standard",
     val controlIconSize: String = "medium",
     val autoPlayEnabled: Boolean = false,
     val showNextPrevButtons: Boolean = true,

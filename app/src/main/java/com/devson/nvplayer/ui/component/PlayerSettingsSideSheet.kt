@@ -633,7 +633,7 @@ fun PlayerSettingsSideSheet(
     }
 }
 
-// ---------------------- Tab Subcomponents ----------------------
+// Tab Subcomponents
 
 @Composable
 private fun SpeedTab(
@@ -1144,7 +1144,7 @@ private fun AutomationTab(
     }
 }
 
-// ---------------------- Reusable UI Helpers ----------------------
+// Reusable UI Helpers
 
 @Composable
 private fun SheetSectionLabel(text: String) {
