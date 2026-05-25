@@ -722,7 +722,11 @@ fun GestureOverlay(
                 .align(Alignment.TopCenter)
                 .padding(top = 50.dp)
         ) {
-            FastForwardBadge(speed = tapAndHoldSpeed)
+            FastForwardBadge(
+                speed = tapAndHoldSpeed,
+                isPlaying = isPlaying,
+                visible = isLongPressSpeedActive
+            )
         }
 
         // Mute/Unmute Toggle
@@ -849,35 +853,48 @@ private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
 }
 
 @Composable
-private fun FastForwardBadge(speed: Float) {
-    val infiniteTransition = rememberInfiniteTransition(label = "speedPulse")
-    val chevron1Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "c1"
-    )
-    val chevron2Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "c2"
-    )
-    val chevron3Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "c3"
-    )
+private fun FastForwardBadge(speed: Float, isPlaying: Boolean, visible: Boolean) {
+    val chevron1Alpha: Float
+    val chevron2Alpha: Float
+    val chevron3Alpha: Float
+
+    if (visible && isPlaying) {
+        val infiniteTransition = rememberInfiniteTransition(label = "speedPulse")
+        val c1 by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "c1"
+        )
+        val c2 by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "c2"
+        )
+        val c3 by infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "c3"
+        )
+        chevron1Alpha = c1
+        chevron2Alpha = c2
+        chevron3Alpha = c3
+    } else {
+        chevron1Alpha = 0.8f
+        chevron2Alpha = 0.8f
+        chevron3Alpha = 0.8f
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),

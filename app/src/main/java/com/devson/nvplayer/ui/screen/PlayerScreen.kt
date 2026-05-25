@@ -539,6 +539,7 @@ fun PlayerScreen(
                     PlayerControls(
                         title = videoTitle,
                         isPlaying = isPlaying,
+                        isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
                         currentPosition = currentPosition,
                         duration = duration,
                         isDragging = isDragging,

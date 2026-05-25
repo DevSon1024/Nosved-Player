@@ -297,16 +297,20 @@ private fun AnimatedArrow(
 ) {
     if (!visible) return
 
-    val infiniteTransition = rememberInfiniteTransition(label = "arrowPulse")
-    val pulseOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = if (pulsing) (if (pointLeft) -6f else 6f) else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(260, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseOffset"
-    )
+    val pulseOffset = if (pulsing) {
+        val infiniteTransition = rememberInfiniteTransition(label = "arrowPulse")
+        infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = if (pointLeft) -6f else 6f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(260, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseOffset"
+        ).value
+    } else {
+        0f
+    }
 
     Box(
         contentAlignment = Alignment.Center,

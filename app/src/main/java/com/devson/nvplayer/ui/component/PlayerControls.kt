@@ -13,6 +13,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -53,6 +54,7 @@ import java.util.Locale
 fun PlayerControls(
     title: String,
     isPlaying: Boolean,
+    isSmartEnhanceEnabled: Boolean = false,
     currentPosition: Long,
     duration: Long,
     isDragging: Boolean,
@@ -88,6 +90,46 @@ fun PlayerControls(
     val activity = remember(context) { context.findActivity() }
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+    val phaseShiftState = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            var lastTime = withFrameNanos { it }
+            while (true) {
+                withFrameNanos { frameTime ->
+                    val deltaSeconds = (frameTime - lastTime) / 1_000_000_000f
+                    lastTime = frameTime
+                    val deltaPhase = (deltaSeconds / 1.5f) * (2f * Math.PI).toFloat()
+                    phaseShiftState.floatValue = (phaseShiftState.floatValue + deltaPhase) % (2f * Math.PI).toFloat()
+                }
+            }
+        }
+    }
+
+    val glowAlpha by if (isSmartEnhanceEnabled && isPlaying) {
+        val infiniteTransition = rememberInfiniteTransition(label = "glowPulse")
+        infiniteTransition.animateFloat(
+            initialValue = 0.3f,
+            targetValue = 0.9f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "glowAlpha"
+        )
+    } else {
+        remember { mutableStateOf(if (isSmartEnhanceEnabled) 0.8f else 0f) }
+    }
+
+    val themePrimary = MaterialTheme.colorScheme.primary
+    val glowBrush = if (isSmartEnhanceEnabled) {
+        Brush.linearGradient(
+            colors = listOf(
+                themePrimary.copy(alpha = glowAlpha),
+                MaterialTheme.colorScheme.secondary.copy(alpha = glowAlpha)
+            )
+        )
+    } else null
 
     // Decouple local slider state to stop the visual slider jumping backwards while dragging
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
@@ -251,15 +293,36 @@ fun PlayerControls(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                        .then(
+                            if (isSmartEnhanceEnabled && glowBrush != null) {
+                                Modifier.background(glowBrush)
+                            } else {
+                                Modifier.background(Color.White.copy(alpha = 0.08f))
+                            }
+                        )
+                        .then(
+                            if (isSmartEnhanceEnabled) {
+                                Modifier.border(
+                                    width = 1.5.dp,
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
+                                            MaterialTheme.colorScheme.secondary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                            } else {
+                                Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            }
+                        )
                         .clickable { onEnhanceClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.AutoAwesome,
                         contentDescription = "Smart Enhance",
-                        tint = Color.White,
+                        tint = if (isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -545,8 +608,29 @@ fun PlayerControls(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .then(
+                                if (isSmartEnhanceEnabled && glowBrush != null) {
+                                    Modifier.background(glowBrush)
+                                } else {
+                                    Modifier.background(Color.White.copy(alpha = 0.08f))
+                                }
+                            )
+                            .then(
+                                if (isSmartEnhanceEnabled) {
+                                    Modifier.border(
+                                        width = 1.5.dp,
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
+                                                MaterialTheme.colorScheme.secondary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                } else {
+                                    Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                }
+                            )
                             .clickable { onEnhanceClick() }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
@@ -558,7 +642,7 @@ fun PlayerControls(
                             Icon(
                                 imageVector = Icons.Rounded.AutoAwesome,
                                 contentDescription = "Smart Enhance",
-                                tint = Color.White,
+                                tint = if (isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -673,8 +757,6 @@ fun PlayerControls(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            val themePrimary = MaterialTheme.colorScheme.primary
-
             // Premium Theme Slider Seekbar
             Slider(
                 value = safeSliderPos,
@@ -717,20 +799,7 @@ fun PlayerControls(
                     
                     when (seekBarStyle) {
                         "wavy" -> {
-                            val infiniteTransition = rememberInfiniteTransition(label = "waveShift")
-                            val phaseShift by if (isPlaying) {
-                                infiniteTransition.animateFloat(
-                                    initialValue = 0f,
-                                    targetValue = (2f * Math.PI).toFloat(),
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(1500, easing = LinearEasing),
-                                        repeatMode = RepeatMode.Restart
-                                    ),
-                                    label = "wavePhase"
-                                )
-                            } else {
-                                remember { mutableStateOf(0f) }
-                            }
+                            val phaseShift = phaseShiftState.floatValue
 
                             androidx.compose.foundation.Canvas(
                                 modifier = Modifier
