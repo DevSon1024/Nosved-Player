@@ -42,7 +42,7 @@ import com.devson.nvplayer.ui.components.CustomRenameDialog
 import com.devson.nvplayer.ui.component.PreviewFloatingActionButton
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
 import com.devson.nvplayer.ui.component.InformationBottomSheet

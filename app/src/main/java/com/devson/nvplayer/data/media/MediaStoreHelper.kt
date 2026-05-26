@@ -200,26 +200,9 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     private suspend fun getThumbnailsMap(context: Context): Map<Long, Uri> = withContext(Dispatchers.IO) {
-        val thumbnailsMap = mutableMapOf<Long, Uri>()
-        try {
-            val collection = MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI
-            val projection = arrayOf(
-                MediaStore.Video.Thumbnails.VIDEO_ID,
-                MediaStore.Video.Thumbnails._ID
-            )
-            context.contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
-                val videoIdCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Thumbnails.VIDEO_ID)
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Thumbnails._ID)
-                while (cursor.moveToNext()) {
-                    val videoId = cursor.getLong(videoIdCol)
-                    val thumbId = cursor.getLong(idCol)
-                    val thumbUri = ContentUris.withAppendedId(MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, thumbId)
-                    thumbnailsMap[videoId] = thumbUri
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        thumbnailsMap
+        // MediaStore.Video.Thumbnails is deprecated since API 29.
+        // Coil (coil-video) extracts frames from the video content URI directly,
+        // so a separate thumbnails map is no longer needed.
+        emptyMap()
     }
 }
