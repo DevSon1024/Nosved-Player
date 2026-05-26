@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.components
+package com.devson.nvplayer.ui.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row

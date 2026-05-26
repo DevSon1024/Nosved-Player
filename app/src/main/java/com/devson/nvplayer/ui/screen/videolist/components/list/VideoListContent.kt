@@ -21,7 +21,7 @@ import com.devson.nvplayer.model.LayoutMode
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.components.CustomEmptyStateView
+import com.devson.nvplayer.ui.component.CustomEmptyStateView
 
 @Composable
 fun VideoListContent(

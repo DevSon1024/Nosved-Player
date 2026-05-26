@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.components
+package com.devson.nvplayer.ui.component
 
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline

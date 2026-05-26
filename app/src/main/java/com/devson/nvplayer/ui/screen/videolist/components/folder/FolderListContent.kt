@@ -30,7 +30,7 @@ import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.VideoFolder
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.components.CustomEmptyStateView
+import com.devson.nvplayer.ui.component.CustomEmptyStateView
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

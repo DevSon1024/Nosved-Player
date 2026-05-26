@@ -32,7 +32,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.ui.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.component.PreviewFloatingActionButton
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoThumbnail
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel

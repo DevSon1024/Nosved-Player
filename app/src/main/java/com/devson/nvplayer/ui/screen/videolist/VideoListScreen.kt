@@ -39,13 +39,13 @@ import com.devson.nvplayer.model.VideoFolder
 import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
-import com.devson.nvplayer.ui.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.component.PreviewFloatingActionButton
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.devson.nvplayer.ui.components.ViewSettingsBottomSheet
 import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListContent
-import com.devson.nvplayer.ui.screen.InformationBottomSheet
+import com.devson.nvplayer.ui.component.InformationBottomSheet
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent

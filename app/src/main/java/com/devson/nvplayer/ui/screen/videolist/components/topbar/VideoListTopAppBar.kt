@@ -30,8 +30,7 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.ui.components.SearchSuggestionsPopup
+import com.devson.nvplayer.ui.component.SearchSuggestionsPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

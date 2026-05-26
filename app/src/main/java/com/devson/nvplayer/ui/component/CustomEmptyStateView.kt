@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.components
+package com.devson.nvplayer.ui.component
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

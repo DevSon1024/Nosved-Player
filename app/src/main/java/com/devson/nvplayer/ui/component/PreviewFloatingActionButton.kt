@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.components
+package com.devson.nvplayer.ui.component
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
