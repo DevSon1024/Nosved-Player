@@ -40,7 +40,7 @@ fun SelectionBottomAppBar(
     selectedFolders: Set<VideoFolder>,
     videosByFolder: Map<VideoFolder, List<Video>>,
     viewSettings: ViewSettings,
-    onVideoSelected: (Video, List<Video>) -> Unit,
+    onFeedPlay: (List<Video>) -> Unit,
     onClearSelection: () -> Unit,
     onMove: () -> Unit,
     onCopy: () -> Unit,
@@ -75,16 +75,13 @@ fun SelectionBottomAppBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play All videos in selected folders
+            // Play All videos in selected folders at FeedPlay
             ActionColumn(
                 icon = Icons.Filled.PlayCircle,
-                label = "Play All",
+                label = "FeedPlay",
                 onClick = {
                     val allVideos = selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }
-                    val firstVideo = allVideos.firstOrNull()
-                    if (firstVideo != null) {
-                        onVideoSelected(firstVideo, allVideos)
-                    }
+                    onFeedPlay(allVideos)
                 }
             )
             // Move

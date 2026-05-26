@@ -37,7 +37,7 @@ import com.devson.nvplayer.util.TagStatusDialog
 @Composable
 fun VideoSelectionBottomBar(
     selectedVideos: Set<Video>,
-    onPlayAll: () -> Unit,
+    onFeedPlay: () -> Unit,
     onMove: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
@@ -71,11 +71,11 @@ fun VideoSelectionBottomBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play All
+            // FeedPlay
             ActionColumn(
                 icon = Icons.Filled.PlayCircle,
-                label = "Play All",
-                onClick = onPlayAll
+                label = "FeedPlay",
+                onClick = onFeedPlay
             )
             // Move
             ActionColumn(icon = Icons.AutoMirrored.Filled.DriveFileMove, label = "Move", onClick = onMove)

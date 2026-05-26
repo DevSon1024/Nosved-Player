@@ -26,6 +26,8 @@ class FeedViewModel(
     val engine: MPVPlayerEngine
 ) : ViewModel() {
 
+    var skipPauseOnDispose = false
+
     companion object {
         private const val TAG = "FeedViewModel"
     }
@@ -41,6 +43,9 @@ class FeedViewModel(
     // Which page is currently playing
     private val _currentIndex = MutableStateFlow(-1)
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+
+    val currentPosition: StateFlow<Long> = engine.currentPosition
+    val duration: StateFlow<Long> = engine.duration
 
     fun setVideos(list: List<Video>) {
         _videos.value = list
@@ -59,6 +64,7 @@ class FeedViewModel(
 
         viewModelScope.launch {
             try {
+                engine.setPlaybackSpeed(1.0f) // Reset speed to normal on page change
                 engine.loadVideo(Uri.parse(video.uri))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load video at index $index", e)
@@ -66,6 +72,8 @@ class FeedViewModel(
         }
     }
 
+    fun seekTo(position: Long) = try { engine.seekTo(position, precise = true) } catch (e: Exception) { Log.w(TAG, "seekTo() failed", e) }
+    fun setPlaybackSpeed(speed: Float) = try { engine.setPlaybackSpeed(speed) } catch (e: Exception) { Log.w(TAG, "setPlaybackSpeed() failed", e) }
     fun pause() = try { engine.pause() } catch (e: Exception) { Log.w(TAG, "pause() failed", e) }
     fun play()  = try { engine.play()  } catch (e: Exception) { Log.w(TAG, "play() failed",  e) }
     fun togglePlayback() = try { engine.togglePlayback() } catch (e: Exception) { Log.w(TAG, "toggle failed", e) }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -55,7 +56,8 @@ fun VideoListTopAppBar(
     searchSuggestions: List<String> = emptyList(),
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
     keyboard: SoftwareKeyboardController? = null,
-    onRecycleBinClick: (() -> Unit)? = null
+    onRecycleBinClick: (() -> Unit)? = null,
+    onPlayFolder: (() -> Unit)? = null
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -146,6 +148,11 @@ fun VideoListTopAppBar(
                     onRecycleBinClick?.let { onClick ->
                         IconButton(onClick = onClick) {
                             Icon(imageVector = Icons.Filled.Delete, contentDescription = "Recycle Bin")
+                        }
+                    }
+                    onPlayFolder?.let { onClick ->
+                        IconButton(onClick = onClick) {
+                            Icon(imageVector = Icons.Filled.PlayCircle, contentDescription = "Play Folder in Feed")
                         }
                     }
                     IconButton(onClick = { onSearchActiveChange(true) }) {

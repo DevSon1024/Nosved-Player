@@ -48,6 +48,13 @@ class VideoListViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _feedVideos = MutableStateFlow<List<Video>?>(null)
+    val feedVideos: StateFlow<List<Video>?> = _feedVideos.asStateFlow()
+
+    fun setFeedVideos(videos: List<Video>?) {
+        _feedVideos.value = videos
+    }
+
     /**
      * Public, filtered view of videos by folder.
      * Instantly re-derived in memory whenever raw data or settings change -

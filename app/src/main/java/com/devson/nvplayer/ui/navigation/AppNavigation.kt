@@ -122,6 +122,7 @@ fun AppNavigation(
                     navController.navigate("video_list")
                 },
                 onFeedClick = {
+                    videoListViewModel.setFeedVideos(null)
                     navController.navigate("feed/0")
                 }
             )
@@ -141,6 +142,9 @@ fun AppNavigation(
                 },
                 onNavigateToSearch = { query ->
                     navController.navigate("search_results/${Uri.encode(query)}")
+                },
+                onNavigateToFeed = { startIndex ->
+                    navController.navigate("feed/$startIndex")
                 },
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel
@@ -232,16 +236,19 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
-            // Supply ALL videos from the shared VideoListViewModel so the feed
-            // mirrors the same dataset the user is currently browsing.
-            val videos = remember {
-                videoListViewModel.videosByFolder.value.values.flatten()
+            val feedVideosState by videoListViewModel.feedVideos.collectAsState()
+            val videos = remember(feedVideosState) {
+                feedVideosState ?: videoListViewModel.videosByFolder.value.values.flatten()
             }
             FeedScreen(
                 videos     = videos,
                 startIndex = startIndex,
                 engine     = playerEngine,
-                onBack     = safePopBackStack
+                onBack     = safePopBackStack,
+                onPlayVideoInPlayer = { video, playlist ->
+                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    navController.navigate("player")
+                }
             )
         }
 

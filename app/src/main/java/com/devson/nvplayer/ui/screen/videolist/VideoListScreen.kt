@@ -66,6 +66,7 @@ fun VideoListScreen(
     onNavigateToSettings: () -> Unit,
     onBack: () -> Unit = {},
     onNavigateToSearch: (String) -> Unit = {},
+    onNavigateToFeed: (Int) -> Unit = {},
     viewModel: VideoListViewModel = viewModel(),
     homeViewModel: HomeViewModel
 ) {
@@ -328,7 +329,20 @@ fun VideoListScreen(
                     } else {
                         viewModel.selectFolder(null)
                     }
-                }
+                },
+                onPlayFolder = if ((viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) ||
+                                  (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null)) {
+                    {
+                        val folderVideos = when (viewSettings.viewMode) {
+                            ViewMode.ALL_FOLDERS -> videosByFolder[selectedFolder] ?: emptyList()
+                            ViewMode.FOLDERS -> explorerNodes.second
+                            else -> emptyList()
+                        }
+                        val sortedVideos = folderVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                        viewModel.setFeedVideos(sortedVideos)
+                        onNavigateToFeed(0)
+                    }
+                } else null
             )
         },
         bottomBar = {
@@ -375,8 +389,11 @@ fun VideoListScreen(
                         selectedFolders = selectedFolders,
                         videosByFolder = videosByFolder,
                         viewSettings = viewSettings,
-                        onVideoSelected = { video, playlist ->
-                            onVideoSelected(video, playlist, historyMap[video.uri]?.lastPositionMs ?: 0L)
+                        onFeedPlay = { videos ->
+                            val sorted = videos.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                            viewModel.setFeedVideos(sorted)
+                            onNavigateToFeed(0)
+                            selectedFolders = emptySet()
                         },
                         onClearSelection = { selectedFolders = emptySet() },
                         onMove = {
@@ -428,15 +445,11 @@ fun VideoListScreen(
                     // use the video-centric bar driven by the unified selectedUris list
                     VideoSelectionBottomBar(
                         selectedVideos = selectedVideos,
-                        onPlayAll = {
-                            val playVideo = selectedVideos.firstOrNull()
-                            if (playVideo != null) {
-                                val playlist = when (viewSettings.viewMode) {
-                                    ViewMode.FILES -> videosByFolder.values.flatten().applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                    ViewMode.ALL_FOLDERS -> (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                    ViewMode.FOLDERS -> explorerNodes.second.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                }
-                                onVideoSelected(playVideo, playlist, historyMap[playVideo.uri]?.lastPositionMs ?: 0L)
+                        onFeedPlay = {
+                            val sorted = selectedVideos.toList().applySort(viewSettings.sortField, viewSettings.sortDirection)
+                            if (sorted.isNotEmpty()) {
+                                viewModel.setFeedVideos(sorted)
+                                onNavigateToFeed(0)
                                 selectedVideos = emptySet()
                             }
                         },

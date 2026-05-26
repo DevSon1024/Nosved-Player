@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
@@ -12,6 +14,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
@@ -67,17 +70,23 @@ import kotlinx.coroutines.delay
  * @param startIndex The page index to open at (defaults to 0).
  * @param onBack    Called when the user presses the system back button.
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 @Composable
 fun FeedScreen(
     videos: List<Video>,
     engine: com.devson.nvplayer.player.MPVPlayerEngine,
     startIndex: Int = 0,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onPlayVideoInPlayer: (Video, List<Video>) -> Unit = { _, _ -> }
 ) {
     val viewModel: FeedViewModel = viewModel(
         factory = FeedViewModel.Factory(engine)
     )
+
+    var controlsVisible by remember { mutableStateOf(true) }
 
     // Push the video list into the VM once (or when the list reference changes).
     LaunchedEffect(videos) {
@@ -101,7 +110,11 @@ fun FeedScreen(
     // Pause as soon as the composable leaves the tree (user presses Back).
     // This fires before ON_STOP so video decoding stops the moment they navigate away.
     DisposableEffect(Unit) {
-        onDispose { viewModel.pause() }
+        onDispose {
+            if (!viewModel.skipPauseOnDispose) {
+                viewModel.pause()
+            }
+        }
     }
 
     // Pause / resume when the Activity goes to background / foreground.
@@ -145,24 +158,90 @@ fun FeedScreen(
                 engine      = viewModel.engine,
                 isPlaying   = isPlaying,
                 playerState = playerState,
+                controlsVisible = controlsVisible,
+                onControlsVisibleChange = { controlsVisible = it },
+                onSpeedChange = { speed -> viewModel.setPlaybackSpeed(speed) },
+                onTitleClick = {
+                    viewModel.skipPauseOnDispose = true
+                    onPlayVideoInPlayer(video, videos)
+                },
                 onTogglePlay = { viewModel.togglePlayback() }
             )
         }
 
         //  Top bar overlay 
-        FeedTopBar(
-            modifier = Modifier.align(Alignment.TopCenter),
-            onBack   = onBack
-        )
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            FeedTopBar(
+                onBack   = onBack
+            )
+        }
 
         //  Page indicator dots 
-        FeedPageIndicator(
-            total    = videos.size,
-            current  = pagerState.currentPage,
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 12.dp)
-        )
+        ) {
+            FeedPageIndicator(
+                total    = videos.size,
+                current  = pagerState.currentPage
+            )
+        }
+
+        // Slim seekbar at the bottom
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 8.dp, start = 16.dp, end = 16.dp)
+        ) {
+            val currentPos by viewModel.currentPosition.collectAsState()
+            val videoDuration by viewModel.duration.collectAsState()
+
+            Slider(
+                value = currentPos.toFloat(),
+                onValueChange = { newVal ->
+                    viewModel.seekTo(newVal.toLong())
+                },
+                valueRange = 0f..videoDuration.coerceAtLeast(1L).toFloat(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(16.dp),
+                colors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                ),
+                track = { sliderState ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(2.dp))
+                    ) {
+                        val fraction = if (videoDuration > 0) sliderState.value / videoDuration.toFloat() else 0f
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                                .height(4.dp)
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
+                        )
+                    }
+                },
+                thumb = {}
+            )
+        }
     }
 }
 
@@ -177,20 +256,93 @@ private fun FeedPage(
     engine: com.devson.nvplayer.player.MPVPlayerEngine,
     isPlaying: Boolean,
     playerState: PlayerState,
+    controlsVisible: Boolean,
+    onControlsVisibleChange: (Boolean) -> Unit,
+    onSpeedChange: (Float) -> Unit,
+    onTitleClick: () -> Unit,
     onTogglePlay: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // Show/hide the play-icon feedback for a moment after a tap.
     var showPlayIcon by remember { mutableStateOf(false) }
+    var is2xSpeedActive by remember { mutableStateOf(false) }
+
+    val currentControlsVisible by rememberUpdatedState(controlsVisible)
+    val currentOnControlsVisibleChange by rememberUpdatedState(onControlsVisibleChange)
+    val currentOnSpeedChange by rememberUpdatedState(onSpeedChange)
+    val currentOnTogglePlay by rememberUpdatedState(onTogglePlay)
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(Unit) {
-                detectTapGestures {
-                    onTogglePlay()
-                    showPlayIcon = true
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startX = down.position.x
+                        val width = size.width.toFloat()
+                        val isLeft = startX < width * 0.35f
+                        val isRight = startX > width * 0.65f
+                        val isCenter = !isLeft && !isRight
+
+                        var currentChange = down
+                        val change = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val anyDown = event.changes.any { it.pressed }
+                                if (!anyDown) {
+                                    break
+                                }
+                                val checkChange = event.changes.firstOrNull { it.id == down.id }
+                                if (checkChange != null) {
+                                    currentChange = checkChange
+                                    val dx = checkChange.position.x - down.position.x
+                                    val dy = checkChange.position.y - down.position.y
+                                    if (dx * dx + dy * dy > 900f) {
+                                        break
+                                    }
+                                }
+                            }
+                            currentChange
+                        }
+
+                        if (change == null) {
+                            // Long press detected!
+                            if (!currentControlsVisible) {
+                                currentOnControlsVisibleChange(true)
+                            } else {
+                                if (isCenter) {
+                                    currentOnControlsVisibleChange(false)
+                                } else {
+                                    is2xSpeedActive = true
+                                    currentOnSpeedChange(2.0f)
+                                }
+                            }
+                            // Always wait for release to avoid restarting gestures pre-maturely
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val anyPressed = event.changes.any { it.pressed }
+                                if (!anyPressed) {
+                                    break
+                                }
+                            }
+                            if (is2xSpeedActive) {
+                                is2xSpeedActive = false
+                                currentOnSpeedChange(1.0f)
+                            }
+                        } else {
+                            // Tap detected!
+                            val dx = currentChange.position.x - down.position.x
+                            val dy = currentChange.position.y - down.position.y
+                            if (dx * dx + dy * dy < 900f) {
+                                if (currentControlsVisible && isCenter) {
+                                    currentOnTogglePlay()
+                                    showPlayIcon = true
+                                }
+                            }
+                        }
+                    }
                 }
             }
     ) {
@@ -239,12 +391,19 @@ private fun FeedPage(
         )
 
         //  Video metadata overlay 
-        FeedMetadata(
-            video    = video,
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 20.dp, end = 72.dp, bottom = 40.dp)
-        )
+                .padding(start = 20.dp, end = 72.dp, bottom = 50.dp)
+        ) {
+            FeedMetadata(
+                video        = video,
+                onTitleClick = onTitleClick
+            )
+        }
 
         //  Loading indicator 
         if (isActive && playerState is PlayerState.Loading) {
@@ -282,6 +441,38 @@ private fun FeedPage(
                     tint   = Color.White,
                     modifier = Modifier.size(36.dp)
                 )
+            }
+        }
+
+        // 2X Speed boost overlay
+        AnimatedVisibility(
+            visible = is2xSpeedActive,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 80.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FastForward,
+                        contentDescription = "2x Speed",
+                        tint = Color.White
+                    )
+                    Text(
+                        text = "2X Speed",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }
@@ -323,6 +514,7 @@ private fun FeedTopBar(
 @Composable
 private fun FeedMetadata(
     video: Video,
+    onTitleClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -335,7 +527,8 @@ private fun FeedMetadata(
             fontWeight = FontWeight.Bold,
             fontSize   = 15.sp,
             maxLines   = 2,
-            overflow   = TextOverflow.Ellipsis
+            overflow   = TextOverflow.Ellipsis,
+            modifier   = Modifier.clickable { onTitleClick() }
         )
         Text(
             text     = video.folderName,
