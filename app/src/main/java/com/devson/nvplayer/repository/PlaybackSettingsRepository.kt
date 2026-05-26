@@ -174,9 +174,9 @@ class PlaybackSettingsRepository(context: Context) {
             blacklistedFolders = prefs.getStringSet("blacklisted_folders", emptySet()) ?: emptySet(),
             keepAwakeAlways = prefs.getBoolean("keep_awake_always", false),
             decoderMode = try {
-                DecoderMode.valueOf(prefs.getString("decoder_mode", DecoderMode.AUTO.name) ?: DecoderMode.AUTO.name)
+                DecoderMode.valueOf(prefs.getString("decoder_mode", DecoderMode.HW.name) ?: DecoderMode.HW.name)
             } catch (e: Exception) {
-                DecoderMode.AUTO
+                DecoderMode.HW
             },
             enhanceMode = try {
                 EnhanceMode.valueOf(prefs.getString("enhance_mode", EnhanceMode.OFF.name) ?: EnhanceMode.OFF.name)

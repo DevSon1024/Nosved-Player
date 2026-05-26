@@ -57,6 +57,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("force-window", "yes")
             
+            // Prioritize mediacodec (hardware decoding) and use fast profile
+            MPVLib.setOptionString("hwdec", "mediacodec")
+            MPVLib.setOptionString("profile", "fast")
+            
             // Keep native player responsive and smooth
             MPVLib.setOptionString("keep-open", "yes")
 

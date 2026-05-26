@@ -140,10 +140,14 @@ class PlayerViewModel(
                     if (preferredIsHw && actual == "no") {
                         // Wait a short moment to allow decoder initialization to settle
                         delay(1000L)
+                        
+                        val latestState = playerEngine.playbackState.value
+                        val isPlayerActive = latestState is PlayerState.Playing || latestState is PlayerState.Paused
+                        
                         val currentActual = playerEngine.hwdecCurrent.value
                         val currentPreferred = playbackSettings.value.decoderMode
                         val currentPreferredIsHw = currentPreferred == DecoderMode.HW || currentPreferred == DecoderMode.HW_PLUS || currentPreferred == DecoderMode.AUTO
-                        if (currentPreferredIsHw && currentActual == "no") {
+                        if (currentPreferredIsHw && currentActual == "no" && isPlayerActive && isVideoLoaded) {
                             Log.w("PlayerViewModel", "Decoder fallback detected! Current active decoder is SW but preferred was HW. Marking unsupported.")
                             val wasHwSupported = _isHwSupported.value
                             _isHwSupported.value = false

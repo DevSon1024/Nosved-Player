@@ -70,7 +70,7 @@ data class PlaybackSettings(
     val screenshotLocation: String = "Pictures/NVPlayer/Screenshot",
     val blacklistedFolders: Set<String> = emptySet(),
     val keepAwakeAlways: Boolean = false,
-    val decoderMode: com.devson.nvplayer.player.DecoderMode = com.devson.nvplayer.player.DecoderMode.AUTO,
+    val decoderMode: com.devson.nvplayer.player.DecoderMode = com.devson.nvplayer.player.DecoderMode.HW,
     val enhanceMode: EnhanceMode = EnhanceMode.OFF,
     val enhanceSaturation: Int = 0,
     val enhanceContrast: Int = 0,
