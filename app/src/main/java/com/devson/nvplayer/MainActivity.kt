@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         homeViewModel = homeViewModel,
                         playerViewModel = playerViewModel,
+                        playerEngine = playerEngine,
                         settingsViewModel = settingsViewModel,
                         videoListViewModel = videoListViewModel,
                         fileOpsViewModel = fileOpsViewModel

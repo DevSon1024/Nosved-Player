@@ -24,6 +24,7 @@ import com.devson.nvplayer.ui.screen.AboutScreen
 import com.devson.nvplayer.ui.screen.FolderScreen
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
+import com.devson.nvplayer.ui.screen.FeedScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -31,6 +32,7 @@ import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.player.DecoderMode
+import com.devson.nvplayer.player.MPVPlayerEngine
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -42,6 +44,7 @@ import androidx.compose.animation.fadeOut
 fun AppNavigation(
     homeViewModel: HomeViewModel,
     playerViewModel: PlayerViewModel,
+    playerEngine: MPVPlayerEngine,
     settingsViewModel: SettingsViewModel,
     videoListViewModel: VideoListViewModel,
     fileOpsViewModel: FileOperationsViewModel
@@ -117,6 +120,9 @@ fun AppNavigation(
                 },
                 onBrowseClick = {
                     navController.navigate("video_list")
+                },
+                onFeedClick = {
+                    navController.navigate("feed/0")
                 }
             )
         }
@@ -218,6 +224,26 @@ fun AppNavigation(
             )
         }
 
+        //  Feed (Reels/Shorts style) 
+        composable(
+            route = "feed/{startIndex}",
+            arguments = listOf(
+                navArgument("startIndex") { type = NavType.IntType; defaultValue = 0 }
+            )
+        ) { backStackEntry ->
+            val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
+            // Supply ALL videos from the shared VideoListViewModel so the feed
+            // mirrors the same dataset the user is currently browsing.
+            val videos = remember {
+                videoListViewModel.videosByFolder.value.values.flatten()
+            }
+            FeedScreen(
+                videos     = videos,
+                startIndex = startIndex,
+                engine     = playerEngine,
+                onBack     = safePopBackStack
+            )
+        }
 
 
         composable(

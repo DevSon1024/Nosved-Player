@@ -50,7 +50,8 @@ fun HomeScreen(
     onVideoClick: (Uri, List<Uri>) -> Unit,
     onRecycleBinClick: () -> Unit,
     onSearch: (String) -> Unit,
-    onBrowseClick: () -> Unit
+    onBrowseClick: () -> Unit,
+    onFeedClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -221,6 +222,12 @@ fun HomeScreen(
                     subtitle = "Explore all folders, files, and playlists",
                     icon = { Icon(Icons.Default.VideoLibrary, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
                     onClick = onBrowseClick
+                )
+                QuickActionCard(
+                    title = "Video Feed",
+                    subtitle = "Reels-style vertical feed of all your videos",
+                    icon = { Icon(Icons.Default.PlayCircle, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
+                    onClick = onFeedClick
                 )
                 QuickActionCard(
                     title = "Recycle Bin",
