@@ -50,29 +50,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import kotlinx.coroutines.delay
 
-// 
-// FeedScreen
-// 
+// FeedScreen 
 
-/**
- * Reels/Shorts-style vertical video feed.
- *
- * Design decisions:
- *  • **Single engine**: [FeedViewModel] holds ONE [com.devson.nvplayer.player.MPVPlayerEngine].
- *    MPVLib is a native singleton; instantiating it per-page would crash.
- *  • **Smart rendering**: Only the *settled* (active) page gets the real
- *    [MPVSurfaceView]. All other pages show a lightweight [AsyncImage] thumbnail.
- *    This prevents MPVLib from needing to juggle multiple surfaces.
- *  • **Auto-play on settle**: [LaunchedEffect(pagerState.settledPage)] fires once
- *    after the user lifts their finger and the page animation completes. Only then
- *    does [FeedViewModel.onPageSettled] load + play the new video.
- *  • **Lifecycle**: A [DisposableEffect] tied to the [LifecycleOwner] pauses
- *    the engine on ON_STOP and resumes it on ON_START, matching system expectations.
- *
- * @param videos    The ordered list of videos to display in the feed.
- * @param startIndex The page index to open at (defaults to 0).
- * @param onBack    Called when the user presses the system back button.
- */
+// Reels/Shorts-style vertical video feed.
 @OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
@@ -318,11 +298,14 @@ private fun FeedPage(
 
                         if (change == null) {
                             // Long press detected!
+                            var controlsHiddenByLongPress = false
+
                             if (!currentControlsVisible) {
                                 currentOnControlsVisibleChange(true)
                             } else {
                                 if (isCenter) {
                                     currentOnControlsVisibleChange(false)
+                                    controlsHiddenByLongPress = true
                                 } else {
                                     is2xSpeedActive = true
                                     currentOnSpeedChange(2.0f)
@@ -339,6 +322,10 @@ private fun FeedPage(
                             if (is2xSpeedActive) {
                                 is2xSpeedActive = false
                                 currentOnSpeedChange(1.0f)
+                            }
+                            // Restore visibility when the finger is lifted
+                            if (controlsHiddenByLongPress) {
+                                currentOnControlsVisibleChange(true)
                             }
                         } else {
                             // Tap detected!
