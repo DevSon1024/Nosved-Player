@@ -113,6 +113,7 @@ android {
 }
 
 dependencies {
+    implementation("com.github.marlboro-advance:mediainfoAndroid:v1.0.0-fix")
     implementation(files("libs/mpv-android-lib-v0.0.1.aar"))
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.graphics.shapes)
