@@ -20,10 +20,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
 import com.devson.nvplayer.model.LayoutMode
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.applySort
+import com.devson.nvplayer.ui.component.InformationBottomSheet
 import com.devson.nvplayer.ui.components.IconToggleButton
 import com.devson.nvplayer.ui.components.SettingsSectionLabel
 import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
@@ -46,6 +46,7 @@ fun SearchResultsScreen(
 
     var results by remember { mutableStateOf<List<Video>>(emptyList()) }
     var showLayoutSheet by remember { mutableStateOf(false) }
+    var selectedInfoVideo by remember { mutableStateOf<Video?>(null) }
     val sheetState = rememberModalBottomSheetState()
 
     LaunchedEffect(query, isLoading) {
@@ -102,7 +103,8 @@ fun SearchResultsScreen(
                     onVideoClick = { video ->
                         onVideoSelected(video, results, historyMap[video.uri]?.lastPositionMs ?: 0L)
                     },
-                    onVideoLongClick = {}
+                    onVideoLongClick = {},
+                    onInfoClick = { video -> selectedInfoVideo = video }
                 )
             }
         }
@@ -184,6 +186,14 @@ fun SearchResultsScreen(
                     }
                 }
             }
+        }
+
+        // Info bottom sheet for individual search result
+        selectedInfoVideo?.let { video ->
+            InformationBottomSheet(
+                selectedVideos = setOf(video),
+                onDismiss = { selectedInfoVideo = null }
+            )
         }
     }
 }

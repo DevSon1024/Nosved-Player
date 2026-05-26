@@ -1,4 +1,4 @@
-package com.devson.nvplayer.mediaInfo
+package com.devson.nvplayer.ui.mediainfo
 
 data class ParsedMediaInfo(
     val title: String,

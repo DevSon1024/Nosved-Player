@@ -16,8 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.devson.nvplayer.mediaInfo.MediaInfoOps
-import com.devson.nvplayer.mediaInfo.MediaInfoParser
+import com.devson.nvplayer.ui.mediainfo.MediaInfoOps
+import com.devson.nvplayer.ui.mediainfo.MediaInfoParser
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatDuration
@@ -37,6 +37,7 @@ fun InformationBottomSheet(
     val context = LocalContext.current
     var fullMediaInfoText by remember { mutableStateOf<String?>(null) }
     var isLoadingInfo by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(selectedVideos) {
         if (selectedVideos.size == 1) {
@@ -60,13 +61,13 @@ fun InformationBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
         ) {
             Text(
                 text = "Information",
@@ -189,7 +190,6 @@ fun InformationBottomSheet(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f, fill = false)
                                 .verticalScroll(rememberScrollState())
                         ) {
                             when (selectedTab) {
@@ -206,7 +206,12 @@ fun InformationBottomSheet(
                                         InfoItem("Filename", video.title)
                                         InfoItem("Duration", formatDuration(video.duration))
                                         InfoItem("Size", formatSize(video.size))
-                                        InfoItem("Path", video.path)
+                                    }
+
+                                    // Always show file path — MediaInfo General section rarely
+                                    // contains the full Android filesystem path
+                                    if (video.path.isNotBlank()) {
+                                        PropertyRow("Location", video.path)
                                     }
 
                                     // Display any other unmatched sections (e.g. Menu) inside Overview
@@ -317,7 +322,6 @@ fun InformationBottomSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f, fill = false)
                             .verticalScroll(rememberScrollState())
                     ) {
                         InfoItem("Name", video.title)

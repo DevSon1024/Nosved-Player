@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,7 +41,8 @@ fun VideoListItem(
     isSelected: Boolean = false,
     lastPositionMs: Long = 0L,
     onClick: (Video) -> Unit,
-    onLongClick: (Video) -> Unit
+    onLongClick: (Video) -> Unit,
+    onInfoClick: (() -> Unit)? = null
 ) {
     val haptic = LocalHapticFeedback.current
  
@@ -190,6 +192,21 @@ fun VideoListItem(
                 Spacer(modifier = Modifier.height(5.dp))
  
                 VideoMetadataChips(video, settings, lastPositionMs)
+            }
+
+            // Info icon – only shown when caller provides onInfoClick
+            if (onInfoClick != null) {
+                IconButton(
+                    onClick = onInfoClick,
+                    modifier = androidx.compose.ui.Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Video Info",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                        modifier = androidx.compose.ui.Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

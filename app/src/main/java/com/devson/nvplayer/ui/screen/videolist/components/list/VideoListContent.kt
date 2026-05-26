@@ -31,6 +31,7 @@ fun VideoListContent(
     historyMap: Map<String, WatchHistory> = emptyMap(),
     onVideoClick: (Video) -> Unit,
     onVideoLongClick: (Video) -> Unit,
+    onInfoClick: ((Video) -> Unit)? = null,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
@@ -86,7 +87,8 @@ fun VideoListContent(
                     isSelected = video in selectedVideos,
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
                     onClick = { onVideoClick(video) },
-                    onLongClick = { onVideoLongClick(video) }
+                    onLongClick = { onVideoLongClick(video) },
+                    onInfoClick = if (onInfoClick != null) { { onInfoClick(video) } } else null
                 )
             }
         }
