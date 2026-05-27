@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.VolumeMute
@@ -44,6 +45,7 @@ import com.devson.nvplayer.player.MPVSurfaceView
 import com.devson.nvplayer.player.PlayerState
 import com.devson.nvplayer.ui.component.PlayerControls
 import com.devson.nvplayer.ui.component.GestureOverlay
+import com.devson.nvplayer.model.PlayerButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -160,6 +162,8 @@ fun PlayerScreen(
     onTakeVideoScreenshot: () -> Unit = {}
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
+    var isLocked by remember { mutableStateOf(false) }
+    var showUnlockButton by remember { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
     var showSubtitleSettingsSideSheet by remember { mutableStateOf(false) }
     var showAudioSettingsSideSheet by remember { mutableStateOf(false) }
@@ -167,6 +171,24 @@ fun PlayerScreen(
     var showChaptersSideSheet by remember { mutableStateOf(false) }
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
+
+    val topLeftButtons = remember(playbackSettings.topLeftControls) {
+        val parsed = playbackSettings.topLeftControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+        listOf(PlayerButton.BACK_ARROW, PlayerButton.VIDEO_TITLE) +
+                parsed.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
+    }
+    val topRightButtons = remember(playbackSettings.topRightControls) {
+        playbackSettings.topRightControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
+    val bottomLeftButtons = remember(playbackSettings.bottomLeftControls) {
+        playbackSettings.bottomLeftControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
+    val bottomRightButtons = remember(playbackSettings.bottomRightControls) {
+        playbackSettings.bottomRightControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
+    val portraitBottomButtons = remember(playbackSettings.portraitBottomControls) {
+        playbackSettings.portraitBottomControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
     val context = LocalContext.current
     val windowInfo = LocalWindowInfo.current
 
@@ -242,7 +264,11 @@ fun PlayerScreen(
     }
 
     BackHandler(enabled = true) {
-        handleBack()
+        if (isLocked) {
+            showUnlockButton = true
+        } else {
+            handleBack()
+        }
     }
 
     // Restore saved brightness and volume on startup
@@ -471,31 +497,33 @@ fun PlayerScreen(
             }
 
             else -> {
-                GestureOverlay(
-                    isPlaying = isPlaying,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    playbackSpeed = playbackSpeed,
-                    savedBrightness = savedBrightness,
-                    savedVolume = savedVolume,
-                    onPlayPauseToggle = onPlayPauseToggle,
-                    onSeek = onSeek,
-                    onSetPlaybackSpeed = onSetPlaybackSpeed,
-                    onSaveBrightness = onSaveBrightness,
-                    onSaveVolume = onSaveVolume,
-                    controlsVisible = controlsVisible,
-                    onControlsVisibleChanged = { controlsVisible = it },
-                    customPlaybackSpeed = playbackSettings.customPlaybackSpeed,
-                    tapAndHoldSpeed = playbackSettings.tapAndHoldSpeed,
-                    doubleTapSeekDurationMs = playbackSettings.doubleTapSeekDuration,
-                    playbackSettings = playbackSettings,
-                    onShowMuteIcon = {},
-                    onTakeVideoScreenshot = onTakeVideoScreenshot,
-                    onZoomChange = onZoomChange,
-                    audioBoosterEnabled = audioBoosterEnabled,
-                    audioBoostVolume = audioBoostVolume,
-                    onSetAudioBoostVolume = onSetAudioBoostVolume
-                )
+                if (!isLocked) {
+                    GestureOverlay(
+                        isPlaying = isPlaying,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        playbackSpeed = playbackSpeed,
+                        savedBrightness = savedBrightness,
+                        savedVolume = savedVolume,
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        onSeek = onSeek,
+                        onSetPlaybackSpeed = onSetPlaybackSpeed,
+                        onSaveBrightness = onSaveBrightness,
+                        onSaveVolume = onSaveVolume,
+                        controlsVisible = controlsVisible,
+                        onControlsVisibleChanged = { controlsVisible = it },
+                        customPlaybackSpeed = playbackSettings.customPlaybackSpeed,
+                        tapAndHoldSpeed = playbackSettings.tapAndHoldSpeed,
+                        doubleTapSeekDurationMs = playbackSettings.doubleTapSeekDuration,
+                        playbackSettings = playbackSettings,
+                        onShowMuteIcon = {},
+                        onTakeVideoScreenshot = onTakeVideoScreenshot,
+                        onZoomChange = onZoomChange,
+                        audioBoosterEnabled = audioBoosterEnabled,
+                        audioBoostVolume = audioBoostVolume,
+                        onSetAudioBoostVolume = onSetAudioBoostVolume
+                    )
+                }
 
                 ComposeSubtitleOverlay(
                     subtitleText = currentSubtitleText,
@@ -532,7 +560,7 @@ fun PlayerScreen(
 
                 // Unified Premium Controls Layer
                 AnimatedVisibility(
-                    visible = controlsVisible,
+                    visible = controlsVisible && !isLocked,
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
@@ -581,6 +609,28 @@ fun PlayerScreen(
                         showScreenRotationButton = playbackSettings.showScreenRotationButton,
                         seekDurationSeconds = playbackSettings.seekDurationSeconds,
                         controlIconSize = playbackSettings.controlIconSize,
+                        topLeftButtons = topLeftButtons,
+                        topRightButtons = topRightButtons,
+                        bottomLeftButtons = bottomLeftButtons,
+                        bottomRightButtons = bottomRightButtons,
+                        portraitBottomButtons = portraitBottomButtons,
+                        onLockClick = { isLocked = true },
+                        onAspectClick = {
+                            val nextMode = when (playbackSettings.fullScreenMode) {
+                                com.devson.nvplayer.repository.FullScreenMode.AUTO_SWITCH -> com.devson.nvplayer.repository.FullScreenMode.STRETCH
+                                com.devson.nvplayer.repository.FullScreenMode.STRETCH -> com.devson.nvplayer.repository.FullScreenMode.CROP
+                                com.devson.nvplayer.repository.FullScreenMode.CROP -> com.devson.nvplayer.repository.FullScreenMode.FIT
+                                com.devson.nvplayer.repository.FullScreenMode.FIT -> com.devson.nvplayer.repository.FullScreenMode.AUTO_SWITCH
+                            }
+                            onUpdateFullScreenMode(nextMode)
+                        },
+                        onPipClick = {
+                            try {
+                                activity?.enterPictureInPictureMode()
+                            } catch (e: Exception) {
+                                android.util.Log.e("PlayerScreen", "Failed to enter Picture-in-Picture mode", e)
+                            }
+                        },
                         modifier = Modifier
                     )
                 }
@@ -680,6 +730,54 @@ fun PlayerScreen(
             onUpdateEnhanceHue = onUpdateEnhanceHue,
             onDismiss = { showEnhanceSettingsSideSheet = false }
         )
+
+        if (isLocked) {
+            // Auto-hide the unlock button after 3 seconds
+            LaunchedEffect(showUnlockButton) {
+                if (showUnlockButton) {
+                    delay(3000L)
+                    showUnlockButton = false
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = if (showUnlockButton) 0.35f else 0.01f))
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            showUnlockButton = !showUnlockButton
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedVisibility(
+                    visible = showUnlockButton,
+                    enter = fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.8f),
+                    exit = fadeOut(animationSpec = tween(300)) + scaleOut(targetScale = 0.8f)
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            isLocked = false
+                            controlsVisible = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LockOpen,
+                            contentDescription = "Unlock Controls",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

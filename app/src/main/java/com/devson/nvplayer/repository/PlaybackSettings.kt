@@ -76,6 +76,11 @@ data class PlaybackSettings(
     val enhanceContrast: Int = 0,
     val enhanceBrightness: Int = 0,
     val enhanceGamma: Int = 0,
-    val enhanceHue: Int = 0
+    val enhanceHue: Int = 0,
+    val topLeftControls: String = "BACK_ARROW,VIDEO_TITLE",
+    val topRightControls: String = "PLAYBACK_SPEED,MORE_OPTIONS",
+    val bottomLeftControls: String = "LOCK_CONTROLS",
+    val bottomRightControls: String = "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO",
+    val portraitBottomControls: String = "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION"
 )
 

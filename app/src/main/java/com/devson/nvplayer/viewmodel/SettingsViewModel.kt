@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.ui.theme.AppThemePalette
 import com.devson.nvplayer.ui.theme.AppThemePaletteHelper
+import com.devson.nvplayer.model.PlayerButton
+import com.devson.nvplayer.model.ControlRegion
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -367,5 +369,43 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateDecoderMode(mode: com.devson.nvplayer.player.DecoderMode) {
         viewModelScope.launch { settingsRepo.updateDecoderMode(mode) }
+    }
+
+    val topLeftControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.topLeftControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("BACK_ARROW,VIDEO_TITLE"))
+
+    val topRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.topRightControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("PLAYBACK_SPEED,MORE_OPTIONS"))
+
+    val bottomLeftControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.bottomLeftControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("LOCK_CONTROLS"))
+
+    val bottomRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.bottomRightControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO"))
+
+    val portraitBottomControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.portraitBottomControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION"))
+
+    private fun parseControls(value: String): List<PlayerButton> {
+        if (value.isBlank()) return emptyList()
+        return value.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
+
+    fun updateControls(region: ControlRegion, controls: List<PlayerButton>) {
+        val controlsStr = controls.joinToString(",")
+        viewModelScope.launch {
+            when (region) {
+                ControlRegion.TOP_LEFT -> settingsRepo.updateTopLeftControls(controlsStr)
+                ControlRegion.TOP_RIGHT -> settingsRepo.updateTopRightControls(controlsStr)
+                ControlRegion.BOTTOM_LEFT -> settingsRepo.updateBottomLeftControls(controlsStr)
+                ControlRegion.BOTTOM_RIGHT -> settingsRepo.updateBottomRightControls(controlsStr)
+                ControlRegion.PORTRAIT_BOTTOM -> settingsRepo.updatePortraitBottomControls(controlsStr)
+            }
+        }
     }
 }

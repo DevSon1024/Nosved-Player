@@ -48,7 +48,8 @@ class PlaybackSettingsRepository(context: Context) {
             "two_finger_action", "three_finger_action", "long_press_enabled", "long_press_speed", "double_tap_action",
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
             "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always", "decoder_mode",
-            "enhance_mode", "enhance_saturation", "enhance_contrast", "enhance_brightness", "enhance_gamma", "enhance_hue" -> {
+            "enhance_mode", "enhance_saturation", "enhance_contrast", "enhance_brightness", "enhance_gamma", "enhance_hue",
+            "top_left_controls", "top_right_controls", "bottom_left_controls", "bottom_right_controls", "portrait_bottom_controls" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -181,7 +182,12 @@ class PlaybackSettingsRepository(context: Context) {
             enhanceContrast = prefs.getInt("enhance_contrast", 0),
             enhanceBrightness = prefs.getInt("enhance_brightness", 0),
             enhanceGamma = prefs.getInt("enhance_gamma", 0),
-            enhanceHue = prefs.getInt("enhance_hue", 0)
+            enhanceHue = prefs.getInt("enhance_hue", 0),
+            topLeftControls = prefs.getString("top_left_controls", "BACK_ARROW,VIDEO_TITLE") ?: "BACK_ARROW,VIDEO_TITLE",
+            topRightControls = prefs.getString("top_right_controls", "PLAYBACK_SPEED,MORE_OPTIONS") ?: "PLAYBACK_SPEED,MORE_OPTIONS",
+            bottomLeftControls = prefs.getString("bottom_left_controls", "LOCK_CONTROLS") ?: "LOCK_CONTROLS",
+            bottomRightControls = prefs.getString("bottom_right_controls", "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO") ?: "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO",
+            portraitBottomControls = prefs.getString("portrait_bottom_controls", "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION") ?: "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION"
         )
     }
 
@@ -239,6 +245,11 @@ class PlaybackSettingsRepository(context: Context) {
             putInt("enhance_brightness", updated.enhanceBrightness)
             putInt("enhance_gamma", updated.enhanceGamma)
             putInt("enhance_hue", updated.enhanceHue)
+            putString("top_left_controls", updated.topLeftControls)
+            putString("top_right_controls", updated.topRightControls)
+            putString("bottom_left_controls", updated.bottomLeftControls)
+            putString("bottom_right_controls", updated.bottomRightControls)
+            putString("portrait_bottom_controls", updated.portraitBottomControls)
             apply()
         }
     }
@@ -485,5 +496,25 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateEnhanceHue(value: Int) {
         updatePlaybackSettings { it.copy(enhanceHue = value) }
+    }
+
+    suspend fun updateTopLeftControls(controls: String) {
+        updatePlaybackSettings { it.copy(topLeftControls = controls) }
+    }
+
+    suspend fun updateTopRightControls(controls: String) {
+        updatePlaybackSettings { it.copy(topRightControls = controls) }
+    }
+
+    suspend fun updateBottomLeftControls(controls: String) {
+        updatePlaybackSettings { it.copy(bottomLeftControls = controls) }
+    }
+
+    suspend fun updateBottomRightControls(controls: String) {
+        updatePlaybackSettings { it.copy(bottomRightControls = controls) }
+    }
+
+    suspend fun updatePortraitBottomControls(controls: String) {
+        updatePlaybackSettings { it.copy(portraitBottomControls = controls) }
     }
 }

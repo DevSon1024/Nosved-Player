@@ -249,6 +249,18 @@ fun AppNavigation(
         composable("player_interface") {
             PlayerInterfaceSettingsScreen(
                 onNavigateBack = safePopBackStack,
+                onNavigateToControlEditor = {
+                    navController.navigate("control_layout_editor")
+                },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(
+            route = "control_layout_editor"
+        ) {
+            com.devson.nvplayer.ui.screen.ControlLayoutEditorScreen(
+                onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )
         }

@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo
 import android.os.BatteryManager
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
+import com.devson.nvplayer.model.PlayerButton
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
@@ -84,6 +85,14 @@ fun PlayerControls(
     showScreenRotationButton: Boolean = true,
     seekDurationSeconds: Int = 10,
     controlIconSize: String = "medium",
+    topLeftButtons: List<PlayerButton> = emptyList(),
+    topRightButtons: List<PlayerButton> = emptyList(),
+    bottomLeftButtons: List<PlayerButton> = emptyList(),
+    bottomRightButtons: List<PlayerButton> = emptyList(),
+    portraitBottomButtons: List<PlayerButton> = emptyList(),
+    onLockClick: () -> Unit = {},
+    onAspectClick: () -> Unit = {},
+    onPipClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -160,189 +169,79 @@ fun PlayerControls(
                 )
             )
     ) {
-        // 1. TOP PANEL (Title & Track Selectors)
+        // 1. TOP PANEL (Title & Track Selectors - Dynamic)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                    .clickable { onBackClick() },
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Go Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (showElapsedTimeOverlay) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Elapsed: ${formatTime(currentPosition)}",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal
+                topLeftButtons.forEach { button ->
+                    RenderPlayerButton(
+                        button = button,
+                        modifier = if (button == PlayerButton.VIDEO_TITLE) Modifier.weight(1f) else Modifier,
+                        isPortrait = false,
+                        title = title,
+                        showElapsedTimeOverlay = showElapsedTimeOverlay,
+                        currentPosition = currentPosition,
+                        currentDecoder = currentDecoder,
+                        hasChapters = hasChapters,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        glowBrush = glowBrush,
+                        glowAlpha = glowAlpha,
+                        themePrimary = themePrimary,
+                        onBackClick = onBackClick,
+                        onShowDecoder = onShowDecoder,
+                        onShowChapters = onShowChapters,
+                        onCycleSubtitle = onCycleSubtitle,
+                        onCycleAudio = onCycleAudio,
+                        onEnhanceClick = onEnhanceClick,
+                        onSpeedClick = onSpeedClick,
+                        onLockClick = onLockClick,
+                        onAspectClick = onAspectClick,
+                        onPipClick = onPipClick,
+                        activity = activity
                     )
                 }
             }
-
             Spacer(modifier = Modifier.width(8.dp))
-
-            if (!isPortrait) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onShowDecoder() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = currentDecoder,
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (hasChapters) {
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                            .clickable { onShowChapters() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
-                            contentDescription = "Chapters",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onCycleSubtitle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Subtitles,
-                        contentDescription = "Subtitles",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onCycleAudio() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Audiotrack,
-                        contentDescription = "Audio Track",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .then(
-                            if (isSmartEnhanceEnabled && glowBrush != null) {
-                                Modifier.background(glowBrush)
-                            } else {
-                                Modifier.background(Color.White.copy(alpha = 0.08f))
-                            }
-                        )
-                        .then(
-                            if (isSmartEnhanceEnabled) {
-                                Modifier.border(
-                                    width = 1.5.dp,
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
-                                            MaterialTheme.colorScheme.secondary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
-                                        )
-                                    ),
-                                    shape = CircleShape
-                                )
-                            } else {
-                                Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                            }
-                        )
-                        .clickable { onEnhanceClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.AutoAwesome,
-                        contentDescription = "Smart Enhance",
-                        tint = if (isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                        .clickable { onSpeedClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = "Player Settings",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                topRightButtons.forEach { button ->
+                    RenderPlayerButton(
+                        button = button,
+                        modifier = Modifier,
+                        isPortrait = false,
+                        title = title,
+                        showElapsedTimeOverlay = showElapsedTimeOverlay,
+                        currentPosition = currentPosition,
+                        currentDecoder = currentDecoder,
+                        hasChapters = hasChapters,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        glowBrush = glowBrush,
+                        glowAlpha = glowAlpha,
+                        themePrimary = themePrimary,
+                        onBackClick = onBackClick,
+                        onShowDecoder = onShowDecoder,
+                        onShowChapters = onShowChapters,
+                        onCycleSubtitle = onCycleSubtitle,
+                        onCycleAudio = onCycleAudio,
+                        onEnhanceClick = onEnhanceClick,
+                        onSpeedClick = onSpeedClick,
+                        onLockClick = onLockClick,
+                        onAspectClick = onAspectClick,
+                        onPipClick = onPipClick,
+                        activity = activity
                     )
                 }
             }
@@ -509,200 +408,104 @@ fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Decoder Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .clickable { onShowDecoder() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
+                    portraitBottomButtons.forEach { button ->
+                        RenderPlayerButton(
+                            button = button,
+                            modifier = Modifier,
+                            isPortrait = true,
+                            title = title,
+                            showElapsedTimeOverlay = showElapsedTimeOverlay,
+                            currentPosition = currentPosition,
+                            currentDecoder = currentDecoder,
+                            hasChapters = hasChapters,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            glowBrush = glowBrush,
+                            glowAlpha = glowAlpha,
+                            themePrimary = themePrimary,
+                            onBackClick = onBackClick,
+                            onShowDecoder = onShowDecoder,
+                            onShowChapters = onShowChapters,
+                            onCycleSubtitle = onCycleSubtitle,
+                            onCycleAudio = onCycleAudio,
+                            onEnhanceClick = onEnhanceClick,
+                            onSpeedClick = onSpeedClick,
+                            onLockClick = onLockClick,
+                            onAspectClick = onAspectClick,
+                            onPipClick = onPipClick,
+                            activity = activity
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = currentDecoder,
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                        bottomLeftButtons.forEach { button ->
+                            RenderPlayerButton(
+                                button = button,
+                                modifier = Modifier,
+                                isPortrait = false,
+                                title = title,
+                                showElapsedTimeOverlay = showElapsedTimeOverlay,
+                                currentPosition = currentPosition,
+                                currentDecoder = currentDecoder,
+                                hasChapters = hasChapters,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                glowBrush = glowBrush,
+                                glowAlpha = glowAlpha,
+                                themePrimary = themePrimary,
+                                onBackClick = onBackClick,
+                                onShowDecoder = onShowDecoder,
+                                onShowChapters = onShowChapters,
+                                onCycleSubtitle = onCycleSubtitle,
+                                onCycleAudio = onCycleAudio,
+                                onEnhanceClick = onEnhanceClick,
+                                onSpeedClick = onSpeedClick,
+                                onLockClick = onLockClick,
+                                onAspectClick = onAspectClick,
+                                onPipClick = onPipClick,
+                                activity = activity
                             )
                         }
                     }
-
-                    // Chapters Quick Button
-                    if (hasChapters) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                                .clickable { onShowChapters() }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
-                                    contentDescription = "Chapters",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Subtitles Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .clickable { onCycleSubtitle() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Subtitles,
-                                contentDescription = "Subtitles",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                        bottomRightButtons.forEach { button ->
+                            RenderPlayerButton(
+                                button = button,
+                                modifier = Modifier,
+                                isPortrait = false,
+                                title = title,
+                                showElapsedTimeOverlay = showElapsedTimeOverlay,
+                                currentPosition = currentPosition,
+                                currentDecoder = currentDecoder,
+                                hasChapters = hasChapters,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                glowBrush = glowBrush,
+                                glowAlpha = glowAlpha,
+                                themePrimary = themePrimary,
+                                onBackClick = onBackClick,
+                                onShowDecoder = onShowDecoder,
+                                onShowChapters = onShowChapters,
+                                onCycleSubtitle = onCycleSubtitle,
+                                onCycleAudio = onCycleAudio,
+                                onEnhanceClick = onEnhanceClick,
+                                onSpeedClick = onSpeedClick,
+                                onLockClick = onLockClick,
+                                onAspectClick = onAspectClick,
+                                onPipClick = onPipClick,
+                                activity = activity
                             )
-                        }
-                    }
-
-                    // Audio Track Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .clickable { onCycleAudio() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Audiotrack,
-                                contentDescription = "Audio Track",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Smart Enhance Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .then(
-                                if (isSmartEnhanceEnabled && glowBrush != null) {
-                                    Modifier.background(glowBrush)
-                                } else {
-                                    Modifier.background(Color.White.copy(alpha = 0.08f))
-                                }
-                            )
-                            .then(
-                                if (isSmartEnhanceEnabled) {
-                                    Modifier.border(
-                                        width = 1.5.dp,
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
-                                                MaterialTheme.colorScheme.secondary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
-                                            )
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                } else {
-                                    Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                                }
-                            )
-                            .clickable { onEnhanceClick() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.AutoAwesome,
-                                contentDescription = "Smart Enhance",
-                                tint = if (isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Playback Speed Quick Button
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .clickable { onSpeedClick() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = "Media Settings",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Screen Rotation Quick Button
-                    if (showScreenRotationButton) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                                .clickable {
-                                    activity?.let { act ->
-                                        val currentOrientation = act.requestedOrientation
-                                        if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
-                                            currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                        } else {
-                                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                        }
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ScreenRotation,
-                                    contentDescription = "Rotate Screen",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
                         }
                     }
                 }
@@ -710,7 +513,7 @@ fun PlayerControls(
 
             // Timers Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -725,34 +528,6 @@ fun PlayerControls(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
-                if (!isPortrait && showScreenRotationButton) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                            .clickable {
-                                activity?.let { act ->
-                                    val currentOrientation = act.requestedOrientation
-                                    if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
-                                        currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
-                                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                    } else {
-                                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ScreenRotation,
-                            contentDescription = "Rotate Screen",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -982,4 +757,184 @@ private fun Context.findActivity(): Activity? {
         context = context.baseContext
     }
     return null
+}
+
+@Composable
+fun RenderPlayerButton(
+    button: com.devson.nvplayer.model.PlayerButton,
+    modifier: Modifier = Modifier,
+    isPortrait: Boolean = false,
+    title: String,
+    showElapsedTimeOverlay: Boolean,
+    currentPosition: Long,
+    currentDecoder: String,
+    hasChapters: Boolean,
+    isSmartEnhanceEnabled: Boolean,
+    glowBrush: Brush?,
+    glowAlpha: Float,
+    themePrimary: Color,
+    onBackClick: () -> Unit,
+    onShowDecoder: () -> Unit,
+    onShowChapters: () -> Unit,
+    onCycleSubtitle: () -> Unit,
+    onCycleAudio: () -> Unit,
+    onEnhanceClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onLockClick: () -> Unit,
+    onAspectClick: () -> Unit,
+    onPipClick: () -> Unit,
+    activity: Activity?
+) {
+    if (button == com.devson.nvplayer.model.PlayerButton.VIDEO_TITLE) {
+        Column(modifier = modifier) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (showElapsedTimeOverlay) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Elapsed: ${formatTime(currentPosition)}",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
+        return
+    }
+
+    if (button == com.devson.nvplayer.model.PlayerButton.NONE) {
+        return
+    }
+
+    val onClick = {
+        when (button) {
+            com.devson.nvplayer.model.PlayerButton.BACK_ARROW -> onBackClick()
+            com.devson.nvplayer.model.PlayerButton.DECODER -> onShowDecoder()
+            com.devson.nvplayer.model.PlayerButton.CHAPTERS -> if (hasChapters) onShowChapters() else {}
+            com.devson.nvplayer.model.PlayerButton.SUBTITLES -> onCycleSubtitle()
+            com.devson.nvplayer.model.PlayerButton.AUDIO_TRACK -> onCycleAudio()
+            com.devson.nvplayer.model.PlayerButton.SMART_ENHANCE -> onEnhanceClick()
+            com.devson.nvplayer.model.PlayerButton.PLAYBACK_SPEED, com.devson.nvplayer.model.PlayerButton.MORE_OPTIONS -> onSpeedClick()
+            com.devson.nvplayer.model.PlayerButton.LOCK_CONTROLS -> onLockClick()
+            com.devson.nvplayer.model.PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
+            com.devson.nvplayer.model.PlayerButton.ASPECT_RATIO -> onAspectClick()
+            com.devson.nvplayer.model.PlayerButton.SCREEN_ROTATION -> {
+                activity?.let { act ->
+                    val currentOrientation = act.requestedOrientation
+                    if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
+                        currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    } else {
+                        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    val isSmartEnhance = button == com.devson.nvplayer.model.PlayerButton.SMART_ENHANCE
+
+    if (isPortrait) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .then(
+                    if (isSmartEnhance && isSmartEnhanceEnabled && glowBrush != null) {
+                        Modifier.background(glowBrush)
+                    } else {
+                        Modifier.background(Color.White.copy(alpha = 0.08f))
+                    }
+                )
+                .then(
+                    if (isSmartEnhance && isSmartEnhanceEnabled) {
+                        Modifier.border(
+                            width = 1.5.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
+                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
+                                )
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    } else {
+                        Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                    }
+                )
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (button == com.devson.nvplayer.model.PlayerButton.DECODER) {
+                Text(
+                    text = currentDecoder,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = button.icon,
+                    contentDescription = button.displayName,
+                    tint = if (isSmartEnhance && isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .then(
+                    if (isSmartEnhance && isSmartEnhanceEnabled && glowBrush != null) {
+                        Modifier.background(glowBrush)
+                    } else {
+                        Modifier.background(Color.White.copy(alpha = 0.08f))
+                    }
+                )
+                .then(
+                    if (isSmartEnhance && isSmartEnhanceEnabled) {
+                        Modifier.border(
+                            width = 1.5.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
+                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                    } else {
+                        Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    }
+                )
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (button == com.devson.nvplayer.model.PlayerButton.DECODER) {
+                Text(
+                    text = currentDecoder,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Icon(
+                    imageVector = button.icon,
+                    contentDescription = button.displayName,
+                    tint = if (isSmartEnhance && isSmartEnhanceEnabled) Color.White else Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
 }
