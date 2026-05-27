@@ -116,18 +116,29 @@ fun ControlLayoutEditorScreen(
         }
     }
 
-    // 5. Gather all assigned buttons globally across all regions to exclude them from palette
-    val allAssignedButtons = remember(topLeftList, topRightList, bottomLeftList, bottomRightList, portraitBottomList) {
-        val set = mutableSetOf<PlayerButton>()
-        set.addAll(topLeftList)
-        set.addAll(topRightList)
-        set.addAll(bottomLeftList)
-        set.addAll(bottomRightList)
-        set.addAll(portraitBottomList)
-        set.add(PlayerButton.BACK_ARROW)
-        set.add(PlayerButton.VIDEO_TITLE)
-        set.add(PlayerButton.NONE)
-        set
+    // 5. Orientation-aware palette logic
+    //    Landscape context: the visible layout is TOP_LEFT + TOP_RIGHT + BOTTOM_LEFT + BOTTOM_RIGHT.
+    //    Portrait context:  the visible layout is TOP_LEFT + TOP_RIGHT + PORTRAIT_BOTTOM.
+    //    A button already used anywhere in the CURRENT orientation's layout is excluded from
+    //    the palette, preventing the same control from appearing twice on screen.
+    //    BACK_ARROW, VIDEO_TITLE, and NONE are always excluded (managed separately).
+    val paletteButtons = remember(
+        isPortraitPreview, topLeftList, topRightList, bottomLeftList, bottomRightList, portraitBottomList, activeList
+    ) {
+        val alreadyUsedInLayout = buildSet<PlayerButton> {
+            // TOP_LEFT and TOP_RIGHT are visible in both orientations
+            addAll(topLeftList)
+            addAll(topRightList)
+            if (isPortraitPreview) {
+                // Portrait layout — only PORTRAIT_BOTTOM rows are active
+                addAll(portraitBottomList)
+            } else {
+                // Landscape layout — BOTTOM_LEFT and BOTTOM_RIGHT are active
+                addAll(bottomLeftList)
+                addAll(bottomRightList)
+            }
+        }
+        allPlayerButtons.filter { it !in alreadyUsedInLayout }
     }
 
     val lazyGridState = rememberLazyGridState()
@@ -159,7 +170,17 @@ fun ControlLayoutEditorScreen(
                     // Segmented Orientation Toggle in Toolbar
                     OrientationToggle(
                         isPortrait = isPortraitPreview,
-                        onToggle = { isPortraitPreview = it }
+                        onToggle = { portrait ->
+                            isPortraitPreview = portrait
+                            // Auto-correct selectedRegion if it doesn't exist in the new orientation
+                            if (portrait && selectedRegion in listOf(ControlRegion.BOTTOM_LEFT, ControlRegion.BOTTOM_RIGHT)) {
+                                // BOTTOM_LEFT / BOTTOM_RIGHT are landscape-only → switch to PORTRAIT_BOTTOM
+                                selectedRegion = ControlRegion.PORTRAIT_BOTTOM
+                            } else if (!portrait && selectedRegion == ControlRegion.PORTRAIT_BOTTOM) {
+                                // PORTRAIT_BOTTOM is portrait-only → switch to BOTTOM_RIGHT
+                                selectedRegion = ControlRegion.BOTTOM_RIGHT
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 },
@@ -190,9 +211,10 @@ fun ControlLayoutEditorScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Scrollable Tab Selector (as secondary option for region selecting)
+            // Scrollable Tab Selector — tabs are filtered by the active orientation
             RegionTabRow(
                 selectedRegion = selectedRegion,
+                isPortrait = isPortraitPreview,
                 onRegionSelect = { selectedRegion = it }
             )
 
@@ -339,15 +361,13 @@ fun ControlLayoutEditorScreen(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
-                val unusedButtons = allPlayerButtons.filter { it !in allAssignedButtons }
-
-                if (unusedButtons.isEmpty()) {
+                if (paletteButtons.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "All controls have been assigned.",
+                            text = "All controls have been added to this region.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
@@ -364,7 +384,7 @@ fun ControlLayoutEditorScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            unusedButtons.forEach { button ->
+                            paletteButtons.forEach { button ->
                                 Surface(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
@@ -494,37 +514,33 @@ fun SimulatedPlayerPreview(
                     )
                 }
 
-                // Layout: Bottom Row (excluding Portrait Bottom)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(
-                            if (isPortrait) Alignment.Center
-                            else Alignment.BottomCenter
+                // Layout: Bottom Row (excluding Portrait Bottom - only visible in landscape)
+                if (!isPortrait) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        // Bottom Left Region
+                        MockRegionBox(
+                            region = ControlRegion.BOTTOM_LEFT,
+                            isSelected = selectedRegion == ControlRegion.BOTTOM_LEFT,
+                            onClick = { onRegionSelect(ControlRegion.BOTTOM_LEFT) },
+                            buttons = bottomLeft,
+                            modifier = Modifier.weight(0.8f)
                         )
-                        .then(
-                            if (isPortrait) Modifier.padding(top = 16.dp) else Modifier
-                        ),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    // Bottom Left Region
-                    MockRegionBox(
-                        region = ControlRegion.BOTTOM_LEFT,
-                        isSelected = selectedRegion == ControlRegion.BOTTOM_LEFT,
-                        onClick = { onRegionSelect(ControlRegion.BOTTOM_LEFT) },
-                        buttons = bottomLeft,
-                        modifier = Modifier.weight(0.8f)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    // Bottom Right Region
-                    MockRegionBox(
-                        region = ControlRegion.BOTTOM_RIGHT,
-                        isSelected = selectedRegion == ControlRegion.BOTTOM_RIGHT,
-                        onClick = { onRegionSelect(ControlRegion.BOTTOM_RIGHT) },
-                        buttons = bottomRight,
-                        modifier = Modifier.weight(1.2f)
-                    )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        // Bottom Right Region
+                        MockRegionBox(
+                            region = ControlRegion.BOTTOM_RIGHT,
+                            isSelected = selectedRegion == ControlRegion.BOTTOM_RIGHT,
+                            onClick = { onRegionSelect(ControlRegion.BOTTOM_RIGHT) },
+                            buttons = bottomRight,
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
                 }
 
                 // Layout: Portrait Bottom Row (only visible in Portrait mode)
@@ -719,25 +735,41 @@ fun OrientationToggle(
 @Composable
 fun RegionTabRow(
     selectedRegion: ControlRegion,
+    isPortrait: Boolean,
     onRegionSelect: (ControlRegion) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Landscape-only regions; Portrait-only region
+    val landscapeRegions = listOf(
+        ControlRegion.TOP_LEFT,
+        ControlRegion.TOP_RIGHT,
+        ControlRegion.BOTTOM_LEFT,
+        ControlRegion.BOTTOM_RIGHT
+    )
+    val portraitRegions = listOf(
+        ControlRegion.TOP_LEFT,
+        ControlRegion.TOP_RIGHT,
+        ControlRegion.PORTRAIT_BOTTOM
+    )
+    val visibleRegions = if (isPortrait) portraitRegions else landscapeRegions
+    val selectedIndex = visibleRegions.indexOf(selectedRegion).coerceAtLeast(0)
+
     ScrollableTabRow(
-        selectedTabIndex = selectedRegion.ordinal,
+        selectedTabIndex = selectedIndex,
         edgePadding = 0.dp,
         containerColor = Color.Transparent,
         divider = {},
         indicator = { tabPositions ->
-            if (selectedRegion.ordinal < tabPositions.size) {
+            if (selectedIndex < tabPositions.size) {
                 TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedRegion.ordinal]),
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
                     color = MaterialTheme.colorScheme.primary
                 )
             }
         },
         modifier = modifier.fillMaxWidth()
     ) {
-        ControlRegion.entries.forEach { region ->
+        visibleRegions.forEachIndexed { index, region ->
             val isSelected = selectedRegion == region
             Tab(
                 selected = isSelected,
@@ -752,6 +784,7 @@ fun RegionTabRow(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        // Badge portrait-only tab so the user knows it's portrait-exclusive
                         if (region == ControlRegion.PORTRAIT_BOTTOM) {
                             Box(
                                 modifier = Modifier
@@ -760,7 +793,7 @@ fun RegionTabRow(
                                     .padding(horizontal = 4.dp, vertical = 1.dp)
                             ) {
                                 Text(
-                                    text = "Port",
+                                    text = "Portrait",
                                     fontSize = 7.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer

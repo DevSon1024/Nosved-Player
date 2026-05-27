@@ -377,7 +377,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val topRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.topRightControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("PLAYBACK_SPEED,MORE_OPTIONS"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("SUBTITLES,AUDIO_TRACK,MORE_OPTIONS"))
 
     val bottomLeftControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.bottomLeftControls) }
@@ -389,7 +389,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val portraitBottomControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.portraitBottomControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS"))
 
     private fun parseControls(value: String): List<PlayerButton> {
         if (value.isBlank()) return emptyList()

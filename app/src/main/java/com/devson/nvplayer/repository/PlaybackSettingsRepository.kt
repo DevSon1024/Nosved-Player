@@ -184,10 +184,10 @@ class PlaybackSettingsRepository(context: Context) {
             enhanceGamma = prefs.getInt("enhance_gamma", 0),
             enhanceHue = prefs.getInt("enhance_hue", 0),
             topLeftControls = prefs.getString("top_left_controls", "BACK_ARROW,VIDEO_TITLE") ?: "BACK_ARROW,VIDEO_TITLE",
-            topRightControls = prefs.getString("top_right_controls", "PLAYBACK_SPEED,MORE_OPTIONS") ?: "PLAYBACK_SPEED,MORE_OPTIONS",
+            topRightControls = prefs.getString("top_right_controls", "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS") ?: "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
             bottomLeftControls = prefs.getString("bottom_left_controls", "LOCK_CONTROLS") ?: "LOCK_CONTROLS",
             bottomRightControls = prefs.getString("bottom_right_controls", "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO") ?: "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO",
-            portraitBottomControls = prefs.getString("portrait_bottom_controls", "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION") ?: "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,PLAYBACK_SPEED,SCREEN_ROTATION"
+            portraitBottomControls = prefs.getString("portrait_bottom_controls", "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS") ?: "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS"
         )
     }
 

@@ -820,7 +820,7 @@ fun RenderPlayerButton(
             com.devson.nvplayer.model.PlayerButton.SUBTITLES -> onCycleSubtitle()
             com.devson.nvplayer.model.PlayerButton.AUDIO_TRACK -> onCycleAudio()
             com.devson.nvplayer.model.PlayerButton.SMART_ENHANCE -> onEnhanceClick()
-            com.devson.nvplayer.model.PlayerButton.PLAYBACK_SPEED, com.devson.nvplayer.model.PlayerButton.MORE_OPTIONS -> onSpeedClick()
+            com.devson.nvplayer.model.PlayerButton.MORE_OPTIONS -> onSpeedClick()
             com.devson.nvplayer.model.PlayerButton.LOCK_CONTROLS -> onLockClick()
             com.devson.nvplayer.model.PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
             com.devson.nvplayer.model.PlayerButton.ASPECT_RATIO -> onAspectClick()
