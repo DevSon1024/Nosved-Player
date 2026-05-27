@@ -71,6 +71,11 @@ fun VideoListScreen(
     homeViewModel: HomeViewModel
 ) {
     val context = LocalContext.current
+    var isAnimationFinished by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(350)
+        isAnimationFinished = true
+    }
     var hasPermission by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -585,7 +590,7 @@ fun VideoListScreen(
                         Text("Grant Permission")
                     }
                 }
-            } else if (isLoading) {
+            } else if (isLoading || !isAnimationFinished) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 PullToRefreshBox(

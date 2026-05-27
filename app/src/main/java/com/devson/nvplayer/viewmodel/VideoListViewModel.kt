@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.repository.VideoRepository
 import com.devson.nvplayer.repository.ViewSettingsRepository
 import com.devson.nvplayer.model.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -71,8 +72,37 @@ class VideoListViewModel(
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    fun loadVideos(forceRefresh: Boolean = false) {
+    init {
         viewModelScope.launch {
+            combine(_currentExplorerPath, videosByFolder) { currentPath, snapshot ->
+                Pair(currentPath, snapshot)
+            }.collect { (currentPath, snapshot) ->
+                val folders = mutableListOf<VideoFolder>()
+                val videos = mutableListOf<Video>()
+
+                if (currentPath == null) {
+                    snapshot.keys.forEach { folder -> folders.add(folder) }
+                } else {
+                    snapshot.forEach { (folder, videoList) ->
+                        if (folder.id == currentPath) {
+                            videos.addAll(videoList)
+                        } else if (folder.id.startsWith(currentPath) && folder.id != currentPath) {
+                            val remainingPath = folder.id.removePrefix(currentPath).removePrefix("/")
+                            val nextSegment = remainingPath.substringBefore("/")
+                            val subFolderId = "$currentPath/$nextSegment"
+                            if (folders.none { it.id == subFolderId }) {
+                                folders.add(VideoFolder(id = subFolderId, name = nextSegment))
+                            }
+                        }
+                    }
+                }
+                _explorerNodes.value = Pair(folders.distinctBy { it.id }, videos.distinctBy { it.uri })
+            }
+        }
+    }
+
+    fun loadVideos(forceRefresh: Boolean = false) {
+        viewModelScope.launch(Dispatchers.Default) {
             if (forceRefresh) _isRefreshing.value = true else _isLoading.value = true
             _loadingProgress.value = 0f
             try {
@@ -126,7 +156,6 @@ class VideoListViewModel(
                 _loadingProgress.value = 1f
                 // Store raw (unfiltered) - the combine flow handles filtering reactively
                 _rawVideosByFolder.value = mappedVideos
-                updateExplorerNodes()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -168,7 +197,6 @@ class VideoListViewModel(
 
     fun navigateToExplorerPath(path: String) {
         _currentExplorerPath.value = path
-        updateExplorerNodes()
     }
 
     fun navigateExplorerUp() {
@@ -176,33 +204,7 @@ class VideoListViewModel(
         if (current != null) {
             val parent = File(current).parent
             _currentExplorerPath.value = if (parent == null || parent == "/" || parent.isBlank()) null else parent
-            updateExplorerNodes()
         }
-    }
-
-    private fun updateExplorerNodes() {
-        val currentPath = _currentExplorerPath.value
-        val folders = mutableListOf<VideoFolder>()
-        val videos = mutableListOf<Video>()
-        val snapshot = videosByFolder.value
-
-        if (currentPath == null) {
-            snapshot.keys.forEach { folder -> folders.add(folder) }
-        } else {
-            snapshot.forEach { (folder, videoList) ->
-                if (folder.id == currentPath) {
-                    videos.addAll(videoList)
-                } else if (folder.id.startsWith(currentPath) && folder.id != currentPath) {
-                    val remainingPath = folder.id.removePrefix(currentPath).removePrefix("/")
-                    val nextSegment = remainingPath.substringBefore("/")
-                    val subFolderId = "$currentPath/$nextSegment"
-                    if (folders.none { it.id == subFolderId }) {
-                        folders.add(VideoFolder(id = subFolderId, name = nextSegment))
-                    }
-                }
-            }
-        }
-        _explorerNodes.value = Pair(folders.distinctBy { it.id }, videos.distinctBy { it.uri })
     }
 
     // View Settings Update Callbacks

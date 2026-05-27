@@ -1,12 +1,15 @@
 package com.devson.nvplayer.viewmodel
 
 import android.content.Context
+import android.os.Environment
+import android.os.StatFs
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.repository.VideoRepository
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.WatchHistory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,12 +30,40 @@ class HomeViewModel(
     private val _history = MutableStateFlow<List<WatchHistory>>(emptyList())
     val history: StateFlow<List<WatchHistory>> = _history.asStateFlow()
 
+    private val _storageInfo = MutableStateFlow<Triple<Double, Double, Int>>(Triple(0.0, 0.0, 0))
+    val storageInfo: StateFlow<Triple<Double, Double, Int>> = _storageInfo.asStateFlow()
+
     init {
-        loadWatchHistory()
+        loadWatchHistory(forceVerify = true)
     }
 
-    fun loadWatchHistory() {
-        viewModelScope.launch {
+    fun loadStorageInfo() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val path = Environment.getExternalStorageDirectory().absolutePath
+                val stat = StatFs(path)
+                val blockSize = stat.blockSizeLong
+                val totalBlocks = stat.blockCountLong
+                val availableBlocks = stat.availableBlocksLong
+                
+                val totalBytes = totalBlocks * blockSize
+                val availableBytes = availableBlocks * blockSize
+                val usedBytes = totalBytes - availableBytes
+                
+                val totalGB = totalBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+                val usedGB = usedBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+                val progress = if (totalBytes > 0) usedBytes.toFloat() / totalBytes else 0f
+                val percentage = (progress * 100).toInt()
+                
+                _storageInfo.value = Triple(totalGB, usedGB, percentage)
+            } catch (e: Exception) {
+                _storageInfo.value = Triple(0.0, 0.0, 0)
+            }
+        }
+    }
+
+    fun loadWatchHistory(forceVerify: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
             val allPrefs = sharedPrefs.all
             val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
             val historyList = allPrefs.mapNotNull { (key, value) ->
@@ -41,10 +72,14 @@ class HomeViewModel(
                 WatchHistory(uri = key, lastPositionMs = pos, lastPlayedAt = timestamp)
             }.sortedByDescending { it.lastPlayedAt }
 
-            val visibleVideos = repository.getAllVideos()
-            val visibleUris = visibleVideos.map { it.uri.toString() }.toSet()
-
-            _history.value = historyList.filter { visibleUris.contains(it.uri) }
+            if (forceVerify) {
+                val visibleVideos = repository.getAllVideos()
+                val visibleUris = visibleVideos.map { it.uri.toString() }.toSet()
+                _history.value = historyList.filter { visibleUris.contains(it.uri) }
+            } else {
+                _history.value = historyList
+            }
+            loadStorageInfo()
         }
     }
 
@@ -52,7 +87,7 @@ class HomeViewModel(
         sharedPrefs.edit().putLong(video.uri, position).apply()
         val timePrefs = context.getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
         timePrefs.edit().putLong(video.uri, System.currentTimeMillis()).apply()
-        loadWatchHistory()
+        loadWatchHistory(forceVerify = false)
     }
 
     fun loadFolders() {

@@ -72,7 +72,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                homeViewModel.loadWatchHistory()
+                homeViewModel.loadWatchHistory(forceVerify = false)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -92,28 +92,7 @@ fun HomeScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
-    val storageInfo = remember {
-        try {
-            val path = Environment.getExternalStorageDirectory().absolutePath
-            val stat = StatFs(path)
-            val blockSize = stat.blockSizeLong
-            val totalBlocks = stat.blockCountLong
-            val availableBlocks = stat.availableBlocksLong
-            
-            val totalBytes = totalBlocks * blockSize
-            val availableBytes = availableBlocks * blockSize
-            val usedBytes = totalBytes - availableBytes
-            
-            val totalGB = totalBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-            val usedGB = usedBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-            val progress = if (totalBytes > 0) usedBytes.toFloat() / totalBytes else 0f
-            val percentage = (progress * 100).toInt()
-            
-            Triple(totalGB, usedGB, percentage)
-        } catch (e: Exception) {
-            Triple(0.0, 0.0, 0)
-        }
-    }
+    val storageInfo by homeViewModel.storageInfo.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

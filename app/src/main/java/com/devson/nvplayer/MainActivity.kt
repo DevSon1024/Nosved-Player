@@ -36,20 +36,28 @@ import coil3.disk.directory
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var playerViewModel: PlayerViewModel
-    private lateinit var homeViewModel: HomeViewModel
-    private lateinit var settingsViewModel: SettingsViewModel
-    private lateinit var videoListViewModel: VideoListViewModel
-    private lateinit var fileOpsViewModel: FileOperationsViewModel
+    private val mediaStoreHelper by lazy { MediaStoreHelper(this) }
+    private val repository by lazy { VideoRepository(mediaStoreHelper, this) }
+    private val viewSettingsRepo by lazy { com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(applicationContext) }
+
+    private val homeViewModel by lazy { HomeViewModel(applicationContext, repository) }
+    private val settingsViewModel by lazy { ViewModelProvider(this)[SettingsViewModel::class.java] }
+    private val videoListViewModel by lazy { VideoListViewModel(repository, viewSettingsRepo) }
+    private val fileOpsViewModel by lazy { ViewModelProvider(this)[FileOperationsViewModel::class.java] }
+
+    private val playerEngine by lazy { MPVPlayerEngine(applicationContext) }
+    private val playerViewModelLazy = lazy {
+        val factory = PlayerViewModel.Factory(application, playerEngine)
+        ViewModelProvider(this, factory)[PlayerViewModel::class.java]
+    }
+    private val playerViewModel by playerViewModelLazy
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
             homeViewModel.loadFolders()
-            if (::videoListViewModel.isInitialized) {
-                videoListViewModel.loadVideos()
-            }
+            videoListViewModel.loadVideos()
         } else {
             Toast.makeText(this, "Permission denied to read videos", Toast.LENGTH_LONG).show()
         }
@@ -74,19 +82,6 @@ class MainActivity : ComponentActivity() {
             .build()
         SingletonImageLoader.setSafe { imageLoader }
 
-        val mediaStoreHelper = MediaStoreHelper(this)
-        val repository = VideoRepository(mediaStoreHelper, this)
-        val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(applicationContext)
-        
-        homeViewModel = HomeViewModel(applicationContext, repository)
-        settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
-        videoListViewModel = VideoListViewModel(repository, viewSettingsRepo)
-        fileOpsViewModel = ViewModelProvider(this)[FileOperationsViewModel::class.java]
-
-        val playerEngine = MPVPlayerEngine(applicationContext)
-        val factory = PlayerViewModel.Factory(application, playerEngine)
-        playerViewModel = ViewModelProvider(this, factory)[PlayerViewModel::class.java]
-
         checkAndRequestPermissions()
 
         setContent {
@@ -109,8 +104,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         homeViewModel = homeViewModel,
-                        playerViewModel = playerViewModel,
-                        playerEngine = playerEngine,
+                        playerViewModel = { playerViewModel },
+                        playerEngine = { playerEngine },
                         settingsViewModel = settingsViewModel,
                         videoListViewModel = videoListViewModel,
                         fileOpsViewModel = fileOpsViewModel
@@ -137,7 +132,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (::playerViewModel.isInitialized) {
+        if (playerViewModelLazy.isInitialized()) {
             playerViewModel.pause()
         }
     }

@@ -43,8 +43,8 @@ import androidx.compose.animation.fadeOut
 @Composable
 fun AppNavigation(
     homeViewModel: HomeViewModel,
-    playerViewModel: PlayerViewModel,
-    playerEngine: MPVPlayerEngine,
+    playerViewModel: () -> PlayerViewModel,
+    playerEngine: () -> MPVPlayerEngine,
     settingsViewModel: SettingsViewModel,
     videoListViewModel: VideoListViewModel,
     fileOpsViewModel: FileOperationsViewModel
@@ -109,7 +109,7 @@ fun AppNavigation(
                     navController.navigate("settings")
                 },
                 onVideoClick = { uri, playlist ->
-                    playerViewModel.prepareVideo(uri, playlist)
+                    playerViewModel().prepareVideo(uri, playlist)
                     navController.navigate("player")
                 },
                 onRecycleBinClick = {
@@ -131,7 +131,7 @@ fun AppNavigation(
         composable("video_list") {
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player")
                 },
                 onNavigateToSettings = {
@@ -243,10 +243,10 @@ fun AppNavigation(
             FeedScreen(
                 videos     = videos,
                 startIndex = startIndex,
-                engine     = playerEngine,
+                engine     = playerEngine(),
                 onBack     = safePopBackStack,
                 onPlayVideoInPlayer = { video, playlist ->
-                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player")
                 }
             )
@@ -263,7 +263,7 @@ fun AppNavigation(
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    playerViewModel.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player")
                 },
                 onBack = safePopBackStack
@@ -271,33 +271,34 @@ fun AppNavigation(
         }
 
         composable("player") {
-            val playbackState by playerViewModel.playbackState.collectAsState()
-            val isPlaying by playerViewModel.isPlaying.collectAsState()
-            val currentPosition by playerViewModel.currentPosition.collectAsState()
-            val duration by playerViewModel.duration.collectAsState()
-            val currentUri by playerViewModel.currentUri.collectAsState()
-            val videoWidth by playerViewModel.videoWidth.collectAsState()
-            val videoHeight by playerViewModel.videoHeight.collectAsState()
-            val videoRotation by playerViewModel.videoRotation.collectAsState()
-            val playbackSpeed by playerViewModel.playbackSpeed.collectAsState()
-            val savedBrightness by playerViewModel.savedBrightness.collectAsState()
-            val savedVolume by playerViewModel.savedVolume.collectAsState()
+            val playerVm = playerViewModel()
+            val playbackState by playerVm.playbackState.collectAsState()
+            val isPlaying by playerVm.isPlaying.collectAsState()
+            val currentPosition by playerVm.currentPosition.collectAsState()
+            val duration by playerVm.duration.collectAsState()
+            val currentUri by playerVm.currentUri.collectAsState()
+            val videoWidth by playerVm.videoWidth.collectAsState()
+            val videoHeight by playerVm.videoHeight.collectAsState()
+            val videoRotation by playerVm.videoRotation.collectAsState()
+            val playbackSpeed by playerVm.playbackSpeed.collectAsState()
+            val savedBrightness by playerVm.savedBrightness.collectAsState()
+            val savedVolume by playerVm.savedVolume.collectAsState()
             val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
             val seekBarStyle = playbackSettings.seekBarStyle
-            val hasNext by playerViewModel.hasNext.collectAsState()
-            val hasPrevious by playerViewModel.hasPrevious.collectAsState()
-            val isHwSupported by playerViewModel.isHwSupported.collectAsState()
+            val hasNext by playerVm.hasNext.collectAsState()
+            val hasPrevious by playerVm.hasPrevious.collectAsState()
+            val isHwSupported by playerVm.isHwSupported.collectAsState()
 
-            val currentSubtitleText by playerViewModel.currentSubtitleText.collectAsState()
-            val subtitleTracks by playerViewModel.subtitleTracks.collectAsState()
-            val audioTracks by playerViewModel.audioTracks.collectAsState()
-            val audioBoosterEnabled by playerViewModel.audioBoosterEnabled.collectAsState()
-            val audioBoostVolume by playerViewModel.audioBoostVolume.collectAsState()
-            val chapters by playerViewModel.chapters.collectAsState()
+            val currentSubtitleText by playerVm.currentSubtitleText.collectAsState()
+            val subtitleTracks by playerVm.subtitleTracks.collectAsState()
+            val audioTracks by playerVm.audioTracks.collectAsState()
+            val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsState()
+            val audioBoostVolume by playerVm.audioBoostVolume.collectAsState()
+            val chapters by playerVm.chapters.collectAsState()
 
             PlayerScreen(
                 audioBoostVolume = audioBoostVolume,
-                onSetAudioBoostVolume = { playerViewModel.setAudioBoostVolume(it) },
+                onSetAudioBoostVolume = { playerVm.setAudioBoostVolume(it) },
                 playbackState = playbackState,
                 isPlaying = isPlaying,
                 currentPosition = currentPosition,
@@ -309,31 +310,31 @@ fun AppNavigation(
                 playbackSpeed = playbackSpeed,
                 savedBrightness = savedBrightness,
                 savedVolume = savedVolume,
-                onPlayPauseToggle = { playerViewModel.togglePlayback() },
-                onSeek = { pos, precise -> playerViewModel.seekTo(pos, precise) },
-                onSetPlaybackSpeed = { playerViewModel.setPlaybackSpeed(it) },
-                onCycleSubtitle = { playerViewModel.cycleSubtitle() },
-                onCycleAudio = { playerViewModel.cycleAudio() },
+                onPlayPauseToggle = { playerVm.togglePlayback() },
+                onSeek = { pos, precise -> playerVm.seekTo(pos, precise) },
+                onSetPlaybackSpeed = { playerVm.setPlaybackSpeed(it) },
+                onCycleSubtitle = { playerVm.cycleSubtitle() },
+                onCycleAudio = { playerVm.cycleAudio() },
                 onBackClick = safePopBackStack, // 2. Use the safe helper
-                onSurfaceReady = { playerViewModel.loadVideoIfNeeded() },
-                onSaveBrightness = { playerViewModel.saveBrightness(it) },
-                onSaveVolume = { playerViewModel.saveVolume(it) },
+                onSurfaceReady = { playerVm.loadVideoIfNeeded() },
+                onSaveBrightness = { playerVm.saveBrightness(it) },
+                onSaveVolume = { playerVm.saveVolume(it) },
                 seekBarStyle = seekBarStyle,
                 hasNext = hasNext,
                 hasPrevious = hasPrevious,
-                onNextClick = { playerViewModel.playNext() },
-                onPrevClick = { playerViewModel.playPrevious() },
+                onNextClick = { playerVm.playNext() },
+                onPrevClick = { playerVm.playPrevious() },
                 currentSubtitleText = currentSubtitleText,
                 subtitleTracks = subtitleTracks,
                 audioTracks = audioTracks,
                 audioBoosterEnabled = audioBoosterEnabled,
-                onToggleAudioBooster = { playerViewModel.toggleAudioBooster(it) },
+                onToggleAudioBooster = { playerVm.toggleAudioBooster(it) },
                 playbackSettings = playbackSettings,
-                onSelectSubtitleTrack = { playerViewModel.selectSubtitleTrack(it) },
-                onSelectAudioTrack = { playerViewModel.selectAudioTrack(it) },
-                onSetSubtitleDelay = { playerViewModel.setSubtitleDelay(it) },
-                onSeekNextSubtitle = { playerViewModel.seekNextSubtitle() },
-                onSeekPrevSubtitle = { playerViewModel.seekPrevSubtitle() },
+                onSelectSubtitleTrack = { playerVm.selectSubtitleTrack(it) },
+                onSelectAudioTrack = { playerVm.selectAudioTrack(it) },
+                onSetSubtitleDelay = { playerVm.setSubtitleDelay(it) },
+                onSeekNextSubtitle = { playerVm.seekNextSubtitle() },
+                onSeekPrevSubtitle = { playerVm.seekPrevSubtitle() },
                 onUpdateUseSystemCaptionStyle = { settingsViewModel.updateUseSystemCaptionStyle(it) },
                 onUpdateSubtitleFont = { settingsViewModel.updateSubtitleFont(it) },
                 onUpdateIsSubtitleBold = { settingsViewModel.updateIsSubtitleBold(it) },
@@ -343,9 +344,9 @@ fun AppNavigation(
                 onUpdateSubtitleDelay = { settingsViewModel.updateSubtitleDelay(it) },
                 onUpdateSubtitleVerticalOffset = { settingsViewModel.updateSubtitleVerticalOffset(it) },
                 onUpdateSubtitleGesturesEnabled = { settingsViewModel.updateSubtitleGesturesEnabled(it) },
-                onUpdateCustomPlaybackSpeed = { playerViewModel.updateCustomPlaybackSpeed(it) },
-                onUpdateTapAndHoldSpeed = { playerViewModel.updateTapAndHoldSpeed(it) },
-                onUpdateDoubleTapSeekDuration = { playerViewModel.updateDoubleTapSeekDuration(it) },
+                onUpdateCustomPlaybackSpeed = { playerVm.updateCustomPlaybackSpeed(it) },
+                onUpdateTapAndHoldSpeed = { playerVm.updateTapAndHoldSpeed(it) },
+                onUpdateDoubleTapSeekDuration = { playerVm.updateDoubleTapSeekDuration(it) },
                 onUpdateLongPressEnabled = { settingsViewModel.updateLongPressEnabled(it) },
                 onUpdateLongPressSpeed = { settingsViewModel.updateLongPressSpeed(it) },
                 onUpdateDoubleTapAction = { settingsViewModel.updateDoubleTapAction(it) },
@@ -363,18 +364,18 @@ fun AppNavigation(
                 onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },
                 onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
-                onUpdateEnhanceMode = { playerViewModel.updateEnhanceMode(it) },
-                onUpdateEnhanceSaturation = { playerViewModel.updateEnhanceSaturation(it) },
-                onUpdateEnhanceContrast = { playerViewModel.updateEnhanceContrast(it) },
-                onUpdateEnhanceBrightness = { playerViewModel.updateEnhanceBrightness(it) },
-                onUpdateEnhanceGamma = { playerViewModel.updateEnhanceGamma(it) },
-                onUpdateEnhanceHue = { playerViewModel.updateEnhanceHue(it) },
-                onTakeVideoScreenshot = { playerViewModel.takeVideoScreenshot() },
+                onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
+                onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
+                onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },
+                onUpdateEnhanceBrightness = { playerVm.updateEnhanceBrightness(it) },
+                onUpdateEnhanceGamma = { playerVm.updateEnhanceGamma(it) },
+                onUpdateEnhanceHue = { playerVm.updateEnhanceHue(it) },
+                onTakeVideoScreenshot = { playerVm.takeVideoScreenshot() },
                 chapters = chapters,
-                onSelectChapter = { playerViewModel.selectChapter(it) },
+                onSelectChapter = { playerVm.selectChapter(it) },
                 currentDecoder = if (!isHwSupported) DecoderMode.SW.displayName else playbackSettings.decoderMode.displayName,
                 isHwSupported = isHwSupported,
-                onUpdateDecoderMode = { playerViewModel.updateDecoderMode(it) }
+                onUpdateDecoderMode = { playerVm.updateDecoderMode(it) }
             )
         }
     }
