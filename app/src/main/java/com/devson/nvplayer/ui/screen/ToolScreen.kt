@@ -55,12 +55,6 @@ fun ToolScreen(
                 onClick = onNavigateToMilliSeconds
             )
             ToolHubCard(
-                icon = Icons.Default.VideoSettings,
-                title = "Video -> Audio Converter (Work in Progress)",
-                description = "Extract audio from any video using hardware MediaCodec. (output may not be perfect as work is still in progress)",
-                onClick = onNavigateToVideoEditor
-            )
-            ToolHubCard(
                 icon = Icons.Default.Search,
                 title = "MediaStore ID Finder",
                 description = "Find file paths and launch external apps using an Android MediaStore ID.",

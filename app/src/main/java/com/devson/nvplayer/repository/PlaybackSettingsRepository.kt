@@ -27,9 +27,6 @@ class PlaybackSettingsRepository(context: Context) {
             "is_developer_mode" -> {
                 _isDeveloperModeFlow.value = prefs.getBoolean("is_developer_mode", false)
             }
-            "use_modern_player_style" -> {
-                _useModernPlayerStyleFlow.value = prefs.getBoolean("use_modern_player_style", true)
-            }
             "has_seen_onboarding" -> {
                 _hasSeenOnboardingFlow.value = if (prefs.contains("has_seen_onboarding")) prefs.getBoolean("has_seen_onboarding", false) else null
             }
@@ -78,9 +75,6 @@ class PlaybackSettingsRepository(context: Context) {
 
     private val _isDeveloperModeFlow = MutableStateFlow(prefs.getBoolean("is_developer_mode", false))
     val isDeveloperModeFlow: StateFlow<Boolean> = _isDeveloperModeFlow.asStateFlow()
-
-    private val _useModernPlayerStyleFlow = MutableStateFlow(prefs.getBoolean("use_modern_player_style", true))
-    val useModernPlayerStyleFlow: StateFlow<Boolean> = _useModernPlayerStyleFlow.asStateFlow()
 
     private val _hasSeenOnboardingFlow = MutableStateFlow<Boolean?>(
         if (prefs.contains("has_seen_onboarding")) prefs.getBoolean("has_seen_onboarding", false) else null
@@ -282,11 +276,6 @@ class PlaybackSettingsRepository(context: Context) {
     suspend fun setDeveloperMode(enabled: Boolean) {
         _isDeveloperModeFlow.value = enabled
         prefs.edit().putBoolean("is_developer_mode", enabled).apply()
-    }
-
-    suspend fun setModernPlayerStyle(enabled: Boolean) {
-        _useModernPlayerStyleFlow.value = enabled
-        prefs.edit().putBoolean("use_modern_player_style", enabled).apply()
     }
 
     suspend fun setHasSeenOnboarding(seen: Boolean) {

@@ -52,17 +52,25 @@ fun AboutScreen(
 
     // Media engine details safely retrieved
     val mpvVersion = remember {
-        try {
-            `is`.xyz.mpv.MPVLib.getPropertyString("mpv-version") ?: "0.37.0 (libmpv)"
-        } catch (e: Throwable) {
+        if (com.devson.nvplayer.player.MPVPlayerEngine.isInitialized) {
+            try {
+                `is`.xyz.mpv.MPVLib.getPropertyString("mpv-version") ?: "0.37.0 (libmpv)"
+            } catch (e: Throwable) {
+                "0.37.0 (libmpv)"
+            }
+        } else {
             "0.37.0 (libmpv)"
         }
     }
 
     val ffmpegVersion = remember {
-        try {
-            `is`.xyz.mpv.MPVLib.getPropertyString("ffmpeg-version") ?: "6.1"
-        } catch (e: Throwable) {
+        if (com.devson.nvplayer.player.MPVPlayerEngine.isInitialized) {
+            try {
+                `is`.xyz.mpv.MPVLib.getPropertyString("ffmpeg-version") ?: "6.1"
+            } catch (e: Throwable) {
+                "6.1"
+            }
+        } else {
             "6.1"
         }
     }

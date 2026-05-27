@@ -46,7 +46,6 @@ fun SettingsScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
-    val useModernStyle  by settingsViewModel.useModernPlayerStyle.collectAsState()
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
     val viewSettings     by settingsViewModel.viewSettings.collectAsState()
 
@@ -133,12 +132,6 @@ fun SettingsScreen(
             SettingsSectionLabel(stringResource(R.string.settings_player))
             SettingsCard {
                 SettingsRow(
-                    icon     = Icons.AutoMirrored.Filled.List,
-                    title    = stringResource(R.string.settings_list),
-                    subtitle = stringResource(R.string.settings_about_list),
-                    onClick  = onNavigateToListOption
-                )
-                SettingsRow(
                     icon     = Icons.Default.Swipe,
                     title    = "Gestures & Taps",
                     subtitle = "Customize swipe and tap behaviors",
@@ -162,18 +155,6 @@ fun SettingsScreen(
                     subtitle = "Customize Home Screen Layout",
                     onClick  = onNavigateToCustomHome
                 )
-                SettingsCard {
-                    SettingsToggleRow(
-                        icon     = Icons.Default.PlayCircleOutline,
-                        title    = stringResource(R.string.settings_Modern_controls),
-                        subtitle = if (useModernStyle)
-                            stringResource(R.string.settings_Modern_controls_active)
-                        else
-                            stringResource(R.string.settings_Modern_controls_inactive),
-                        checked  = useModernStyle,
-                        onCheckedChange = { settingsViewModel.setModernPlayerStyle(it) }
-                    )
-                }
             }
             Spacer(Modifier.height(16.dp))
 

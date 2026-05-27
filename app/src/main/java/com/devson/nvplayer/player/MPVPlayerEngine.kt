@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.EventObserver {
 
+    companion object {
+        @Volatile
+        var isInitialized = false
+    }
+
     private val _isPlaying = MutableStateFlow(false)
     override val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
@@ -65,6 +70,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("keep-open", "yes")
 
             MPVLib.init()
+            isInitialized = true
 
             // Register event listener
             MPVLib.addObserver(this)
