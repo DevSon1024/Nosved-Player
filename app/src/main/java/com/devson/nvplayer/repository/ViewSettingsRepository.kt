@@ -43,7 +43,6 @@ class ViewSettingsRepository private constructor(context: Context) {
             enableFabPreview = prefs.getBoolean("enable_fab_preview", true),
             scanFoldersList = prefs.getStringSet("scan_folders_list", emptySet()) ?: emptySet(),
             showHistoryCard = prefs.getBoolean("show_history_card", true),
-            showVideoCard = prefs.getBoolean("show_video_card", true),
             showStorageTracker = prefs.getBoolean("show_storage_tracker", true),
             defaultScreen = try {
                 DefaultScreen.valueOf(prefs.getString("default_screen", DefaultScreen.HOME.name) ?: DefaultScreen.HOME.name)
@@ -95,7 +94,6 @@ class ViewSettingsRepository private constructor(context: Context) {
             putBoolean("enable_fab_preview", updated.enableFabPreview)
             putStringSet("scan_folders_list", updated.scanFoldersList)
             putBoolean("show_history_card", updated.showHistoryCard)
-            putBoolean("show_video_card", updated.showVideoCard)
             putBoolean("show_storage_tracker", updated.showStorageTracker)
             putString("default_screen", updated.defaultScreen.name)
             
@@ -136,10 +134,6 @@ class ViewSettingsRepository private constructor(context: Context) {
 
     suspend fun updateShowHistoryCard(show: Boolean) {
         updateSettings { it.copy(showHistoryCard = show) }
-    }
-
-    suspend fun updateShowVideoCard(show: Boolean) {
-        updateSettings { it.copy(showVideoCard = show) }
     }
 
     suspend fun updateShowStorageTracker(show: Boolean) {

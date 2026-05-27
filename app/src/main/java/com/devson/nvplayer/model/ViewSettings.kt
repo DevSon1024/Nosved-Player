@@ -10,7 +10,6 @@ data class ViewSettings(
     val enableFabPreview: Boolean = true,
     val scanFoldersList: Set<String> = emptySet(),
     val showHistoryCard: Boolean = true,
-    val showVideoCard: Boolean = true,
     val showStorageTracker: Boolean = true,
     val defaultScreen: DefaultScreen = DefaultScreen.HOME,
     

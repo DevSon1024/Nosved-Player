@@ -125,10 +125,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { viewSettingsRepo.updateShowHistoryCard(show) }
     }
 
-    fun updateShowVideoCard(show: Boolean) {
-        viewModelScope.launch { viewSettingsRepo.updateShowVideoCard(show) }
-    }
-
     fun updateShowStorageTracker(show: Boolean) {
         viewModelScope.launch { viewSettingsRepo.updateShowStorageTracker(show) }
     }

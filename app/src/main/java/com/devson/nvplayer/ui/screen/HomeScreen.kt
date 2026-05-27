@@ -349,28 +349,6 @@ fun HomeScreen(
                 }
             }
 
-            // 6. Recent Folders
-            if (viewSettings.showVideoCard && folders.isNotEmpty()) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Recent Folders",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    folders.take(4).forEach { folder ->
-                        val videoCount = videosByFolder[folder]?.size ?: 0
-                        FolderCard(
-                            folder = folder,
-                            videoCount = videoCount,
-                            onClick = { onFolderClick(folder.id) }
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
