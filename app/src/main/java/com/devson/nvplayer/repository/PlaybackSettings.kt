@@ -77,10 +77,18 @@ data class PlaybackSettings(
     val enhanceBrightness: Int = 0,
     val enhanceGamma: Int = 0,
     val enhanceHue: Int = 0,
+    // Landscape regions
+    // TopLeft is always BACK_ARROW + VIDEO_TITLE (non-editable, enforced in PlayerScreen)
     val topLeftControls: String = "BACK_ARROW,VIDEO_TITLE",
-    val topRightControls: String = "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
-    val bottomLeftControls: String = "LOCK_CONTROLS",
-    val bottomRightControls: String = "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO",
-    val portraitBottomControls: String = "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS"
+    val topRightControls: String = "DECODER,SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
+    val bottomLeftControls: String = "LOCK_CONTROLS,PICTURE_IN_PICTURE",
+    val bottomRightControls: String = "ASPECT_RATIO,SCREEN_ROTATION",
+    // Portrait regions 
+    // Separate from landscape so each orientation is independently configurable.
+    // Portrait TopLeft is always BACK_ARROW + VIDEO_TITLE (non-editable, enforced in PlayerScreen)
+    val portraitTopLeftControls: String = "BACK_ARROW,VIDEO_TITLE",
+    val portraitTopRightControls: String = "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
+    val portraitBottomControls: String = "DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION"
 )
+
 

@@ -7,18 +7,18 @@ import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.*
 
 enum class PlayerButton(val displayName: String, val icon: ImageVector) {
-    BACK_ARROW("Back Arrow", Icons.AutoMirrored.Rounded.ArrowBack),
-    VIDEO_TITLE("Video Title", Icons.Rounded.Title),
-    SUBTITLES("Subtitles", Icons.Rounded.Subtitles),
-    AUDIO_TRACK("Audio Track", Icons.Rounded.Audiotrack),
-    DECODER("Decoder", Icons.Rounded.Code),
+    BACK_ARROW("Back", Icons.AutoMirrored.Rounded.ArrowBack),
+    VIDEO_TITLE("Title", Icons.Rounded.Title),
+    SUBTITLES("Subtitles", Icons.Rounded.ClosedCaption),
+    AUDIO_TRACK("Audio", Icons.Rounded.Audiotrack),
+    DECODER("Decoder", Icons.Rounded.Memory),
     CHAPTERS("Chapters", Icons.AutoMirrored.Rounded.FormatListBulleted),
-    SMART_ENHANCE("Smart Enhance", Icons.Rounded.AutoAwesome),
-    SCREEN_ROTATION("Screen Rotation", Icons.Rounded.ScreenRotation),
-    LOCK_CONTROLS("Lock Controls", Icons.Rounded.Lock),
-    PICTURE_IN_PICTURE("Picture in Picture", Icons.Rounded.PictureInPicture),
-    ASPECT_RATIO("Aspect Ratio", Icons.Rounded.AspectRatio),
-    MORE_OPTIONS("More Options", Icons.Rounded.MoreVert),
+    SMART_ENHANCE("Enhance", Icons.Rounded.AutoAwesome),
+    SCREEN_ROTATION("Rotate", Icons.Rounded.ScreenRotation),
+    LOCK_CONTROLS("Lock", Icons.Rounded.LockOpen),
+    PICTURE_IN_PICTURE("PiP", Icons.Rounded.PictureInPicture),
+    ASPECT_RATIO("Aspect", Icons.Rounded.FitScreen),
+    MORE_OPTIONS("More", Icons.Rounded.MoreHoriz),
     NONE("None", Icons.Rounded.Close)
 }
 

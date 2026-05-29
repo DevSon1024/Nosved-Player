@@ -377,19 +377,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val topRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.topRightControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("SUBTITLES,AUDIO_TRACK,MORE_OPTIONS"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,SUBTITLES,AUDIO_TRACK,MORE_OPTIONS"))
 
     val bottomLeftControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.bottomLeftControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("LOCK_CONTROLS"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("LOCK_CONTROLS,PICTURE_IN_PICTURE"))
 
     val bottomRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.bottomRightControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("ASPECT_RATIO,SCREEN_ROTATION"))
+
+    val portraitTopLeftControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.portraitTopLeftControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("BACK_ARROW,VIDEO_TITLE"))
+
+    val portraitTopRightControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
+        .map { parseControls(it.portraitTopRightControls) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("SUBTITLES,AUDIO_TRACK,MORE_OPTIONS"))
 
     val portraitBottomControls: StateFlow<List<PlayerButton>> = settingsRepo.playbackSettingsFlow
         .map { parseControls(it.portraitBottomControls) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS"))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), parseControls("DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION"))
 
     private fun parseControls(value: String): List<PlayerButton> {
         if (value.isBlank()) return emptyList()
@@ -404,6 +412,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 ControlRegion.TOP_RIGHT -> settingsRepo.updateTopRightControls(controlsStr)
                 ControlRegion.BOTTOM_LEFT -> settingsRepo.updateBottomLeftControls(controlsStr)
                 ControlRegion.BOTTOM_RIGHT -> settingsRepo.updateBottomRightControls(controlsStr)
+                ControlRegion.PORTRAIT_TOP_LEFT -> settingsRepo.updatePortraitTopLeftControls(controlsStr)
+                ControlRegion.PORTRAIT_TOP_RIGHT -> settingsRepo.updatePortraitTopRightControls(controlsStr)
                 ControlRegion.PORTRAIT_BOTTOM -> settingsRepo.updatePortraitBottomControls(controlsStr)
             }
         }

@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.devson.nvplayer.player.DecoderMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class PlaybackSettingsRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE)
@@ -49,7 +51,8 @@ class PlaybackSettingsRepository(context: Context) {
             "subtitle_text_size_scale", "subtitle_bg_style", "subtitle_delay_ms", "subtitle_vertical_offset", "subtitle_gestures_enabled",
             "custom_playback_speed", "tap_and_hold_speed", "double_tap_seek_duration", "screenshot_location", "blacklisted_folders", "keep_awake_always", "decoder_mode",
             "enhance_mode", "enhance_saturation", "enhance_contrast", "enhance_brightness", "enhance_gamma", "enhance_hue",
-            "top_left_controls", "top_right_controls", "bottom_left_controls", "bottom_right_controls", "portrait_bottom_controls" -> {
+            "top_left_controls", "top_right_controls", "bottom_left_controls", "bottom_right_controls",
+            "portrait_top_left_controls", "portrait_top_right_controls", "portrait_bottom_controls" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -185,10 +188,20 @@ class PlaybackSettingsRepository(context: Context) {
             enhanceGamma = prefs.getInt("enhance_gamma", 0),
             enhanceHue = prefs.getInt("enhance_hue", 0),
             topLeftControls = prefs.getString("top_left_controls", "BACK_ARROW,VIDEO_TITLE") ?: "BACK_ARROW,VIDEO_TITLE",
-            topRightControls = prefs.getString("top_right_controls", "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS") ?: "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
-            bottomLeftControls = prefs.getString("bottom_left_controls", "LOCK_CONTROLS") ?: "LOCK_CONTROLS",
-            bottomRightControls = prefs.getString("bottom_right_controls", "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO") ?: "AUDIO_TRACK,SUBTITLES,PICTURE_IN_PICTURE,ASPECT_RATIO",
-            portraitBottomControls = prefs.getString("portrait_bottom_controls", "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS") ?: "DECODER,CHAPTERS,SUBTITLES,AUDIO_TRACK,SMART_ENHANCE,SCREEN_ROTATION,MORE_OPTIONS"
+            topRightControls = prefs.getString("top_right_controls", "DECODER,SUBTITLES,AUDIO_TRACK,MORE_OPTIONS") ?: "DECODER,SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
+            bottomLeftControls = prefs.getString("bottom_left_controls", "LOCK_CONTROLS,PICTURE_IN_PICTURE") ?: "LOCK_CONTROLS,PICTURE_IN_PICTURE",
+            bottomRightControls = prefs.getString("bottom_right_controls", "ASPECT_RATIO,SCREEN_ROTATION") ?: "ASPECT_RATIO,SCREEN_ROTATION",
+            portraitTopLeftControls = prefs.getString("portrait_top_left_controls", "BACK_ARROW,VIDEO_TITLE") ?: "BACK_ARROW,VIDEO_TITLE",
+            portraitTopRightControls = prefs.getString("portrait_top_right_controls", "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS") ?: "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
+            portraitBottomControls = run {
+                val bottomVal = prefs.getString("portrait_bottom_controls", "DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION") ?: "DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION"
+                val topRightVal = prefs.getString("portrait_top_right_controls", "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS") ?: "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS"
+                val topLeftVal = prefs.getString("portrait_top_left_controls", "BACK_ARROW,VIDEO_TITLE") ?: "BACK_ARROW,VIDEO_TITLE"
+                val filterSet = (topRightVal.split(',') + topLeftVal.split(',')).toSet()
+                bottomVal.split(',')
+                    .filter { it.isNotBlank() && it !in filterSet }
+                    .joinToString(",")
+            }
         )
     }
 
@@ -200,10 +213,9 @@ class PlaybackSettingsRepository(context: Context) {
      * SharedPreferences.OnSharedPreferenceChangeListener, which always fires on the main thread.
      * R8-optimised release builds tighten coroutine dispatch, making the race window much larger.
      */
-    private fun updatePlaybackSettings(updater: (PlaybackSettings) -> PlaybackSettings) {
+    private suspend fun updatePlaybackSettings(updater: (PlaybackSettings) -> PlaybackSettings) = withContext(Dispatchers.Main.immediate) {
         val updated = updater(_playbackSettingsFlow.value)
-        // Update in-memory state synchronously on whichever thread we are on.
-        // StateFlow is thread-safe for single writes; the listener will also update it on main.
+        // Update in-memory state synchronously on the main thread.
         _playbackSettingsFlow.value = updated
 
         // Persist to disk — SharedPreferences.apply() is always async and thread-safe.
@@ -260,6 +272,8 @@ class PlaybackSettingsRepository(context: Context) {
             putString("top_right_controls", updated.topRightControls)
             putString("bottom_left_controls", updated.bottomLeftControls)
             putString("bottom_right_controls", updated.bottomRightControls)
+            putString("portrait_top_left_controls", updated.portraitTopLeftControls)
+            putString("portrait_top_right_controls", updated.portraitTopRightControls)
             putString("portrait_bottom_controls", updated.portraitBottomControls)
             apply()
         }
@@ -536,5 +550,13 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updatePortraitBottomControls(controls: String) {
         updatePlaybackSettings { it.copy(portraitBottomControls = controls) }
+    }
+
+    suspend fun updatePortraitTopLeftControls(controls: String) {
+        updatePlaybackSettings { it.copy(portraitTopLeftControls = controls) }
+    }
+
+    suspend fun updatePortraitTopRightControls(controls: String) {
+        updatePlaybackSettings { it.copy(portraitTopRightControls = controls) }
     }
 }

@@ -173,6 +173,7 @@ fun PlayerScreen(
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
 
     val topLeftButtons = remember(playbackSettings.topLeftControls) {
+        // Landscape TopLeft: always starts with BACK_ARROW + VIDEO_TITLE (non-editable anchor)
         val parsed = playbackSettings.topLeftControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
         listOf(PlayerButton.BACK_ARROW, PlayerButton.VIDEO_TITLE) +
                 parsed.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
@@ -185,6 +186,15 @@ fun PlayerScreen(
     }
     val bottomRightButtons = remember(playbackSettings.bottomRightControls) {
         playbackSettings.bottomRightControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+    }
+    // Portrait TopLeft: always starts with BACK_ARROW + VIDEO_TITLE (non-editable anchor)
+    val portraitTopLeftButtons = remember(playbackSettings.portraitTopLeftControls) {
+        val parsed = playbackSettings.portraitTopLeftControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
+        listOf(PlayerButton.BACK_ARROW, PlayerButton.VIDEO_TITLE) +
+                parsed.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
+    }
+    val portraitTopRightButtons = remember(playbackSettings.portraitTopRightControls) {
+        playbackSettings.portraitTopRightControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
     }
     val portraitBottomButtons = remember(playbackSettings.portraitBottomControls) {
         playbackSettings.portraitBottomControls.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
@@ -613,6 +623,8 @@ fun PlayerScreen(
                         topRightButtons = topRightButtons,
                         bottomLeftButtons = bottomLeftButtons,
                         bottomRightButtons = bottomRightButtons,
+                        portraitTopLeftButtons = portraitTopLeftButtons,
+                        portraitTopRightButtons = portraitTopRightButtons,
                         portraitBottomButtons = portraitBottomButtons,
                         onLockClick = { isLocked = true },
                         onAspectClick = {

@@ -1,9 +1,11 @@
 package com.devson.nvplayer.model
 
 enum class ControlRegion(val displayName: String) {
-    TOP_LEFT("Top Left Controls"),
-    TOP_RIGHT("Top Right Controls"),
-    BOTTOM_LEFT("Bottom Left Controls"),
-    BOTTOM_RIGHT("Bottom Right Controls"),
+    TOP_LEFT("Landscape Top Left"),
+    TOP_RIGHT("Landscape Top Right"),
+    BOTTOM_LEFT("Landscape Bottom Left"),
+    BOTTOM_RIGHT("Landscape Bottom Right"),
+    PORTRAIT_TOP_LEFT("Portrait Top Left"),
+    PORTRAIT_TOP_RIGHT("Portrait Top Right"),
     PORTRAIT_BOTTOM("Portrait Bottom Controls")
 }

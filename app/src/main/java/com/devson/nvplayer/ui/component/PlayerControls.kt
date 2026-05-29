@@ -89,6 +89,8 @@ fun PlayerControls(
     topRightButtons: List<PlayerButton> = emptyList(),
     bottomLeftButtons: List<PlayerButton> = emptyList(),
     bottomRightButtons: List<PlayerButton> = emptyList(),
+    portraitTopLeftButtons: List<PlayerButton> = emptyList(),
+    portraitTopRightButtons: List<PlayerButton> = emptyList(),
     portraitBottomButtons: List<PlayerButton> = emptyList(),
     onLockClick: () -> Unit = {},
     onAspectClick: () -> Unit = {},
@@ -169,7 +171,13 @@ fun PlayerControls(
                 )
             )
     ) {
-        // 1. TOP PANEL (Title & Track Selectors - Dynamic)
+        val filterChapters = { list: List<PlayerButton> ->
+            if (hasChapters) list else list.filter { it != PlayerButton.CHAPTERS }
+        }
+
+        // 1. TOP PANEL — separate lists for landscape vs portrait orientations
+        val effectiveTopLeft = filterChapters(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
+        val effectiveTopRight = filterChapters(if (isPortrait) portraitTopRightButtons else topRightButtons)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -184,11 +192,11 @@ fun PlayerControls(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                topLeftButtons.forEach { button ->
+                effectiveTopLeft.forEach { button ->
                     RenderPlayerButton(
                         button = button,
                         modifier = if (button == PlayerButton.VIDEO_TITLE) Modifier.weight(1f) else Modifier,
-                        isPortrait = false,
+                        isPortrait = isPortrait,
                         title = title,
                         showElapsedTimeOverlay = showElapsedTimeOverlay,
                         currentPosition = currentPosition,
@@ -217,11 +225,11 @@ fun PlayerControls(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                topRightButtons.forEach { button ->
+                effectiveTopRight.forEach { button ->
                     RenderPlayerButton(
                         button = button,
                         modifier = Modifier,
-                        isPortrait = false,
+                        isPortrait = isPortrait,
                         title = title,
                         showElapsedTimeOverlay = showElapsedTimeOverlay,
                         currentPosition = currentPosition,
@@ -408,7 +416,7 @@ fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    portraitBottomButtons.forEach { button ->
+                    filterChapters(portraitBottomButtons).forEach { button ->
                         RenderPlayerButton(
                             button = button,
                             modifier = Modifier,
@@ -448,7 +456,7 @@ fun PlayerControls(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        bottomLeftButtons.forEach { button ->
+                        filterChapters(bottomLeftButtons).forEach { button ->
                             RenderPlayerButton(
                                 button = button,
                                 modifier = Modifier,
@@ -480,7 +488,7 @@ fun PlayerControls(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        bottomRightButtons.forEach { button ->
+                        filterChapters(bottomRightButtons).forEach { button ->
                             RenderPlayerButton(
                                 button = button,
                                 modifier = Modifier,

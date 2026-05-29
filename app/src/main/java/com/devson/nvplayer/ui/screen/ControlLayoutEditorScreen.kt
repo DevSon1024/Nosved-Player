@@ -48,7 +48,7 @@ fun ControlLayoutEditorScreen(
     // 1. Helper to parse regions safely
     fun parseRegion(value: String, region: ControlRegion): List<PlayerButton> {
         val parsed = value.split(',').mapNotNull { runCatching { PlayerButton.valueOf(it) }.getOrNull() }
-        return if (region == ControlRegion.TOP_LEFT) {
+        return if (region == ControlRegion.TOP_LEFT || region == ControlRegion.PORTRAIT_TOP_LEFT) {
             listOf(PlayerButton.BACK_ARROW, PlayerButton.VIDEO_TITLE) +
                     parsed.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
         } else {
@@ -56,7 +56,7 @@ fun ControlLayoutEditorScreen(
         }
     }
 
-    // 2. Local State variables for all 5 regions
+    // 2. Local State variables for all 7 regions
     var topLeftList by remember(playbackSettings) {
         mutableStateOf(parseRegion(playbackSettings.topLeftControls, ControlRegion.TOP_LEFT))
     }
@@ -69,6 +69,12 @@ fun ControlLayoutEditorScreen(
     var bottomRightList by remember(playbackSettings) {
         mutableStateOf(parseRegion(playbackSettings.bottomRightControls, ControlRegion.BOTTOM_RIGHT))
     }
+    var portraitTopLeftList by remember(playbackSettings) {
+        mutableStateOf(parseRegion(playbackSettings.portraitTopLeftControls, ControlRegion.PORTRAIT_TOP_LEFT))
+    }
+    var portraitTopRightList by remember(playbackSettings) {
+        mutableStateOf(parseRegion(playbackSettings.portraitTopRightControls, ControlRegion.PORTRAIT_TOP_RIGHT))
+    }
     var portraitBottomList by remember(playbackSettings) {
         mutableStateOf(parseRegion(playbackSettings.portraitBottomControls, ControlRegion.PORTRAIT_BOTTOM))
     }
@@ -76,32 +82,39 @@ fun ControlLayoutEditorScreen(
     // Currently selected region and preview orientation
     var selectedRegion by remember { mutableStateOf(ControlRegion.TOP_LEFT) }
     var isPortraitPreview by remember { mutableStateOf(false) }
+    var showInfoSheet by remember { mutableStateOf(false) }
 
-    // If Portrait Bottom is selected, force portrait preview orientation so user can see it
+    // If Portrait region is selected, force portrait preview orientation so user can see it
     LaunchedEffect(selectedRegion) {
-        if (selectedRegion == ControlRegion.PORTRAIT_BOTTOM) {
+        if (selectedRegion in listOf(ControlRegion.PORTRAIT_TOP_LEFT, ControlRegion.PORTRAIT_TOP_RIGHT, ControlRegion.PORTRAIT_BOTTOM)) {
             isPortraitPreview = true
+        } else {
+            isPortraitPreview = false
         }
     }
 
     // 3. Save all updated control configurations on Leave/Dispose
-    DisposableEffect(topLeftList, topRightList, bottomLeftList, bottomRightList, portraitBottomList) {
+    DisposableEffect(topLeftList, topRightList, bottomLeftList, bottomRightList, portraitTopLeftList, portraitTopRightList, portraitBottomList) {
         onDispose {
             settingsViewModel.updateControls(ControlRegion.TOP_LEFT, topLeftList)
             settingsViewModel.updateControls(ControlRegion.TOP_RIGHT, topRightList)
             settingsViewModel.updateControls(ControlRegion.BOTTOM_LEFT, bottomLeftList)
             settingsViewModel.updateControls(ControlRegion.BOTTOM_RIGHT, bottomRightList)
+            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_LEFT, portraitTopLeftList)
+            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_RIGHT, portraitTopRightList)
             settingsViewModel.updateControls(ControlRegion.PORTRAIT_BOTTOM, portraitBottomList)
         }
     }
 
     // 4. State delegation helper for active region
-    val activeList = remember(selectedRegion, topLeftList, topRightList, bottomLeftList, bottomRightList, portraitBottomList) {
+    val activeList = remember(selectedRegion, topLeftList, topRightList, bottomLeftList, bottomRightList, portraitTopLeftList, portraitTopRightList, portraitBottomList) {
         when (selectedRegion) {
             ControlRegion.TOP_LEFT -> topLeftList
             ControlRegion.TOP_RIGHT -> topRightList
             ControlRegion.BOTTOM_LEFT -> bottomLeftList
             ControlRegion.BOTTOM_RIGHT -> bottomRightList
+            ControlRegion.PORTRAIT_TOP_LEFT -> portraitTopLeftList
+            ControlRegion.PORTRAIT_TOP_RIGHT -> portraitTopRightList
             ControlRegion.PORTRAIT_BOTTOM -> portraitBottomList
         }
     }
@@ -112,6 +125,8 @@ fun ControlLayoutEditorScreen(
             ControlRegion.TOP_RIGHT -> topRightList = newList
             ControlRegion.BOTTOM_LEFT -> bottomLeftList = newList
             ControlRegion.BOTTOM_RIGHT -> bottomRightList = newList
+            ControlRegion.PORTRAIT_TOP_LEFT -> portraitTopLeftList = newList
+            ControlRegion.PORTRAIT_TOP_RIGHT -> portraitTopRightList = newList
             ControlRegion.PORTRAIT_BOTTOM -> portraitBottomList = newList
         }
     }
@@ -123,17 +138,19 @@ fun ControlLayoutEditorScreen(
     //    the palette, preventing the same control from appearing twice on screen.
     //    BACK_ARROW, VIDEO_TITLE, and NONE are always excluded (managed separately).
     val paletteButtons = remember(
-        isPortraitPreview, topLeftList, topRightList, bottomLeftList, bottomRightList, portraitBottomList, activeList
+        isPortraitPreview, topLeftList, topRightList, bottomLeftList, bottomRightList,
+        portraitTopLeftList, portraitTopRightList, portraitBottomList, activeList
     ) {
         val alreadyUsedInLayout = buildSet<PlayerButton> {
-            // TOP_LEFT and TOP_RIGHT are visible in both orientations
-            addAll(topLeftList)
-            addAll(topRightList)
             if (isPortraitPreview) {
-                // Portrait layout — only PORTRAIT_BOTTOM rows are active
+                // Portrait layout - PORTRAIT_TOP_LEFT, PORTRAIT_TOP_RIGHT, PORTRAIT_BOTTOM are active
+                addAll(portraitTopLeftList)
+                addAll(portraitTopRightList)
                 addAll(portraitBottomList)
             } else {
-                // Landscape layout — BOTTOM_LEFT and BOTTOM_RIGHT are active
+                // Landscape layout — TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT and BOTTOM_RIGHT are active
+                addAll(topLeftList)
+                addAll(topRightList)
                 addAll(bottomLeftList)
                 addAll(bottomRightList)
             }
@@ -143,7 +160,7 @@ fun ControlLayoutEditorScreen(
 
     val lazyGridState = rememberLazyGridState()
     val reorderableLazyGridState = rememberReorderableLazyGridState(lazyGridState) { from, to ->
-        if (selectedRegion == ControlRegion.TOP_LEFT && (from.index < 2 || to.index < 2)) {
+        if ((selectedRegion == ControlRegion.TOP_LEFT || selectedRegion == ControlRegion.PORTRAIT_TOP_LEFT) && (from.index < 2 || to.index < 2)) {
             return@rememberReorderableLazyGridState
         }
         onActiveListChange(activeList.toMutableList().apply {
@@ -173,12 +190,18 @@ fun ControlLayoutEditorScreen(
                         onToggle = { portrait ->
                             isPortraitPreview = portrait
                             // Auto-correct selectedRegion if it doesn't exist in the new orientation
-                            if (portrait && selectedRegion in listOf(ControlRegion.BOTTOM_LEFT, ControlRegion.BOTTOM_RIGHT)) {
-                                // BOTTOM_LEFT / BOTTOM_RIGHT are landscape-only → switch to PORTRAIT_BOTTOM
-                                selectedRegion = ControlRegion.PORTRAIT_BOTTOM
-                            } else if (!portrait && selectedRegion == ControlRegion.PORTRAIT_BOTTOM) {
-                                // PORTRAIT_BOTTOM is portrait-only → switch to BOTTOM_RIGHT
-                                selectedRegion = ControlRegion.BOTTOM_RIGHT
+                            if (portrait && selectedRegion in listOf(ControlRegion.TOP_LEFT, ControlRegion.TOP_RIGHT, ControlRegion.BOTTOM_LEFT, ControlRegion.BOTTOM_RIGHT)) {
+                                selectedRegion = when (selectedRegion) {
+                                    ControlRegion.TOP_LEFT -> ControlRegion.PORTRAIT_TOP_LEFT
+                                    ControlRegion.TOP_RIGHT -> ControlRegion.PORTRAIT_TOP_RIGHT
+                                    else -> ControlRegion.PORTRAIT_BOTTOM
+                                }
+                            } else if (!portrait && selectedRegion in listOf(ControlRegion.PORTRAIT_TOP_LEFT, ControlRegion.PORTRAIT_TOP_RIGHT, ControlRegion.PORTRAIT_BOTTOM)) {
+                                selectedRegion = when (selectedRegion) {
+                                    ControlRegion.PORTRAIT_TOP_LEFT -> ControlRegion.TOP_LEFT
+                                    ControlRegion.PORTRAIT_TOP_RIGHT -> ControlRegion.TOP_RIGHT
+                                    else -> ControlRegion.BOTTOM_RIGHT
+                                }
                             }
                         }
                     )
@@ -206,6 +229,8 @@ fun ControlLayoutEditorScreen(
                 topRight = topRightList,
                 bottomLeft = bottomLeftList,
                 bottomRight = bottomRightList,
+                portraitTopLeft = portraitTopLeftList,
+                portraitTopRight = portraitTopRightList,
                 portraitBottom = portraitBottomList
             )
 
@@ -220,14 +245,33 @@ fun ControlLayoutEditorScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Drop Zone Card Header
-            Text(
-                text = "Active Controls (Drag to Reorder)",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-            )
+            // Drop Zone Card Header with Info button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Active Controls (Drag to Reorder)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                
+                IconButton(
+                    onClick = { showInfoSheet = true },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = "Controls Info",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
 
             // Reorderable Drop Zone Grid
             Surface(
@@ -252,7 +296,7 @@ fun ControlLayoutEditorScreen(
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                        columns = GridCells.Adaptive(minSize = 60.dp),
                         state = lazyGridState,
                         modifier = Modifier
                             .fillMaxSize()
@@ -262,76 +306,63 @@ fun ControlLayoutEditorScreen(
                         items(activeList, key = { it.name }) { button ->
                             ReorderableItem(reorderableLazyGridState, key = button.name) { isDragging ->
                                 val isMovable = button != PlayerButton.BACK_ARROW && button != PlayerButton.VIDEO_TITLE
-                                Card(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(4.dp)
-                                        .then(if (isMovable) Modifier.longPressDraggableHandle() else Modifier)
-                                        .border(
-                                            width = if (isDragging) 2.dp else 1.dp,
-                                            color = if (isDragging) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                            shape = RoundedCornerShape(12.dp)
-                                        ),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isDragging) {
-                                            MaterialTheme.colorScheme.surfaceContainerHighest
-                                        } else {
-                                            MaterialTheme.colorScheme.surface
-                                        }
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    elevation = CardDefaults.cardElevation(
-                                        defaultElevation = if (isDragging) 8.dp else 1.dp
-                                    )
+                                        .padding(6.dp)
                                 ) {
-                                    Row(
+                                    Card(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = button.icon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = button.displayName,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        if (isMovable) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.DragHandle,
-                                                contentDescription = "Drag handle",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                                modifier = Modifier
-                                                    .size(16.dp)
-                                                    .draggableHandle()
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(22.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.errorContainer)
-                                                    .clickable {
-                                                        onActiveListChange(activeList.filter { it != button })
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Remove,
-                                                    contentDescription = "Remove",
-                                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                                    modifier = Modifier.size(12.dp)
-                                                )
+                                            .size(52.dp)
+                                            .then(if (isMovable) Modifier.longPressDraggableHandle() else Modifier)
+                                            .border(
+                                                width = if (isDragging) 2.dp else 1.dp,
+                                                color = if (isDragging) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                shape = RoundedCornerShape(12.dp)
+                                            ),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDragging) {
+                                                MaterialTheme.colorScheme.surfaceContainerHighest
+                                            } else {
+                                                MaterialTheme.colorScheme.surface
                                             }
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = if (isDragging) 6.dp else 1.dp
+                                        )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            PlayerButtonIcon(
+                                                button = button,
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+
+                                    // Remove Badge
+                                    if (isMovable) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = 4.dp, y = (-4).dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.error)
+                                                .clickable {
+                                                    onActiveListChange(activeList.filter { it != button })
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Close,
+                                                contentDescription = "Remove",
+                                                tint = MaterialTheme.colorScheme.onError,
+                                                modifier = Modifier.size(10.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -381,53 +412,46 @@ fun ControlLayoutEditorScreen(
                     ) {
                         FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             paletteButtons.forEach { button ->
-                                Surface(
+                                Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .size(52.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
                                         .clickable {
                                             onActiveListChange(activeList + button)
                                         },
-                                    color = MaterialTheme.colorScheme.surface,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant
-                                    ),
-                                    shape = RoundedCornerShape(8.dp)
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    PlayerButtonIcon(
+                                        button = button,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    // Small plus indicator in bottom-right corner
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .align(Alignment.BottomEnd)
+                                            .offset(x = (-4).dp, y = (-4).dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = button.icon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
+                                            imageVector = Icons.Rounded.Add,
+                                            contentDescription = "Add",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(8.dp)
                                         )
-                                        Text(
-                                            text = button.displayName,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .size(14.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primaryContainer),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Add,
-                                                contentDescription = "Add",
-                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.size(10.dp)
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -436,6 +460,85 @@ fun ControlLayoutEditorScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    if (showInfoSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showInfoSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Control Buttons Reference",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    PlayerButton.entries.filter { it != PlayerButton.NONE }.forEach { button ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PlayerButtonIcon(
+                                    button = button,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = button.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = when (button) {
+                                        PlayerButton.BACK_ARROW -> "Navigate back to video list"
+                                        PlayerButton.VIDEO_TITLE -> "Display current video file name"
+                                        PlayerButton.SUBTITLES -> "Toggle and select subtitle tracks"
+                                        PlayerButton.AUDIO_TRACK -> "Toggle and select audio language tracks"
+                                        PlayerButton.DECODER -> "Switch between HW (Hardware) and SW (Software) decoding"
+                                        PlayerButton.CHAPTERS -> "Select and jump to video chapters"
+                                        PlayerButton.SMART_ENHANCE -> "Apply smart color and contrast enhancement settings"
+                                        PlayerButton.SCREEN_ROTATION -> "Toggle auto-rotation or lock/unlock landscape mode"
+                                        PlayerButton.LOCK_CONTROLS -> "Lock the player interface controls to prevent accidental taps"
+                                        PlayerButton.PICTURE_IN_PICTURE -> "Enter background Picture-in-Picture playback mode"
+                                        PlayerButton.ASPECT_RATIO -> "Switch video aspect ratios (fit, stretch, zoom)"
+                                        PlayerButton.MORE_OPTIONS -> "Open speed controls and advanced settings"
+                                        else -> ""
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -449,6 +552,8 @@ fun SimulatedPlayerPreview(
     topRight: List<PlayerButton>,
     bottomLeft: List<PlayerButton>,
     bottomRight: List<PlayerButton>,
+    portraitTopLeft: List<PlayerButton>,
+    portraitTopRight: List<PlayerButton>,
     portraitBottom: List<PlayerButton>
 ) {
     val widthFraction = if (isPortrait) 0.5f else 0.85f
@@ -497,19 +602,19 @@ fun SimulatedPlayerPreview(
                 ) {
                     // Top Left Region
                     MockRegionBox(
-                        region = ControlRegion.TOP_LEFT,
-                        isSelected = selectedRegion == ControlRegion.TOP_LEFT,
-                        onClick = { onRegionSelect(ControlRegion.TOP_LEFT) },
-                        buttons = topLeft,
+                        region = if (isPortrait) ControlRegion.PORTRAIT_TOP_LEFT else ControlRegion.TOP_LEFT,
+                        isSelected = selectedRegion == (if (isPortrait) ControlRegion.PORTRAIT_TOP_LEFT else ControlRegion.TOP_LEFT),
+                        onClick = { onRegionSelect(if (isPortrait) ControlRegion.PORTRAIT_TOP_LEFT else ControlRegion.TOP_LEFT) },
+                        buttons = if (isPortrait) portraitTopLeft else topLeft,
                         modifier = Modifier.weight(1.3f)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     // Top Right Region
                     MockRegionBox(
-                        region = ControlRegion.TOP_RIGHT,
-                        isSelected = selectedRegion == ControlRegion.TOP_RIGHT,
-                        onClick = { onRegionSelect(ControlRegion.TOP_RIGHT) },
-                        buttons = topRight,
+                        region = if (isPortrait) ControlRegion.PORTRAIT_TOP_RIGHT else ControlRegion.TOP_RIGHT,
+                        isSelected = selectedRegion == (if (isPortrait) ControlRegion.PORTRAIT_TOP_RIGHT else ControlRegion.TOP_RIGHT),
+                        onClick = { onRegionSelect(if (isPortrait) ControlRegion.PORTRAIT_TOP_RIGHT else ControlRegion.TOP_RIGHT) },
+                        buttons = if (isPortrait) portraitTopRight else topRight,
                         modifier = Modifier.weight(0.7f)
                     )
                 }
@@ -635,9 +740,8 @@ fun MockRegionBox(
                                 )
                             }
                         } else {
-                            Icon(
-                                imageVector = button.icon,
-                                contentDescription = null,
+                            PlayerButtonIcon(
+                                button = button,
                                 tint = if (isSelected) highlightColor else Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(10.dp)
                             )
@@ -747,8 +851,8 @@ fun RegionTabRow(
         ControlRegion.BOTTOM_RIGHT
     )
     val portraitRegions = listOf(
-        ControlRegion.TOP_LEFT,
-        ControlRegion.TOP_RIGHT,
+        ControlRegion.PORTRAIT_TOP_LEFT,
+        ControlRegion.PORTRAIT_TOP_RIGHT,
         ControlRegion.PORTRAIT_BOTTOM
     )
     val visibleRegions = if (isPortrait) portraitRegions else landscapeRegions
@@ -785,7 +889,7 @@ fun RegionTabRow(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         // Badge portrait-only tab so the user knows it's portrait-exclusive
-                        if (region == ControlRegion.PORTRAIT_BOTTOM) {
+                        if (region in listOf(ControlRegion.PORTRAIT_TOP_LEFT, ControlRegion.PORTRAIT_TOP_RIGHT, ControlRegion.PORTRAIT_BOTTOM)) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
@@ -806,5 +910,37 @@ fun RegionTabRow(
                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun PlayerButtonIcon(
+    button: PlayerButton,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    if (button == PlayerButton.DECODER) {
+        Box(
+            modifier = modifier
+                .border(1.5.dp, tint, RoundedCornerShape(4.dp))
+                .padding(horizontal = 2.dp, vertical = 0.5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "HW",
+                color = tint,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 8.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+    } else {
+        Icon(
+            imageVector = button.icon,
+            contentDescription = button.displayName,
+            tint = tint,
+            modifier = modifier
+        )
     }
 }
