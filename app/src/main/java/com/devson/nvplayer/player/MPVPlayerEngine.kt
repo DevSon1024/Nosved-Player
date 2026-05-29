@@ -54,6 +54,16 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     init {
         try {
+            if (isInitialized) {
+                // RELEASE FIX: Process was reused (activity recreation, PiP, back-stack pop).
+                // MPVLib is a C++ singleton — calling create() twice without destroy() is UB/crash.
+                // Destroy the old instance cleanly before re-creating.
+                Log.w("MPVPlayerEngine", "MPVLib already initialized — destroying old instance before re-init")
+                MPVLib.removeObserver(this)
+                MPVLib.destroy()
+                isInitialized = false
+            }
+
             Log.d("MPVPlayerEngine", "Initializing MPVLib instance")
             MPVLib.create(context.applicationContext)
 

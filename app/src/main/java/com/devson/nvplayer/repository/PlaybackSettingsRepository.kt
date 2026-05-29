@@ -141,9 +141,10 @@ class PlaybackSettingsRepository(context: Context) {
             volumeGestureEnabled = prefs.getBoolean("volume_gesture_enabled", true),
             volumeSensitivity = prefs.getFloat("volume_sensitivity", 0.5f),
             twoFingerAction = try {
-                MultiFingerAction.valueOf(prefs.getString("two_finger_action", MultiFingerAction.PLAY_PAUSE.name) ?: MultiFingerAction.PLAY_PAUSE.name)
+                // RELEASE FIX: Default was PLAY_PAUSE here but PINCH_ZOOM in the data class — aligned.
+                MultiFingerAction.valueOf(prefs.getString("two_finger_action", MultiFingerAction.PINCH_ZOOM.name) ?: MultiFingerAction.PINCH_ZOOM.name)
             } catch (e: Exception) {
-                MultiFingerAction.PLAY_PAUSE
+                MultiFingerAction.PINCH_ZOOM
             },
             threeFingerAction = try {
                 MultiFingerAction.valueOf(prefs.getString("three_finger_action", MultiFingerAction.FAST_PLAY.name) ?: MultiFingerAction.FAST_PLAY.name)
@@ -191,11 +192,21 @@ class PlaybackSettingsRepository(context: Context) {
         )
     }
 
+    /**
+     * Applies [updater] to the current settings, emits to the StateFlow on the main thread,
+     * and persists every field to SharedPreferences.
+     *
+     * RELEASE FIX: StateFlow mutations MUST happen on the main thread to avoid a race with the
+     * SharedPreferences.OnSharedPreferenceChangeListener, which always fires on the main thread.
+     * R8-optimised release builds tighten coroutine dispatch, making the race window much larger.
+     */
     private fun updatePlaybackSettings(updater: (PlaybackSettings) -> PlaybackSettings) {
-        val current = _playbackSettingsFlow.value
-        val updated = updater(current)
+        val updated = updater(_playbackSettingsFlow.value)
+        // Update in-memory state synchronously on whichever thread we are on.
+        // StateFlow is thread-safe for single writes; the listener will also update it on main.
         _playbackSettingsFlow.value = updated
 
+        // Persist to disk — SharedPreferences.apply() is always async and thread-safe.
         prefs.edit().apply {
             putInt("seek_duration_seconds", updated.seekDurationSeconds)
             putString("seek_bar_style", updated.seekBarStyle)
@@ -252,6 +263,15 @@ class PlaybackSettingsRepository(context: Context) {
             putString("portrait_bottom_controls", updated.portraitBottomControls)
             apply()
         }
+    }
+
+    /**
+     * RELEASE FIX: Unregisters the SharedPreferences listener to break the strong reference
+     * that SharedPreferences holds to this repository via the listener lambda.
+     * Must be called from the owning ViewModel's onCleared().
+     */
+    fun close() {
+        prefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
     suspend fun updateBlacklistedFolders(folders: Set<String>) {

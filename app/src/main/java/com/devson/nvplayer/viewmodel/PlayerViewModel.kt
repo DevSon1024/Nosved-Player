@@ -529,6 +529,11 @@ class PlayerViewModel(
             nextMode = DecoderMode.SW
             Toast.makeText(getApplication(), "HW skipped (Unsupported)", Toast.LENGTH_SHORT).show()
         }
+        // Reset the HW-ever-active flag when switching to SW so Coroutine 1 doesn't mistake
+        // the intentional hwdec-current="no" for a runtime fallback (release timing race).
+        if (nextMode == DecoderMode.SW) {
+            hwdecEverActiveForCurrentVideo = false
+        }
         playerEngine.setDecoder(nextMode)
         viewModelScope.launch {
             settingsRepo.updateDecoderMode(nextMode)
@@ -546,6 +551,13 @@ class PlayerViewModel(
                 settingsRepo.updateDecoderMode(DecoderMode.SW)
             }
         } else {
+            // Reset the HW-ever-active flag when the user intentionally changes decoder mode.
+            // This prevents Coroutine 1 from misinterpreting the intentional hwdec-current="no"
+            // (caused by switching to SW) as a runtime HW fallback event — a race condition that
+            // is especially pronounced in Release builds where R8 tightens coroutine scheduling.
+            if (mode == DecoderMode.SW) {
+                hwdecEverActiveForCurrentVideo = false
+            }
             viewModelScope.launch {
                 settingsRepo.updateDecoderMode(mode)
             }
@@ -744,6 +756,9 @@ class PlayerViewModel(
         savePlaybackProgress()
         super.onCleared()
         Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")
+        // RELEASE FIX: Unregister the SharedPreferences listener to break the strong reference
+        // that SharedPreferences holds to the repository lambda (prevents GC leak in release).
+        settingsRepo.close()
         playerEngine.release()
     }
 

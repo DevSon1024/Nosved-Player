@@ -408,4 +408,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
-}
+
+    override fun onCleared() {
+        super.onCleared()
+        // RELEASE FIX: Unregister the SharedPreferences listener to break the strong reference
+        // that SharedPreferences holds to the settingsRepo lambda (prevents GC leak in release).
+        settingsRepo.close()
+    }
+}

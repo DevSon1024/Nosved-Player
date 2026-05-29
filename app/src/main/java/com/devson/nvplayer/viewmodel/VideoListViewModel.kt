@@ -32,6 +32,12 @@ class VideoListViewModel(
     private val _loadingProgress = MutableStateFlow(0f)
     val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
 
+    // RELEASE FIX: Expose load errors via StateFlow so the UI can show an error state.
+    // Previously, exceptions were swallowed by e.printStackTrace() which is a no-op in release.
+    private val _loadError = MutableStateFlow<String?>(null)
+    val loadError: StateFlow<String?> = _loadError.asStateFlow()
+    fun clearLoadError() { _loadError.value = null }
+
     private val _selectedFolder = MutableStateFlow<VideoFolder?>(null)
     val selectedFolder: StateFlow<VideoFolder?> = _selectedFolder.asStateFlow()
 
@@ -157,7 +163,10 @@ class VideoListViewModel(
                 // Store raw (unfiltered) - the combine flow handles filtering reactively
                 _rawVideosByFolder.value = mappedVideos
             } catch (e: Exception) {
-                e.printStackTrace()
+                // RELEASE FIX: e.printStackTrace() is silently discarded in release builds.
+                // Emit to the error flow so the UI can react (show snackbar / empty state).
+                android.util.Log.e("VideoListViewModel", "Failed to load videos", e)
+                _loadError.value = e.localizedMessage ?: "Failed to load videos"
             } finally {
                 _isLoading.value = false
                 _isRefreshing.value = false
