@@ -6,6 +6,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,8 +44,15 @@ import com.devson.nvplayer.ui.theme.AppThemePalette
 import com.devson.nvplayer.ui.theme.*
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ButtonShapes
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.ShapeDefaults
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppearanceSettingsScreen(
     onNavigateBack: () -> Unit,
@@ -55,65 +67,7 @@ fun AppearanceSettingsScreen(
     val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
     val seekBarStyle = playbackSettings.seekBarStyle
 
-    var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
-
-    //  Theme picker dialog
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            shape = RoundedCornerShape(20.dp),
-            containerColor = MaterialTheme.colorScheme.background,
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        Icons.Default.DarkMode,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text(stringResource(R.string.appearance_dark_theme), style = MaterialTheme.typography.titleMedium)
-                }
-            },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    ThemeOption(
-                        text        = stringResource(R.string.appearance_light),
-                        selected    = isDark == false,
-                        icon        = Icons.Default.LightMode,
-                        onClick     = {
-                            settingsViewModel.setDarkTheme(false)
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text        = stringResource(R.string.appearance_dark),
-                        selected    = isDark == true,
-                        icon        = Icons.Default.DarkMode,
-                        onClick     = {
-                            settingsViewModel.setDarkTheme(true)
-                            showThemeDialog = false
-                        }
-                    )
-                    ThemeOption(
-                        text        = stringResource(R.string.appearance_system_default),
-                        selected    = isDark == null,
-                        icon        = Icons.Default.SettingsBrightness,
-                        onClick     = {
-                            settingsViewModel.resetDarkTheme()
-                            showThemeDialog = false
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) { Text(stringResource(R.string.appearance_close)) }
-            }
-        )
-    }
 
     //  Language picker dialog
     if (showLanguageDialog) {
@@ -218,21 +172,87 @@ fun AppearanceSettingsScreen(
             //  THEME section 
             AppearanceSectionLabel(stringResource(R.string.appearance_theme))
             AppearanceCard {
-                AppearanceNavRow(
-                    icon     = when (isDark) {
-                        true  -> Icons.Default.DarkMode
-                        false -> Icons.Default.LightMode
-                        else  -> Icons.Default.SettingsBrightness
-                    },
-                    title    = stringResource(R.string.appearance_dark_theme),
-                    subtitle = when (isDark) {
-                        true  -> stringResource(R.string.appearance_dark)
-                        false -> stringResource(R.string.appearance_light)
-                        null  -> stringResource(R.string.appearance_system_default)
-                    },
-                    onClick  = { showThemeDialog = true }
-                )
-
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.appearance_dark_theme),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    
+                    val startButtonShapes = ButtonShapes(
+                        shape = ButtonGroupDefaults.connectedLeadingButtonShape,
+                        pressedShape = ButtonGroupDefaults.connectedLeadingButtonPressShape,
+                        checkedShape = ToggleButtonDefaults.checkedShape
+                    )
+                    val middleButtonShapes = ToggleButtonDefaults.shapes(
+                        ShapeDefaults.Small,
+                        ToggleButtonDefaults.pressedShape,
+                        ToggleButtonDefaults.checkedShape
+                    )
+                    val endButtonShapes = ButtonShapes(
+                        shape = ButtonGroupDefaults.connectedTrailingButtonShape,
+                        pressedShape = ButtonGroupDefaults.connectedTrailingButtonPressShape,
+                        checkedShape = ToggleButtonDefaults.checkedShape
+                    )
+                    val shapes = listOf(startButtonShapes, middleButtonShapes, endButtonShapes)
+                    
+                    ButtonGroup(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.connectedSpaceBetween),
+                        animateFraction = 0f
+                    ) {
+                        val groupScope = this
+                        val options = listOf(
+                            stringResource(R.string.appearance_light),
+                            stringResource(R.string.appearance_dark),
+                            stringResource(R.string.appearance_system_default)
+                        )
+                        
+                        options.forEachIndexed { index, label ->
+                            val isSelected = when (index) {
+                                0 -> isDark == false
+                                1 -> isDark == true
+                                else -> isDark == null
+                            }
+                            ToggleButton(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        when (index) {
+                                            0 -> settingsViewModel.setDarkTheme(false)
+                                            1 -> settingsViewModel.setDarkTheme(true)
+                                            2 -> settingsViewModel.resetDarkTheme()
+                                        }
+                                    }
+                                },
+                                shapes = shapes[index],
+                                modifier = with(groupScope) { Modifier.weight(1f) }
+                            ) {
+                                AnimatedVisibility(
+                                    visible = isSelected,
+                                    enter = fadeIn() + expandHorizontally(),
+                                    exit = fadeOut() + shrinkHorizontally()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                    }
+                                }
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+                
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     AppearanceDivider()
                     AppearanceToggleRow(

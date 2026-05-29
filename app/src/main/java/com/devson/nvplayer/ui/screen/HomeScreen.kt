@@ -123,8 +123,11 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 24.dp
+                ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // 1. Welcome Header
