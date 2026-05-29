@@ -91,10 +91,13 @@ fun FeedScreen(
 
     val filteredVideos by viewModel.filteredVideos.collectAsState()
 
-    val pagerState = rememberPagerState(
-        initialPage = startIndex.coerceIn(0, (filteredVideos.size - 1).coerceAtLeast(0)),
-        pageCount   = { filteredVideos.size }
-    )
+    val hasVideos = filteredVideos.isNotEmpty()
+    val pagerState = key(hasVideos) {
+        rememberPagerState(
+            initialPage = startIndex.coerceIn(0, (filteredVideos.size - 1).coerceAtLeast(0)),
+            pageCount   = { filteredVideos.size }
+        )
+    }
 
     val isPlaying    by viewModel.isPlaying.collectAsState()
     val playerState  by viewModel.playbackState.collectAsState()
@@ -407,7 +410,7 @@ private fun FeedPage(
                     .crossfade(true)
                     .build(),
                 contentDescription = video.title,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
         }

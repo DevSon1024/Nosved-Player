@@ -107,6 +107,7 @@ class FeedViewModel(
         viewModelScope.launch {
             try {
                 engine.setPlaybackSpeed(1.0f)
+                engine.setAspectMode(com.devson.nvplayer.player.AspectMode.FIT)
                 engine.loadVideo(Uri.parse(uri))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load pending video after surface attach", e)
@@ -158,6 +159,7 @@ class FeedViewModel(
         viewModelScope.launch {
             try {
                 engine.setPlaybackSpeed(1.0f) // Reset speed to normal on page change
+                engine.setAspectMode(com.devson.nvplayer.player.AspectMode.FIT)
                 engine.loadVideo(Uri.parse(video.uri))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load video at index $index", e)
