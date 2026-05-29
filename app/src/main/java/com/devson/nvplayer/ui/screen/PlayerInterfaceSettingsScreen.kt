@@ -77,6 +77,19 @@ fun PlayerInterfaceSettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
+            // Control Region Layout Customization
+            InterfaceSectionHeader("Control Regions Layout Customization")
+            InterfaceCard {
+                InterfaceRow(
+                    icon = Icons.Default.Dashboard,
+                    title = "Custom Controls Layout",
+                    subtitle = "Customize and reorder control buttons using an interactive player preview",
+                    onClick = onNavigateToControlEditor
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
             // Display & Orientation Section
             InterfaceSectionHeader("Layout & Orientation")
             InterfaceCard {
@@ -173,19 +186,6 @@ fun PlayerInterfaceSettingsScreen(
                     subtitle = "Show previous/next chapter skip buttons in player controls",
                     checked = playbackSettings.showNextPrevButtons,
                     onCheckedChange = { settingsViewModel.updateShowNextPrevButtons(it) }
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // Control Region Layout Customization
-            InterfaceSectionHeader("Control Regions Layout Customization")
-            InterfaceCard {
-                InterfaceRow(
-                    icon = Icons.Default.Dashboard,
-                    title = "Custom Controls Layout",
-                    subtitle = "Customize and reorder control buttons using an interactive player preview",
-                    onClick = onNavigateToControlEditor
                 )
             }
 

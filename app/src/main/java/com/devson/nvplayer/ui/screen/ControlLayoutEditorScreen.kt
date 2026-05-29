@@ -183,30 +183,6 @@ fun ControlLayoutEditorScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                actions = {
-                    // Segmented Orientation Toggle in Toolbar
-                    OrientationToggle(
-                        isPortrait = isPortraitPreview,
-                        onToggle = { portrait ->
-                            isPortraitPreview = portrait
-                            // Auto-correct selectedRegion if it doesn't exist in the new orientation
-                            if (portrait && selectedRegion in listOf(ControlRegion.TOP_LEFT, ControlRegion.TOP_RIGHT, ControlRegion.BOTTOM_LEFT, ControlRegion.BOTTOM_RIGHT)) {
-                                selectedRegion = when (selectedRegion) {
-                                    ControlRegion.TOP_LEFT -> ControlRegion.PORTRAIT_TOP_LEFT
-                                    ControlRegion.TOP_RIGHT -> ControlRegion.PORTRAIT_TOP_RIGHT
-                                    else -> ControlRegion.PORTRAIT_BOTTOM
-                                }
-                            } else if (!portrait && selectedRegion in listOf(ControlRegion.PORTRAIT_TOP_LEFT, ControlRegion.PORTRAIT_TOP_RIGHT, ControlRegion.PORTRAIT_BOTTOM)) {
-                                selectedRegion = when (selectedRegion) {
-                                    ControlRegion.PORTRAIT_TOP_LEFT -> ControlRegion.TOP_LEFT
-                                    ControlRegion.PORTRAIT_TOP_RIGHT -> ControlRegion.TOP_RIGHT
-                                    else -> ControlRegion.BOTTOM_RIGHT
-                                }
-                            }
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -220,6 +196,30 @@ fun ControlLayoutEditorScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
+            // Orientation Toggle below the title bar
+            OrientationToggle(
+                isPortrait = isPortraitPreview,
+                onToggle = { portrait ->
+                    isPortraitPreview = portrait
+                    // Auto-correct selectedRegion if it doesn't exist in the new orientation
+                    if (portrait && selectedRegion in listOf(ControlRegion.TOP_LEFT, ControlRegion.TOP_RIGHT, ControlRegion.BOTTOM_LEFT, ControlRegion.BOTTOM_RIGHT)) {
+                        selectedRegion = when (selectedRegion) {
+                            ControlRegion.TOP_LEFT -> ControlRegion.PORTRAIT_TOP_LEFT
+                            ControlRegion.TOP_RIGHT -> ControlRegion.PORTRAIT_TOP_RIGHT
+                            else -> ControlRegion.PORTRAIT_BOTTOM
+                        }
+                    } else if (!portrait && selectedRegion in listOf(ControlRegion.PORTRAIT_TOP_LEFT, ControlRegion.PORTRAIT_TOP_RIGHT, ControlRegion.PORTRAIT_BOTTOM)) {
+                        selectedRegion = when (selectedRegion) {
+                            ControlRegion.PORTRAIT_TOP_LEFT -> ControlRegion.TOP_LEFT
+                            ControlRegion.PORTRAIT_TOP_RIGHT -> ControlRegion.TOP_RIGHT
+                            else -> ControlRegion.BOTTOM_RIGHT
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(vertical = 10.dp)
+            )
             // Live Interactive Preview Mockup Box
             SimulatedPlayerPreview(
                 isPortrait = isPortraitPreview,
@@ -773,33 +773,38 @@ fun OrientationToggle(
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(containerColor)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(24.dp)
+            )
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         // Landscape Option
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .background(if (!isPortrait) selectedColor else Color.Transparent)
                 .clickable { onToggle(false) }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.StayCurrentLandscape,
                     contentDescription = null,
                     tint = if (!isPortrait) onSelectedColor else unselectedColor,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = "Landscape",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (!isPortrait) onSelectedColor else unselectedColor
                 )
@@ -809,25 +814,25 @@ fun OrientationToggle(
         // Portrait Option
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .background(if (isPortrait) selectedColor else Color.Transparent)
                 .clickable { onToggle(true) }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.StayCurrentPortrait,
                     contentDescription = null,
                     tint = if (isPortrait) onSelectedColor else unselectedColor,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = "Portrait",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isPortrait) onSelectedColor else unselectedColor
                 )
