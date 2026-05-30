@@ -33,6 +33,7 @@ import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.player.DecoderMode
 import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nvplayer.ui.screens.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
@@ -168,14 +169,21 @@ fun AppNavigation(
                 onBack = safePopBackStack, // 2. Use the safe helper
                 onNavigateToAbout = { navController.navigate("about") },
                 onNavigateToLogs = {},
-                onNavigateToPrivacyPolicy = {},
+                onNavigateToPrivacyPolicy = { navController.navigate("privacy_policy") },
                 onNavigateToAppearance = { navController.navigate("appearance") },
                 onNavigateToGestures = { navController.navigate("gestures") },
                 onNavigateToCustomHome = { navController.navigate("custom_home") },
                 onNavigateToPlayerInterface = { navController.navigate("player_interface") },
                 onNavigateToScanFolders = { navController.navigate("folder_settings") },
                 onNavigateToTool = { navController.navigate("tools") },
+                onNavigateToRecycleBin = { navController.navigate("recycle_bin") },
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("privacy_policy") {
+            PrivacyPolicyScreen(
+                onBack = safePopBackStack
             )
         }
 
