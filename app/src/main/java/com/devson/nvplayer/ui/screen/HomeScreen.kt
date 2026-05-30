@@ -1,14 +1,11 @@
 package com.devson.nvplayer.ui.screen
 
 import android.net.Uri
-import android.os.Environment
-import android.os.StatFs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,11 +14,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -91,8 +91,17 @@ fun HomeScreen(
     }
 
     var searchQuery by remember { mutableStateOf("") }
-
     val storageInfo by homeViewModel.storageInfo.collectAsState()
+
+    // Greeting logic
+    val greeting = remember {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        when (hour) {
+            in 0..11 -> "Good Morning, From"
+            in 12..16 -> "Good Afternoon, From"
+            else -> "Good Evening, From"
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -130,7 +139,7 @@ fun HomeScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Welcome Header
+            // 1. Personalized Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -140,22 +149,27 @@ fun HomeScreen(
             ) {
                 Column {
                     Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                    Text(
                         text = "Nosved Player",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Text(
-                        text = "Your offline video companion",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
                 }
-                IconButton(onClick = onSettingsClick) {
+                IconButton(
+                    onClick = onSettingsClick,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -189,7 +203,48 @@ fun HomeScreen(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                 )
             )
-            // 5. Quick Navigation Dashboard
+
+            // 3. Continue Watching (Carousel Component)
+            if (viewSettings.showHistoryCard && continueWatchingVideos.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Continue Watching",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+
+                    val carouselState = rememberCarouselState(itemCount = { continueWatchingVideos.size })
+                    HorizontalMultiBrowseCarousel(
+                        state = carouselState,
+                        preferredItemWidth = 150.dp,
+                        itemSpacing = 12.dp,
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { index ->
+                        val video = continueWatchingVideos[index]
+                        val historyEntry = historyMap[video.uri]
+                        val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+
+                        ContinueWatchingCard(
+                            video = video,
+                            lastPositionMs = lastPositionMs,
+                            onClick = {
+                                val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
+                                onVideoClick(Uri.parse(video.uri), playlist)
+                            },
+                            modifier = Modifier
+                                .height(220.dp)
+                                .maskClip(RoundedCornerShape(24.dp))
+                        )
+                    }
+                }
+            }
+
+            // 4. Quick Navigation Dashboard (Bento Layout)
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -199,27 +254,47 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                QuickActionCard(
+                
+                // Bento Main Library Card
+                QuickActionCardBento(
                     title = "Browse Video Library",
                     subtitle = "Explore all folders, files, and playlists",
-                    icon = { Icon(Icons.Default.VideoLibrary, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
-                    onClick = onBrowseClick
+                    icon = Icons.Default.VideoLibrary,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = onBrowseClick,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                QuickActionCard(
-                    title = "Video Feed",
-                    subtitle = "Reels-style vertical feed of all your videos",
-                    icon = { Icon(Icons.Default.PlayCircle, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
-                    onClick = onFeedClick
-                )
-                QuickActionCard(
-                    title = "Recycle Bin",
-                    subtitle = "View and restore deleted media files",
-                    icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) },
-                    onClick = onRecycleBinClick
-                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Bento Secondary vertical feed card
+                    QuickActionCardBentoSmall(
+                        title = "Video Feed",
+                        subtitle = "Reels-style vertical player",
+                        icon = Icons.Default.PlayCircle,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        onClick = onFeedClick,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Bento Tertiary Recycle Bin Card
+                    QuickActionCardBentoSmall(
+                        title = "Recycle Bin",
+                        subtitle = "Restore deleted media",
+                        icon = Icons.Default.Delete,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        onClick = onRecycleBinClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
-            // 3. Stats Dashboard Section
+            // 5. Stats Dashboard Section
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -246,7 +321,7 @@ fun HomeScreen(
                 )
             }
 
-            // Storage Analytics Card (Premium Design)
+            // 6. Storage Analytics Card
             if (viewSettings.showStorageTracker) {
                 Card(
                     modifier = Modifier
@@ -287,7 +362,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
-                            )
+                              )
                         }
                         
                         LinearProgressIndicator(
@@ -319,39 +394,6 @@ fun HomeScreen(
                 }
             }
 
-            // 4. Continue Watching
-            if (viewSettings.showHistoryCard && continueWatchingVideos.isNotEmpty()) {
-                Column {
-                    Text(
-                        text = "Continue Watching",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
-                    )
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(continueWatchingVideos) { video ->
-                            val historyEntry = historyMap[video.uri]
-                            val progress = if (video.duration > 0) {
-                                (historyEntry?.lastPositionMs ?: 0L).toFloat() / video.duration
-                            } else 0f
-
-                            ContinueWatchingCard(
-                                video = video,
-                                progress = progress,
-                                onClick = {
-                                    val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
-                                    onVideoClick(Uri.parse(video.uri), playlist)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -368,7 +410,7 @@ fun StatsCard(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
@@ -391,43 +433,53 @@ fun StatsCard(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
 
 @Composable
-fun QuickActionCard(
+fun QuickActionCardBento(
     title: String,
     subtitle: String,
-    icon: @Composable () -> Unit,
+    icon: ImageVector,
+    containerColor: Color,
+    iconColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = containerColor.copy(alpha = 0.12f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            containerColor.copy(alpha = 0.2f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(containerColor),
                 contentAlignment = Alignment.Center
             ) {
-                icon()
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(26.dp)
+                )
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -439,14 +491,77 @@ fun QuickActionCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun QuickActionCardBentoSmall(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    containerColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor.copy(alpha = 0.12f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            containerColor.copy(alpha = 0.2f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(containerColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -454,78 +569,96 @@ fun QuickActionCard(
 @Composable
 fun ContinueWatchingCard(
     video: Video,
-    progress: Float,
+    lastPositionMs: Long,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val progress = if (video.duration > 0) lastPositionMs.toFloat() / video.duration else 0f
+    val formattedProgress = "${formatDuration(lastPositionMs)} / ${formatDuration(video.duration)}"
+
     Card(
         modifier = modifier
-            .width(220.dp)
-            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = Color.Black
         )
     ) {
-        Column {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // 1. Thumbnail filling the entire card
+            VideoThumbnail(
+                uri = video.thumbnailUri ?: video.uri,
+                modifier = Modifier.fillMaxSize(),
+                showPlayIcon = false
+            )
+
+            // 2. Play overlay icon in the center
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
+                    .size(36.dp)
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                VideoThumbnail(
-                    uri = video.thumbnailUri ?: video.uri,
-                    modifier = Modifier.fillMaxSize(),
-                    showPlayIcon = true
-                )
-                
-                // Duration Badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = formatDuration(video.duration),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-                
-                // Progress Bar
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .align(Alignment.BottomCenter),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color.White.copy(alpha = 0.3f)
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
                 )
             }
+
+            // 3. Info text overlaid at the bottom on a vertical gradient backplate
             Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Black.copy(alpha = 0.95f)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .padding(bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = video.folderName,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    color = Color.White.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Text(
+                    text = formattedProgress,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
             }
+
+            // 4. Thin progress bar at the very bottom
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.White.copy(alpha = 0.25f)
+            )
         }
     }
 }
