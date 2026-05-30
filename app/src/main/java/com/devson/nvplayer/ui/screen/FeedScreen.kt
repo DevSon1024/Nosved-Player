@@ -76,12 +76,19 @@ fun FeedScreen(
 
     var controlsVisible by remember { mutableStateOf(true) }
 
-    //  Status bar: force white icons so they are visible on the black feed background
+    //  Status bar: force white icons so they are visible on the black feed background,
+    //  and restore the original status bar appearance when leaving FeedScreen.
     val view = LocalView.current
-    SideEffect {
-        val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
-        val controller = WindowInsetsControllerCompat(window, view)
-        controller.isAppearanceLightStatusBars = false  // false = white icons
+    DisposableEffect(view) {
+        val window = (view.context as? android.app.Activity)?.window
+        val controller = window?.let { WindowInsetsControllerCompat(it, view) }
+        val originalLightStatusBars = controller?.isAppearanceLightStatusBars ?: true
+
+        controller?.isAppearanceLightStatusBars = false  // false = white icons
+
+        onDispose {
+            controller?.isAppearanceLightStatusBars = originalLightStatusBars
+        }
     }
 
     // Push the video list into the VM once (or when the list reference changes).
