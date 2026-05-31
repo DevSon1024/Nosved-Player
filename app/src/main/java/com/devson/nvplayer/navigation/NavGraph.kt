@@ -17,6 +17,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.ui.screens.settings.AboutScreen
+import com.devson.nvplayer.ui.screens.settings.LibrariesScreen
+import com.devson.nvplayer.ui.screens.settings.AudioSettingsScreen
+import com.devson.nvplayer.ui.screens.settings.SubtitleSettingsScreen
 import com.devson.nvplayer.ui.screens.HistoryScreen
 import com.devson.nvplayer.ui.screens.HomeScreen
 import com.devson.nvplayer.ui.screens.OnboardingScreen
@@ -138,6 +141,8 @@ fun NavGraph(
                 onNavigateToPlayerInterface   = { navController.navigate(Screen.PlayerInterface.route) },
                 onNavigateToCustomHome        = { navController.navigate(Screen.CustomHome.route) },
                 onNavigateToGestures          = { navController.navigate(Screen.Gestures.route) },
+                onNavigateToAudioSettings     = { navController.navigate(Screen.AudioSettings.route) },
+                onNavigateToSubtitleSettings  = { navController.navigate(Screen.SubtitleSettings.route) },
                 settingsViewModel             = settingsViewModel
             )
         }
@@ -158,6 +163,20 @@ fun NavGraph(
 
         composable(Screen.Gestures.route) {
             com.devson.nvplayer.ui.screens.settings.GestureSettingsScreen(
+                onBack = { safePopBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.AudioSettings.route) {
+            AudioSettingsScreen(
+                onBack = { safePopBackStack() },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable(Screen.SubtitleSettings.route) {
+            SubtitleSettingsScreen(
                 onBack = { safePopBackStack() },
                 settingsViewModel = settingsViewModel
             )
@@ -204,8 +223,13 @@ fun NavGraph(
         composable(Screen.About.route) {
             AboutScreen(
                 onBack                = { safePopBackStack() },
-                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() }
+                onEnableDeveloperMode = { settingsViewModel.enableDeveloperMode() },
+                onNavigateToLibraries = { navController.navigate(Screen.Libraries.route) }
             )
+        }
+
+        composable(Screen.Libraries.route) {
+            LibrariesScreen(onBack = { safePopBackStack() })
         }
 
         composable(Screen.Logs.route) {

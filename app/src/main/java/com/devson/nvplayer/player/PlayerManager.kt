@@ -119,6 +119,8 @@ class PlayerManager(private val context: Context) {
     private val _playerError = MutableStateFlow<String?>(null)
     val playerError: StateFlow<String?> = _playerError.asStateFlow()
 
+    private var videoFiltersEffect: VideoFiltersEffect? = null
+
     // --- Audio Tracks ---
     private val _audioTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val audioTracks: StateFlow<List<TrackInfo>> = _audioTracks.asStateFlow()
@@ -141,7 +143,8 @@ class PlayerManager(private val context: Context) {
     fun initializePlayer(
         decoderMode: DecoderMode = DecoderMode.HW_PLUS,
         defaultAudioLang: String = "",
-        defaultSubtitleLang: String = ""
+        defaultSubtitleLang: String = "",
+        playbackSettings: com.devson.nvplayer.repository.PlaybackSettings? = null
     ) {
         if (exoPlayer == null) {
             val extensionMode = when (decoderMode) {
@@ -175,6 +178,13 @@ class PlayerManager(private val context: Context) {
                 .setHandleAudioBecomingNoisy(true)
                 .build().apply {
                     setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
+                    
+                    if (playbackSettings != null) {
+                        val effect = VideoFiltersEffect(playbackSettings)
+                        videoFiltersEffect = effect
+                        setVideoEffects(listOf(effect))
+                    }
+
                     addListener(object : Player.Listener {
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             _isPlaying.value = isPlaying
@@ -418,6 +428,17 @@ class PlayerManager(private val context: Context) {
     fun setPlaybackSpeed(speed: Float) {
         val player = exoPlayer ?: return
         player.playbackParameters = androidx.media3.common.PlaybackParameters(speed)
+    }
+
+    fun updateVideoFilters(settings: com.devson.nvplayer.repository.PlaybackSettings) {
+        videoFiltersEffect?.updateSettings(settings)
+        // If effect was null but now we have settings that might need it, we might need to recreate player or set effects
+        // But usually we initialize it once.
+        if (videoFiltersEffect == null && exoPlayer != null) {
+            val effect = VideoFiltersEffect(settings)
+            videoFiltersEffect = effect
+            exoPlayer?.setVideoEffects(listOf(effect))
+        }
     }
 
     fun playPause() {

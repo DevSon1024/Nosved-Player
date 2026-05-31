@@ -4,12 +4,13 @@ import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Build
 import android.util.Size
-import coil.ImageLoader
-import coil.decode.DataSource
-import coil.fetch.DrawableResult
-import coil.fetch.FetchResult
-import coil.fetch.Fetcher
-import coil.request.Options
+import coil3.ImageLoader
+import coil3.asImage
+import coil3.decode.DataSource
+import coil3.fetch.FetchResult
+import coil3.fetch.ImageFetchResult
+import coil3.fetch.Fetcher
+import coil3.request.Options
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,8 +34,8 @@ class MediaStoreThumbnailFetcher(
                 // Request a 512x512 thumbnail natively from the OS
                 val bitmap = options.context.contentResolver.loadThumbnail(uri, Size(512, 512), null)
                 
-                DrawableResult(
-                    drawable = BitmapDrawable(options.context.resources, bitmap),
+                ImageFetchResult(
+                    image = BitmapDrawable(options.context.resources, bitmap).asImage(),
                     isSampled = true,
                     dataSource = DataSource.DISK
                 )

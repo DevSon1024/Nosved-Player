@@ -54,6 +54,7 @@ import com.devson.nvplayer.ui.components.InformationBottomSheet
 import com.devson.nvplayer.ui.components.PlaybackSettingsSheet
 import com.devson.nvplayer.ui.components.ComposeSubtitleOverlay
 import com.devson.nvplayer.ui.components.PlaybackSpeedSheet
+import com.devson.nvplayer.ui.components.VideoFiltersDialog
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.viewmodel.VideoViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -156,6 +157,7 @@ fun VideoScreen(
 
     var showInfoSheet by remember { mutableStateOf(false) }
     var showSpeedSheet by remember { mutableStateOf(false) }
+    var showVideoFiltersDialog by remember { mutableStateOf(false) }
 
     // Encoding state for the external subtitle picker
     var pendingExternalEncoding by remember { mutableStateOf("UTF-8") }
@@ -218,7 +220,7 @@ fun VideoScreen(
     }
 
     LaunchedEffect(Unit) {
-        viewModel.initializePlayer(context)
+        viewModel.initializePlayer(context, playbackSettings)
     }
 
     LaunchedEffect(playerError) {
@@ -338,6 +340,10 @@ fun VideoScreen(
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    LaunchedEffect(playbackSettings) {
+        viewModel.updateVideoFilters(playbackSettings)
     }
 
     //  Player surface 
@@ -626,6 +632,7 @@ fun VideoScreen(
                 onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
                 currentDecoder = currentDecoder,
                 onSelectDecoder = { viewModel.setDecoderMode(it) },
+                onOpenVideoFilters = { showVideoFiltersDialog = true },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
@@ -712,6 +719,7 @@ fun VideoScreen(
                 onShowRemainingTimeChange = { settingsViewModel.updateShowRemainingTime(it) },
                 currentDecoder = currentDecoder,
                 onSelectDecoder = { viewModel.setDecoderMode(it) },
+                onOpenVideoFilters = { showVideoFiltersDialog = true },
                 onToggleScreenRotation = {
                     val currentMode = activity?.requestedOrientation
                     if (currentMode == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE || currentMode == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
@@ -817,6 +825,16 @@ fun VideoScreen(
         onSpeedChange = { viewModel.setPlaybackSpeed(it) },
         onDismiss = { showSpeedSheet = false }
     )
+
+    if (showVideoFiltersDialog) {
+        VideoFiltersDialog(
+            settings = playbackSettings,
+            onDismiss = { showVideoFiltersDialog = false },
+            onConfirm = { shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh ->
+                settingsViewModel.updateVideoFilters(shouldApply, isB, b, isC, c, isS, s, isH, h, isG, g, isSh, sh)
+            }
+        )
+    }
 }
 
 private fun hideSystemUI(activity: Activity) {

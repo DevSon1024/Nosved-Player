@@ -240,6 +240,112 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateForceAssSubtitleOverride(force) }
     }
 
+    fun updateThumbnailGenerationStrategy(strategy: com.devson.nvplayer.repository.ThumbnailGenerationStrategy) {
+        viewModelScope.launch {
+            val current = playbackSettings.value.thumbnailGenerationStrategy
+            settingsRepo.updateThumbnailGenerationStrategy(strategy)
+            if (current != strategy) {
+                clearThumbnailCache()
+            }
+        }
+    }
+
+    fun updateThumbnailFramePosition(position: Float) {
+        viewModelScope.launch {
+            val current = playbackSettings.value.thumbnailFramePosition
+            settingsRepo.updateThumbnailFramePosition(position)
+            if (current != position) {
+                clearThumbnailCache()
+            }
+        }
+    }
+
+    fun clearThumbnailCache() {
+        viewModelScope.launch {
+            val imageLoader = coil3.SingletonImageLoader.get(getApplication())
+            imageLoader.diskCache?.clear()
+            imageLoader.memoryCache?.clear()
+        }
+    }
+
+    fun updateVideoFilters(
+        shouldApply: Boolean,
+        isBrightnessEnabled: Boolean, brightness: Float,
+        isContrastEnabled: Boolean, contrast: Float,
+        isSaturationEnabled: Boolean, saturation: Float,
+        isHueEnabled: Boolean, hue: Float,
+        isGammaEnabled: Boolean, gamma: Float,
+        isSharpeningEnabled: Boolean, sharpening: Float
+    ) {
+        viewModelScope.launch {
+            settingsRepo.updateVideoFilters(
+                shouldApply,
+                isBrightnessEnabled, brightness,
+                isContrastEnabled, contrast,
+                isSaturationEnabled, saturation,
+                isHueEnabled, hue,
+                isGammaEnabled, gamma,
+                isSharpeningEnabled, sharpening
+            )
+        }
+    }
+
+    fun updateDecoderMode(mode: com.devson.nvplayer.repository.DecoderMode) {
+        viewModelScope.launch { settingsRepo.updateDecoderMode(mode) }
+    }
+
+    // --- Audio Settings ---
+
+    fun updateRequireAudioFocus(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateRequireAudioFocus(enabled) }
+    }
+
+    fun updatePauseOnHeadsetDisconnect(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updatePauseOnHeadsetDisconnect(enabled) }
+    }
+
+    fun updateShowSystemVolumePanel(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowSystemVolumePanel(enabled) }
+    }
+
+    fun updateRememberPlayerVolume(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateRememberPlayerVolume(enabled) }
+    }
+
+    fun updateMaxInitialPlayerVolume(percentage: Int) {
+        viewModelScope.launch { settingsRepo.updateMaxInitialPlayerVolume(percentage) }
+    }
+
+    fun updateVolumeNormalization(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateVolumeNormalization(enabled) }
+    }
+
+    fun updateVolumeBoost(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateVolumeBoost(enabled) }
+    }
+
+    fun updatePreferredAudioLanguage(lang: String) {
+        viewModelScope.launch { settingsRepo.setDefaultAudioLanguage(lang) }
+    }
+
+    // --- Subtitle Settings ---
+
+    fun updateSubtitleAutoLoad(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateSubtitleAutoLoad(enabled) }
+    }
+
+    fun updateSubtitleTextEncoding(encoding: String) {
+        viewModelScope.launch { settingsRepo.updateSubtitleTextEncoding(encoding) }
+    }
+
+    fun updateApplyEmbeddedStyles(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateApplyEmbeddedStyles(enabled) }
+    }
+
+    fun updatePreferredSubtitleLanguage(lang: String) {
+        viewModelScope.launch { settingsRepo.setDefaultSubtitleLanguage(lang) }
+    }
+
     // --- New Gesture Dispatchers ---
 
     fun updateSeekGesture(enabled: Boolean) {

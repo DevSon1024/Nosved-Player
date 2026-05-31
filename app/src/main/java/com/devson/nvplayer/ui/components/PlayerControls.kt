@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.FilterVintage
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -149,6 +150,7 @@ fun PlayerControls(
     onShowRemainingTimeChange: ((Boolean) -> Unit)? = null,
     currentDecoder: DecoderMode = DecoderMode.HW_PLUS,
     onSelectDecoder: ((DecoderMode) -> Unit)? = null,
+    onOpenVideoFilters: (() -> Unit)? = null,
     onScrubbingModeChange: (Boolean) -> Unit = {},
     onSpeedMenuClick: (() -> Unit)? = null
 ) {
@@ -335,6 +337,17 @@ fun PlayerControls(
                                     color = Color.White,
                                     style = MaterialTheme.typography.labelLarge
                                 )
+                            }
+                        }
+                    }
+                    if (onOpenVideoFilters != null) {
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("Video Filters") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = onOpenVideoFilters) {
+                                Icon(Icons.Default.FilterVintage, contentDescription = "Video Filters", tint = Color.White)
                             }
                         }
                     }

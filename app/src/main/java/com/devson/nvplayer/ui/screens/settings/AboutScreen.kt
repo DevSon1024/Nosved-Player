@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
@@ -42,7 +41,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,116 +66,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.devson.nvplayer.BuildConfig
 import com.devson.nvplayer.R
 
-private data class LibraryInfo(
-    val name: String,
-    val descriptionRes: Int? = null,
-    val descriptionStr: String? = null,
-    val url: String,
-    val version: String,
-    val license: String
-)
-
-private val libraries = listOf(
-    LibraryInfo(
-        name = "ExoPlayer / Media3",
-        descriptionRes = R.string.about_lib_exoplayer_desc,
-        url = "https://github.com/androidx/media",
-        version = "1.5.1",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Nextlib",
-        descriptionRes = R.string.about_lib_nextlib_desc,
-        url = "https://github.com/anilbeesetti/nextlib",
-        version = "1.9.1",
-        license = "GPL-3.0 License"
-    ),
-    LibraryInfo(
-        name = "Jetpack Compose",
-        descriptionRes = R.string.about_lib_compose_desc,
-        url = "https://developer.android.com/jetpack/compose",
-        version = "1.11.0",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Material 3",
-        descriptionRes = R.string.about_lib_material3_desc,
-        url = "https://m3.material.io",
-        version = "1.5.6",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Room",
-        descriptionRes = R.string.about_lib_room_desc,
-        url = "https://developer.android.com/training/data-storage/room",
-        version = "2.7.0",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "DataStore Preferences",
-        descriptionRes = R.string.about_lib_datastore_desc,
-        url = "https://developer.android.com/topic/libraries/architecture/datastore",
-        version = "1.1.2",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Kotlin Coroutines",
-        descriptionRes = R.string.about_lib_coroutines_desc,
-        url = "https://kotlinlang.org/docs/coroutines-overview.html",
-        version = "1.9.0",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Kotlin",
-        descriptionRes = R.string.about_lib_kotlin_desc,
-        url = "https://kotlinlang.org",
-        version = "2.3.0",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "Coil",
-        descriptionStr = "Image loading for Android backed by Kotlin Coroutines.",
-        url = "https://github.com/coil-kt/coil",
-        version = "2.6.0",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "FFmpegKit",
-        descriptionStr = "A library to run FFmpeg/FFprobe commands in applications.",
-        url = "https://github.com/jamaismagic/ffmpeg-kit",
-        version = "6.1.4",
-        license = "GPL-3.0 License"
-    ),
-    LibraryInfo(
-        name = "DocumentFile",
-        descriptionStr = "Helper for working with documents and trees in Android storage.",
-        url = "https://developer.android.com/jetpack/androidx/releases/documentfile",
-        version = "1.0.1",
-        license = "Apache License 2.0"
-    ),
-    LibraryInfo(
-        name = "AndroidX Core",
-        descriptionStr = "Core components for Android development with backward compatibility.",
-        url = "https://developer.android.com/jetpack/androidx",
-        version = "1.13.1",
-        license = "Apache License 2.0"
-    )
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
-    var showCredits by remember { mutableStateOf(false) }
+fun AboutScreen(
+    onBack: () -> Unit,
+    onEnableDeveloperMode: () -> Unit,
+    onNavigateToLibraries: () -> Unit
+) {
     var showDonateSheet by remember { mutableStateOf(false) }
-
-    if (showCredits) {
-        CreditsSubScreen(onBack = { showCredits = false })
-        return
-    }
 
     val context = LocalContext.current
     var versionClicks by remember { mutableStateOf(0) }
@@ -361,7 +261,7 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
                     description = stringResource(R.string.about_credits_desc),
                     icon = Icons.Filled.Code,
                     onClick = {
-                        showCredits = true
+                        onNavigateToLibraries()
                     }
                 )
 
@@ -407,63 +307,6 @@ fun AboutScreen(onBack: () -> Unit, onEnableDeveloperMode: () -> Unit) {
     DonateSheet(showSheet = showDonateSheet, onDismiss = { showDonateSheet = false })
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CreditsSubScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.about_credits), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 600.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.about_open_source_libraries),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                libraries.forEach { lib ->
-                    LibraryRow(
-                        library = lib,
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, lib.url.toUri())
-                            context.startActivity(intent)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun AboutItemRow(
     title: String,
@@ -496,63 +339,6 @@ private fun AboutItemRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun LibraryRow(library: LibraryInfo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = library.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            Text(
-                text = library.descriptionStr ?: library.descriptionRes?.let { stringResource(it) } ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Version ${library.version}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = library.license,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.tertiary
-                )
-            }
         }
     }
 }
