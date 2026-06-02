@@ -225,21 +225,23 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) { index ->
-                        val video = continueWatchingVideos[index]
-                        val historyEntry = historyMap[video.uri]
-                        val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+                        val video = continueWatchingVideos.getOrNull(index)
+                        if (video != null) {
+                            val historyEntry = historyMap[video.uri]
+                            val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
 
-                        ContinueWatchingCard(
-                            video = video,
-                            lastPositionMs = lastPositionMs,
-                            onClick = {
-                                val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
-                                onVideoClick(Uri.parse(video.uri), playlist)
-                            },
-                            modifier = Modifier
-                                .height(220.dp)
-                                .maskClip(RoundedCornerShape(24.dp))
-                        )
+                            ContinueWatchingCard(
+                                video = video,
+                                lastPositionMs = lastPositionMs,
+                                onClick = {
+                                    val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
+                                    onVideoClick(Uri.parse(video.uri), playlist)
+                                },
+                                modifier = Modifier
+                                    .height(220.dp)
+                                    .maskClip(RoundedCornerShape(24.dp))
+                            )
+                        }
                     }
                 }
             }

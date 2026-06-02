@@ -154,29 +154,31 @@ fun FeedScreen(
             state    = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { pageIndex ->
-            val video      = filteredVideos[pageIndex]
-            // Use settledPage (not currentPage) so the surface is only attached/detached
-            // once the scroll animation is fully done. Using currentPage would destroy and
-            // recreate the MPVSurfaceView mid-swipe, causing a GPU spike on every scroll.
-            val isActivePage = pagerState.settledPage == pageIndex
+            val video = filteredVideos.getOrNull(pageIndex)
+            if (video != null) {
+                // Use settledPage (not currentPage) so the surface is only attached/detached
+                // once the scroll animation is fully done. Using currentPage would destroy and
+                // recreate the MPVSurfaceView mid-swipe, causing a GPU spike on every scroll.
+                val isActivePage = pagerState.settledPage == pageIndex
 
-            FeedPage(
-                video       = video,
-                isActive    = isActivePage,
-                engine      = viewModel.engine,
-                isPlaying   = isPlaying,
-                playerState = playerState,
-                controlsVisible = controlsVisible,
-                onControlsVisibleChange = { controlsVisible = it },
-                onSpeedChange = { speed -> viewModel.setPlaybackSpeed(speed) },
-                onSurfaceAttached = { viewModel.onSurfaceAttached() },
-                onSurfaceDetached = { viewModel.onSurfaceDetached() },
-                onTitleClick = {
-                    viewModel.skipPauseOnDispose = true
-                    onPlayVideoInPlayer(video, filteredVideos)
-                },
-                onTogglePlay = { viewModel.togglePlayback() }
-            )
+                FeedPage(
+                    video       = video,
+                    isActive    = isActivePage,
+                    engine      = viewModel.engine,
+                    isPlaying   = isPlaying,
+                    playerState = playerState,
+                    controlsVisible = controlsVisible,
+                    onControlsVisibleChange = { controlsVisible = it },
+                    onSpeedChange = { speed -> viewModel.setPlaybackSpeed(speed) },
+                    onSurfaceAttached = { viewModel.onSurfaceAttached() },
+                    onSurfaceDetached = { viewModel.onSurfaceDetached() },
+                    onTitleClick = {
+                        viewModel.skipPauseOnDispose = true
+                        onPlayVideoInPlayer(video, filteredVideos)
+                    },
+                    onTogglePlay = { viewModel.togglePlayback() }
+                )
+            }
         }
 
         //  Top bar overlay 
