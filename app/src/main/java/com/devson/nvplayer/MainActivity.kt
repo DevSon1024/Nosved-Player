@@ -277,13 +277,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (playerViewModelLazy.isInitialized() && playerViewModel.isPlaying.value) {
-            enterPipMode()
-        }
-    }
-
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         _isInPipMode.value = isInPictureInPictureMode
