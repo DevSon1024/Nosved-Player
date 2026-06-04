@@ -160,7 +160,7 @@ fun FolderListItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(16.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape     = RoundedCornerShape(16.dp),
@@ -174,7 +174,7 @@ fun FolderListItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(10.dp)
+                    .padding(12.dp)
                     .then(if (isHidden && !isSelected) Modifier.alpha(0.55f) else Modifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -184,7 +184,7 @@ fun FolderListItem(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
+                        modifier = Modifier.size(width = 96.dp, height = 72.dp)
                     )
                     NewCountBadge(newCount)
                 }

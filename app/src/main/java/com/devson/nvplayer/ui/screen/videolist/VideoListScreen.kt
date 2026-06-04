@@ -157,8 +157,12 @@ fun VideoListScreen(
     }
 
     //  Watch History 
-    val history by homeViewModel.history.collectAsStateWithLifecycle()
-    val historyMap = remember(history) { history.associateBy { it.uri } }
+    val historyMap by homeViewModel.historyMapFlow.collectAsStateWithLifecycle()
+    val lastPlayedVideo by viewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+
+    LaunchedEffect(historyMap) {
+        viewModel.setHistoryMap(historyMap)
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -375,8 +379,10 @@ fun VideoListScreen(
                         }
                         ViewMode.FOLDERS -> {
                             // Combine standalone selected videos AND all videos inside selected dirs
-                            val fromFolders = selectedFolders
-                                .flatMap { f -> allVideosFlat.filter { it.path.startsWith(f.id) } }
+                            val folderIds = selectedFolders.map { it.id }
+                            val fromFolders = allVideosFlat.filter { video ->
+                                folderIds.any { id -> video.path.startsWith(id) }
+                            }
                             (selectedVideos.toList() + fromFolders)
                                 .distinctBy { it.uri }
                                 .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
@@ -527,32 +533,14 @@ fun VideoListScreen(
         },
         floatingActionButton = {
             if (viewSettings.showQuickFab && !isSelectionActive) {
-                val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
-
-                val lastPlayedVideo = remember(history, selectedFolder, viewSettings.viewMode, currentExplorerPath, allVideosFlat) {
-                    if (viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) {
-                        val folderVideos = videosByFolder[selectedFolder] ?: emptyList()
-                        val folderUris = folderVideos.map { it.uri }.toSet()
-                        val lastHistory = history.firstOrNull { it.uri in folderUris }
-                        if (lastHistory != null) folderVideos.find { it.uri == lastHistory.uri } else null
-                    } else if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null) {
-                        val pathVideos = allVideosFlat.filter { it.path.startsWith(currentExplorerPath!!) }
-                        val pathUris = pathVideos.map { it.uri }.toSet()
-                        val lastHistory = history.firstOrNull { it.uri in pathUris }
-                        if (lastHistory != null) pathVideos.find { it.uri == lastHistory.uri } else null
-                    } else {
-                        val lastHistory = history.firstOrNull()
-                        if (lastHistory != null) allVideosFlat.find { it.uri == lastHistory.uri } else null
-                    }
-                }
-
-                if (lastPlayedVideo != null) {
-                    val lastHistoryEntry = remember(lastPlayedVideo, historyMap) { historyMap[lastPlayedVideo.uri] }
+                lastPlayedVideo?.let { video ->
+                    val lastHistoryEntry = remember(video, historyMap) { historyMap[video.uri] }
+                    val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
                     PreviewFloatingActionButton(
                         enablePreview = viewSettings.enableFabPreview,
-                        previewUri = lastPlayedVideo.uri,
-                        previewTitle = lastPlayedVideo.title,
-                        previewDurationMs = lastPlayedVideo.duration,
+                        previewUri = video.uri,
+                        previewTitle = video.title,
+                        previewDurationMs = video.duration,
                         previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
                         onPlay = {
                             val playlist = when (viewSettings.viewMode) {
@@ -568,7 +556,7 @@ fun VideoListScreen(
                                     allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                             }
-                            onVideoSelected(lastPlayedVideo, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
+                            onVideoSelected(video, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
                         }
                     )
                 }

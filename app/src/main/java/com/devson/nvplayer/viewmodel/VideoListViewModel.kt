@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -22,6 +23,12 @@ class VideoListViewModel(
 
     // Raw (unfiltered) scan result - populated once per disk scan
     private val _rawVideosByFolder = MutableStateFlow<Map<VideoFolder, List<Video>>>(emptyMap())
+ 
+    private val _historyMap = MutableStateFlow<Map<String, WatchHistory>>(emptyMap())
+
+    fun setHistoryMap(historyMap: Map<String, WatchHistory>) {
+        _historyMap.value = historyMap
+    }
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -77,6 +84,35 @@ class VideoListViewModel(
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+ 
+    val quickFabLastPlayedVideo: StateFlow<Video?> = combine(
+        videosByFolder,
+        _currentExplorerPath,
+        _selectedFolder,
+        viewSettingsRepo.viewSettingsFlow,
+        _historyMap
+    ) { videosMap, explorerPath, selectedFld, settings, histMap ->
+        val allVideosFlat = videosMap.values.flatten()
+        val candidateVideos = when {
+            settings.viewMode == ViewMode.ALL_FOLDERS && selectedFld != null -> {
+                videosMap[selectedFld] ?: emptyList()
+            }
+            settings.viewMode == ViewMode.FOLDERS && explorerPath != null -> {
+                allVideosFlat.filter { it.path.startsWith(explorerPath) }
+            }
+            else -> {
+                allVideosFlat
+            }
+        }
+        candidateVideos
+            .mapNotNull { video ->
+                val hist = histMap[video.uri]
+                if (hist != null && hist.lastPlayedAt > 0L) video to hist.lastPlayedAt else null
+            }
+            .maxByOrNull { it.second }
+            ?.first
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         viewModelScope.launch {

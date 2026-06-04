@@ -67,7 +67,7 @@ fun VideoListItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick    = { onClick(video) },
@@ -90,14 +90,14 @@ fun VideoListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             //  Thumbnail 
             val watchState = getWatchState(lastPositionMs, video.duration)
             Card(
                 modifier = Modifier
-                    .size(width = 100.dp, height = 60.dp)
+                    .size(width = 128.dp, height = 72.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),

@@ -13,6 +13,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
@@ -29,6 +32,10 @@ class HomeViewModel(
     
     private val _history = MutableStateFlow<List<WatchHistory>>(emptyList())
     val history: StateFlow<List<WatchHistory>> = _history.asStateFlow()
+ 
+    val historyMapFlow: StateFlow<Map<String, WatchHistory>> = _history
+        .map { list -> list.associateBy { it.uri } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _storageInfo = MutableStateFlow<Triple<Double, Double, Int>>(Triple(0.0, 0.0, 0))
     val storageInfo: StateFlow<Triple<Double, Double, Int>> = _storageInfo.asStateFlow()
