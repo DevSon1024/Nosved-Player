@@ -140,7 +140,8 @@ fun GestureOverlay(
     var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
 
     var currentVolumeFloat by remember {
-        mutableStateOf(if (savedVolume >= 0) savedVolume.toFloat() else audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat())
+        val initialVol = if (savedVolume >= 0) savedVolume else audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        mutableStateOf(initialVol.toFloat() / maxVolume.coerceAtLeast(1))
     }
     var currentBrightnessFloat by remember {
         mutableStateOf(if (savedBrightness >= 0f) savedBrightness else {
@@ -427,7 +428,7 @@ fun GestureOverlay(
                                             showBrightnessIndicator = false
                                         }
                                     } else {
-                                        onSaveVolumeState.value(currentVolumeFloat.toInt())
+                                        onSaveVolumeState.value(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
                                         volumeHideJob = launch {
                                             delay(1000L)
                                             showVolumeIndicator = false

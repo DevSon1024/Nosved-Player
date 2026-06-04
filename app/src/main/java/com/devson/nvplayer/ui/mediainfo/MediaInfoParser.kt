@@ -137,7 +137,7 @@ object MediaInfoParser {
 
     //  Main parse function 
 
-    fun parse(fileName: String): ParsedMediaInfo {
+    fun parse(fileName: String, durationMs: Long = 0L): ParsedMediaInfo {
         if (fileName.isBlank()) {
             return ParsedMediaInfo(title = "", type = "movie")
         }
@@ -263,10 +263,19 @@ object MediaInfoParser {
         // Step 11: Final cleanup
         cleanTitle = finalCleanup(cleanTitle)
 
-        // Step 12: Determine type
+        // Step 12: Determine type based on Title Keyword, Duration, and extracted Metadata
         val type = when {
-            season != null || episode != null -> "tv"
-            else -> "movie"
+            // Priority 1: Keyword check
+            cleanTitle.contains("short", ignoreCase = true) -> "Short Film"
+            
+            // Priority 2: Duration-based classification (if duration is provided)
+            durationMs in 1 until 900_000L -> "Mini Video" // Under 15 mins
+            durationMs in 900_000L..4_200_000L -> "TV Show" // 15 mins to 1 hour 10 mins
+            durationMs > 4_200_000L -> "Movie" // Over 1 hour 10 mins
+            
+            // Priority 3: Fallback to metadata if duration is 0 or unknown
+            season != null || episode != null -> "Episode"
+            else -> "Movie"
         }
 
         return ParsedMediaInfo(

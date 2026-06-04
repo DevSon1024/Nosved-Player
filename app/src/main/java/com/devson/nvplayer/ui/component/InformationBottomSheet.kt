@@ -79,7 +79,7 @@ fun InformationBottomSheet(
 
             if (selectedVideos.size == 1) {
                 val video = selectedVideos.first()
-                val parsed = remember(video.title) { MediaInfoParser.parse(video.title) }
+                val parsed = remember(video.title, video.duration) { MediaInfoParser.parse(video.title, video.duration) }
 
                 // Premium visual Title Card
                 Card(
@@ -98,7 +98,11 @@ fun InformationBottomSheet(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val typeLabel = if (parsed.type == "tv") "TV Show" else "Movie"
+                            val typeLabel = when (parsed.type) {
+                                "tv" -> "TV Show"
+                                "movie" -> "Movie"
+                                else -> parsed.type
+                            }
                             SuggestionChip(
                                 onClick = {},
                                 label = { Text(typeLabel) },
