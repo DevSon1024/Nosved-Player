@@ -3,6 +3,7 @@ package com.devson.nvplayer.ui.navigation
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.devson.nvplayer.model.DefaultScreen
@@ -283,7 +284,7 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
-            val feedVideosState by videoListViewModel.feedVideos.collectAsState()
+            val feedVideosState by videoListViewModel.feedVideos.collectAsStateWithLifecycle()
             val videos = remember(feedVideosState) {
                 feedVideosState ?: videoListViewModel.videosByFolder.value.values.flatten()
             }
@@ -319,29 +320,29 @@ fun AppNavigation(
 
         composable("player") {
             val playerVm = playerViewModel()
-            val playbackState by playerVm.playbackState.collectAsState()
-            val isPlaying by playerVm.isPlaying.collectAsState()
-            val currentPosition by playerVm.currentPosition.collectAsState()
-            val duration by playerVm.duration.collectAsState()
-            val currentUri by playerVm.currentUri.collectAsState()
-            val videoWidth by playerVm.videoWidth.collectAsState()
-            val videoHeight by playerVm.videoHeight.collectAsState()
-            val videoRotation by playerVm.videoRotation.collectAsState()
-            val playbackSpeed by playerVm.playbackSpeed.collectAsState()
-            val savedBrightness by playerVm.savedBrightness.collectAsState()
-            val savedVolume by playerVm.savedVolume.collectAsState()
-            val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+            val playbackState by playerVm.playbackState.collectAsStateWithLifecycle()
+            val isPlaying by playerVm.isPlaying.collectAsStateWithLifecycle()
+            val currentPosition by playerVm.currentPosition.collectAsStateWithLifecycle()
+            val duration by playerVm.duration.collectAsStateWithLifecycle()
+            val currentUri by playerVm.currentUri.collectAsStateWithLifecycle()
+            val videoWidth by playerVm.videoWidth.collectAsStateWithLifecycle()
+            val videoHeight by playerVm.videoHeight.collectAsStateWithLifecycle()
+            val videoRotation by playerVm.videoRotation.collectAsStateWithLifecycle()
+            val playbackSpeed by playerVm.playbackSpeed.collectAsStateWithLifecycle()
+            val savedBrightness by playerVm.savedBrightness.collectAsStateWithLifecycle()
+            val savedVolume by playerVm.savedVolume.collectAsStateWithLifecycle()
+            val playbackSettings by settingsViewModel.playbackSettings.collectAsStateWithLifecycle()
             val seekBarStyle = playbackSettings.seekBarStyle
-            val hasNext by playerVm.hasNext.collectAsState()
-            val hasPrevious by playerVm.hasPrevious.collectAsState()
-            val isHwSupported by playerVm.isHwSupported.collectAsState()
+            val hasNext by playerVm.hasNext.collectAsStateWithLifecycle()
+            val hasPrevious by playerVm.hasPrevious.collectAsStateWithLifecycle()
+            val isHwSupported by playerVm.isHwSupported.collectAsStateWithLifecycle()
 
-            val currentSubtitleText by playerVm.currentSubtitleText.collectAsState()
-            val subtitleTracks by playerVm.subtitleTracks.collectAsState()
-            val audioTracks by playerVm.audioTracks.collectAsState()
-            val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsState()
-            val audioBoostVolume by playerVm.audioBoostVolume.collectAsState()
-            val chapters by playerVm.chapters.collectAsState()
+            val currentSubtitleText by playerVm.currentSubtitleText.collectAsStateWithLifecycle()
+            val subtitleTracks by playerVm.subtitleTracks.collectAsStateWithLifecycle()
+            val audioTracks by playerVm.audioTracks.collectAsStateWithLifecycle()
+            val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsStateWithLifecycle()
+            val audioBoostVolume by playerVm.audioBoostVolume.collectAsStateWithLifecycle()
+            val chapters by playerVm.chapters.collectAsStateWithLifecycle()
 
             PlayerScreen(
                 audioBoostVolume = audioBoostVolume,

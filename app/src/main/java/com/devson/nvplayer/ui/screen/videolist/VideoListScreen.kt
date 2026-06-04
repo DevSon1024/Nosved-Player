@@ -33,6 +33,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.model.DefaultScreen
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.VideoFolder
@@ -108,15 +109,15 @@ fun VideoListScreen(
         }
     }
 
-    val videosByFolder by viewModel.videosByFolder.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val selectedFolder by viewModel.selectedFolder.collectAsState()
-    val viewSettings by viewModel.viewSettings.collectAsState()
-    val explorerNodes by viewModel.explorerNodes.collectAsState()
-    val currentExplorerPath by viewModel.currentExplorerPath.collectAsState()
+    val videosByFolder by viewModel.videosByFolder.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val selectedFolder by viewModel.selectedFolder.collectAsStateWithLifecycle()
+    val viewSettings by viewModel.viewSettings.collectAsStateWithLifecycle()
+    val explorerNodes by viewModel.explorerNodes.collectAsStateWithLifecycle()
+    val currentExplorerPath by viewModel.currentExplorerPath.collectAsStateWithLifecycle()
 
-    val searchSuggestions by viewModel.searchSuggestions.collectAsState()
+    val searchSuggestions by viewModel.searchSuggestions.collectAsStateWithLifecycle()
     var searchActive by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
@@ -156,7 +157,7 @@ fun VideoListScreen(
     }
 
     //  Watch History 
-    val history by homeViewModel.history.collectAsState()
+    val history by homeViewModel.history.collectAsStateWithLifecycle()
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -213,17 +214,17 @@ fun VideoListScreen(
 
     //  State change callbacks → MainScreen 
     //  Watch pendingIntentSender and launch it automatically 
-    val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsState()
+    val pendingIntentSender by fileOpsViewModel.pendingIntentSender.collectAsStateWithLifecycle()
     LaunchedEffect(pendingIntentSender) {
         pendingIntentSender?.let { sender ->
             intentSenderLauncher.launch(IntentSenderRequest.Builder(sender).build())
         }
     }
 
-    val showOverwriteDialog by fileOpsViewModel.showOverwriteDialog.collectAsState()
+    val showOverwriteDialog by fileOpsViewModel.showOverwriteDialog.collectAsStateWithLifecycle()
 
     //  File operation result → Toast + list reload 
-    val opResult by fileOpsViewModel.operationResult.collectAsState()
+    val opResult by fileOpsViewModel.operationResult.collectAsStateWithLifecycle()
     LaunchedEffect(opResult) {
         opResult?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -232,7 +233,7 @@ fun VideoListScreen(
         }
     }
 
-    val needsRefresh by fileOpsViewModel.needsRefresh.collectAsState()
+    val needsRefresh by fileOpsViewModel.needsRefresh.collectAsStateWithLifecycle()
     LaunchedEffect(needsRefresh) {
         if (needsRefresh) {
             viewModel.loadVideos(forceRefresh = true)
@@ -249,7 +250,7 @@ fun VideoListScreen(
     }
 
     // Drives progress bar visibility
-    val opInProgress by fileOpsViewModel.operationInProgress.collectAsState()
+    val opInProgress by fileOpsViewModel.operationInProgress.collectAsStateWithLifecycle()
 
     // Back handler: clears selection first before navigating out
     BackHandler(enabled = selectedFolder != null || isSelectionActive || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null)) {

@@ -25,7 +25,8 @@ class MediaStoreHelper(private val context: Context) {
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.WIDTH,
-            MediaStore.Video.Media.HEIGHT
+            MediaStore.Video.Media.HEIGHT,
+            MediaStore.Video.Media.DATE_MODIFIED
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
@@ -55,6 +56,7 @@ class MediaStoreHelper(private val context: Context) {
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -64,6 +66,7 @@ class MediaStoreHelper(private val context: Context) {
                 val size = cursor.getLong(sizeColumn)
                 val width = cursor.getInt(widthColumn)
                 val height = cursor.getInt(heightColumn)
+                val dateModified = cursor.getLong(dateModifiedColumn)
 
                 val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                 val folderName = File(data).parentFile?.name ?: "Unknown"
@@ -79,7 +82,8 @@ class MediaStoreHelper(private val context: Context) {
                         thumbnailUri = thumbnailUri,
                         size = size,
                         width = width,
-                        height = height
+                        height = height,
+                        dateModified = dateModified
                     )
                 )
             }
@@ -107,7 +111,8 @@ class MediaStoreHelper(private val context: Context) {
             MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.WIDTH,
-            MediaStore.Video.Media.HEIGHT
+            MediaStore.Video.Media.HEIGHT,
+            MediaStore.Video.Media.DATE_MODIFIED
         )
 
         val selectionBuilder = StringBuilder("${MediaStore.Video.Media.IS_TRASHED}=1")
@@ -144,6 +149,7 @@ class MediaStoreHelper(private val context: Context) {
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -153,6 +159,7 @@ class MediaStoreHelper(private val context: Context) {
                 val size = cursor.getLong(sizeColumn)
                 val width = cursor.getInt(widthColumn)
                 val height = cursor.getInt(heightColumn)
+                val dateModified = cursor.getLong(dateModifiedColumn)
 
                 val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                 val folderName = File(data).parentFile?.name ?: "Unknown"
@@ -168,7 +175,8 @@ class MediaStoreHelper(private val context: Context) {
                         thumbnailUri = thumbnailUri,
                         size = size,
                         width = width,
-                        height = height
+                        height = height,
+                        dateModified = dateModified
                     )
                 )
             }

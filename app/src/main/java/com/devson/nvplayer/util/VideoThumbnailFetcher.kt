@@ -4,9 +4,9 @@ import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import coil3.asImage
 import coil3.decode.DataSource
-import coil3.decode.ImageSource
-import coil3.fetch.SourceFetchResult
+import coil3.fetch.ImageFetchResult
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.request.Options
@@ -19,7 +19,6 @@ import com.devson.nvplayer.util.thumbnail.ThumbnailKey
 import com.devson.nvplayer.util.thumbnail.getVideoMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 
 class VideoThumbnailFetcher(
     private val data: Uri,
@@ -48,17 +47,9 @@ class VideoThumbnailFetcher(
         val bitmap = repository.getThumbnail(key, data)
 
         return if (bitmap != null) {
-            val outputStream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
-            val bytes = outputStream.toByteArray()
-            val buffer = okio.Buffer().apply { write(bytes) }
-
-            SourceFetchResult(
-                source = ImageSource(
-                    source = buffer,
-                    fileSystem = options.fileSystem
-                ),
-                mimeType = "image/jpeg",
+            ImageFetchResult(
+                image = bitmap.asImage(),
+                isSampled = false,
                 dataSource = DataSource.DISK
             )
         } else {

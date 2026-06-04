@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,10 +47,9 @@ fun VideoThumbnail(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(uri)
-                .size(512, 512)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
-                .crossfade(true)           // subtle crossfade instead of hard pop
+                .crossfade(true)
                 .build(),
             placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             error       = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
@@ -137,6 +137,7 @@ fun ThumbnailSelectionOverlay(isSelected: Boolean, isDense: Boolean = false) {
 
 @Composable
 fun BoxScope.DurationBadge(duration: Long, isGrid: Boolean = false) {
+    val formattedDuration = remember(duration) { formatDuration(duration) }
     Box(
         modifier = Modifier
             .align(Alignment.BottomEnd)
@@ -148,7 +149,7 @@ fun BoxScope.DurationBadge(duration: Long, isGrid: Boolean = false) {
             .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {
         Text(
-            text = formatDuration(duration),
+            text = formattedDuration,
             color = Color.White,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,

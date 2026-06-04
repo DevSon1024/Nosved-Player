@@ -60,7 +60,7 @@ fun VideoListContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(videos) { video ->
+            items(items = videos, key = { video -> video.uri }) { video ->
                 VideoGridItem(
                     video = video,
                     settings = settings,
@@ -80,7 +80,7 @@ fun VideoListContent(
                 bottom = contentPadding.calculateBottomPadding() + 16.dp
             )
         ) {
-            items(videos) { video ->
+            items(items = videos, key = { video -> video.uri }) { video ->
                 VideoListItem(
                     video = video,
                     settings = settings,

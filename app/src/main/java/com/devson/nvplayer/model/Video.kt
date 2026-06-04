@@ -32,6 +32,7 @@ data class Video(
     val width: Int,
     val height: Int,
     val dateAdded: Long = 0L,
+    val dateModified: Long = 0L,
     val playedTime: Long? = null,
     val lastPlayedAt: Long? = null,
     val resolution: String? = null,

@@ -68,10 +68,10 @@ class VideoListViewModel(
      * no disk I/O is triggered by toggling showHiddenFiles / recognizeNoMedia.
      */
     val videosByFolder: StateFlow<Map<VideoFolder, List<Video>>> =
-        combine(_rawVideosByFolder, _searchQuery, viewSettingsRepo.viewSettingsFlow) { raw, query, _ ->
+        combine(_rawVideosByFolder, _searchQuery) { raw, query ->
             raw.mapValues { (_, videos) ->
                 videos.filter { video ->
-                    val matchesPath = !video.path.split("/").any { seg -> seg.startsWith(".") && seg.length > 1 }
+                    val matchesPath = !video.path.contains("/.")
                     val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
                     matchesPath && matchesSearch
                 }
@@ -127,11 +127,6 @@ class VideoListViewModel(
                     
                     val folderName = File(parentPath).name.ifEmpty { parentPath }
                     val videos = items.map { item ->
-                        val dateVal = try {
-                            File(item.path).lastModified() / 1000L
-                        } catch (e: Exception) {
-                            0L
-                        }
                         Video(
                             uri = item.uri.toString(),
                             title = item.title,
@@ -141,7 +136,8 @@ class VideoListViewModel(
                             size = item.size,
                             width = item.width,
                             height = item.height,
-                            dateAdded = dateVal,
+                            dateAdded = item.dateModified,
+                            dateModified = item.dateModified,
                             playedTime = null,
                             lastPlayedAt = null,
                             resolution = "${item.width}x${item.height}",

@@ -18,7 +18,7 @@ class ThumbnailRepository(private val context: Context) {
     private val diskCache = ThumbnailDiskCache(context)
     private val activeJobs = mutableMapOf<ThumbnailKey, Deferred<Bitmap?>>()
     private val jobsMutex = Mutex()
-    private val extractionDispatcher = Dispatchers.IO.limitedParallelism(1)
+    private val extractionDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     suspend fun getThumbnail(key: ThumbnailKey, uri: Uri): Bitmap? {
         ThumbnailMemoryCache.get(key)?.let { return it }
