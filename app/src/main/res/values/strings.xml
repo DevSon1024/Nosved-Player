@@ -70,4 +70,13 @@
     <string name="recycle_bin_delete_confirm_desc">These items will be permanently deleted from your device. This action cannot be undone.</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="recycle_bin_days_left">%1$d days left</string>
+
+    <!-- Watch History Screen -->
+    <string name="history_title">Watch History</string>
+    <string name="history_clear_all">Clear All History</string>
+    <string name="history_no_history">No watch history found</string>
+    <string name="history_clear_confirm_title">Clear Watch History?</string>
+    <string name="history_clear_confirm_desc">This will permanently clear your entire playback history. This action cannot be undone.</string>
+    <string name="history_clear_button">Clear</string>
+    <string name="history_cancel_button">Cancel</string>
 </resources>

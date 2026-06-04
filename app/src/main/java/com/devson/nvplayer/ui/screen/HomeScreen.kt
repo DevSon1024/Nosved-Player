@@ -51,7 +51,8 @@ fun HomeScreen(
     onRecycleBinClick: () -> Unit,
     onSearch: (String) -> Unit,
     onBrowseClick: () -> Unit,
-    onFeedClick: () -> Unit
+    onFeedClick: () -> Unit,
+    onSeeMoreHistoryClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -92,16 +93,6 @@ fun HomeScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     val storageInfo by homeViewModel.storageInfo.collectAsState()
-
-    // Greeting logic
-    val greeting = remember {
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        when (hour) {
-            in 0..11 -> "Good Morning, From"
-            in 12..16 -> "Good Afternoon, From"
-            else -> "Good Evening, From"
-        }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -148,11 +139,6 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(
-                        text = greeting,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
                     Text(
                         text = "Nosved Player",
                         style = MaterialTheme.typography.headlineLarge,
@@ -217,7 +203,12 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
 
-                    val carouselState = rememberCarouselState(itemCount = { continueWatchingVideos.size })
+                    val maxVideos = 10
+                    val videoDisplayList = remember(continueWatchingVideos) {
+                        if (continueWatchingVideos.size > maxVideos) continueWatchingVideos.take(maxVideos) else continueWatchingVideos
+                    }
+                    val carouselState = rememberCarouselState(itemCount = { videoDisplayList.size + 1 })
+
                     HorizontalMultiBrowseCarousel(
                         state = carouselState,
                         preferredItemWidth = 150.dp,
@@ -225,8 +216,8 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) { index ->
-                        val video = continueWatchingVideos.getOrNull(index)
-                        if (video != null) {
+                        if (index < videoDisplayList.size) {
+                            val video = videoDisplayList[index]
                             val historyEntry = historyMap[video.uri]
                             val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
 
@@ -241,6 +232,51 @@ fun HomeScreen(
                                     .height(220.dp)
                                     .maskClip(RoundedCornerShape(24.dp))
                             )
+                        } else {
+                            Card(
+                                modifier = Modifier
+                                    .height(220.dp)
+                                    .width(150.dp)
+                                    .maskClip(RoundedCornerShape(24.dp))
+                                    .clickable { onSeeMoreHistoryClick() },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                )
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                contentDescription = "See More",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "See More",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

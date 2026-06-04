@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.devson.nvplayer.ui.screen.HomeScreen
+import com.devson.nvplayer.ui.screen.HistoryScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
@@ -131,6 +132,9 @@ fun AppNavigation(
                 onFeedClick = {
                     videoListViewModel.setFeedVideos(null)
                     navController.navigate("feed/0")
+                },
+                onSeeMoreHistoryClick = {
+                    navController.navigate("history")
                 }
             )
         }
@@ -154,6 +158,20 @@ fun AppNavigation(
                     navController.navigate("feed/$startIndex")
                 },
                 viewModel = videoListViewModel,
+                homeViewModel = homeViewModel
+            )
+        }
+
+        composable("history") {
+            val videosByFolder by videoListViewModel.videosByFolder.collectAsStateWithLifecycle()
+            val allVideos = remember(videosByFolder) { videosByFolder.values.flatten() }
+            HistoryScreen(
+                allVideos = allVideos,
+                onVideoSelected = { video, playlist, lastPositionMs ->
+                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    navController.navigate("player")
+                },
+                onBack = safePopBackStack,
                 homeViewModel = homeViewModel
             )
         }
@@ -363,7 +381,10 @@ fun AppNavigation(
                 onSetPlaybackSpeed = { playerVm.setPlaybackSpeed(it) },
                 onCycleSubtitle = { playerVm.cycleSubtitle() },
                 onCycleAudio = { playerVm.cycleAudio() },
-                onBackClick = safePopBackStack, // 2. Use the safe helper
+                onBackClick = {
+                    playerVm.savePlaybackProgress()
+                    safePopBackStack()
+                },
                 onSurfaceReady = { playerVm.loadVideoIfNeeded() },
                 onSaveBrightness = { playerVm.saveBrightness(it) },
                 onSaveVolume = { playerVm.saveVolume(it) },

@@ -30,6 +30,7 @@ import coil3.request.crossfade
 @Composable
 fun VideoListItem(
     videoItem: VideoItem,
+    lastPositionMs: Long = 0L,
     onClick: () -> Unit
 ) {
     Card(
@@ -70,6 +71,18 @@ fun VideoListItem(
                         contentDescription = "Video",
                         modifier = Modifier.fillMaxSize(),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+                if (lastPositionMs > 0L && videoItem.duration > 0L) {
+                    val progress = (lastPositionMs.toFloat() / videoItem.duration.toFloat()).coerceIn(0f, 1f)
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(3.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.Transparent
                     )
                 }
             }

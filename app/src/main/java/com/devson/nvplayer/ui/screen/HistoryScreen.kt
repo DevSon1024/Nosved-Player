@@ -1,0 +1,110 @@
+package com.devson.nvplayer.ui.screen
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.devson.nvplayer.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.model.ViewSettings
+import com.devson.nvplayer.model.WatchHistory
+import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
+import com.devson.nvplayer.viewmodel.HomeViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(
+    allVideos: List<Video>,
+    onVideoSelected: (Video, List<Video>, Long) -> Unit,
+    onBack: () -> Unit,
+    homeViewModel: HomeViewModel = viewModel()
+) {
+    val history by homeViewModel.history.collectAsState()
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    if (history.isNotEmpty()) {
+                        IconButton(onClick = { showClearDialog = true }) {
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = stringResource(R.string.history_clear_all),
+                                tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        val historyVideos = remember(history, allVideos) {
+            history.mapNotNull { historyEntry ->
+                allVideos.find { it.uri == historyEntry.uri }
+            }
+        }
+
+        if (historyVideos.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.history_no_history), style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            val playlist = remember(historyVideos) { historyVideos }
+            val defaultSettings = remember { ViewSettings() }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 32.dp
+                )
+            ) {
+                items(historyVideos, key = { it.uri }) { video ->
+                    val historyEntry = remember(video, history) { history.find { it.uri == video.uri } }
+                    val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+                    VideoListItem(
+                        video = video,
+                        settings = defaultSettings,
+                        isSelected = false,
+                        lastPositionMs = lastPositionMs,
+                        onClick = { onVideoSelected(video, playlist, lastPositionMs) },
+                        onLongClick = {}
+                    )
+                }
+            }
+        }
+    }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text(stringResource(R.string.history_clear_confirm_title)) },
+            text = { Text(stringResource(R.string.history_clear_confirm_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    homeViewModel.clearAllHistory()
+                    showClearDialog = false
+                }) { Text(stringResource(R.string.history_clear_button), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) { Text(stringResource(R.string.history_cancel_button)) }
+            }
+        )
+    }
+}

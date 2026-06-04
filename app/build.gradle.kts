@@ -27,8 +27,8 @@ android {
         applicationId = "com.devson.nvplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.1"
+        versionCode = 12
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -147,4 +147,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("sh.calvin.reorderable:reorderable:3.1.0")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 }

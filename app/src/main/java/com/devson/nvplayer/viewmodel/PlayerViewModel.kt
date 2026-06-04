@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import com.devson.nvplayer.repository.EnhanceMode
 import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.data.database.AppDatabase
+import com.devson.nvplayer.data.database.WatchHistoryEntity
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -245,13 +247,16 @@ class PlayerViewModel(
 
     private fun restorePlaybackProgress() {
         val uri = _currentUri.value ?: return
-        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
-        val savedPos = prefs.getLong(uri.toString(), 0L)
-        if (savedPos > 0) {
-            Log.d("PlayerViewModel", "Restoring saved progress: $savedPos for URI: $uri")
-            seekTo(savedPos)
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+            val entity = dao.getHistory(uri.toString())
+            val savedPos = entity?.lastPositionMs ?: 0L
+            if (savedPos > 0) {
+                Log.d("PlayerViewModel", "Restoring saved progress: $savedPos for URI: $uri")
+                seekTo(savedPos)
+            }
+            isPositionRestored = true
         }
-        isPositionRestored = true
     }
 
     /**
@@ -346,12 +351,27 @@ class PlayerViewModel(
         hwdecEverActiveForCurrentVideo = false
 
         // Save progress as 0 if not already present, and update timestamp
-        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
-        if (!prefs.contains(uri.toString())) {
-            prefs.edit().putLong(uri.toString(), 0L).apply()
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+            val existing = dao.getHistory(uri.toString())
+            if (existing == null) {
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = uri.toString(),
+                        lastPositionMs = 0L,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = uri.toString(),
+                        lastPositionMs = existing.lastPositionMs,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                )
+            }
         }
-        val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
-        timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
 
         try {
             val contentResolver = getApplication<Application>().contentResolver
@@ -437,12 +457,27 @@ class PlayerViewModel(
         hwdecEverActiveForCurrentVideo = false
 
         // Save progress as 0 if not already present, and update timestamp
-        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
-        if (!prefs.contains(uri.toString())) {
-            prefs.edit().putLong(uri.toString(), 0L).apply()
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+            val existing = dao.getHistory(uri.toString())
+            if (existing == null) {
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = uri.toString(),
+                        lastPositionMs = 0L,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = uri.toString(),
+                        lastPositionMs = existing.lastPositionMs,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                )
+            }
         }
-        val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
-        timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
 
         try {
             val contentResolver = getApplication<Application>().contentResolver
@@ -483,19 +518,27 @@ class PlayerViewModel(
         }
         
         if (shouldSave) {
-            val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
-            prefs.edit().putLong(uri.toString(), pos).apply()
-            val timePrefs = getApplication<Application>().getSharedPreferences("watch_history_timestamps_prefs", Context.MODE_PRIVATE)
-            timePrefs.edit().putLong(uri.toString(), System.currentTimeMillis()).apply()
-            Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
+            viewModelScope.launch(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = uri.toString(),
+                        lastPositionMs = pos,
+                        lastPlayedAt = System.currentTimeMillis()
+                    )
+                )
+                Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
+            }
         }
     }
 
     fun clearPlaybackProgress() {
         val uri = _currentUri.value ?: return
-        val prefs = getApplication<Application>().getSharedPreferences("watch_history_prefs", Context.MODE_PRIVATE)
-        prefs.edit().remove(uri.toString()).apply()
-        Log.d("PlayerViewModel", "Cleared watch progress for URI: $uri")
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+            dao.deleteHistory(uri.toString())
+            Log.d("PlayerViewModel", "Cleared watch progress for URI: $uri")
+        }
     }
 
     fun pause() {
