@@ -57,6 +57,8 @@ fun PlayerControls(
     isPlaying: Boolean,
     isSmartEnhanceEnabled: Boolean = false,
     currentPosition: Long,
+    bufferedPosition: Long = 0L,
+    isNetworkStream: Boolean = false,
     duration: Long,
     isDragging: Boolean,
     onDraggingChanged: (Boolean) -> Unit,
@@ -597,6 +599,9 @@ fun PlayerControls(
                 track = { sliderState ->
                     val rawFraction = ((sliderState.value - 0f) / safeDuration)
                     val safeFraction = if (rawFraction.isNaN()) 0f else rawFraction.coerceIn(0f, 1f)
+                    val bufferFraction = if (safeDuration > 0f) (bufferedPosition.toFloat() / safeDuration).coerceIn(0f, 1f) else 0f
+                    val inactiveColor = Color.White.copy(alpha = 0.15f)
+                    val bufferedColor = themePrimary.copy(alpha = 0.45f)
                     
                     when (seekBarStyle) {
                         "wavy" -> {
@@ -611,11 +616,32 @@ fun PlayerControls(
                                 val height = size.height
                                 val centerY = height / 2
                                 val activeWidth = width * safeFraction
+                                val bufferedWidth = width * bufferFraction
                                 
                                 val amplitude = 4.dp.toPx()
                                 val wavelength = 20.dp.toPx()
                                 
-                                // Draw active wavy track
+                                // 1. Draw inactive flat track (full width)
+                                drawLine(
+                                    color = inactiveColor,
+                                    start = Offset(0f, centerY),
+                                    end = Offset(width, centerY),
+                                    strokeWidth = 4.dp.toPx(),
+                                    cap = StrokeCap.Round
+                                )
+                                
+                                // 2. Draw buffered flat track (only for network streams)
+                                if (isNetworkStream && bufferedWidth > 0f) {
+                                    drawLine(
+                                        color = bufferedColor,
+                                        start = Offset(0f, centerY),
+                                        end = Offset(bufferedWidth, centerY),
+                                        strokeWidth = 4.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                }
+                                
+                                // 3. Draw active wavy track
                                 if (activeWidth > 0) {
                                     val activePath = Path().apply {
                                         moveTo(0f, centerY)
@@ -637,63 +663,40 @@ fun PlayerControls(
                                         )
                                     )
                                 }
-                                
-                                // Draw inactive flat track
-                                if (activeWidth < width) {
-                                    drawLine(
-                                        color = Color.White.copy(alpha = 0.25f),
-                                        start = Offset(activeWidth, centerY),
-                                        end = Offset(width, centerY),
-                                        strokeWidth = 4.dp.toPx(),
-                                        cap = StrokeCap.Round
-                                    )
-                                }
                             }
                         }
                         "thick" -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(20.dp),
+                                modifier = Modifier.fillMaxWidth().height(20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.White.copy(alpha = 0.25f))
+                                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(inactiveColor)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
-                                            .height(8.dp)
-                                            .background(themePrimary)
-                                    )
+                                    // Buffered Layer
+                                    if (isNetworkStream && bufferFraction > 0f) {
+                                        Box(modifier = Modifier.fillMaxWidth(bufferFraction.coerceIn(0f, 1f)).height(8.dp).background(bufferedColor))
+                                    }
+                                    // Active Layer
+                                    Box(modifier = Modifier.fillMaxWidth(safeFraction.coerceIn(0f, 1f)).height(8.dp).background(themePrimary))
                                 }
                             }
                         }
                         else -> {
                             // Standard/Line Style
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(20.dp),
+                                modifier = Modifier.fillMaxWidth().height(20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(4.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(Color.White.copy(alpha = 0.25f))
+                                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(inactiveColor)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(safeFraction.coerceAtLeast(0.001f))
-                                            .height(4.dp)
-                                            .background(themePrimary)
-                                    )
+                                    // Buffered Layer
+                                    if (isNetworkStream && bufferFraction > 0f) {
+                                        Box(modifier = Modifier.fillMaxWidth(bufferFraction.coerceIn(0f, 1f)).height(4.dp).background(bufferedColor))
+                                    }
+                                    // Active Layer
+                                    Box(modifier = Modifier.fillMaxWidth(safeFraction.coerceIn(0f, 1f)).height(4.dp).background(themePrimary))
                                 }
                             }
                         }

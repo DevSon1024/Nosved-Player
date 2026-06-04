@@ -167,7 +167,11 @@ fun PlayerScreen(
     onCycleAspectMode: () -> Unit = {},
     isInPipMode: Boolean = false,
     onEnterPip: () -> Unit = {},
-    onUpdateBackgroundPlayEnabled: (Boolean) -> Unit = {}
+    onUpdateBackgroundPlayEnabled: (Boolean) -> Unit = {},
+    networkSpeedBytesPerSec: Long = 0L,
+    bufferDurationSeconds: Double = 0.0,
+    isNetworkStream: Boolean = false,
+    bufferedPosition: Long = 0L
 ) {
     var controlsVisible by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
@@ -630,6 +634,8 @@ fun PlayerScreen(
                             isPlaying = isPlaying,
                             isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
                             currentPosition = currentPosition,
+                            bufferedPosition = bufferedPosition,
+                            isNetworkStream = isNetworkStream,
                             duration = duration,
                             isDragging = isDragging,
                             onDraggingChanged = { isDragging = it },
@@ -834,6 +840,23 @@ fun PlayerScreen(
             onDismiss = { showEnhanceSettingsSideSheet = false }
         )
 
+        if (!isInPipMode && isNetworkStream) {
+            AnimatedVisibility(
+                visible = controlsVisible && !isLocked,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 70.dp, end = 16.dp)
+            ) {
+                StreamingDataPanel(
+                    speedBps = networkSpeedBytesPerSec,
+                    bufferSec = bufferDurationSeconds
+                )
+            }
+        }
+
         if (isLocked) {
             // Auto-hide the unlock button after 3 seconds
             LaunchedEffect(showUnlockButton) {
@@ -992,4 +1015,70 @@ private fun Context.findActivity(): Activity? {
         context = context.baseContext
     }
     return null
+}
+
+@Composable
+fun StreamingDataPanel(
+    speedBps: Long,
+    bufferSec: Double,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Black.copy(alpha = 0.6f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Download,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Speed: ${formatSpeed(speedBps)}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.HourglassBottom,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Buffer: ${String.format(Locale.US, "%.1fs", bufferSec)}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+private fun formatSpeed(bytesPerSec: Long): String {
+    val kb = bytesPerSec / 1024.0
+    val mb = kb / 1024.0
+    return when {
+        mb >= 1.0 -> String.format(Locale.US, "%.2f MB/s", mb)
+        kb >= 1.0 -> String.format(Locale.US, "%.1f KB/s", kb)
+        else -> "$bytesPerSec B/s"
+    }
 }

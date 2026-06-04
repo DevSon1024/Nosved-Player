@@ -16,6 +16,9 @@ interface PlayerEngine {
     val audioTracks: StateFlow<List<TrackInfo>>
     val chapters: StateFlow<List<ChapterInfo>>
     val hwdecCurrent: StateFlow<String>
+    val networkSpeedBytesPerSec: StateFlow<Long>
+    val bufferDurationSeconds: StateFlow<Double>
+    val bufferedPosition: StateFlow<Long>
 
     fun loadVideo(uri: Uri)
     fun play()

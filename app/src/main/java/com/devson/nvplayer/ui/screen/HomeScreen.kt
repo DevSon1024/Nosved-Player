@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material3.*
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -94,6 +95,8 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     val storageInfo by homeViewModel.storageInfo.collectAsState()
 
+    var showNetworkDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
@@ -146,17 +149,34 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                IconButton(
-                    onClick = onSettingsClick,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                    IconButton(
+                        onClick = { showNetworkDialog = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Public,
+                            contentDescription = "Network Stream",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(
+                        onClick = onSettingsClick,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
 
@@ -330,6 +350,17 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                // Bento Quaternary Network Stream Card
+                QuickActionCardBento(
+                    title = "Network Stream",
+                    subtitle = "Play video from a URL/network stream",
+                    icon = Icons.Default.Language,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    onClick = { showNetworkDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // 5. Stats Dashboard Section
@@ -434,6 +465,16 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (showNetworkDialog) {
+        NetworkStreamDialog(
+            onDismiss = { showNetworkDialog = false },
+            onPlay = { uri ->
+                showNetworkDialog = false
+                onVideoClick(uri, listOf(uri))
+            }
+        )
     }
 }
 
@@ -756,4 +797,97 @@ fun FolderCard(
             )
         }
     }
+}
+
+@Composable
+fun NetworkStreamDialog(
+    onDismiss: () -> Unit,
+    onPlay: (Uri) -> Unit
+) {
+    var urlText by remember { mutableStateOf("") }
+    var errorText by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Play Network Stream",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Enter a video stream URL (HTTP/HTTPS, HLS, RTMP, etc.) to stream directly in the player.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = urlText,
+                    onValueChange = { 
+                        urlText = it
+                        errorText = null
+                    },
+                    placeholder = { Text("https://example.com/video.mp4") },
+                    singleLine = true,
+                    isError = errorText != null,
+                    supportingText = {
+                        if (errorText != null) {
+                            Text(
+                                    text = errorText ?: "",
+                                    color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                TextButton(
+                    onClick = {
+                        urlText = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"
+                        errorText = null
+                    },
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Load Demo")
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val trimmed = urlText.trim()
+                    if (trimmed.isBlank()) {
+                        errorText = "URL cannot be empty"
+                    } else {
+                        val parsedUri = runCatching { Uri.parse(trimmed) }.getOrNull()
+                        if (parsedUri == null || parsedUri.scheme.isNullOrBlank()) {
+                            errorText = "Please enter a valid URL"
+                        } else {
+                            onPlay(parsedUri)
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Play")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        shape = RoundedCornerShape(24.dp)
+    )
 }

@@ -54,6 +54,11 @@ class PlayerViewModel(
     val audioTracks: StateFlow<List<TrackInfo>> = playerEngine.audioTracks
     val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
     val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
+    val bufferedPosition: StateFlow<Long> = playerEngine.bufferedPosition
+
+    val networkSpeedBytesPerSec = MutableStateFlow(0L)
+    val bufferDurationSeconds = MutableStateFlow(0.0)
+    val isNetworkStream = MutableStateFlow(false)
 
     private val _isHwSupported = MutableStateFlow(true)
     val isHwSupported: StateFlow<Boolean> = _isHwSupported.asStateFlow()
@@ -243,6 +248,17 @@ class PlayerViewModel(
                 }
             }
         }
+
+        viewModelScope.launch {
+            playerEngine.networkSpeedBytesPerSec.collect { speed ->
+                networkSpeedBytesPerSec.value = speed
+            }
+        }
+        viewModelScope.launch {
+            playerEngine.bufferDurationSeconds.collect { buffer ->
+                bufferDurationSeconds.value = buffer
+            }
+        }
     }
 
     private fun restorePlaybackProgress() {
@@ -349,6 +365,8 @@ class PlayerViewModel(
         isPositionRestored = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
+        val scheme = uri.scheme
+        isNetworkStream.value = scheme == "http" || scheme == "https"
 
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
@@ -455,6 +473,8 @@ class PlayerViewModel(
         isPositionRestored = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
+        val scheme = uri.scheme
+        isNetworkStream.value = scheme == "http" || scheme == "https"
 
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {

@@ -55,6 +55,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _hwdecCurrent = MutableStateFlow("no")
     override val hwdecCurrent: StateFlow<String> = _hwdecCurrent.asStateFlow()
 
+    private val _networkSpeedBytesPerSec = MutableStateFlow(0L)
+    override val networkSpeedBytesPerSec: StateFlow<Long> = _networkSpeedBytesPerSec.asStateFlow()
+
+    private val _bufferDurationSeconds = MutableStateFlow(0.0)
+    override val bufferDurationSeconds: StateFlow<Double> = _bufferDurationSeconds.asStateFlow()
+
+    private val _bufferedPosition = MutableStateFlow(0L)
+    override val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
+
     init {
         try {
             if (isInitialized) {
@@ -105,6 +114,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Observe active hardware decoder changes
             MPVLib.observeProperty("hwdec-current", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
+            // Observe cache and network properties for streaming statistics
+            MPVLib.observeProperty("cache-speed", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("demux-cache-duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
+            MPVLib.observeProperty("demux-cache-time", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
+
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to initialize MPVLib", e)
@@ -120,6 +134,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _videoHeight.value = 0L
         _videoRotation.value = 0L
         _chapters.value = emptyList()
+        _networkSpeedBytesPerSec.value = 0L
+        _bufferDurationSeconds.value = 0.0
+        _bufferedPosition.value = 0L
         
         val uriString = uri.toString()
         Log.d("MPVPlayerEngine", "Loading media file: $uriString")
@@ -430,6 +447,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             "video-params/w" -> _videoWidth.value = value
             "video-params/h" -> _videoHeight.value = value
             "video-params/rotate" -> _videoRotation.value = value
+            "cache-speed" -> _networkSpeedBytesPerSec.value = value
         }
     }
 
@@ -473,6 +491,12 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             }
             "duration" -> {
                 _duration.value = (value * 1000).toLong()
+            }
+            "demux-cache-duration" -> {
+                _bufferDurationSeconds.value = value
+            }
+            "demux-cache-time" -> {
+                _bufferedPosition.value = _currentPosition.value + (value * 1000).toLong()
             }
         }
     }

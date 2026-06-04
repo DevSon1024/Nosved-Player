@@ -318,7 +318,6 @@ fun AppNavigation(
             )
         }
 
-
         composable(
             route = "search_results/{query}",
             arguments = listOf(navArgument("query") { type = NavType.StringType })
@@ -361,8 +360,16 @@ fun AppNavigation(
             val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsStateWithLifecycle()
             val audioBoostVolume by playerVm.audioBoostVolume.collectAsStateWithLifecycle()
             val chapters by playerVm.chapters.collectAsStateWithLifecycle()
+            val networkSpeedBytesPerSec by playerVm.networkSpeedBytesPerSec.collectAsStateWithLifecycle()
+            val bufferDurationSeconds by playerVm.bufferDurationSeconds.collectAsStateWithLifecycle()
+            val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
+            val bufferedPosition by playerVm.bufferedPosition.collectAsStateWithLifecycle()
 
             PlayerScreen(
+                networkSpeedBytesPerSec = networkSpeedBytesPerSec,
+                bufferDurationSeconds = bufferDurationSeconds,
+                isNetworkStream = isNetworkStream,
+                bufferedPosition = bufferedPosition,
                 audioBoostVolume = audioBoostVolume,
                 onSetAudioBoostVolume = { playerVm.setAudioBoostVolume(it) },
                 playbackState = playbackState,
