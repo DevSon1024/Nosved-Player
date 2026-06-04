@@ -117,7 +117,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Observe cache and network properties for streaming statistics
             MPVLib.observeProperty("cache-speed", MPVLib.MpvFormat.MPV_FORMAT_INT64)
             MPVLib.observeProperty("demux-cache-duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
-            MPVLib.observeProperty("demux-cache-time", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
+            MPVLib.observeProperty("demuxer-cache-duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
@@ -495,7 +495,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             "demux-cache-duration" -> {
                 _bufferDurationSeconds.value = value
             }
-            "demux-cache-time" -> {
+            "demuxer-cache-duration" -> {
                 _bufferedPosition.value = _currentPosition.value + (value * 1000).toLong()
             }
         }

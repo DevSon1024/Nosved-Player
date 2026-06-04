@@ -81,6 +81,7 @@ import java.util.Date
 import java.util.Locale
 import com.devson.nvplayer.ui.component.formatTime
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun PlayerScreen(
@@ -171,8 +172,17 @@ fun PlayerScreen(
     networkSpeedBytesPerSec: Long = 0L,
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
-    bufferedPosition: Long = 0L
+    bufferedPosition: Long = 0L,
+    viewModel: com.devson.nvplayer.viewmodel.PlayerViewModel? = null
 ) {
+    val localContext = LocalContext.current
+    val owner = localContext.findActivity() as? androidx.lifecycle.ViewModelStoreOwner
+    val resolvedViewModel = remember(owner) {
+        owner?.let { androidx.lifecycle.ViewModelProvider(it)[com.devson.nvplayer.viewmodel.PlayerViewModel::class.java] }
+    }
+    val activeViewModel = viewModel ?: resolvedViewModel
+    val bufferedPosition by (activeViewModel?.bufferedPosition ?: kotlinx.coroutines.flow.MutableStateFlow(bufferedPosition)).collectAsStateWithLifecycle()
+
     var controlsVisible by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
     var showUnlockButton by remember { mutableStateOf(false) }
