@@ -145,7 +145,12 @@ class VideoListViewModel(
 
     fun loadVideos(forceRefresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (forceRefresh) _isRefreshing.value = true else _isLoading.value = true
+            if (forceRefresh) {
+                _isRefreshing.value = true
+                repository.resetThumbnailJobs()
+            } else {
+                _isLoading.value = true
+            }
             _loadingProgress.value = 0f
             try {
                 val videoItems = repository.getAllVideos()

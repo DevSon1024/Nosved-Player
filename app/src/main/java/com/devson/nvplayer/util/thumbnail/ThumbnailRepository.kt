@@ -6,6 +6,8 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.util.Size
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -13,12 +15,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runInterruptible
 
 class ThumbnailRepository(private val context: Context) {
     private val diskCache = ThumbnailDiskCache(context)
     private val activeJobs = mutableMapOf<ThumbnailKey, Deferred<Bitmap?>>()
     private val jobsMutex = Mutex()
     private val extractionDispatcher = Dispatchers.IO.limitedParallelism(4)
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun getThumbnail(key: ThumbnailKey, uri: Uri): Bitmap? {
         ThumbnailMemoryCache.get(key)?.let { return it }
@@ -33,15 +37,14 @@ class ThumbnailRepository(private val context: Context) {
 
         val deferred = jobsMutex.withLock {
             activeJobs.getOrPut(key) {
-                coroutineScope {
-                    async(extractionDispatcher) {
-                        val bitmap = generateThumbnail(key, uri)
-                        if (bitmap != null) {
-                            ThumbnailMemoryCache.put(key, bitmap)
-                            diskCache.put(key, bitmap)
-                        }
-                        bitmap
+                repositoryScope.async(extractionDispatcher) {
+                    val bitmap = generateThumbnail(key, uri)
+                    if (bitmap != null) {
+                        ThumbnailMemoryCache.put(key, bitmap)
+                        diskCache.put(key, bitmap)
                     }
+                    jobsMutex.withLock { activeJobs.remove(key) }
+                    bitmap
                 }
             }
         }
@@ -60,10 +63,17 @@ class ThumbnailRepository(private val context: Context) {
         }
     }
 
-    private fun generateThumbnail(key: ThumbnailKey, uri: Uri): Bitmap? {
+    suspend fun clearActiveJobs() {
+        jobsMutex.withLock {
+            activeJobs.values.forEach { it.cancel() }
+            activeJobs.clear()
+        }
+    }
+
+    private suspend fun generateThumbnail(key: ThumbnailKey, uri: Uri): Bitmap? = runInterruptible {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uri.scheme == "content") {
             try {
-                return context.contentResolver.loadThumbnail(
+                return@runInterruptible context.contentResolver.loadThumbnail(
                     uri,
                     Size(key.width, key.height),
                     null
@@ -74,7 +84,7 @@ class ThumbnailRepository(private val context: Context) {
         }
 
         val retriever = MediaMetadataRetriever()
-        return try {
+        try {
             retriever.setDataSource(context, uri)
             val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val durationMs = durationStr?.toLongOrNull() ?: 0L

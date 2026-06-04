@@ -7,6 +7,9 @@ import com.devson.nvplayer.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import coil3.imageLoader
+import com.devson.nvplayer.util.thumbnail.ThumbnailLoader
+
 class VideoRepository(
     private val mediaStoreHelper: MediaStoreHelper,
     private val context: android.content.Context
@@ -47,6 +50,12 @@ class VideoRepository(
                 height = item.height,
                 thumbnailUri = item.thumbnailUri?.toString()
             )
+        }
+    }
+
+    suspend fun resetThumbnailJobs() {
+        withContext(Dispatchers.IO) {
+            ThumbnailLoader.getRepository(context).clearActiveJobs()
         }
     }
 }
