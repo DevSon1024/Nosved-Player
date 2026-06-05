@@ -20,6 +20,7 @@ import com.devson.nvplayer.player.PlayerState
 import com.devson.nvplayer.player.TrackInfo
 import com.devson.nvplayer.player.ChapterInfo
 import com.devson.nvplayer.player.DecoderMode
+import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +56,7 @@ class PlayerViewModel(
     val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
     val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
     val bufferedPosition: StateFlow<Long> = playerEngine.bufferedPosition
+    val mediaTitle: StateFlow<String> = playerEngine.mediaTitle
 
     val networkSpeedBytesPerSec = MutableStateFlow(0L)
     val bufferDurationSeconds = MutableStateFlow(0.0)
@@ -602,6 +604,45 @@ class PlayerViewModel(
 
     fun selectChapter(index: Int) {
         playerEngine.selectChapter(index)
+    }
+
+    fun changeYtdlQuality(quality: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateYtdlQuality(quality)
+            val updatedSettings = settingsRepo.playbackSettingsFlow.value.copy(ytdlQuality = quality)
+            
+            val uri = _currentUri.value
+            if (uri != null && isNetworkStream.value) {
+                val currentPos = playerEngine.currentPosition.value
+                val isPlayingBefore = playerEngine.isPlaying.value
+                
+                Log.d("PlayerViewModel", "Reloading stream with new quality: $quality at pos: $currentPos")
+                
+                // Save progress to watch history first so it is restored on reload
+                withContext(Dispatchers.IO) {
+                    val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = currentPos,
+                            lastPlayedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+                
+                isPositionRestored = false
+                
+                // Re-apply options in the running MPV engine
+                YtdlpManager.setupMpvOptions(getApplication(), updatedSettings)
+                
+                // Force reload of the video
+                playerEngine.loadVideo(uri)
+                
+                if (isPlayingBefore) {
+                    playerEngine.play()
+                }
+            }
+        }
     }
 
     fun cycleDecoder() {

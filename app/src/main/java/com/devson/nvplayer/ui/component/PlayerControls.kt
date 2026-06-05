@@ -100,6 +100,8 @@ fun PlayerControls(
     currentAspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
+    ytdlQuality: Int = -1,
+    onShowQuality: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -182,7 +184,12 @@ fun PlayerControls(
 
         // 1. TOP PANEL — separate lists for landscape vs portrait orientations
         val effectiveTopLeft = filterChapters(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
-        val effectiveTopRight = filterChapters(if (isPortrait) portraitTopRightButtons else topRightButtons)
+        val rawTopRight = filterChapters(if (isPortrait) portraitTopRightButtons else topRightButtons)
+        val effectiveTopRight = if (isNetworkStream && !rawTopRight.contains(PlayerButton.STREAM_QUALITY)) {
+            rawTopRight + PlayerButton.STREAM_QUALITY
+        } else {
+            rawTopRight
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -224,7 +231,9 @@ fun PlayerControls(
                         activity = activity,
                         currentAspectMode = currentAspectMode,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                        onBackgroundPlayClick = onBackgroundPlayClick
+                        onBackgroundPlayClick = onBackgroundPlayClick,
+                        ytdlQuality = ytdlQuality,
+                        onShowQuality = onShowQuality
                     )
                 }
             }
@@ -260,7 +269,9 @@ fun PlayerControls(
                         activity = activity,
                         currentAspectMode = currentAspectMode,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                        onBackgroundPlayClick = onBackgroundPlayClick
+                        onBackgroundPlayClick = onBackgroundPlayClick,
+                        ytdlQuality = ytdlQuality,
+                        onShowQuality = onShowQuality
                     )
                 }
             }
@@ -815,7 +826,9 @@ fun RenderPlayerButton(
     activity: Activity?,
     currentAspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
-    onBackgroundPlayClick: () -> Unit = {}
+    onBackgroundPlayClick: () -> Unit = {},
+    ytdlQuality: Int = -1,
+    onShowQuality: () -> Unit = {}
 ) {
     if (button == com.devson.nvplayer.model.PlayerButton.VIDEO_TITLE) {
         Column(modifier = modifier) {
@@ -857,6 +870,7 @@ fun RenderPlayerButton(
             com.devson.nvplayer.model.PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
             com.devson.nvplayer.model.PlayerButton.ASPECT_RATIO -> onAspectClick()
             com.devson.nvplayer.model.PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
+            com.devson.nvplayer.model.PlayerButton.STREAM_QUALITY -> onShowQuality()
             com.devson.nvplayer.model.PlayerButton.SCREEN_ROTATION -> {
                 activity?.let { act ->
                     val currentOrientation = act.requestedOrientation
@@ -913,6 +927,15 @@ fun RenderPlayerButton(
             if (button == com.devson.nvplayer.model.PlayerButton.DECODER) {
                 Text(
                     text = currentDecoder,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            } else if (button == com.devson.nvplayer.model.PlayerButton.STREAM_QUALITY) {
+                val label = if (ytdlQuality == -1) "Auto" else "${ytdlQuality}p"
+                Text(
+                    text = label,
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -975,6 +998,14 @@ fun RenderPlayerButton(
             if (button == com.devson.nvplayer.model.PlayerButton.DECODER) {
                 Text(
                     text = currentDecoder,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            } else if (button == com.devson.nvplayer.model.PlayerButton.STREAM_QUALITY) {
+                val label = if (ytdlQuality == -1) "Auto" else "${ytdlQuality}p"
+                Text(
+                    text = label,
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold

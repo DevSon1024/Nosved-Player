@@ -220,4 +220,68 @@ object YtdlpManager {
             false
         }
     }
+
+    suspend fun getInstalledVersion(context: Context): String? = withContext(Dispatchers.IO) {
+        val ytdlDir = getYtdlDir(context)
+        val ytDlp = File(ytdlDir, "yt-dlp")
+        if (!ytDlp.exists()) return@withContext null
+        
+        val pythonBinary = getExecutablePath(context)
+        val command = listOf(pythonBinary, ytDlp.absolutePath, "--version")
+        try {
+            val processBuilder = ProcessBuilder(command)
+                .directory(ytdlDir)
+                .redirectErrorStream(true)
+            val env = processBuilder.environment()
+            val nativeLibDir = context.applicationInfo.nativeLibraryDir
+            env.remove("YTDL_SCRIPT")
+            env["YTDL_PYTHON"] = File(nativeLibDir, "libpython.so").absolutePath
+            env["PYTHONHOME"] = ytdlDir.absolutePath
+            env["PYTHONPATH"] = "${ytdlDir.absolutePath}/python313.zip"
+            env["SSL_CERT_FILE"] = File(context.filesDir, "cacert.pem").absolutePath
+            env["LD_LIBRARY_PATH"] = nativeLibDir
+            
+            val process = processBuilder.start()
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val output = reader.readLine()?.trim()
+            process.waitFor()
+            if (!output.isNullOrBlank() && output.matches(Regex("""\d{4}\.\d{2}\.\d{2}(\.\d+)*"""))) {
+                output
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get installed yt-dlp version", e)
+            null
+        }
+    }
+
+    suspend fun getLatestReleaseTag(): String? = withContext(Dispatchers.IO) {
+        var connection: java.net.HttpURLConnection? = null
+        try {
+            val url = java.net.URL("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
+            connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val regex = Regex(""""tag_name"\s*:\s*"([^"]+)"""")
+                val match = regex.find(response)
+                val rawTag = match?.groupValues?.get(1)
+                // Remove prefix 'v' if any
+                rawTag?.removePrefix("v")
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch latest release tag", e)
+            null
+        } finally {
+            connection?.disconnect()
+        }
+    }
 }

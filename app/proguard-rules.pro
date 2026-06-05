@@ -25,3 +25,6 @@
 
 # Protect your own player package just in case it relies on JNI reflection
 -keep class com.devson.nvplayer.player.** { *; }
+-allowaccessmodification
+-repackageclasses ''
+-optimizationpasses 5

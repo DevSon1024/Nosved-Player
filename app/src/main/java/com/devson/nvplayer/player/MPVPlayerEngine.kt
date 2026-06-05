@@ -68,6 +68,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _bufferedPosition = MutableStateFlow(0L)
     override val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
 
+    private val _mediaTitle = MutableStateFlow("")
+    override val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
+
     init {
         try {
             if (isInitialized) {
@@ -139,6 +142,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Observe subtitle text changes
             MPVLib.observeProperty("sub-text", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
+            // Observe media title changes
+            MPVLib.observeProperty("media-title", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+
             // Observe active hardware decoder changes
             MPVLib.observeProperty("hwdec-current", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
@@ -156,6 +162,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     override fun loadVideo(uri: Uri) {
         _playbackState.value = PlayerState.Loading
+        _mediaTitle.value = ""
         _currentPosition.value = 0L
         _duration.value = 0L
         _videoWidth.value = 0L
@@ -509,6 +516,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         val safeVal: String? = value
         if (property == "sub-text") {
             _currentSubtitleText.value = safeVal ?: ""
+        } else if (property == "media-title") {
+            _mediaTitle.value = safeVal ?: ""
         } else if (property == "hwdec-current") {
             _hwdecCurrent.value = safeVal ?: "no"
             Log.d("MPVPlayerEngine", "Active hardware decoder changed: $safeVal")
@@ -547,6 +556,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _isPlaying.value = true
                 updateTracks()
                 updateChapters()
+            }
+            16, 21 -> {
+                Log.d("MPVPlayerEngine", "Tracks changed/restart event received ($eventId)")
+                updateTracks()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 _playbackState.value = PlayerState.Ended

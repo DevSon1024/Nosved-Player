@@ -60,6 +60,7 @@ import com.devson.nvplayer.repository.EnhanceMode
 import android.provider.MediaStore
 import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
+import com.devson.nvplayer.ui.component.QualitySettingsSideSheet
 import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
 import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
 import com.devson.nvplayer.ui.component.EnhanceSettingsSideSheet
@@ -182,6 +183,7 @@ fun PlayerScreen(
     }
     val activeViewModel = viewModel ?: resolvedViewModel
     val bufferedPosition by (activeViewModel?.bufferedPosition ?: kotlinx.coroutines.flow.MutableStateFlow(bufferedPosition)).collectAsStateWithLifecycle()
+    val engineMediaTitle by (activeViewModel?.mediaTitle ?: kotlinx.coroutines.flow.MutableStateFlow("")).collectAsStateWithLifecycle()
 
     var controlsVisible by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
@@ -193,6 +195,7 @@ fun PlayerScreen(
     var showChaptersSideSheet by remember { mutableStateOf(false) }
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
+    var showQualitySideSheet by remember { mutableStateOf(false) }
 
     val topLeftButtons = remember(playbackSettings.topLeftControls) {
         // Landscape TopLeft: always starts with BACK_ARROW + VIDEO_TITLE (non-editable anchor)
@@ -276,7 +279,10 @@ fun PlayerScreen(
     //  Resolve the real video title 
     // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
     // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
-    val videoTitle: String = remember(currentUri) {
+    val videoTitle: String = remember(currentUri, engineMediaTitle) {
+        if (!engineMediaTitle.isNullOrBlank()) {
+            return@remember engineMediaTitle
+        }
         if (currentUri == null) return@remember "Local Video"
         // 1. Try ContentResolver (works for content:// MediaStore URIs)
         try {
@@ -707,6 +713,8 @@ fun PlayerScreen(
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
+                            ytdlQuality = playbackSettings.ytdlQuality,
+                            onShowQuality = { showQualitySideSheet = true },
                             modifier = Modifier
                         )
                     }
@@ -782,6 +790,15 @@ fun PlayerScreen(
             onUpdateSubtitleVerticalOffset = onUpdateSubtitleVerticalOffset,
             onUpdateSubtitleGesturesEnabled = onUpdateSubtitleGesturesEnabled,
             onDismiss = { showSubtitleSettingsSideSheet = false }
+        )
+
+        QualitySettingsSideSheet(
+            visible = showQualitySideSheet,
+            playbackSettings = playbackSettings,
+            onSelectQuality = { quality ->
+                activeViewModel?.changeYtdlQuality(quality)
+            },
+            onDismiss = { showQualitySideSheet = false }
         )
 
         AudioSettingsSideSheet(

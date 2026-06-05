@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -49,9 +50,38 @@ fun YtdlpSettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
 
-    var consoleText by remember { mutableStateOf("Terminal idle.\nClick 'Install/Reinstall' to set up Python and yt-dlp environment.\n") }
+    var consoleText by remember { mutableStateOf("Terminal idle.\nClick 'Compile & Install' to set up Python and yt-dlp environment.\n") }
     var isRunningTask by remember { mutableStateOf(false) }
     var expandedDropdown by remember { mutableStateOf<String?>(null) }
+
+    var installedVersion by remember { mutableStateOf<String?>(null) }
+    var latestVersion by remember { mutableStateOf<String?>(null) }
+    var isUpdateChecking by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isInstalled by remember { mutableStateOf(false) }
+
+    val checkStatus: () -> Unit = {
+        val ytdlDir = YtdlpManager.getYtdlDir(context)
+        isInstalled = java.io.File(ytdlDir, "yt-dlp").exists()
+        if (isInstalled) {
+            isUpdateChecking = true
+            coroutineScope.launch {
+                installedVersion = YtdlpManager.getInstalledVersion(context)
+                latestVersion = YtdlpManager.getLatestReleaseTag()
+                isUpdateChecking = false
+                if (installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                    showUpdateDialog = true
+                }
+            }
+        } else {
+            installedVersion = null
+            latestVersion = null
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        checkStatus()
+    }
 
     Scaffold(
         topBar = {
@@ -110,6 +140,102 @@ fun YtdlpSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    // Status Card Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isInstalled) {
+                                    if (installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                                    } else {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                                    }
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                }
+                            )
+                            .border(
+                                1.dp,
+                                if (isInstalled) {
+                                    if (installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                                        MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                                    } else {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                    }
+                                } else {
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                },
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isInstalled) Icons.Default.CheckCircle else Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (isInstalled) {
+                                if (installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                }
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isInstalled) {
+                                    if (installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                                        "yt-dlp Update Available"
+                                    } else {
+                                        "Environment Installed & Active"
+                                    }
+                                } else {
+                                    "Environment Not Installed"
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isInstalled) {
+                                Text(
+                                    text = buildString {
+                                        append("Installed Version: ${installedVersion ?: "Querying..."}")
+                                        if (latestVersion != null) {
+                                            append(" | Latest: $latestVersion")
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    text = "Requires installation to play network streams",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (isInstalled && installedVersion != null && latestVersion != null && installedVersion != latestVersion) {
+                            Button(
+                                onClick = { showUpdateDialog = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
                     // Console Log Output
                     Box(
                         modifier = Modifier
@@ -158,6 +284,7 @@ fun YtdlpSettingsScreen(
                                         Toast.makeText(context, "Installation failed", Toast.LENGTH_LONG).show()
                                     }
                                     isRunningTask = false
+                                    checkStatus()
                                 }
                             },
                             enabled = !isRunningTask,
@@ -186,6 +313,7 @@ fun YtdlpSettingsScreen(
                                         Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
                                     }
                                     isRunningTask = false
+                                    checkStatus()
                                 }
                             },
                             enabled = !isRunningTask,
@@ -520,6 +648,50 @@ fun YtdlpSettingsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    if (showUpdateDialog) {
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            title = {
+                Text(text = "Update Available", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(text = "A new version of yt-dlp is available ($latestVersion). Your installed version is $installedVersion. Would you like to update now?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showUpdateDialog = false
+                        if (!isRunningTask) {
+                            isRunningTask = true
+                            consoleText = "Checking for yt-dlp updates...\n"
+                            coroutineScope.launch {
+                                val result = YtdlpManager.runUpdate(context) { logLine ->
+                                    consoleText += logLine
+                                }
+                                if (result) {
+                                    consoleText += "\nUpdate succeeded.\n"
+                                    Toast.makeText(context, "yt-dlp updated successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    consoleText += "\nUpdate failed or already up to date.\n"
+                                    Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
+                                }
+                                isRunningTask = false
+                                checkStatus()
+                            }
+                        }
+                    }
+                ) {
+                    Text("Update Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpdateDialog = false }) {
+                    Text("Later")
+                }
+            }
+        )
     }
 }
 

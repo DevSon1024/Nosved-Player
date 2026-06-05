@@ -19,6 +19,7 @@ interface PlayerEngine {
     val networkSpeedBytesPerSec: StateFlow<Long>
     val bufferDurationSeconds: StateFlow<Double>
     val bufferedPosition: StateFlow<Long>
+    val mediaTitle: StateFlow<String>
 
     fun loadVideo(uri: Uri)
     fun play()

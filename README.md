@@ -46,7 +46,7 @@ The transition from ExoPlayer to `is.xyz.mpv` allows NVPlayer to offer a truly d
 ### Clone & Build
 
 ```bash
-git clone [https://github.com/yourusername/nvplayer.git](https://github.com/yourusername/nvplayer.git)
-cd nvplayer
+git clone [https://github.com/DevSon1024/NVPlayer.git](https://github.com/DevSon1024/NVPlayer.git)
+cd NVPlayer
 ./gradlew assembleDebug
 ```
