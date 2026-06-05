@@ -430,6 +430,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         Log.d("MPVPlayerEngine", "Releasing MPVPlayerEngine resources")
         activeInstance = null
         try {
+            // Instantly sever network connections and halt the demuxer
+            MPVLib.command("stop")
+            
             MPVLib.removeObserver(this)
             MPVLib.destroy()
         } catch (e: Exception) {
