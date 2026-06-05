@@ -27,6 +27,7 @@ import com.devson.nvplayer.ui.screen.FolderScreen
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
+import com.devson.nvplayer.ui.screen.YtdlpSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -196,6 +197,14 @@ fun AppNavigation(
                 onNavigateToScanFolders = { navController.navigate("folder_settings") },
                 onNavigateToTool = { navController.navigate("tools") },
                 onNavigateToRecycleBin = { navController.navigate("recycle_bin") },
+                onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("ytdlp_settings") {
+            YtdlpSettingsScreen(
+                onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )
         }

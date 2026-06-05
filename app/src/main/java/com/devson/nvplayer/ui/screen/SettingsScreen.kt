@@ -43,6 +43,7 @@ fun SettingsScreen(
     onNavigateToPlayerInterface: () -> Unit = {},
     onNavigateToCustomHome: () -> Unit = {},
     onNavigateToGestures: () -> Unit = {},
+    onNavigateToYtdlpSettings: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -154,6 +155,12 @@ fun SettingsScreen(
                     title    = "Custom Home",
                     subtitle = "Customize Home Screen Layout",
                     onClick  = onNavigateToCustomHome
+                )
+                SettingsRow(
+                    icon     = Icons.Default.Cloud,
+                    title    = "yt-dlp Streaming",
+                    subtitle = "Configure format preferences and environment",
+                    onClick  = onNavigateToYtdlpSettings
                 )
             }
             Spacer(Modifier.height(16.dp))

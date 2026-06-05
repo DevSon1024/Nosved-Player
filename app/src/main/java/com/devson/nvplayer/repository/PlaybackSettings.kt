@@ -90,7 +90,31 @@ data class PlaybackSettings(
     val portraitTopRightControls: String = "SUBTITLES,AUDIO_TRACK,MORE_OPTIONS",
     val portraitBottomControls: String = "DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION",
     val aspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT,
-    val backgroundPlayEnabled: Boolean = false
+    val backgroundPlayEnabled: Boolean = false,
+    // yt-dlp Settings
+    val ytdlFormat: String = "",
+    val ytdlQuality: Int = -1, // -1 for any
+    val preferH264: Boolean = false,
+    val codecPreference: com.devson.nvplayer.player.ytdlp.YtdlCodecPreference = com.devson.nvplayer.player.ytdlp.YtdlCodecPreference.AUTO,
+    val maxFps: Int = 0,
+    val hdrPreference: com.devson.nvplayer.player.ytdlp.YtdlHdrPreference = com.devson.nvplayer.player.ytdlp.YtdlHdrPreference.ANY,
+    val containerPreference: com.devson.nvplayer.player.ytdlp.YtdlContainerPreference = com.devson.nvplayer.player.ytdlp.YtdlContainerPreference.ANY,
+    val formatSort: String = "",
+    val mergeOutputFormat: String = "",
+    val writeSubs: Boolean = true,
+    val writeAutoSubs: Boolean = false,
+    val subtitleLanguages: String = "",
+    val customUserAgent: String = "",
+    val referer: String = "",
+    val cookiesFile: String = "",
+    val proxy: String = "",
+    val extractorArgs: String = "",
+    val geoBypass: Boolean = false,
+    val playlistMode: com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode = com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode.DEFAULT,
+    val liveFromStart: Boolean = false,
+    val sponsorBlockMark: String = "",
+    val sponsorBlockRemove: String = "",
+    val customRawOptions: String = ""
 )
 
 

@@ -423,6 +423,76 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun updateYtdlFormat(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlFormat(value) }
+    }
+    fun updateYtdlQuality(value: Int) {
+        viewModelScope.launch { settingsRepo.updateYtdlQuality(value) }
+    }
+    fun updatePreferH264(value: Boolean) {
+        viewModelScope.launch { settingsRepo.updatePreferH264(value) }
+    }
+    fun updateYtdlCodecPreference(value: com.devson.nvplayer.player.ytdlp.YtdlCodecPreference) {
+        viewModelScope.launch { settingsRepo.updateYtdlCodecPreference(value) }
+    }
+    fun updateYtdlMaxFps(value: Int) {
+        viewModelScope.launch { settingsRepo.updateYtdlMaxFps(value) }
+    }
+    fun updateYtdlHdrPreference(value: com.devson.nvplayer.player.ytdlp.YtdlHdrPreference) {
+        viewModelScope.launch { settingsRepo.updateYtdlHdrPreference(value) }
+    }
+    fun updateYtdlContainerPreference(value: com.devson.nvplayer.player.ytdlp.YtdlContainerPreference) {
+        viewModelScope.launch { settingsRepo.updateYtdlContainerPreference(value) }
+    }
+    fun updateYtdlFormatSort(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlFormatSort(value) }
+    }
+    fun updateYtdlMergeOutputFormat(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlMergeOutputFormat(value) }
+    }
+    fun updateYtdlWriteSubs(value: Boolean) {
+        viewModelScope.launch { settingsRepo.updateYtdlWriteSubs(value) }
+    }
+    fun updateYtdlWriteAutoSubs(value: Boolean) {
+        viewModelScope.launch { settingsRepo.updateYtdlWriteAutoSubs(value) }
+    }
+    fun updateYtdlSubtitleLanguages(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlSubtitleLanguages(value) }
+    }
+    fun updateYtdlCustomUserAgent(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlCustomUserAgent(value) }
+    }
+    fun updateYtdlReferer(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlReferer(value) }
+    }
+    fun updateYtdlCookiesFile(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlCookiesFile(value) }
+    }
+    fun updateYtdlProxy(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlProxy(value) }
+    }
+    fun updateYtdlExtractorArgs(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlExtractorArgs(value) }
+    }
+    fun updateYtdlGeoBypass(value: Boolean) {
+        viewModelScope.launch { settingsRepo.updateYtdlGeoBypass(value) }
+    }
+    fun updateYtdlPlaylistMode(value: com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode) {
+        viewModelScope.launch { settingsRepo.updateYtdlPlaylistMode(value) }
+    }
+    fun updateYtdlLiveFromStart(value: Boolean) {
+        viewModelScope.launch { settingsRepo.updateYtdlLiveFromStart(value) }
+    }
+    fun updateYtdlSponsorBlockMark(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlSponsorBlockMark(value) }
+    }
+    fun updateYtdlSponsorBlockRemove(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlSponsorBlockRemove(value) }
+    }
+    fun updateYtdlCustomRawOptions(value: String) {
+        viewModelScope.launch { settingsRepo.updateYtdlCustomRawOptions(value) }
+    }
+
     override fun onCleared() {
         super.onCleared()
         // RELEASE FIX: Unregister the SharedPreferences listener to break the strong reference

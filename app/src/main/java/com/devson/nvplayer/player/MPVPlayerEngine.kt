@@ -8,6 +8,10 @@ import `is`.xyz.mpv.MPVNode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.io.FileOutputStream
+import com.devson.nvplayer.player.ytdlp.YtdlpManager
+import com.devson.nvplayer.repository.PlaybackSettingsRepository
 
 class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.EventObserver {
 
@@ -90,6 +94,30 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             
             // Keep native player responsive and smooth
             MPVLib.setOptionString("keep-open", "yes")
+
+            // Ensure cacert.pem is copied for SSL/TLS verification
+            val cacertFile = File(context.filesDir, "cacert.pem")
+            if (!cacertFile.exists()) {
+                try {
+                    context.assets.open("cacert.pem").use { input ->
+                        FileOutputStream(cacertFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Log.d("MPVPlayerEngine", "Copied cacert.pem successfully")
+                } catch (e: Exception) {
+                    Log.e("MPVPlayerEngine", "Failed to copy cacert.pem", e)
+                }
+            }
+
+            // Configure TLS options
+            MPVLib.setOptionString("tls-verify", "yes")
+            MPVLib.setOptionString("tls-ca-file", cacertFile.absolutePath)
+
+            // Set up yt-dlp environment and options
+            val settingsRepo = PlaybackSettingsRepository(context)
+            val settings = settingsRepo.playbackSettingsFlow.value
+            YtdlpManager.setupMpvOptions(context, settings)
 
             MPVLib.init()
             isInitialized = true

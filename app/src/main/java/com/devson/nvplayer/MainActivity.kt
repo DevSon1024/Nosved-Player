@@ -45,6 +45,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -160,6 +161,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Asynchronously copy yt-dlp assets
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                com.devson.nvplayer.player.ytdlp.YtdlpManager.copyAssets(applicationContext)
+                Log.d("MainActivity", "yt-dlp assets copy completed")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to copy yt-dlp assets at startup", e)
+            }
+        }
 
         // Register PiP action receiver
         val filter = IntentFilter().apply {
