@@ -798,6 +798,9 @@ fun PlayerScreen(
             onSelectQuality = { quality ->
                 activeViewModel?.changeYtdlQuality(quality)
             },
+            onDataSaverToggled = { enabled ->
+                activeViewModel?.toggleDataSaver(enabled)
+            },
             onDismiss = { showQualitySideSheet = false }
         )
 

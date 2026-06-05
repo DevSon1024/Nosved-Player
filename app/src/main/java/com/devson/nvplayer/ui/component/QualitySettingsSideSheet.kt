@@ -32,6 +32,7 @@ fun QualitySettingsSideSheet(
     visible: Boolean,
     playbackSettings: PlaybackSettings,
     onSelectQuality: (Int) -> Unit,
+    onDataSaverToggled: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -173,6 +174,41 @@ fun QualitySettingsSideSheet(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Data Saver Toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Data Saver",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Limits resolution to 480p and reduces buffer size to save data.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(
+                            checked = playbackSettings.isDataSaverEnabled,
+                            onCheckedChange = onDataSaverToggled
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    )
 
                     // Scrollable content
                     Column(

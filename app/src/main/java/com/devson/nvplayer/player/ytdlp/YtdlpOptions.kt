@@ -34,6 +34,7 @@ data class YtdlpOptionSettings(
     val legacyPreferH264: Boolean = false,
     val maxHeight: Int = -1,
     val maxFps: Int = 0,
+    val dataSaverEnabled: Boolean = false,
     val hdrPreference: YtdlHdrPreference = YtdlHdrPreference.ANY,
     val containerPreference: YtdlContainerPreference = YtdlContainerPreference.ANY,
     val formatSort: String = "",
@@ -60,6 +61,7 @@ data class YtdlpOptionSettings(
                 legacyPreferH264 = settings.preferH264,
                 maxHeight = settings.ytdlQuality,
                 maxFps = settings.maxFps,
+                dataSaverEnabled = settings.isDataSaverEnabled,
                 hdrPreference = settings.hdrPreference,
                 containerPreference = settings.containerPreference,
                 formatSort = settings.formatSort,
@@ -271,8 +273,12 @@ object YtdlpOptionsBuilder {
 
     private fun YtdlpOptionSettings.formatFilters(): String =
         buildString {
-            if (maxHeight > 0) append("[height<=?$maxHeight]")
-            if (maxFps > 0) append("[fps<=?$maxFps]")
+            if (dataSaverEnabled) {
+                append("[height<=?480][fps<=?30]")
+            } else {
+                if (maxHeight > 0) append("[height<=?$maxHeight]")
+                if (maxFps > 0) append("[fps<=?$maxFps]")
+            }
             when (hdrPreference) {
                 YtdlHdrPreference.ANY -> {}
                 YtdlHdrPreference.SDR -> append("[dynamic_range=SDR]")

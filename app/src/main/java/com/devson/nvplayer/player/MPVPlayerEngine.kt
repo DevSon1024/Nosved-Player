@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import com.devson.nvplayer.repository.PlaybackSettingsRepository
 
@@ -22,6 +23,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         @Volatile
         var activeInstance: MPVPlayerEngine? = null
     }
+
+    private val settingsRepo = PlaybackSettingsRepository(context)
 
     private val _isPlaying = MutableStateFlow(false)
     override val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -118,8 +121,23 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("tls-ca-file", cacertFile.absolutePath)
 
             // Set up yt-dlp environment and options
-            val settingsRepo = PlaybackSettingsRepository(context)
             val settings = settingsRepo.playbackSettingsFlow.value
+
+            // Enable cache
+            MPVLib.setOptionString("cache", "yes")
+
+            // Configure cache sizes and read-ahead thresholds based on Data Saver state
+            if (settings.isDataSaverEnabled) {
+                MPVLib.setOptionString("demuxer-max-bytes", "${50 * 1024 * 1024}")
+                MPVLib.setOptionString("demuxer-readahead-secs", "60")
+            } else {
+                MPVLib.setOptionString("demuxer-max-bytes", "${400 * 1024 * 1024}")
+                MPVLib.setOptionString("demuxer-readahead-secs", "300")
+            }
+
+            // Keep a healthy back-buffer (for rewinding)
+            MPVLib.setOptionString("demuxer-max-back-bytes", "${50 * 1024 * 1024}")
+
             YtdlpManager.setupMpvOptions(context, settings)
 
             MPVLib.init()

@@ -114,7 +114,8 @@ data class PlaybackSettings(
     val liveFromStart: Boolean = false,
     val sponsorBlockMark: String = "",
     val sponsorBlockRemove: String = "",
-    val customRawOptions: String = ""
+    val customRawOptions: String = "",
+    val isDataSaverEnabled: Boolean = false
 )
 
 

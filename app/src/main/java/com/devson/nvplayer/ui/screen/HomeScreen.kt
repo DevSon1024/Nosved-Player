@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.*
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -96,6 +96,7 @@ fun HomeScreen(
     val storageInfo by homeViewModel.storageInfo.collectAsState()
 
     var showNetworkDialog by remember { mutableStateOf(false) }
+    var showYtdlpMissingDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -160,7 +161,7 @@ fun HomeScreen(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Public,
+                            imageVector = Icons.Rounded.Language,
                             contentDescription = "Network Stream",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -350,17 +351,6 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-
-                // Bento Quaternary Network Stream Card
-                QuickActionCardBento(
-                    title = "Network Stream",
-                    subtitle = "Play video from a URL/network stream",
-                    icon = Icons.Default.Language,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    onClick = { showNetworkDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
 
             // 5. Stats Dashboard Section
@@ -471,9 +461,61 @@ fun HomeScreen(
         NetworkStreamDialog(
             onDismiss = { showNetworkDialog = false },
             onPlay = { uri ->
-                showNetworkDialog = false
-                onVideoClick(uri, listOf(uri))
+                val uriString = uri.toString().lowercase(java.util.Locale.ROOT)
+                val isYoutube = uriString.contains("youtube") || uriString.contains("youtu.be")
+                val isYtdlpInstalled = java.io.File(
+                    com.devson.nvplayer.player.ytdlp.YtdlpManager.getYtdlDir(context),
+                    "yt-dlp"
+                ).exists()
+
+                if (isYoutube && !isYtdlpInstalled) {
+                    showNetworkDialog = false
+                    showYtdlpMissingDialog = true
+                } else {
+                    showNetworkDialog = false
+                    onVideoClick(uri, listOf(uri))
+                }
             }
+        )
+    }
+
+    if (showYtdlpMissingDialog) {
+        AlertDialog(
+            onDismissRequest = { showYtdlpMissingDialog = false },
+            title = {
+                Text(
+                    text = "yt-dlp Required",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Text(
+                    text = "This stream requires yt-dlp to extract the video. Please install yt-dlp first under App Settings to play YouTube videos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showYtdlpMissingDialog = false
+                        onSettingsClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Go to Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showYtdlpMissingDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
@@ -804,6 +846,7 @@ fun NetworkStreamDialog(
     onDismiss: () -> Unit,
     onPlay: (Uri) -> Unit
 ) {
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var urlText by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
 
@@ -835,6 +878,16 @@ fun NetworkStreamDialog(
                     placeholder = { Text("https://example.com/video.mp4") },
                     singleLine = true,
                     isError = errorText != null,
+                    trailingIcon = {
+                        if (urlText.isNotEmpty()) {
+                            IconButton(onClick = { urlText = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear Text"
+                                )
+                            }
+                        }
+                    },
                     supportingText = {
                         if (errorText != null) {
                             Text(
@@ -846,6 +899,47 @@ fun NetworkStreamDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = {
+                            val clipText = clipboardManager.getText()?.text
+                            if (!clipText.isNullOrBlank()) {
+                                urlText = clipText
+                                errorText = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = "Paste URL",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Paste URL")
+                    }
+
+                    TextButton(
+                        onClick = {
+                            urlText = ""
+                            errorText = null
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear URL",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Clear URL")
+                    }
+                }
+
                 TextButton(
                     onClick = {
                         urlText = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"

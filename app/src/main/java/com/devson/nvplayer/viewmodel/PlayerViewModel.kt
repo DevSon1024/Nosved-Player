@@ -645,6 +645,55 @@ class PlayerViewModel(
         }
     }
 
+    fun toggleDataSaver(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateDataSaverEnabled(enabled)
+            val updatedSettings = settingsRepo.playbackSettingsFlow.value.copy(isDataSaverEnabled = enabled)
+            
+            val uri = _currentUri.value
+            if (uri != null && isNetworkStream.value) {
+                val currentPos = playerEngine.currentPosition.value
+                val isPlayingBefore = playerEngine.isPlaying.value
+                
+                Log.d("PlayerViewModel", "Reloading stream with Data Saver = $enabled at pos: $currentPos")
+                
+                // Save progress to watch history first so it is restored on reload
+                withContext(Dispatchers.IO) {
+                    val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = currentPos,
+                            lastPlayedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+                
+                isPositionRestored = false
+                
+                // Re-apply options in the running MPV engine
+                YtdlpManager.setupMpvOptions(getApplication(), updatedSettings)
+                
+                // Update cache and buffer limits dynamically
+                try {
+                    val readaheadSecs = if (enabled) 60 else 300
+                    val maxBytes = if (enabled) 50 * 1024 * 1024 else 400 * 1024 * 1024
+                    `is`.xyz.mpv.MPVLib.setPropertyString("demuxer-readahead-secs", "$readaheadSecs")
+                    `is`.xyz.mpv.MPVLib.setPropertyString("demuxer-max-bytes", "$maxBytes")
+                } catch (e: Exception) {
+                    Log.e("PlayerViewModel", "Failed to update demuxer cache options dynamically", e)
+                }
+
+                // Force reload of the video
+                playerEngine.loadVideo(uri)
+                
+                if (isPlayingBefore) {
+                    playerEngine.play()
+                }
+            }
+        }
+    }
+
     fun cycleDecoder() {
         val currentMode = playbackSettings.value.decoderMode
         var nextMode = currentMode.next()

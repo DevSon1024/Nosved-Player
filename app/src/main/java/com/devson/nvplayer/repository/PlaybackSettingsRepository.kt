@@ -57,7 +57,8 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_format", "ytdl_quality", "ytdl_prefer_h264", "ytdl_codec_preference", "ytdl_max_fps", "ytdl_hdr_preference",
             "ytdl_container_preference", "ytdl_format_sort", "ytdl_merge_output_format", "ytdl_write_subs", "ytdl_write_auto_subs",
             "ytdl_subtitle_languages", "ytdl_custom_user_agent", "ytdl_referer", "ytdl_cookies_file", "ytdl_proxy", "ytdl_extractor_args",
-            "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options" -> {
+            "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options",
+            "is_data_saver_enabled" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -251,7 +252,8 @@ class PlaybackSettingsRepository(context: Context) {
             liveFromStart = prefs.getBoolean("ytdl_live_from_start", false),
             sponsorBlockMark = prefs.getString("ytdl_sponsorblock_mark", "") ?: "",
             sponsorBlockRemove = prefs.getString("ytdl_sponsorblock_remove", "") ?: "",
-            customRawOptions = prefs.getString("ytdl_custom_raw_options", "") ?: ""
+            customRawOptions = prefs.getString("ytdl_custom_raw_options", "") ?: "",
+            isDataSaverEnabled = prefs.getBoolean("is_data_saver_enabled", false)
         )
     }
 
@@ -350,6 +352,7 @@ class PlaybackSettingsRepository(context: Context) {
             putString("ytdl_sponsorblock_mark", updated.sponsorBlockMark)
             putString("ytdl_sponsorblock_remove", updated.sponsorBlockRemove)
             putString("ytdl_custom_raw_options", updated.customRawOptions)
+            putBoolean("is_data_saver_enabled", updated.isDataSaverEnabled)
             apply()
         }
     }
@@ -711,5 +714,9 @@ class PlaybackSettingsRepository(context: Context) {
     }
     suspend fun updateYtdlCustomRawOptions(value: String) {
         updatePlaybackSettings { it.copy(customRawOptions = value) }
+    }
+
+    suspend fun updateDataSaverEnabled(enabled: Boolean) {
+        updatePlaybackSettings { it.copy(isDataSaverEnabled = enabled) }
     }
 }
