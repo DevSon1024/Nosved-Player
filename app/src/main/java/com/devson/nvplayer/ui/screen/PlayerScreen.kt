@@ -280,29 +280,38 @@ fun PlayerScreen(
     // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
     // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
     val videoTitle: String = remember(currentUri, engineMediaTitle) {
+        if (currentUri == null) return@remember "Local Video"
+        
+        // 1. If it's a content URI, try ContentResolver first (to avoid getting row ID from engineMediaTitle)
+        if (currentUri.scheme == "content") {
+            try {
+                context.contentResolver.query(
+                    currentUri,
+                    arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                        if (nameCol >= 0) {
+                            val fullName = cursor.getString(nameCol) ?: ""
+                            // Strip extension
+                            val dot = fullName.lastIndexOf('.')
+                            val nameWithoutExt = if (dot > 0) fullName.substring(0, dot) else fullName
+                            if (nameWithoutExt.isNotBlank()) {
+                                return@remember nameWithoutExt
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        // 2. Otherwise/Fallback: try engineMediaTitle if it's not null/blank
         if (!engineMediaTitle.isNullOrBlank()) {
             return@remember engineMediaTitle
         }
-        if (currentUri == null) return@remember "Local Video"
-        // 1. Try ContentResolver (works for content:// MediaStore URIs)
-        try {
-            context.contentResolver.query(
-                currentUri,
-                arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
-                null, null, null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                    if (nameCol >= 0) {
-                        val fullName = cursor.getString(nameCol) ?: ""
-                        // Strip extension
-                        val dot = fullName.lastIndexOf('.')
-                        return@remember if (dot > 0) fullName.substring(0, dot) else fullName
-                    }
-                }
-            }
-        } catch (_: Exception) { }
-        // 2. Fall back: use last path segment and strip extension
+
+        // 3. Fall back: use last path segment and strip extension
         val seg = currentUri.lastPathSegment ?: currentUri.toString()
         val name = seg.substringAfterLast('/')
         val dot = name.lastIndexOf('.')

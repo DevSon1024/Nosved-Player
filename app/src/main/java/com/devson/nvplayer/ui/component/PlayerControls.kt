@@ -35,6 +35,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -616,64 +617,53 @@ fun PlayerControls(
                     
                     when (seekBarStyle) {
                         "wavy" -> {
-                            val phaseShift = phaseShiftState.floatValue
-
-                            androidx.compose.foundation.Canvas(
+                            BoxWithConstraints(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(24.dp)
+                                    .height(24.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                val width = size.width
-                                val height = size.height
-                                val centerY = height / 2
-                                val activeWidth = width * safeFraction
-                                val bufferedWidth = width * bufferFraction
-                                
-                                val amplitude = 4.dp.toPx()
-                                val wavelength = 20.dp.toPx()
-                                
-                                // 1. Draw inactive flat track (full width)
-                                drawLine(
-                                    color = inactiveColor,
-                                    start = Offset(0f, centerY),
-                                    end = Offset(width, centerY),
-                                    strokeWidth = 4.dp.toPx(),
-                                    cap = StrokeCap.Round
-                                )
-                                
-                                // 2. Draw buffered flat track (only for network streams)
-                                if (isNetworkStream && bufferedWidth > 0f) {
-                                    drawLine(
-                                        color = bufferedColor,
-                                        start = Offset(0f, centerY),
-                                        end = Offset(bufferedWidth, centerY),
-                                        strokeWidth = 4.dp.toPx(),
-                                        cap = StrokeCap.Round
-                                    )
-                                }
-                                
-                                // 3. Draw active wavy track
-                                if (activeWidth > 0) {
-                                    val activePath = Path().apply {
-                                        moveTo(0f, centerY)
-                                        var x = 0f
-                                        while (x <= activeWidth) {
-                                            val y = centerY + amplitude * kotlin.math.sin((2 * Math.PI * x / wavelength).toFloat() - phaseShift)
-                                            lineTo(x, y)
-                                            x += 2f
-                                        }
-                                        val lastY = centerY + amplitude * kotlin.math.sin((2 * Math.PI * activeWidth / wavelength).toFloat() - phaseShift)
-                                        lineTo(activeWidth, lastY)
-                                    }
-                                    drawPath(
-                                        path = activePath,
-                                        color = themePrimary,
-                                        style = Stroke(
-                                            width = 3.dp.toPx(),
+                                val parentWidth = maxWidth
+                                // Draw buffered flat track behind the wavy progress if network stream
+                                if (isNetworkStream && bufferFraction > 0f) {
+                                    androidx.compose.foundation.Canvas(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(24.dp)
+                                    ) {
+                                        val width = size.width
+                                        val height = size.height
+                                        val centerY = height / 2
+                                        val bufferedWidth = width * bufferFraction
+                                        drawLine(
+                                            color = bufferedColor,
+                                            start = Offset(0f, centerY),
+                                            end = Offset(bufferedWidth, centerY),
+                                            strokeWidth = 4.dp.toPx(),
                                             cap = StrokeCap.Round
                                         )
-                                    )
+                                    }
                                 }
+
+                                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                                LinearWavyProgressIndicator(
+                                    progress = { safeFraction },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .layout { measurable, constraints ->
+                                            val placeable = measurable.measure(
+                                                constraints.copy(
+                                                    minWidth = constraints.maxWidth,
+                                                    maxWidth = constraints.maxWidth
+                                                )
+                                            )
+                                            layout(placeable.width, placeable.height) {
+                                                placeable.placeRelative(0, 0)
+                                            }
+                                        },
+                                    color = themePrimary,
+                                    trackColor = inactiveColor
+                                )
                             }
                         }
                         "thick" -> {
