@@ -1,5 +1,6 @@
 import java.io.FileInputStream
 import java.util.Properties
+import com.android.build.api.variant.FilterConfiguration
 
 plugins {
     alias(libs.plugins.android.application)
@@ -23,12 +24,17 @@ android {
         version = release(36)
     }
 
+    androidResources {
+        ignoreAssetsPatterns.add("native-v9a")
+        ignoreAssetsPatterns.add("py.arm64-v8a")
+    }
+
     defaultConfig {
         applicationId = "com.devson.nvplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.1.2"
+        versionCode = 113
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -72,13 +78,16 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            ndk {
+                debugSymbolLevel = "none"
+            }
         }
     }
     splits {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a")
+            include("armeabi-v7a", "arm64-v8a")
             isUniversalApk = false
         }
     }
@@ -122,9 +131,13 @@ android {
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            excludes += "assets/native-v9a/**"
+            excludes += "assets/py.*/**"
         }
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
+            pickFirsts += "**/libc++_shared.so"
+            excludes += "**/libpython_bin.so"
         }
     }
 }
@@ -162,4 +175,24 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+}
+
+androidComponents {
+    val abiCodes = mapOf(
+        "armeabi-v7a" to 1,
+        "arm64-v8a" to 2
+    )
+
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val abi = output.filters
+                .find { it.filterType == FilterConfiguration.FilterType.ABI }
+                ?.identifier
+
+            // Multiplies original version code by 10 and adds the ABI digit
+            output.versionCode.set(
+                (output.versionCode.orNull ?: 0) * 10 + (abiCodes[abi] ?: 0)
+            )
+        }
+    }
 }

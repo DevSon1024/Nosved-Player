@@ -93,6 +93,25 @@ object YtdlpOptionsBuilder {
     const val DEFAULT_USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+    /**
+     * Default extractor-args passed to yt-dlp to bypass YouTube's bot detection.
+     *
+     * YouTube blocks unauthenticated requests from the `ios` and `tv_embedded`
+     * player clients with a "Sign in to confirm you're not a bot" error.
+     * The `android` client authenticates via the YouTube Android app handshake
+     * and is currently not subject to the same bot-detection enforcement.
+     * `web` is kept as a fallback for videos that restrict the android client
+     * (e.g. certain age-gated or embedded-only content).
+     *
+     * Client priority order (yt-dlp tries left → right):
+     *  - android  : primary – bypasses bot-check via Android app handshake
+     *  - web      : fallback for content restricted to web-only playback
+     *
+     * This value is only applied when the user has NOT set custom extractor-args
+     * in Settings, so power users retain full control.
+     */
+    const val DEFAULT_EXTRACTOR_ARGS = "youtube:player_client=android,web"
+
     fun build(settings: YtdlpOptionSettings): YtdlpResolvedOptions {
         val format = buildFormat(settings)
         val rawOptions = linkedMapOf<String, String?>()
@@ -111,7 +130,10 @@ object YtdlpOptionsBuilder {
         settings.referer.ifNotBlank { add("referer", it) }
         settings.cookiesFile.ifNotBlank { add("cookies", it) }
         settings.proxy.ifNotBlank { add("proxy", it) }
-        settings.extractorArgs.ifNotBlank { add("extractor-args", it) }
+        // Use user-supplied extractor-args if provided; otherwise fall back to the
+        // default YouTube bot-bypass args (iOS/web_embedded player clients).
+        val effectiveExtractorArgs = settings.extractorArgs.ifBlank { DEFAULT_EXTRACTOR_ARGS }
+        effectiveExtractorArgs.ifNotBlank { add("extractor-args", it) }
         settings.formatSort.ifNotBlank { add("format-sort", it) }
         settings.mergeOutputFormat.ifNotBlank { add("merge-output-format", it) }
         if (settings.geoBypass) add("geo-bypass")
