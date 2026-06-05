@@ -113,6 +113,7 @@ object YtdlpManager {
             if (!scriptOptsDir.exists()) scriptOptsDir.mkdirs()
             val ytdlConf = File(scriptOptsDir, "ytdl_hook.conf")
             val confContent = """
+                path=$ytdlBinaryPath
                 ytdl_path=$ytdlBinaryPath
                 all_formats=yes
                 all_subtitles=yes
@@ -127,12 +128,6 @@ object YtdlpManager {
         MPVLib.setOptionString("ytdl", "yes")
         MPVLib.setOptionString("ytdl-path", ytdlBinaryPath)
         
-        // Use script-opts-append for runtime flexibility
-        MPVLib.setOptionString("script-opts-append", "ytdl_hook-path=$ytdlBinaryPath")
-        MPVLib.setOptionString("script-opts-append", "ytdl_hook-ytdl_path=$ytdlBinaryPath")
-        MPVLib.setOptionString("script-opts-append", "ytdl_hook-all_formats=yes")
-        MPVLib.setOptionString("script-opts-append", "ytdl_hook-all_subtitles=yes")
-        
         val customYtdlFormat = settings.ytdlFormat
         val ytdlFormat = customYtdlFormat.ifBlank { resolvedOptions.format }
         if (ytdlFormat.isNotBlank()) {
@@ -145,6 +140,24 @@ object YtdlpManager {
         Log.d(TAG, "Setting ytdl-format to: $ytdlFormat")
         Log.d(TAG, "Setting ytdl-raw-options to: ${resolvedOptions.rawOptions}")
         MPVLib.setOptionString("ytdl-raw-options", resolvedOptions.rawOptions)
+
+        // Consolidate all script options into a single "script-opts" string
+        val optsList = mutableListOf(
+            "ytdl_hook-path=$ytdlBinaryPath",
+            "ytdl_hook-ytdl_path=$ytdlBinaryPath",
+            "ytdl_hook-all_formats=yes",
+            "ytdl_hook-all_subtitles=yes",
+            "ytdl_hook-user_agent=\"$ua\""
+        )
+        val scriptOptsValue = optsList.joinToString(",")
+        Log.d(TAG, "Setting script-opts to: $scriptOptsValue")
+        MPVLib.setOptionString("script-opts", scriptOptsValue)
+
+        // Keep redundant script-opts-append calls for safety/compatibility with older/newer builds
+        MPVLib.setOptionString("script-opts-append", "ytdl_hook-path=$ytdlBinaryPath")
+        MPVLib.setOptionString("script-opts-append", "ytdl_hook-ytdl_path=$ytdlBinaryPath")
+        MPVLib.setOptionString("script-opts-append", "ytdl_hook-all_formats=yes")
+        MPVLib.setOptionString("script-opts-append", "ytdl_hook-all_subtitles=yes")
         MPVLib.setOptionString("script-opts-append", "ytdl_hook-user_agent=\"$ua\"")
 
         Log.d(TAG, "MPV ytdl options set. Binary: $ytdlBinaryPath")
