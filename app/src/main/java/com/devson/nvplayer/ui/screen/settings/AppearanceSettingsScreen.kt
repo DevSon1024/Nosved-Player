@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
@@ -41,7 +41,6 @@ import androidx.core.os.LocaleListCompat
 import androidx.compose.ui.res.stringResource
 import com.devson.nvplayer.R
 import com.devson.nvplayer.ui.theme.AppThemePalette
-import com.devson.nvplayer.ui.theme.*
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi

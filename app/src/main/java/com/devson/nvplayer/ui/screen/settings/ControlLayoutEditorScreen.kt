@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.model.ControlRegion
 import com.devson.nvplayer.model.PlayerButton
 import com.devson.nvplayer.model.allPlayerButtons
+import com.devson.nvplayer.player.AspectMode
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
@@ -561,7 +561,7 @@ fun SimulatedPlayerPreview(
     portraitTopLeft: List<PlayerButton>,
     portraitTopRight: List<PlayerButton>,
     portraitBottom: List<PlayerButton>,
-    aspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT
+    aspectMode: AspectMode = AspectMode.FIT
 ) {
     val widthFraction = if (isPortrait) 0.5f else 0.85f
     val aspectRatio = if (isPortrait) 9f / 16f else 16f / 9f
@@ -688,7 +688,7 @@ fun MockRegionBox(
     onClick: () -> Unit,
     buttons: List<PlayerButton>,
     modifier: Modifier = Modifier,
-    aspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT
+    aspectMode: AspectMode = AspectMode.FIT
 ) {
     val highlightColor = MaterialTheme.colorScheme.primary
     val normalBorderColor = Color.White.copy(alpha = 0.15f)
@@ -937,7 +937,7 @@ fun PlayerButtonIcon(
     button: PlayerButton,
     tint: Color,
     modifier: Modifier = Modifier,
-    aspectMode: com.devson.nvplayer.player.AspectMode = com.devson.nvplayer.player.AspectMode.FIT
+    aspectMode: AspectMode = AspectMode.FIT
 ) {
     if (button == PlayerButton.DECODER) {
         Box(
@@ -957,10 +957,10 @@ fun PlayerButtonIcon(
         }
     } else if (button == PlayerButton.ASPECT_RATIO) {
         val icon = when (aspectMode) {
-            com.devson.nvplayer.player.AspectMode.FIT -> AspectIcons.Fit
-            com.devson.nvplayer.player.AspectMode.STRETCH -> AspectIcons.Stretch
-            com.devson.nvplayer.player.AspectMode.CROP -> AspectIcons.Crop
-            com.devson.nvplayer.player.AspectMode.ORIGINAL -> AspectIcons.Original
+            AspectMode.FIT -> AspectIcons.Fit
+            AspectMode.STRETCH -> AspectIcons.Stretch
+            AspectMode.CROP -> AspectIcons.Crop
+            AspectMode.ORIGINAL -> AspectIcons.Original
         }
         Icon(
             imageVector = icon,

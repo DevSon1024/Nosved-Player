@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import android.content.Intent
 import android.net.Uri
@@ -26,11 +26,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.repository.DoubleTapAction
 import com.devson.nvplayer.repository.MultiFingerAction
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -697,7 +697,7 @@ private fun GestureSliderRow(
                     color = MaterialTheme.colorScheme.primary
                 )
                 if (onReset != null) {
-                    val isAtDefault = kotlin.math.abs(value - defaultValue) < 0.001f
+                    val isAtDefault = abs(value - defaultValue) < 0.001f
                     IconButton(
                         onClick = onReset,
                         enabled = !isAtDefault,

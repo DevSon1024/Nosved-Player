@@ -2,7 +2,6 @@ package com.devson.nvplayer.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -17,17 +16,17 @@ import com.devson.nvplayer.ui.screen.HistoryScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
-import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
-import com.devson.nvplayer.ui.screen.RecycleBinScreen
-import com.devson.nvplayer.ui.screen.GestureSettingsScreen
-import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
-import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
-import com.devson.nvplayer.ui.screen.AboutScreen
-import com.devson.nvplayer.ui.screen.FolderScreen
+import com.devson.nvplayer.ui.screen.settings.AppearanceSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.RecycleBinScreen
+import com.devson.nvplayer.ui.screen.settings.GestureSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.CustomHomeSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.PlayerInterfaceSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.AboutScreen
+import com.devson.nvplayer.ui.screen.settings.FolderScreen
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
-import com.devson.nvplayer.ui.screen.YtdlpSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -37,7 +36,7 @@ import com.devson.nvplayer.model.ViewMode
 import com.devson.nvplayer.player.DecoderMode
 import com.devson.nvplayer.player.MPVPlayerEngine
 import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
-import com.devson.nvplayer.ui.screens.settings.ToolScreen
+import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
 
@@ -46,6 +45,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import com.devson.nvplayer.ui.screen.settings.ControlLayoutEditorScreen
 
 @Composable
 fun AppNavigation(
@@ -297,7 +297,7 @@ fun AppNavigation(
         composable(
             route = "control_layout_editor"
         ) {
-            com.devson.nvplayer.ui.screen.ControlLayoutEditorScreen(
+            ControlLayoutEditorScreen(
                 onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )

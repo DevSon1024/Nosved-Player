@@ -1,7 +1,8 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Process
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -52,7 +53,7 @@ fun CustomHomeSettingsScreen(
             PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         pendingIntent.send()
-        android.os.Process.killProcess(android.os.Process.myPid())
+        Process.killProcess(Process.myPid())
     }
 
     Scaffold(

@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -39,6 +39,7 @@ import com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun YtdlpSettingsScreen(
 
     val checkStatus: () -> Unit = {
         val ytdlDir = YtdlpManager.getYtdlDir(context)
-        isInstalled = java.io.File(ytdlDir, "yt-dlp").exists()
+        isInstalled = File(ytdlDir, "yt-dlp").exists()
         if (isInstalled) {
             isUpdateChecking = true
             coroutineScope.launch {

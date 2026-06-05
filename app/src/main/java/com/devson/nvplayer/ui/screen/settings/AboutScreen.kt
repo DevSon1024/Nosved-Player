@@ -1,10 +1,13 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.devson.nvplayer.BuildConfig
 import com.devson.nvplayer.R
+import com.devson.nvplayer.player.MPVPlayerEngine
+import `is`.xyz.mpv.MPVLib
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,9 +57,9 @@ fun AboutScreen(
 
     // Media engine details safely retrieved
     val mpvVersion = remember {
-        if (com.devson.nvplayer.player.MPVPlayerEngine.isInitialized) {
+        if (MPVPlayerEngine.isInitialized) {
             try {
-                `is`.xyz.mpv.MPVLib.getPropertyString("mpv-version") ?: "0.37.0 (libmpv)"
+                MPVLib.getPropertyString("mpv-version") ?: "0.37.0 (libmpv)"
             } catch (e: Throwable) {
                 "0.37.0 (libmpv)"
             }
@@ -64,9 +69,9 @@ fun AboutScreen(
     }
 
     val ffmpegVersion = remember {
-        if (com.devson.nvplayer.player.MPVPlayerEngine.isInitialized) {
+        if (MPVPlayerEngine.isInitialized) {
             try {
-                `is`.xyz.mpv.MPVLib.getPropertyString("ffmpeg-version") ?: "6.1"
+                MPVLib.getPropertyString("ffmpeg-version") ?: "6.1"
             } catch (e: Throwable) {
                 "6.1"
             }
@@ -281,7 +286,7 @@ private fun AboutDonateCard(context: Context) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
         )
@@ -353,8 +358,8 @@ private fun AboutDonateCard(context: Context) {
 
                     Button(
                         onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("UPI ID", upiId)
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("UPI ID", upiId)
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "UPI ID copied!", Toast.LENGTH_SHORT).show()
                         },

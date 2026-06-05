@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screen
+package com.devson.nvplayer.ui.screen.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
