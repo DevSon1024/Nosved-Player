@@ -172,6 +172,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("sh.calvin.reorderable:reorderable:3.1.0")
+    implementation(libs.sora.editor.core)
+    implementation(libs.sora.editor.textmate)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

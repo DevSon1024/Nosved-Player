@@ -182,7 +182,7 @@ fun PlayerControls(
             if (hasChapters) list else list.filter { it != PlayerButton.CHAPTERS }
         }
 
-        // 1. TOP PANEL — separate lists for landscape vs portrait orientations
+        // 1. TOP PANEL - separate lists for landscape vs portrait orientations
         val effectiveTopLeft = filterChapters(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
         val rawTopRight = filterChapters(if (isPortrait) portraitTopRightButtons else topRightButtons)
         val effectiveTopRight = if (isNetworkStream && !rawTopRight.contains(PlayerButton.STREAM_QUALITY)) {

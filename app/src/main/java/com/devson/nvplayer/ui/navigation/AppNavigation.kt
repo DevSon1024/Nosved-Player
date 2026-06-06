@@ -27,6 +27,7 @@ import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
 import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.MpvConfigSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -39,6 +40,7 @@ import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
+import com.devson.nvplayer.ui.screen.editor.MpvHelpScreen
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -198,7 +200,22 @@ fun AppNavigation(
                 onNavigateToTool = { navController.navigate("tools") },
                 onNavigateToRecycleBin = { navController.navigate("recycle_bin") },
                 onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") },
+                onNavigateToMpvConfig = { navController.navigate("mpv_config") },
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("mpv_config") {
+            MpvConfigSettingsScreen(
+                onNavigateBack = safePopBackStack,
+                onNavigateToHelp = { navController.navigate("mpv_help") },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("mpv_help") {
+            MpvHelpScreen(
+                onNavigateBack = safePopBackStack
             )
         }
 

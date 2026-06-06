@@ -22,7 +22,7 @@
 
 # The EventObserver interface is implemented by MPVPlayerEngine.
 # Its methods (eventProperty, event) are invoked by the native mpv thread via
-# JNI — NOT by any Kotlin caller — so R8 treats them as dead code and removes
+# JNI - NOT by any Kotlin caller - so R8 treats them as dead code and removes
 # them. -keep prevents that.
 -keep interface is.xyz.mpv.MPVLib$EventObserver { *; }
 -keepclassmembers class * implements is.xyz.mpv.MPVLib$EventObserver {
@@ -42,9 +42,9 @@
 # -----------------------------------------------------------------------------
 # 2.  NVPLAYER PLAYER PACKAGE  (JNI + SurfaceHolder callbacks)
 # -----------------------------------------------------------------------------
-# MPVPlayerEngine implements MPVLib.EventObserver — its JNI callback methods
+# MPVPlayerEngine implements MPVLib.EventObserver - its JNI callback methods
 # must not be renamed or stripped.
-# MPVSurfaceView implements SurfaceHolder.Callback — surfaceCreated/Changed/
+# MPVSurfaceView implements SurfaceHolder.Callback - surfaceCreated/Changed/
 # Destroyed are called by the Android framework by name.
 # -----------------------------------------------------------------------------
 -keep class com.devson.nvplayer.player.MPVPlayerEngine { *; }
@@ -62,7 +62,7 @@
 # 3.  YT-DLP INTEGRATION
 # -----------------------------------------------------------------------------
 # YtdlpManager uses android.system.Os.setenv() and ProcessBuilder with paths
-# derived at runtime — R8 must not rename these classes.
+# derived at runtime - R8 must not rename these classes.
 # YtdlpOptionsBuilder is called by name from PlayerViewModel via settings flow.
 # -----------------------------------------------------------------------------
 -keep class com.devson.nvplayer.player.ytdlp.** { *; }

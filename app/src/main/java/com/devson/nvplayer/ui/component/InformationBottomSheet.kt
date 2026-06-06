@@ -212,7 +212,7 @@ fun InformationBottomSheet(
                                         InfoItem("Size", formatSize(video.size))
                                     }
 
-                                    // Always show file path — MediaInfo General section rarely
+                                    // Always show file path - MediaInfo General section rarely
                                     // contains the full Android filesystem path
                                     if (video.path.isNotBlank()) {
                                         PropertyRow("Location", video.path)

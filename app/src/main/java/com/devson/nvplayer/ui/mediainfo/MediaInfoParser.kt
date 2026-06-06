@@ -90,13 +90,13 @@ object MediaInfoParser {
 
     //  Regex patterns 
 
-    // Season-Episode: S01E02, S1E2, s01e02 — also captures multi-episode S01E01E02
+    // Season-Episode: S01E02, S1E2, s01e02 - also captures multi-episode S01E01E02
     private val SEASON_EPISODE_REGEX = Regex("""[Ss](\d{1,2})[Ee](\d{1,4})""")
 
     // Cross-format: 1x02 format
     private val CROSS_FORMAT_REGEX = Regex("""\b(\d{1,2})[xX](\d{1,4})\b""")
 
-    // EP marker: EP05, Ep5 — with word boundary to avoid matching inside words
+    // EP marker: EP05, Ep5 - with word boundary to avoid matching inside words
     private val EP_MARKER_REGEX = Regex("""\b[Ee][Pp](\d{1,4})\b""")
 
     // Episode word: Episode 5, EPISODE 05
@@ -117,7 +117,7 @@ object MediaInfoParser {
     // Bitrate: 4500kbps
     private val BITRATE_REGEX = Regex("""\b\d+\s*[KkMm]bps\b""")
 
-    // Audio channels: 5.1, 7.1, 2.0 — also DDP5.1, DD5.1, AAC2.0
+    // Audio channels: 5.1, 7.1, 2.0 - also DDP5.1, DD5.1, AAC2.0
     private val AUDIO_CHANNEL_REGEX = Regex("""\b(?:DDP?|AAC|DD\+?)?\.?([257])\.([01])\b""", RegexOption.IGNORE_CASE)
 
     // Resolution number: 1080p, 720p
@@ -177,7 +177,7 @@ object MediaInfoParser {
         }
 
         // Step 2: Extract year (from original filename)
-        // Be careful not to grab episode numbers as years — skip if year is part of S01E2020 etc.
+        // Be careful not to grab episode numbers as years - skip if year is part of S01E2020 etc.
         val yearMatch = findYear(fileName, seMatch, crossMatch)
         val year = yearMatch?.value
 
@@ -365,7 +365,7 @@ object MediaInfoParser {
             }
         }
 
-        // Year as boundary — only if no episode/season markers found,
+        // Year as boundary - only if no episode/season markers found,
         // or if year comes after the title but before metadata
         if (candidates.isEmpty() && yearMatch != null) {
             candidates.add(yearMatch.range.first)

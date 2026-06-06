@@ -175,7 +175,7 @@ class FeedViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        // Do NOT release the engine here — it is owned by PlayerViewModel/MainActivity.
+        // Do NOT release the engine here - it is owned by PlayerViewModel/MainActivity.
         Log.d(TAG, "FeedViewModel cleared (engine not released; owned externally)")
     }
 

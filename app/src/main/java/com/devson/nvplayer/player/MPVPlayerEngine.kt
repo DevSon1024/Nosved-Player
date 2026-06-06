@@ -78,9 +78,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         try {
             if (isInitialized) {
                 // RELEASE FIX: Process was reused (activity recreation, PiP, back-stack pop).
-                // MPVLib is a C++ singleton — calling create() twice without destroy() is UB/crash.
+                // MPVLib is a C++ singleton - calling create() twice without destroy() is UB/crash.
                 // Destroy the old instance cleanly before re-creating.
-                Log.w("MPVPlayerEngine", "MPVLib already initialized — destroying old instance before re-init")
+                Log.w("MPVPlayerEngine", "MPVLib already initialized - destroying old instance before re-init")
                 MPVLib.removeObserver(this)
                 MPVLib.destroy()
                 isInitialized = false
@@ -139,6 +139,41 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("demuxer-max-back-bytes", "${50 * 1024 * 1024}")
 
             YtdlpManager.setupMpvOptions(context, settings)
+
+            // Load and apply custom options from mpv.conf if it exists
+            val mpvConfFile = File(context.filesDir, "mpv.conf")
+            if (mpvConfFile.exists()) {
+                try {
+                    mpvConfFile.forEachLine { line ->
+                        val trimmed = line.trim()
+                        if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                            val eqIdx = trimmed.indexOf('=')
+                            if (eqIdx != -1) {
+                                val key = trimmed.substring(0, eqIdx).trim()
+                                val value = trimmed.substring(eqIdx + 1).trim()
+                                if (key.isNotEmpty()) {
+                                    Log.d("MPVPlayerEngine", "Applying custom mpv option from mpv.conf: $key = $value")
+                                    try {
+                                        MPVLib.setOptionString(key, value)
+                                    } catch (e: Exception) {
+                                        Log.e("MPVPlayerEngine", "Failed to set custom option $key = $value", e)
+                                    }
+                                }
+                            } else {
+                                val key = trimmed
+                                Log.d("MPVPlayerEngine", "Applying custom mpv flag option from mpv.conf: $key")
+                                try {
+                                    MPVLib.setOptionString(key, "")
+                                } catch (e: Exception) {
+                                    Log.e("MPVPlayerEngine", "Failed to set custom flag option $key", e)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("MPVPlayerEngine", "Error reading or applying mpv.conf", e)
+                }
+            }
 
             MPVLib.init()
             isInitialized = true

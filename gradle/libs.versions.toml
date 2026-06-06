@@ -11,7 +11,11 @@ composeBom = "2025.05.00"
 ksp = "2.0.21-1.0.27"
 room = "2.6.1"
 
+sora-editor = "0.23.6"
+
 [libraries]
+sora-editor-core = { group = "io.github.Rosemoe.sora-editor", name = "editor", version.ref = "sora-editor" }
+sora-editor-textmate = { group = "io.github.Rosemoe.sora-editor", name = "language-textmate", version.ref = "sora-editor" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

@@ -150,7 +150,7 @@ class PlayerViewModel(
 
         // Coroutine 1: Detect RUNTIME fallback (HW was active, then dropped to SW mid-playback).
         // Uses collectLatest so any in-flight delay is cancelled when hwdecCurrent changes.
-        // NOTE: This does NOT handle the "HW never became active" case — StateFlow won't
+        // NOTE: This does NOT handle the "HW never became active" case - StateFlow won't
         // re-emit "no" if hwdecCurrent was already "no" before playback started.
         viewModelScope.launch {
             playerEngine.hwdecCurrent.collectLatest { actual ->
@@ -158,7 +158,7 @@ class PlayerViewModel(
                 val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
 
                 if (preferredIsHw && actual != "no") {
-                    // HW decoder confirmed active — mark it for this video session
+                    // HW decoder confirmed active - mark it for this video session
                     if (!hwdecEverActiveForCurrentVideo) {
                         Log.d("PlayerViewModel", "HW decoder confirmed active: $actual")
                         hwdecEverActiveForCurrentVideo = true
@@ -166,7 +166,7 @@ class PlayerViewModel(
                     _isHwSupported.value = true
 
                 } else if (preferredIsHw && actual == "no" && hwdecEverActiveForCurrentVideo) {
-                    // HW was confirmed active before, but just dropped to "no" — potential runtime fallback.
+                    // HW was confirmed active before, but just dropped to "no" - potential runtime fallback.
                     // Guard: only act if actively playing (not a teardown/close event).
                     val state = playerEngine.playbackState.value
                     if (!isVideoLoaded || state !is PlayerState.Playing) return@collectLatest
@@ -197,7 +197,7 @@ class PlayerViewModel(
             var prevState: PlayerState = PlayerState.Idle
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && prevState !is PlayerState.Playing) {
-                    // State just transitioned to Playing — spawn a one-shot check after stabilization
+                    // State just transitioned to Playing - spawn a one-shot check after stabilization
                     viewModelScope.launch {
                         delay(2500L) // Give HW decoder time to start up
 
@@ -725,7 +725,7 @@ class PlayerViewModel(
         } else {
             // Reset the HW-ever-active flag when the user intentionally changes decoder mode.
             // This prevents Coroutine 1 from misinterpreting the intentional hwdec-current="no"
-            // (caused by switching to SW) as a runtime HW fallback event — a race condition that
+            // (caused by switching to SW) as a runtime HW fallback event - a race condition that
             // is especially pronounced in Release builds where R8 tightens coroutine scheduling.
             if (mode == DecoderMode.SW) {
                 hwdecEverActiveForCurrentVideo = false

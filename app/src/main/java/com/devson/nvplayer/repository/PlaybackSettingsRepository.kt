@@ -150,7 +150,7 @@ class PlaybackSettingsRepository(context: Context) {
             volumeGestureEnabled = prefs.getBoolean("volume_gesture_enabled", true),
             volumeSensitivity = prefs.getFloat("volume_sensitivity", 0.5f),
             twoFingerAction = try {
-                // RELEASE FIX: Default was PLAY_PAUSE here but PINCH_ZOOM in the data class — aligned.
+                // RELEASE FIX: Default was PLAY_PAUSE here but PINCH_ZOOM in the data class - aligned.
                 MultiFingerAction.valueOf(prefs.getString("two_finger_action", MultiFingerAction.PINCH_ZOOM.name) ?: MultiFingerAction.PINCH_ZOOM.name)
             } catch (e: Exception) {
                 MultiFingerAction.PINCH_ZOOM
@@ -270,7 +270,7 @@ class PlaybackSettingsRepository(context: Context) {
         // Update in-memory state synchronously on the main thread.
         _playbackSettingsFlow.value = updated
 
-        // Persist to disk — SharedPreferences.apply() is always async and thread-safe.
+        // Persist to disk - SharedPreferences.apply() is always async and thread-safe.
         prefs.edit().apply {
             putInt("seek_duration_seconds", updated.seekDurationSeconds)
             putString("seek_bar_style", updated.seekBarStyle)

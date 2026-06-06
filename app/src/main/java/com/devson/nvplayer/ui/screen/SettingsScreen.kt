@@ -44,6 +44,7 @@ fun SettingsScreen(
     onNavigateToCustomHome: () -> Unit = {},
     onNavigateToGestures: () -> Unit = {},
     onNavigateToYtdlpSettings: () -> Unit = {},
+    onNavigateToMpvConfig: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDark           by settingsViewModel.isDarkTheme.collectAsState()
@@ -161,6 +162,12 @@ fun SettingsScreen(
                     title    = "yt-dlp Streaming",
                     subtitle = "Configure format preferences and environment",
                     onClick  = onNavigateToYtdlpSettings
+                )
+                SettingsRow(
+                    icon     = Icons.Default.Settings,
+                    title    = "mpv.conf Configuration",
+                    subtitle = "Customize raw options (vo, ao, hwdec, etc.)",
+                    onClick  = onNavigateToMpvConfig
                 )
             }
             Spacer(Modifier.height(16.dp))

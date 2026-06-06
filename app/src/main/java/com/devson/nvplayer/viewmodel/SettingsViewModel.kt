@@ -8,8 +8,10 @@ import com.devson.nvplayer.ui.theme.AppThemePalette
 import com.devson.nvplayer.ui.theme.AppThemePaletteHelper
 import com.devson.nvplayer.model.PlayerButton
 import com.devson.nvplayer.model.ControlRegion
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -360,6 +362,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun clearBlacklist() {
         viewModelScope.launch {
             settingsRepo.updateBlacklistedFolders(emptySet())
+        }
+    }
+
+    private val _mpvConfigFlow = MutableStateFlow("")
+    val mpvConfigFlow: StateFlow<String> = _mpvConfigFlow.asStateFlow()
+
+    fun loadMpvConfig() {
+        viewModelScope.launch {
+            _mpvConfigFlow.value = com.devson.nvplayer.repository.MpvConfigRepository.loadMpvConfig(getApplication())
+        }
+    }
+
+    fun saveMpvConfig(content: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val success = com.devson.nvplayer.repository.MpvConfigRepository.saveMpvConfig(getApplication(), content)
+            if (success) {
+                _mpvConfigFlow.value = content
+            }
+            onResult(success)
         }
     }
 

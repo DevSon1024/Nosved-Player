@@ -149,7 +149,7 @@ fun ControlLayoutEditorScreen(
                 addAll(portraitTopRightList)
                 addAll(portraitBottomList)
             } else {
-                // Landscape layout — TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT and BOTTOM_RIGHT are active
+                // Landscape layout - TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT and BOTTOM_RIGHT are active
                 addAll(topLeftList)
                 addAll(topRightList)
                 addAll(bottomLeftList)
@@ -238,7 +238,7 @@ fun ControlLayoutEditorScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Scrollable Tab Selector — tabs are filtered by the active orientation
+            // Scrollable Tab Selector - tabs are filtered by the active orientation
             RegionTabRow(
                 selectedRegion = selectedRegion,
                 isPortrait = isPortraitPreview,
