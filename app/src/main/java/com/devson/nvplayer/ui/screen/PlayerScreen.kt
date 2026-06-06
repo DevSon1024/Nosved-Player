@@ -280,10 +280,15 @@ fun PlayerScreen(
     // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
     // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
     val videoTitle: String = remember(currentUri, engineMediaTitle) {
-        if (currentUri == null) return@remember "Local Video"
+        if (currentUri == null) {
+            return@remember if (!engineMediaTitle.isNullOrBlank()) engineMediaTitle else "Local Video"
+        }
         
-        // 1. If it's a content URI, try ContentResolver first (to avoid getting row ID from engineMediaTitle)
-        if (currentUri.scheme == "content") {
+        val scheme = currentUri.scheme
+        val isLocal = scheme == null || scheme == "content" || scheme == "file"
+        
+        if (isLocal) {
+            // For local videos, try ContentResolver first to get DISPLAY_NAME
             try {
                 context.contentResolver.query(
                     currentUri,
@@ -304,14 +309,36 @@ fun PlayerScreen(
                     }
                 }
             } catch (_: Exception) { }
+            
+            // If ContentResolver fails, try to extract from the path segment
+            val seg = currentUri.lastPathSegment ?: currentUri.toString()
+            val name = seg.substringAfterLast('/')
+            // Only use the segment name if it is not just a numeric ID and we have a valid engineMediaTitle
+            val isNumericId = name.all { it.isDigit() }
+            if (isNumericId && !engineMediaTitle.isNullOrBlank() && !engineMediaTitle.all { it.isDigit() }) {
+                val dot = engineMediaTitle.lastIndexOf('.')
+                return@remember if (dot > 0) engineMediaTitle.substring(0, dot) else engineMediaTitle
+            }
+            
+            val dot = name.lastIndexOf('.')
+            val resolvedLocalName = if (dot > 0) name.substring(0, dot) else name
+            if (resolvedLocalName.isNotBlank() && !resolvedLocalName.all { it.isDigit() }) {
+                return@remember resolvedLocalName
+            }
         }
-
-        // 2. Otherwise/Fallback: try engineMediaTitle if it's not null/blank
+        
+        // For network streams or as a fallback, use engineMediaTitle if available
         if (!engineMediaTitle.isNullOrBlank()) {
-            return@remember engineMediaTitle
+            val cleanTitle = if (engineMediaTitle.startsWith("http://") || engineMediaTitle.startsWith("https://")) {
+                val parsed = runCatching { Uri.parse(engineMediaTitle) }.getOrNull()
+                parsed?.lastPathSegment ?: engineMediaTitle
+            } else {
+                engineMediaTitle
+            }
+            return@remember cleanTitle
         }
-
-        // 3. Fall back: use last path segment and strip extension
+        
+        // Final fallback: segment extraction
         val seg = currentUri.lastPathSegment ?: currentUri.toString()
         val name = seg.substringAfterLast('/')
         val dot = name.lastIndexOf('.')
