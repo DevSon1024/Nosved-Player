@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import com.devson.nvplayer.repository.EnhanceMode
 import com.devson.nvplayer.repository.PlaybackSettings
 import com.devson.nvplayer.data.database.AppDatabase
@@ -37,6 +39,7 @@ import com.devson.nvplayer.data.database.WatchHistoryEntity
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
  */
+@kotlin.OptIn(kotlinx.coroutines.FlowPreview::class)
 class PlayerViewModel(
     application: Application,
     private val playerEngine: PlayerEngine
@@ -111,15 +114,18 @@ class PlayerViewModel(
 
         // Observe mediaTitle changes to update the network stream history title in the database
         viewModelScope.launch {
-            mediaTitle.collectLatest { title ->
-                val uri = _currentUri.value
-                if (uri != null && !title.isNullOrBlank() && isNetworkStream.value) {
-                    withContext(Dispatchers.IO) {
-                        val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-                        dao.insertOrUpdateStream(uri.toString(), title)
+            (mediaTitle as kotlinx.coroutines.flow.Flow<String>)
+                .distinctUntilChanged()
+                .debounce(500L)
+                .collectLatest { title ->
+                    val uri = _currentUri.value
+                    if (uri != null && !title.isNullOrBlank() && isNetworkStream.value) {
+                        withContext(Dispatchers.IO) {
+                            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                            dao.insertOrUpdateStream(uri.toString(), title)
+                        }
                     }
                 }
-            }
         }
         viewModelScope.launch {
             playbackState.collect { state ->
@@ -272,17 +278,6 @@ class PlayerViewModel(
         viewModelScope.launch {
             playerEngine.bufferDurationSeconds.collect { buffer ->
                 bufferDurationSeconds.value = buffer
-            }
-        }
-        viewModelScope.launch {
-            mediaTitle.collect { title ->
-                val uri = _currentUri.value
-                if (uri != null && isNetworkStream.value && !title.isNullOrBlank()) {
-                    withContext(Dispatchers.IO) {
-                        val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-                        dao.insertOrUpdateStream(uri.toString(), title)
-                    }
-                }
             }
         }
     }

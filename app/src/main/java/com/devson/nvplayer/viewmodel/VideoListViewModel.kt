@@ -23,6 +23,7 @@ class VideoListViewModel(
 
     // Raw (unfiltered) scan result - populated once per disk scan
     private val _rawVideosByFolder = MutableStateFlow<Map<VideoFolder, List<Video>>>(emptyMap())
+    private val _rawVideosFlat = MutableStateFlow<List<Video>>(emptyList())
  
     private val _historyMap = MutableStateFlow<Map<String, WatchHistory>>(emptyMap())
 
@@ -84,20 +85,36 @@ class VideoListViewModel(
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    val videosFlat: StateFlow<List<Video>> =
+        combine(_rawVideosFlat, _searchQuery) { rawFlat, query ->
+            rawFlat.filter { video ->
+                val matchesPath = !video.path.contains("/.")
+                val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
+                matchesPath && matchesSearch
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val navContext: StateFlow<Triple<ViewMode, VideoFolder?, String?>> = combine(
+        viewSettingsRepo.viewSettingsFlow,
+        _selectedFolder,
+        _currentExplorerPath
+    ) { settings, folder, path ->
+        Triple(settings.viewMode, folder, path)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Triple(ViewMode.ALL_FOLDERS, null, null))
  
     val quickFabLastPlayedVideo: StateFlow<Video?> = combine(
         videosByFolder,
-        _currentExplorerPath,
-        _selectedFolder,
-        viewSettingsRepo.viewSettingsFlow,
+        videosFlat,
+        navContext,
         _historyMap
-    ) { videosMap, explorerPath, selectedFld, settings, histMap ->
-        val allVideosFlat = videosMap.values.flatten()
+    ) { videosMap, allVideosFlat, navCtx, histMap ->
+        val (viewMode, selectedFld, explorerPath) = navCtx
         val candidateVideos = when {
-            settings.viewMode == ViewMode.ALL_FOLDERS && selectedFld != null -> {
+            viewMode == ViewMode.ALL_FOLDERS && selectedFld != null -> {
                 videosMap[selectedFld] ?: emptyList()
             }
-            settings.viewMode == ViewMode.FOLDERS && explorerPath != null -> {
+            viewMode == ViewMode.FOLDERS && explorerPath != null -> {
                 allVideosFlat.filter { it.path.startsWith(explorerPath) }
             }
             else -> {
@@ -199,6 +216,7 @@ class VideoListViewModel(
                 _loadingProgress.value = 1f
                 // Store raw (unfiltered) - the combine flow handles filtering reactively
                 _rawVideosByFolder.value = mappedVideos
+                _rawVideosFlat.value = mappedVideos.values.flatten()
             } catch (e: Exception) {
                 // RELEASE FIX: e.printStackTrace() is silently discarded in release builds.
                 // Emit to the error flow so the UI can react (show snackbar / empty state).
@@ -225,7 +243,7 @@ class VideoListViewModel(
         if (query.isBlank()) {
             _searchSuggestions.value = emptyList()
         } else {
-            val allVideos = _rawVideosByFolder.value.values.flatten()
+            val allVideos = _rawVideosFlat.value
             val matches = allVideos.filter { it.title.contains(query, ignoreCase = true) }
                 .map { it.title }
                 .distinct()
@@ -236,7 +254,7 @@ class VideoListViewModel(
 
     fun getSearchResults(query: String): List<Video> {
         if (query.isBlank()) return emptyList()
-        return _rawVideosByFolder.value.values.flatten().filter { it.title.contains(query, ignoreCase = true) }
+        return _rawVideosFlat.value.filter { it.title.contains(query, ignoreCase = true) }
     }
 
     // Explorer Path Navigation 

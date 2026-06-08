@@ -28,8 +28,7 @@ class VideoRepository(
 
     suspend fun getVideosByFolder(folderName: String): List<VideoItem> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
-        mediaStoreHelper.getAllVideos(blacklisted)
-            .filter { it.folderName == folderName }
+        mediaStoreHelper.getVideosByFolder(folderName, blacklisted)
     }
 
     /**

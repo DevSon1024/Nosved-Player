@@ -25,6 +25,8 @@ object ThumbnailLoader {
 @Composable
 fun rememberVideoThumbnailState(
     uriString: String,
+    size: Long,
+    dateModified: Long,
     width: Int = 256,
     height: Int = 256
 ): State<VideoThumbnailResult> {
@@ -32,18 +34,14 @@ fun rememberVideoThumbnailState(
     val repository = remember { ThumbnailLoader.getRepository(context) }
     val uri = remember(uriString) { Uri.parse(uriString) }
 
-    return produceState<VideoThumbnailResult>(initialValue = VideoThumbnailResult.Loading, keys = arrayOf(uriString, width, height)) {
+    return produceState<VideoThumbnailResult>(initialValue = VideoThumbnailResult.Loading, keys = arrayOf(uriString, size, dateModified, width, height)) {
         value = VideoThumbnailResult.Loading
         
         try {
-            val metadata = withContext(Dispatchers.IO) {
-                getVideoMetadata(context, uri)
-            }
-            
             val key = ThumbnailKey(
                 uriString = uriString,
-                lastModified = metadata.lastModified,
-                fileSize = metadata.fileSize,
+                lastModified = dateModified,
+                fileSize = size,
                 width = width,
                 height = height
             )
