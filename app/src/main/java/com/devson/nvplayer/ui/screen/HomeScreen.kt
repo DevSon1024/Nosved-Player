@@ -69,6 +69,7 @@ fun HomeScreen(
     }
 
     val videosByFolder by viewModel.videosByFolder.collectAsState()
+    val videosFlat by viewModel.videosFlat.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
 
@@ -93,7 +94,7 @@ fun HomeScreen(
         }
     }
 
-    val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+    val allVideosFlat = videosFlat
     val folders = remember(videosByFolder) { videosByFolder.keys.toList() }
 
     val continueWatchingVideos = remember(history, allVideosFlat) {
@@ -754,6 +755,8 @@ fun ContinueWatchingCard(
             // 1. Thumbnail filling the entire card
             VideoThumbnail(
                 uri = video.thumbnailUri ?: video.uri,
+                size = video.size,
+                dateModified = video.dateModified,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )

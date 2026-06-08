@@ -228,20 +228,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val imageLoader = ImageLoader.Builder(this)
-            .components {
-                add(VideoThumbnailFetcher.Factory(applicationContext))
-                add(VideoThumbnailFetcher.StringFactory(applicationContext))
-                add(VideoFrameDecoder.Factory())
-            }
-            .diskCache {
-                DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(512 * 1024 * 1024) // 512 MB
-                    .build()
-            }
-            .build()
-        SingletonImageLoader.setSafe { imageLoader }
+
 
         checkAndRequestPermissions()
 

@@ -95,7 +95,7 @@ fun VideoGridItem(
                         .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier)
                 ) {
                     if (settings.showThumbnail) {
-                        VideoThumbnail(uri = video.thumbnailUri ?: video.uri, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
+                        VideoThumbnail(uri = video.thumbnailUri ?: video.uri, size = video.size, dateModified = video.dateModified, modifier = Modifier.fillMaxSize(), showPlayIcon = !isSelected)
                     } else {
                         Box(
                             Modifier.fillMaxSize().background(
@@ -176,6 +176,8 @@ fun VideoGridItem(
                 if (settings.showThumbnail) {
                     VideoThumbnail(
                         uri          = video.thumbnailUri ?: video.uri,
+                        size         = video.size,
+                        dateModified = video.dateModified,
                         modifier     = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected && !isDense
                     )

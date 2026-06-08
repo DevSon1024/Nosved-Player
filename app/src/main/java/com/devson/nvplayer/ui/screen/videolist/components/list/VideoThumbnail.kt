@@ -38,6 +38,8 @@ import com.devson.nvplayer.util.formatDuration
 @Composable
 fun VideoThumbnail(
     uri: String,
+    size: Long,
+    dateModified: Long,
     modifier: Modifier = Modifier,
     showPlayIcon: Boolean = true
 ) {
@@ -47,6 +49,10 @@ fun VideoThumbnail(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(uri)
+                .apply {
+                    extras[com.devson.nvplayer.util.videoSizeKey] = size
+                    extras[com.devson.nvplayer.util.videoDateModifiedKey] = dateModified
+                }
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .crossfade(true)

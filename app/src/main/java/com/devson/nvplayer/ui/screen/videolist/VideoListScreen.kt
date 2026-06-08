@@ -110,6 +110,7 @@ fun VideoListScreen(
     }
 
     val videosByFolder by viewModel.videosByFolder.collectAsStateWithLifecycle()
+    val videosFlat by viewModel.videosFlat.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val selectedFolder by viewModel.selectedFolder.collectAsStateWithLifecycle()
@@ -280,7 +281,7 @@ fun VideoListScreen(
                 selectedCount = selectedVideos.size + selectedFolders.size,
                 totalCount = when (viewSettings.viewMode) {
                     ViewMode.ALL_FOLDERS -> if (selectedFolder != null) (videosByFolder[selectedFolder] ?: emptyList()).size else sortedFolderKeys.size
-                    ViewMode.FILES -> videosByFolder.values.flatten().size
+                    ViewMode.FILES -> videosFlat.size
                     ViewMode.FOLDERS -> explorerNodes.first.size + explorerNodes.second.size
                 },
                 showBackButton = selectedFolder != null || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null),
@@ -300,7 +301,7 @@ fun VideoListScreen(
                             }
                         }
                         ViewMode.FILES -> {
-                            val allVideos = videosByFolder.values.flatten()
+                            val allVideos = videosFlat
                             selectedVideos = if (selectedVideos.size == allVideos.size) emptySet() else allVideos.toSet()
                         }
                         ViewMode.FOLDERS -> {
@@ -358,9 +359,9 @@ fun VideoListScreen(
         bottomBar = {
             if (isSelectionActive) {
                 // Unified URI computation across all view modes
-                val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+                val allVideosFlat = videosFlat
                 val selectedUris: List<Uri> = remember(
-                    viewSettings.viewMode, selectedVideos, selectedFolders, selectedFolder, videosByFolder
+                    viewSettings.viewMode, selectedVideos, selectedFolders, selectedFolder, videosFlat
                 ) {
                     when (viewSettings.viewMode) {
                         ViewMode.FILES -> {
@@ -461,11 +462,11 @@ fun VideoListScreen(
                             // Determine the full current playlist depending on view mode
                             val fullPlaylist: List<Video> = when (viewSettings.viewMode) {
                                 ViewMode.FILES -> {
-                                    val allVideos = videosByFolder.values.flatten()
+                                    val allVideos = videosFlat
                                     allVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                                 ViewMode.ALL_FOLDERS -> {
-                                    val folderVideos = videosByFolder[selectedFolder] ?: videosByFolder.values.flatten()
+                                    val folderVideos = videosByFolder[selectedFolder] ?: videosFlat
                                     folderVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                                 ViewMode.FOLDERS -> {
@@ -535,7 +536,7 @@ fun VideoListScreen(
             if (viewSettings.showQuickFab && !isSelectionActive) {
                 lastPlayedVideo?.let { video ->
                     val lastHistoryEntry = remember(video, historyMap) { historyMap[video.uri] }
-                    val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+                    val allVideosFlat = videosFlat
                     PreviewFloatingActionButton(
                         enablePreview = viewSettings.enableFabPreview,
                         previewUri = video.uri,
@@ -683,7 +684,7 @@ fun VideoListScreen(
                             }
                         }
                         ViewMode.FILES -> {
-                            val allVideos = remember(videosByFolder) { videosByFolder.values.flatten() }
+                            val allVideos = videosFlat
                             val sortedVideos = remember(allVideos, viewSettings.sortField, viewSettings.sortDirection) {
                                 allVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
                             }
@@ -714,7 +715,7 @@ fun VideoListScreen(
                             }
                             // Need a map to resolve explorer nodes content
                             val mappedVideosByFolder = remember(videosByFolder, expFolders) {
-                                val allVideos = videosByFolder.values.flatten()
+                                val allVideos = videosFlat
                                 expFolders.associateWith { folder ->
                                     allVideos.filter { it.path.startsWith(folder.id) }
                                 }
@@ -722,7 +723,7 @@ fun VideoListScreen(
                             val sortedExpFolders = remember(expFolders, viewSettings.sortField, viewSettings.sortDirection, mappedVideosByFolder) {
                                 expFolders.applyFolderSort(mappedVideosByFolder, viewSettings.sortField, viewSettings.sortDirection)
                             }
-                            val allVideosForSize = remember(videosByFolder) { videosByFolder.values.flatten() }
+                            val allVideosForSize = videosFlat
 
                             ExplorerListContent(
                                 folders = sortedExpFolders,
@@ -775,7 +776,7 @@ fun VideoListScreen(
                 }
             }
             ViewMode.FOLDERS -> {
-                val allVideosFlat = videosByFolder.values.flatten()
+                val allVideosFlat = videosFlat
                 val fromFolders = selectedFolders.flatMap { f -> 
                     allVideosFlat.filter { it.path.startsWith(f.id) } 
                 }
@@ -846,7 +847,7 @@ fun VideoListScreen(
                 }
             }
             ViewMode.FOLDERS -> {
-                val allVideosFlat = videosByFolder.values.flatten()
+                val allVideosFlat = videosFlat
                 val fromFolders = selectedFolders.flatMap { f -> allVideosFlat.filter { it.path.startsWith(f.id) } }
                 (selectedVideos.toList() + fromFolders).distinctBy { it.uri }
                     .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }

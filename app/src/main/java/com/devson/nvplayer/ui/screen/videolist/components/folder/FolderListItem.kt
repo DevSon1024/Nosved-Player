@@ -94,8 +94,11 @@ fun FolderMediaPreview(
         contentAlignment = Alignment.Center
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
+            val firstVideo = videos.first()
             VideoThumbnail(
-                uri = videos.first().thumbnailUri ?: videos.first().uri,
+                uri = firstVideo.thumbnailUri ?: firstVideo.uri,
+                size = firstVideo.size,
+                dateModified = firstVideo.dateModified,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )

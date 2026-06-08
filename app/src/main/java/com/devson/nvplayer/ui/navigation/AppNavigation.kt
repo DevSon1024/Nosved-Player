@@ -226,8 +226,7 @@ fun AppNavigation(
         }
 
         composable("history") {
-            val videosByFolder by videoListViewModel.videosByFolder.collectAsStateWithLifecycle()
-            val allVideos = remember(videosByFolder) { videosByFolder.values.flatten() }
+            val allVideos by videoListViewModel.videosFlat.collectAsStateWithLifecycle()
             HistoryScreen(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
@@ -392,7 +391,7 @@ fun AppNavigation(
             val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
             val feedVideosState by videoListViewModel.feedVideos.collectAsStateWithLifecycle()
             val videos = remember(feedVideosState) {
-                feedVideosState ?: videoListViewModel.videosByFolder.value.values.flatten()
+                feedVideosState ?: videoListViewModel.videosFlat.value
             }
             FeedScreen(
                 videos     = videos,

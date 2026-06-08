@@ -20,6 +20,9 @@ import com.devson.nvplayer.util.thumbnail.getVideoMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+val videoSizeKey = coil3.Extras.Key(default = 0L)
+val videoDateModifiedKey = coil3.Extras.Key(default = 0L)
+
 class VideoThumbnailFetcher(
     private val data: Uri,
     private val options: Options
@@ -32,14 +35,27 @@ class VideoThumbnailFetcher(
         val width = options.size.width.pxOrElse { 256 }
         val height = options.size.height.pxOrElse { 256 }
 
-        val metadata = withContext(Dispatchers.IO) {
-            getVideoMetadata(context, data)
+        val sizeParam = options.extras[videoSizeKey]
+        val dateModifiedParam = options.extras[videoDateModifiedKey]
+
+        val lastModified: Long
+        val fileSize: Long
+
+        if (sizeParam != null && sizeParam > 0L && dateModifiedParam != null && dateModifiedParam > 0L) {
+            lastModified = dateModifiedParam
+            fileSize = sizeParam
+        } else {
+            val metadata = withContext(Dispatchers.IO) {
+                getVideoMetadata(context, data)
+            }
+            lastModified = metadata.lastModified
+            fileSize = metadata.fileSize
         }
 
         val key = ThumbnailKey(
             uriString = data.toString(),
-            lastModified = metadata.lastModified,
-            fileSize = metadata.fileSize,
+            lastModified = lastModified,
+            fileSize = fileSize,
             width = width,
             height = height
         )
