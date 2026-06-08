@@ -47,10 +47,35 @@ import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.net.Uri
 
 class MainActivity : ComponentActivity() {
 
     private val _isInPipMode = mutableStateOf(false)
+    private val deepLinkUri = mutableStateOf<Uri?>(null)
+
+    private fun handleIntent(intent: Intent?): Uri? {
+        if (intent == null) return null
+        if (intent.getBooleanExtra("DEEP_LINK_CONSUMED", false)) return null
+
+        var uri: Uri? = null
+        val action = intent.action
+        val type = intent.type
+
+        if (Intent.ACTION_VIEW == action) {
+            uri = intent.data
+        } else if (Intent.ACTION_SEND == action && type == "text/plain") {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (!sharedText.isNullOrBlank()) {
+                uri = Uri.parse(sharedText.trim())
+            }
+        }
+
+        if (uri != null) {
+            intent.putExtra("DEEP_LINK_CONSUMED", true)
+        }
+        return uri
+    }
 
     private val pipReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -162,6 +187,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val uri = handleIntent(intent)
+        deepLinkUri.value = uri
+
         // Asynchronously copy yt-dlp assets
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -243,10 +271,21 @@ class MainActivity : ComponentActivity() {
                         videoListViewModel = videoListViewModel,
                         fileOpsViewModel = fileOpsViewModel,
                         isInPipMode = _isInPipMode.value,
-                        onEnterPip = { enterPipMode() }
+                        onEnterPip = { enterPipMode() },
+                        initialUri = deepLinkUri.value,
+                        onDeepLinkHandled = { deepLinkUri.value = null }
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val uri = handleIntent(intent)
+        if (uri != null) {
+            deepLinkUri.value = uri
         }
     }
 

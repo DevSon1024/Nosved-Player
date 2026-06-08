@@ -2,6 +2,7 @@ package com.devson.nvplayer.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -61,7 +62,9 @@ fun AppNavigation(
     videoListViewModel: VideoListViewModel,
     fileOpsViewModel: FileOperationsViewModel,
     isInPipMode: Boolean = false,
-    onEnterPip: () -> Unit = {}
+    onEnterPip: () -> Unit = {},
+    initialUri: Uri? = null,
+    onDeepLinkHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
 
@@ -75,6 +78,16 @@ fun AppNavigation(
             "video_list"
         } else {
             "home"
+        }
+    }
+
+    LaunchedEffect(initialUri) {
+        if (initialUri != null) {
+            playerViewModel().prepareVideo(initialUri, listOf(initialUri))
+            navController.navigate("player") {
+                launchSingleTop = true
+            }
+            onDeepLinkHandled()
         }
     }
 

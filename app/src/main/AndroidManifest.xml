@@ -36,7 +36,26 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter android:label="NV Player">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
         </activity>
+        <activity-alias
+            android:name=".NvStreamAlias"
+            android:targetActivity=".MainActivity"
+            android:label="NV Stream"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
         <service
             android:name=".player.MediaPlaybackService"
             android:enabled="true"
