@@ -26,7 +26,7 @@ import com.devson.nvplayer.model.applySort
 import com.devson.nvplayer.ui.component.InformationBottomSheet
 import com.devson.nvplayer.ui.components.IconToggleButton
 import com.devson.nvplayer.ui.components.SettingsSectionLabel
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoListContent
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 

@@ -49,7 +49,7 @@ import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListCont
 import com.devson.nvplayer.ui.component.InformationBottomSheet
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoListContent
 import com.devson.nvplayer.ui.screens.videolist.components.explorer.ExplorerListContent
 import com.devson.nvplayer.ui.screens.videolist.components.selection.VideoSelectionBottomBar
 import com.devson.nvplayer.ui.screens.videolist.utils.applyFolderSort

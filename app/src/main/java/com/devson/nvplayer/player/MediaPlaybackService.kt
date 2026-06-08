@@ -14,7 +14,6 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.support.v4.media.MediaMetadataCompat
 import com.devson.nvplayer.MainActivity
 import android.graphics.Bitmap
-import com.devson.nvplayer.util.thumbnail.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -175,18 +174,29 @@ class MediaPlaybackService : Service() {
         if (uri != null) {
             serviceScope.launch {
                 try {
-                    val metadata = withContext(Dispatchers.IO) {
-                        getVideoMetadata(this@MediaPlaybackService, uri)
-                    }
-                    val key = ThumbnailKey(
-                        uriString = uri.toString(),
-                        lastModified = metadata.lastModified,
-                        fileSize = metadata.fileSize,
-                        width = 512,
-                        height = 512
-                    )
                     val bitmap = withContext(Dispatchers.IO) {
-                        ThumbnailLoader.getRepository(this@MediaPlaybackService).getThumbnail(key, uri)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            uri.scheme == "content"
+                        ) {
+                            try {
+                                this@MediaPlaybackService.contentResolver
+                                    .loadThumbnail(uri, android.util.Size(512, 512), null)
+                            } catch (_: Exception) { null }
+                        } else {
+                            val retriever = android.media.MediaMetadataRetriever()
+                            try {
+                                retriever.setDataSource(this@MediaPlaybackService, uri)
+                                val dur = retriever
+                                    .extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                                    ?.toLongOrNull() ?: 0L
+                                val seekUs = if (dur > 0) dur * 200L else 0L // 20% of duration
+                                retriever.getFrameAtTime(
+                                    seekUs,
+                                    android.media.MediaMetadataRetriever.OPTION_PREVIOUS_SYNC
+                                )
+                            } catch (_: Exception) { null }
+                            finally { try { retriever.release() } catch (_: Exception) {} }
+                        }
                     }
                     if (bitmap != null) {
                         currentThumbnail = bitmap

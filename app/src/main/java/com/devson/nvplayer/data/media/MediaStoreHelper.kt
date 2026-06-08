@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.model.VideoItem
@@ -222,9 +223,28 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     private suspend fun getThumbnailsMap(context: Context): Map<Long, Uri> = withContext(Dispatchers.IO) {
-        // MediaStore.Video.Thumbnails is deprecated since API 29.
-        // Coil (coil-video) extracts frames from the video content URI directly,
-        // so a separate thumbnails map is no longer needed.
-        emptyMap()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return@withContext emptyMap()
+        }
+        val map = mutableMapOf<Long, Uri>()
+        try {
+            context.contentResolver.query(
+                MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Video.Thumbnails.VIDEO_ID, MediaStore.Video.Thumbnails._ID),
+                "${MediaStore.Video.Thumbnails.KIND}=${MediaStore.Video.Thumbnails.MINI_KIND}",
+                null, null
+            )?.use { cursor ->
+                val videoIdCol = cursor.getColumnIndex(MediaStore.Video.Thumbnails.VIDEO_ID)
+                val thumbIdCol = cursor.getColumnIndex(MediaStore.Video.Thumbnails._ID)
+                while (cursor.moveToNext()) {
+                    val videoId = cursor.getLong(videoIdCol)
+                    val thumbId = cursor.getLong(thumbIdCol)
+                    map[videoId] = ContentUris.withAppendedId(
+                        MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, thumbId
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        map
     }
 }

@@ -1,22 +1,9 @@
-package com.devson.nvplayer.util.thumbnail
+package com.devson.nvplayer.util
 
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import java.io.File
-
-data class ThumbnailKey(
-    val uriString: String,
-    val lastModified: Long,
-    val fileSize: Long,
-    val width: Int,
-    val height: Int
-) {
-    fun toCacheFileName(): String {
-        val safeUri = uriString.replace("[^a-zA-Z0-9]".toRegex(), "_")
-        return "${safeUri}_${lastModified}_${fileSize}_${width}x${height}.webp"
-    }
-}
 
 data class VideoMetadata(
     val lastModified: Long,
@@ -39,9 +26,7 @@ fun getVideoMetadata(context: Context, uri: Uri): VideoMetadata {
                     return VideoMetadata(lastModified, fileSize)
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
     }
     return VideoMetadata(0L, 0L)
 }

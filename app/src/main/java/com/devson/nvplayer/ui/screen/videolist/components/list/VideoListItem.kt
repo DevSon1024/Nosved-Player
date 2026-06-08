@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
+import com.devson.nvplayer.ui.screen.videolist.components.list.DurationBadge
+import com.devson.nvplayer.ui.screen.videolist.components.list.ThumbnailSelectionOverlay
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoThumbnail
 import com.devson.nvplayer.ui.screens.videolist.components.common.VideoMetadataChips
 import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
 import com.devson.nvplayer.ui.screens.videolist.components.common.WatchProgressBar
@@ -119,10 +122,8 @@ fun VideoListItem(
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri         = video.thumbnailUri ?: video.uri,
-                        size        = video.size,
-                        dateModified = video.dateModified,
-                        modifier    = Modifier.fillMaxSize(),
+                        uri = video.thumbnailUri ?: video.uri,
+                        modifier = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected
                     )
                 } else {

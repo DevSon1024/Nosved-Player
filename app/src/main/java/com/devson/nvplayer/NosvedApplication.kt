@@ -15,7 +15,6 @@ import okio.Path.Companion.toOkioPath
 class NosvedApplication : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        // Determine a sensible disk cache size: 10% of free space, clamped between 50 MB and 500 MB.
         val cacheDir = cacheDir.resolve("video_thumbnails_cache")
         val freeBytes = cacheDir.parentFile?.freeSpace ?: (200L * 1024 * 1024)
         val cacheSizeBytes = (freeBytes * 0.10)
@@ -25,11 +24,12 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
         return ImageLoader.Builder(context)
             .components {
                 add(MediaStoreThumbnailFetcher.Factory())
+                add(MediaStoreThumbnailFetcher.StringFactory())
                 add(VideoFrameDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.20) // Use 20% of app memory for in-memory LRU cache
+                    .maxSizePercent(context, 0.20)
                     .build()
             }
             .diskCache {

@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.list
+package com.devson.nvplayer.ui.screen.videolist.components.list
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +25,8 @@ import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.model.WatchHistory
 import com.devson.nvplayer.ui.component.CustomEmptyStateView
+import com.devson.nvplayer.ui.screens.videolist.components.list.VideoGridItem
+import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
 
 @Composable
 fun VideoListContent(

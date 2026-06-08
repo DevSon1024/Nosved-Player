@@ -29,12 +29,6 @@ import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
-import coil3.ImageLoader
-import coil3.SingletonImageLoader
-import coil3.video.VideoFrameDecoder
-import com.devson.nvplayer.util.VideoThumbnailFetcher
-import coil3.disk.DiskCache
-import coil3.disk.directory
 import android.content.res.Configuration
 import android.util.Log
 import android.app.PendingIntent

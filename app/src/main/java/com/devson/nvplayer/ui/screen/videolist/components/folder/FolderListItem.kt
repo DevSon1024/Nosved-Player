@@ -51,7 +51,7 @@ import com.devson.nvplayer.model.WatchHistory
 import com.devson.nvplayer.ui.component.FolderShape
 import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
 import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoThumbnail
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoThumbnail
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatSize
@@ -97,8 +97,6 @@ fun FolderMediaPreview(
             val firstVideo = videos.first()
             VideoThumbnail(
                 uri = firstVideo.thumbnailUri ?: firstVideo.uri,
-                size = firstVideo.size,
-                dateModified = firstVideo.dateModified,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )

@@ -161,7 +161,7 @@ class VideoListViewModel(
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
@@ -172,6 +172,7 @@ class VideoListViewModel(
             try {
                 val videoItems = repository.getAllVideos()
                 val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
+                val metadataDao = repository.videoMetadataDao
                 
                 // Group by parent folder absolute path
                 val groupedByPath = videoItems.groupBy { item ->
@@ -185,17 +186,44 @@ class VideoListViewModel(
                     
                     val folderName = File(parentPath).name.ifEmpty { parentPath }
                     val videos = items.map { item ->
+                        val uriStr = item.uri.toString()
+                        val cached = metadataDao.getMetadataByUri(uriStr)
+                        
+                        val finalSize: Long
+                        val finalDateModified: Long
+                        val finalDuration: Long
+                        
+                        if (cached != null) {
+                            finalSize = cached.size
+                            finalDateModified = cached.dateModified
+                            finalDuration = cached.duration
+                        } else {
+                            val extracted = com.devson.nvplayer.util.getVideoMetadata(repository.context, item.uri)
+                            finalSize = if (extracted.fileSize > 0) extracted.fileSize else item.size
+                            finalDateModified = if (extracted.lastModified > 0) extracted.lastModified else item.dateModified * 1000
+                            finalDuration = item.duration
+                            
+                            metadataDao.insertOrUpdate(
+                                com.devson.nvplayer.data.database.CachedVideoMetadata(
+                                    uri = uriStr,
+                                    size = finalSize,
+                                    dateModified = finalDateModified,
+                                    duration = finalDuration
+                                )
+                            )
+                        }
+
                         Video(
-                            uri = item.uri.toString(),
+                            uri = uriStr,
                             title = item.title,
-                            duration = item.duration,
+                            duration = finalDuration,
                             folderName = item.folderName,
                             path = item.path,
-                            size = item.size,
+                            size = finalSize,
                             width = item.width,
                             height = item.height,
-                            dateAdded = item.dateModified,
-                            dateModified = item.dateModified,
+                            dateAdded = finalDateModified,
+                            dateModified = finalDateModified,
                             playedTime = null,
                             lastPlayedAt = null,
                             resolution = "${item.width}x${item.height}",

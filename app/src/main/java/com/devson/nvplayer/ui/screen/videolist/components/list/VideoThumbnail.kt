@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.list
+package com.devson.nvplayer.ui.screen.videolist.components.list
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -38,25 +38,24 @@ import com.devson.nvplayer.util.formatDuration
 @Composable
 fun VideoThumbnail(
     uri: String,
-    size: Long,
-    dateModified: Long,
     modifier: Modifier = Modifier,
     showPlayIcon: Boolean = true
 ) {
+    val context = LocalContext.current
+    val imageRequest = remember(uri) {
+        ImageRequest.Builder(context)
+            .data(uri)
+            .size(512, 384)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .crossfade(true)
+            .build()
+    }
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(uri)
-                .apply {
-                    extras[com.devson.nvplayer.util.videoSizeKey] = size
-                    extras[com.devson.nvplayer.util.videoDateModifiedKey] = dateModified
-                }
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .crossfade(true)
-                .build(),
+            model = imageRequest,
             placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             error       = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             contentDescription = "Video Thumbnail",
