@@ -39,6 +39,11 @@ import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,10 +75,14 @@ fun HomeScreen(
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
+    var clickedVideoUri by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                clickedVideoUri = null
                 homeViewModel.loadWatchHistory(forceVerify = false)
             }
         }
@@ -89,6 +98,13 @@ fun HomeScreen(
     val continueWatchingVideos = remember(history, allVideosFlat) {
         history.mapNotNull { historyEntry ->
             allVideosFlat.find { it.uri == historyEntry.uri }
+        }
+    }
+
+    var displayedContinueWatchingVideos by remember { mutableStateOf(continueWatchingVideos) }
+    LaunchedEffect(continueWatchingVideos) {
+        if (clickedVideoUri == null) {
+            displayedContinueWatchingVideos = continueWatchingVideos
         }
     }
 
@@ -225,76 +241,100 @@ fun HomeScreen(
                     )
 
                     val maxVideos = 10
-                    val videoDisplayList = remember(continueWatchingVideos) {
-                        if (continueWatchingVideos.size > maxVideos) continueWatchingVideos.take(maxVideos) else continueWatchingVideos
+                    val videoDisplayList = remember(displayedContinueWatchingVideos) {
+                        if (displayedContinueWatchingVideos.size > maxVideos) displayedContinueWatchingVideos.take(maxVideos) else displayedContinueWatchingVideos
                     }
-                    val carouselState = rememberCarouselState(itemCount = { videoDisplayList.size + 1 })
 
-                    HorizontalMultiBrowseCarousel(
-                        state = carouselState,
-                        preferredItemWidth = 150.dp,
-                        itemSpacing = 12.dp,
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { index ->
-                        if (index < videoDisplayList.size) {
-                            val video = videoDisplayList[index]
-                            val historyEntry = historyMap[video.uri]
-                            val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+                    key(videoDisplayList) {
+                        val carouselState = rememberCarouselState(itemCount = { videoDisplayList.size + 1 })
 
-                            ContinueWatchingCard(
-                                video = video,
-                                lastPositionMs = lastPositionMs,
-                                onClick = {
-                                    val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
-                                    onVideoClick(Uri.parse(video.uri), playlist)
-                                },
-                                modifier = Modifier
-                                    .height(220.dp)
-                                    .maskClip(RoundedCornerShape(24.dp))
-                            )
-                        } else {
-                            Card(
-                                modifier = Modifier
-                                    .height(220.dp)
-                                    .width(150.dp)
-                                    .maskClip(RoundedCornerShape(24.dp))
-                                    .clickable { onSeeMoreHistoryClick() },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        HorizontalMultiBrowseCarousel(
+                            state = carouselState,
+                            preferredItemWidth = 150.dp,
+                            itemSpacing = 12.dp,
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { index ->
+                            if (index < videoDisplayList.size) {
+                                val video = videoDisplayList[index]
+                                val historyEntry = historyMap[video.uri]
+                                val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+
+                                val isClicked = clickedVideoUri == video.uri
+                                val animatedAlpha by animateFloatAsState(
+                                    targetValue = if (isClicked) 0f else 1f,
+                                    animationSpec = tween(durationMillis = 250),
+                                    label = "cardAlpha"
                                 )
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = if (isClicked) 0.85f else 1f,
+                                    animationSpec = tween(durationMillis = 250),
+                                    label = "cardScale"
+                                )
+
+                                ContinueWatchingCard(
+                                    video = video,
+                                    lastPositionMs = lastPositionMs,
+                                    onClick = {
+                                        clickedVideoUri = video.uri
+                                        coroutineScope.launch {
+                                            delay(200)
+                                            val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
+                                            onVideoClick(Uri.parse(video.uri), playlist)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            alpha = animatedAlpha
+                                            scaleX = animatedScale
+                                            scaleY = animatedScale
+                                        }
+                                        .height(220.dp)
+                                        .maskClip(RoundedCornerShape(24.dp))
+                                )
+                            } else {
+                                Card(
+                                    modifier = Modifier
+                                        .height(220.dp)
+                                        .width(150.dp)
+                                        .maskClip(RoundedCornerShape(24.dp))
+                                        .clickable { onSeeMoreHistoryClick() },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                                contentDescription = "See More",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(28.dp)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                    contentDescription = "See More",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = "See More",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "See More",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
                                     }
                                 }
                             }

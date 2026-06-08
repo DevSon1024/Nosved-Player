@@ -61,17 +61,24 @@ class MPVSurfaceView @JvmOverloads constructor(
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Log.d("MPVSurfaceView", "Surface destroyed - detaching native surface from MPVLib")
+        val surface = holder.surface
         try {
-            if (getActiveSurface() === holder.surface) {
-                MPVLib.setPropertyString("vo", "null")
-                MPVLib.setOptionString("force-window", "no")
-                MPVLib.detachSurface()
+            if (getActiveSurface() === surface) {
                 setActiveSurface(null)
+                Thread {
+                    try {
+                        MPVLib.setPropertyString("vo", "null")
+                        MPVLib.setOptionString("force-window", "no")
+                        MPVLib.detachSurface()
+                    } catch (e: Exception) {
+                        Log.e("MPVSurfaceView", "Error detaching surface from MPVLib in background thread", e)
+                    }
+                }.start()
             } else {
                 Log.d("MPVSurfaceView", "Surface destroyed matches an inactive surface. Skipping detach.")
             }
         } catch (e: Exception) {
-            Log.e("MPVSurfaceView", "Error detaching surface from MPVLib", e)
+            Log.e("MPVSurfaceView", "Error in surfaceDestroyed", e)
         }
         onSurfaceDestroyedListener?.invoke()
     }

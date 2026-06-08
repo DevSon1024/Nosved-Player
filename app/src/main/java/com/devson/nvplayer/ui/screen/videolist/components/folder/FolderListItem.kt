@@ -223,17 +223,20 @@ fun FolderMetadataRow(videos: List<Video>, settings: ViewSettings, isGrid: Boole
  
 @Composable
 fun FolderMetadataChips(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
-    val tokens = buildList {
-        add(Pair(stringResource(R.string.folder_videos_count, videos.size), true))   // count → primary chip
-        if (settings.showSize) {
-            val totalSize = videos.sumOf { it.size }
-            add(Pair(formatSize(totalSize), false))
-        }
-        if (settings.showDate) {
-            val oldest = videos.minOfOrNull { it.dateAdded } ?: 0L
-            if (oldest > 0) add(Pair(formatDate(oldest), false))
-        }
-    }.filter { it.first.isNotBlank() }
+    val countText = stringResource(R.string.folder_videos_count, videos.size)
+    val tokens = remember(videos, settings, countText) {
+        buildList {
+            add(Pair(countText, true))   // count → primary chip
+            if (settings.showSize) {
+                val totalSize = videos.sumOf { it.size }
+                add(Pair(formatSize(totalSize), false))
+            }
+            if (settings.showDate) {
+                val oldest = videos.minOfOrNull { it.dateAdded } ?: 0L
+                if (oldest > 0) add(Pair(formatDate(oldest), false))
+            }
+        }.filter { it.first.isNotBlank() }
+    }
  
     if (tokens.isEmpty()) return
  

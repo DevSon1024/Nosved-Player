@@ -74,7 +74,11 @@ fun FolderListContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(sortedFolders) { folder ->
+            items(
+                items = sortedFolders,
+                key = { folder -> folder.id },
+                contentType = { "folder_item" }
+            ) { folder ->
                 FolderGridItem(
                     folder = folder,
                     videos = folders[folder] ?: emptyList(),
@@ -98,7 +102,11 @@ fun FolderListContent(
                 bottom = contentPadding.calculateBottomPadding() + 32.dp
             )
         ) {
-            items(sortedFolders) { folder ->
+            items(
+                items = sortedFolders,
+                key = { folder -> folder.id },
+                contentType = { "folder_item" }
+            ) { folder ->
                 FolderListItem(
                     folder = folder,
                     videos = folders[folder] ?: emptyList(),

@@ -42,6 +42,13 @@ fun VideoGridItem(
 ) {
     val haptic  = LocalHapticFeedback.current
     val isDense = settings.gridColumns >= 3
+    val watchState = remember(lastPositionMs, video.duration) {
+        getWatchState(lastPositionMs, video.duration)
+    }
+    val displayTitle = remember(video.title, settings.showFileExtension) {
+        if (settings.showFileExtension) video.title
+        else video.title.substringBeforeLast(".")
+    }
  
     val bgColor by animateColorAsState(
         targetValue  = if (isSelected)
@@ -61,7 +68,6 @@ fun VideoGridItem(
     )
  
     // Single-column (full-width cinema card) 
-    val watchState = getWatchState(lastPositionMs, video.duration)
     if (settings.gridColumns == 1) {
         Card(
             modifier = Modifier
@@ -120,8 +126,7 @@ fun VideoGridItem(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (settings.showFileExtension) video.title
-                                   else video.title.substringBeforeLast("."),
+                            text = displayTitle,
                             style      = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             maxLines   = 2,
@@ -210,8 +215,7 @@ fun VideoGridItem(
                         .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = 10.dp)
                 ) {
                     Text(
-                        text = if (settings.showFileExtension) video.title
-                               else video.title.substringBeforeLast("."),
+                        text = displayTitle,
                         style      = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines   = 2,

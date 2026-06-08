@@ -94,7 +94,9 @@ fun VideoListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             //  Thumbnail 
-            val watchState = getWatchState(lastPositionMs, video.duration)
+            val watchState = remember(lastPositionMs, video.duration) {
+                getWatchState(lastPositionMs, video.duration)
+            }
             Card(
                 modifier = Modifier
                     .size(width = 128.dp, height = 72.dp)
@@ -159,9 +161,12 @@ fun VideoListItem(
  
             //  Text section 
             Column(modifier = Modifier.weight(1f)) {
+                val displayTitle = remember(video.title, settings.showFileExtension) {
+                    if (settings.showFileExtension) video.title
+                    else video.title.substringBeforeLast(".")
+                }
                 Text(
-                    text = if (settings.showFileExtension) video.title
-                           else video.title.substringBeforeLast("."),
+                    text = displayTitle,
                     style     = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines  = 2,

@@ -1,5 +1,7 @@
 package com.devson.nvplayer.model
 
+import androidx.compose.runtime.Immutable
+
 enum class LayoutMode {
     LIST, GRID
 }
@@ -16,12 +18,14 @@ enum class SortDirection {
     ASCENDING, DESCENDING
 }
 
+@Immutable
 data class WatchHistory(
     val uri: String,
     val lastPositionMs: Long,
     val lastPlayedAt: Long = 0L
 )
 
+@Immutable
 data class Video(
     val uri: String,
     val title: String,
