@@ -11,6 +11,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.NavController
+import androidx.lifecycle.Lifecycle
 import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.HistoryScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
@@ -64,9 +66,7 @@ fun AppNavigation(
 
     // 1. Create a safe back navigation helper to prevent popping the start destination
     val safePopBackStack: () -> Unit = {
-        if (navController.previousBackStackEntry != null) {
-            navController.popBackStack()
-        }
+        navController.safePopBackStack()
     }
 
     val startDestination = remember {
@@ -114,30 +114,49 @@ fun AppNavigation(
                     val folder = videoListViewModel.videosByFolder.value.keys.find { it.id == folderId }
                     videoListViewModel.selectFolder(folder)
                     videoListViewModel.updateViewMode(ViewMode.ALL_FOLDERS)
-                    navController.navigate("video_list")
+                    navController.navigate("video_list") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onSettingsClick = {
-                    navController.navigate("settings")
+                    navController.navigate("settings") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onVideoClick = { uri, playlist ->
                     playerViewModel().prepareVideo(uri, playlist)
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onRecycleBinClick = {
-                    navController.navigate("recycle_bin")
+                    navController.navigate("recycle_bin") {
+                        launchSingleTop = true
+                    }
                 },
                 onSearch = { query ->
-                    navController.navigate("search_results/${Uri.encode(query)}")
+                    navController.navigate("search_results/${Uri.encode(query)}") {
+                        launchSingleTop = true
+                    }
                 },
                 onBrowseClick = {
-                    navController.navigate("video_list")
+                    navController.navigate("video_list") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onFeedClick = {
                     videoListViewModel.setFeedVideos(null)
-                    navController.navigate("feed/0")
+                    navController.navigate("feed/0") {
+                        launchSingleTop = true
+                    }
                 },
                 onSeeMoreHistoryClick = {
-                    navController.navigate("history")
+                    navController.navigate("history") {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -146,19 +165,28 @@ fun AppNavigation(
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSettings = {
-                    navController.navigate("settings")
+                    navController.navigate("settings") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onNavigateToSearch = { query ->
-                    navController.navigate("search_results/${Uri.encode(query)}")
+                    navController.navigate("search_results/${Uri.encode(query)}") {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToFeed = { startIndex ->
-                    navController.navigate("feed/$startIndex")
+                    navController.navigate("feed/$startIndex") {
+                        launchSingleTop = true
+                    }
                 },
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel
@@ -172,7 +200,9 @@ fun AppNavigation(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onBack = safePopBackStack,
                 homeViewModel = homeViewModel
@@ -189,18 +219,18 @@ fun AppNavigation(
         composable("settings") {
             SettingsScreen(
                 onBack = safePopBackStack, // 2. Use the safe helper
-                onNavigateToAbout = { navController.navigate("about") },
+                onNavigateToAbout = { navController.navigate("about") { launchSingleTop = true } },
                 onNavigateToLogs = {},
-                onNavigateToPrivacyPolicy = { navController.navigate("privacy_policy") },
-                onNavigateToAppearance = { navController.navigate("appearance") },
-                onNavigateToGestures = { navController.navigate("gestures") },
-                onNavigateToCustomHome = { navController.navigate("custom_home") },
-                onNavigateToPlayerInterface = { navController.navigate("player_interface") },
-                onNavigateToScanFolders = { navController.navigate("folder_settings") },
-                onNavigateToTool = { navController.navigate("tools") },
-                onNavigateToRecycleBin = { navController.navigate("recycle_bin") },
-                onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") },
-                onNavigateToMpvConfig = { navController.navigate("mpv_config") },
+                onNavigateToPrivacyPolicy = { navController.navigate("privacy_policy") { launchSingleTop = true } },
+                onNavigateToAppearance = { navController.navigate("appearance") { launchSingleTop = true } },
+                onNavigateToGestures = { navController.navigate("gestures") { launchSingleTop = true } },
+                onNavigateToCustomHome = { navController.navigate("custom_home") { launchSingleTop = true } },
+                onNavigateToPlayerInterface = { navController.navigate("player_interface") { launchSingleTop = true } },
+                onNavigateToScanFolders = { navController.navigate("folder_settings") { launchSingleTop = true } },
+                onNavigateToTool = { navController.navigate("tools") { launchSingleTop = true } },
+                onNavigateToRecycleBin = { navController.navigate("recycle_bin") { launchSingleTop = true } },
+                onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") { launchSingleTop = true } },
+                onNavigateToMpvConfig = { navController.navigate("mpv_config") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -208,7 +238,7 @@ fun AppNavigation(
         composable("mpv_config") {
             MpvConfigSettingsScreen(
                 onNavigateBack = safePopBackStack,
-                onNavigateToHelp = { navController.navigate("mpv_help") },
+                onNavigateToHelp = { navController.navigate("mpv_help") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -235,9 +265,9 @@ fun AppNavigation(
         composable("tools") {
             ToolScreen(
                 onBack = safePopBackStack,
-                onNavigateToMilliSeconds = { navController.navigate("tools_milliseconds") },
+                onNavigateToMilliSeconds = { navController.navigate("tools_milliseconds") { launchSingleTop = true } },
                 onNavigateToVideoEditor = {},
-                onNavigateToMediaStoreFinder = { navController.navigate("tools_mediastore_finder") }
+                onNavigateToMediaStoreFinder = { navController.navigate("tools_mediastore_finder") { launchSingleTop = true } }
             )
         }
 
@@ -256,7 +286,7 @@ fun AppNavigation(
         composable("folder_settings") {
             FolderScreen(
                 onNavigateBack = safePopBackStack,
-                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") },
+                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -266,10 +296,10 @@ fun AppNavigation(
                 isBlacklistMode = true,
                 onFoldersBlacklisted = { selectedPaths ->
                     settingsViewModel.addToBlacklist(selectedPaths)
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onCancel = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -305,7 +335,7 @@ fun AppNavigation(
             PlayerInterfaceSettingsScreen(
                 onNavigateBack = safePopBackStack,
                 onNavigateToControlEditor = {
-                    navController.navigate("control_layout_editor")
+                    navController.navigate("control_layout_editor") { launchSingleTop = true }
                 },
                 settingsViewModel = settingsViewModel
             )
@@ -339,7 +369,7 @@ fun AppNavigation(
                 onBack     = safePopBackStack,
                 onPlayVideoInPlayer = { video, playlist ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") { launchSingleTop = true }
                 }
             )
         }
@@ -355,7 +385,7 @@ fun AppNavigation(
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") { launchSingleTop = true }
                 },
                 onBack = safePopBackStack
             )
@@ -484,5 +514,17 @@ fun AppNavigation(
                 onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) }
             )
         }
+    }
+}
+
+fun NavController.safePopBackStack(): Boolean {
+    val currentEntry = currentBackStackEntry
+    return if (previousBackStackEntry != null && 
+        currentEntry != null && 
+        currentEntry.lifecycle.currentState == Lifecycle.State.RESUMED
+    ) {
+        popBackStack()
+    } else {
+        false
     }
 }
