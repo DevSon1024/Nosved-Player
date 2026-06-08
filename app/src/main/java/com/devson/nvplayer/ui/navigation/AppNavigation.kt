@@ -43,6 +43,7 @@ import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
 import com.devson.nvplayer.ui.screen.editor.MpvHelpScreen
+import com.devson.nvplayer.ui.screen.NetworkHistoryScreen
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
@@ -155,6 +156,24 @@ fun AppNavigation(
                 },
                 onSeeMoreHistoryClick = {
                     navController.navigate("history") {
+                        launchSingleTop = true
+                    }
+                },
+                onNetworkHistoryClick = {
+                    navController.navigate("network_history") {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable("network_history") {
+            NetworkHistoryScreen(
+                homeViewModel = homeViewModel,
+                onBack = safePopBackStack,
+                onPlayStream = { uri ->
+                    playerViewModel().prepareVideo(uri, listOf(uri))
+                    navController.navigate("player") {
                         launchSingleTop = true
                     }
                 }

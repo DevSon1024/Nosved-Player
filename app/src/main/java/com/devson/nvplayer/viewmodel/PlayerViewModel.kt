@@ -108,6 +108,19 @@ class PlayerViewModel(
         _savedVolume.value = playerPrefs.getInt("volume", -1)
         _audioBoosterEnabled.value = playerPrefs.getBoolean("audio_booster_enabled", false)
         _audioBoostVolume.value = playerPrefs.getInt("audio_boost_volume", 200)
+
+        // Observe mediaTitle changes to update the network stream history title in the database
+        viewModelScope.launch {
+            mediaTitle.collectLatest { title ->
+                val uri = _currentUri.value
+                if (uri != null && !title.isNullOrBlank() && isNetworkStream.value) {
+                    withContext(Dispatchers.IO) {
+                        val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                        dao.insertOrUpdateStream(uri.toString(), title)
+                    }
+                }
+            }
+        }
         viewModelScope.launch {
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && !isPositionRestored) {
@@ -261,6 +274,17 @@ class PlayerViewModel(
                 bufferDurationSeconds.value = buffer
             }
         }
+        viewModelScope.launch {
+            mediaTitle.collect { title ->
+                val uri = _currentUri.value
+                if (uri != null && isNetworkStream.value && !title.isNullOrBlank()) {
+                    withContext(Dispatchers.IO) {
+                        val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                        dao.insertOrUpdateStream(uri.toString(), title)
+                    }
+                }
+            }
+        }
     }
 
     private fun restorePlaybackProgress() {
@@ -373,23 +397,30 @@ class PlayerViewModel(
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            val existing = dao.getHistory(uri.toString())
-            if (existing == null) {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = 0L,
-                        lastPlayedAt = System.currentTimeMillis()
-                    )
-                )
+            if (isNetworkStream.value) {
+                dao.insertOrUpdateStream(uri.toString(), null)
             } else {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = existing.lastPositionMs,
-                        lastPlayedAt = System.currentTimeMillis()
+                val existing = dao.getHistory(uri.toString())
+                if (existing == null) {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = 0L,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = false
+                        )
                     )
-                )
+                } else {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = existing.lastPositionMs,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing.isNetworkStream,
+                            videoTitle = existing.videoTitle
+                        )
+                    )
+                }
             }
         }
 
@@ -481,23 +512,30 @@ class PlayerViewModel(
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            val existing = dao.getHistory(uri.toString())
-            if (existing == null) {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = 0L,
-                        lastPlayedAt = System.currentTimeMillis()
-                    )
-                )
+            if (isNetworkStream.value) {
+                dao.insertOrUpdateStream(uri.toString(), null)
             } else {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = existing.lastPositionMs,
-                        lastPlayedAt = System.currentTimeMillis()
+                val existing = dao.getHistory(uri.toString())
+                if (existing == null) {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = 0L,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = false
+                        )
                     )
-                )
+                } else {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = existing.lastPositionMs,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing.isNetworkStream,
+                            videoTitle = existing.videoTitle
+                        )
+                    )
+                }
             }
         }
 
@@ -542,11 +580,14 @@ class PlayerViewModel(
         if (shouldSave) {
             viewModelScope.launch(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                val existing = dao.getHistory(uri.toString())
                 dao.insert(
                     WatchHistoryEntity(
                         uri = uri.toString(),
                         lastPositionMs = pos,
-                        lastPlayedAt = System.currentTimeMillis()
+                        lastPlayedAt = System.currentTimeMillis(),
+                        isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                        videoTitle = existing?.videoTitle ?: mediaTitle.value
                     )
                 )
                 Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
@@ -621,11 +662,14 @@ class PlayerViewModel(
                 // Save progress to watch history first so it is restored on reload
                 withContext(Dispatchers.IO) {
                     val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    val existing = dao.getHistory(uri.toString())
                     dao.insert(
                         WatchHistoryEntity(
                             uri = uri.toString(),
                             lastPositionMs = currentPos,
-                            lastPlayedAt = System.currentTimeMillis()
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                            videoTitle = existing?.videoTitle ?: mediaTitle.value
                         )
                     )
                 }
@@ -660,11 +704,14 @@ class PlayerViewModel(
                 // Save progress to watch history first so it is restored on reload
                 withContext(Dispatchers.IO) {
                     val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    val existing = dao.getHistory(uri.toString())
                     dao.insert(
                         WatchHistoryEntity(
                             uri = uri.toString(),
                             lastPositionMs = currentPos,
-                            lastPlayedAt = System.currentTimeMillis()
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                            videoTitle = existing?.videoTitle ?: mediaTitle.value
                         )
                     )
                 }

@@ -327,7 +327,9 @@ class MainActivity : ComponentActivity() {
         if (bgPlayEnabled && playerViewModelLazy.isInitialized() && playerViewModel.isPlaying.value) {
             val title = playerViewModel.currentUri.value?.lastPathSegment ?: "Video Playback"
             val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java).apply {
+                data = playerViewModel.currentUri.value
                 putExtra(com.devson.nvplayer.player.MediaPlaybackService.EXTRA_VIDEO_TITLE, title)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)

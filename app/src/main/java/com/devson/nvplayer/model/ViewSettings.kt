@@ -11,7 +11,7 @@ data class ViewSettings(
     val scanFoldersList: Set<String> = emptySet(),
     val showHistoryCard: Boolean = true,
     val showStorageTracker: Boolean = true,
-    val defaultScreen: DefaultScreen = DefaultScreen.HOME,
+    val defaultScreen: DefaultScreen = DefaultScreen.VIDEO_LIST,
     
     // New fields for VideoList UI
     val layoutMode: LayoutMode = LayoutMode.LIST,

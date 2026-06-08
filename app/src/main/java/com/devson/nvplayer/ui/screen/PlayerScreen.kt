@@ -494,7 +494,9 @@ fun PlayerScreen(
                 val bgPlayEnabled = playbackSettings.backgroundPlayEnabled
                 if (bgPlayEnabled) {
                     val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                        data = currentUri
                         putExtra(MediaPlaybackService.EXTRA_VIDEO_TITLE, videoTitle)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         context.startForegroundService(intent)

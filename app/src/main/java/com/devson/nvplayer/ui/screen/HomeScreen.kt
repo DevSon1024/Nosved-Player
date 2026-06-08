@@ -58,7 +58,8 @@ fun HomeScreen(
     onSearch: (String) -> Unit,
     onBrowseClick: () -> Unit,
     onFeedClick: () -> Unit,
-    onSeeMoreHistoryClick: () -> Unit
+    onSeeMoreHistoryClick: () -> Unit,
+    onNetworkHistoryClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -515,6 +516,10 @@ fun HomeScreen(
                     showNetworkDialog = false
                     onVideoClick(uri, listOf(uri))
                 }
+            },
+            onHistoryClick = {
+                showNetworkDialog = false
+                onNetworkHistoryClick()
             }
         )
     }
@@ -884,7 +889,8 @@ fun FolderCard(
 @Composable
 fun NetworkStreamDialog(
     onDismiss: () -> Unit,
-    onPlay: (Uri) -> Unit
+    onPlay: (Uri) -> Unit,
+    onHistoryClick: () -> Unit
 ) {
     val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var urlText by remember { mutableStateOf("") }
@@ -893,11 +899,24 @@ fun NetworkStreamDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Play Network Stream",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleLarge
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Play Network Stream",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(onClick = onHistoryClick) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.History,
+                        contentDescription = "Stream History",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         },
         text = {
             Column(
@@ -926,6 +945,19 @@ fun NetworkStreamDialog(
                                     contentDescription = "Clear Text"
                                 )
                             }
+                        } else {
+                            IconButton(onClick = {
+                                val clipText = clipboardManager.getText()?.text
+                                if (!clipText.isNullOrBlank()) {
+                                    urlText = clipText
+                                    errorText = null
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Paste Clipboard"
+                                )
+                            }
                         }
                     },
                     supportingText = {
@@ -939,46 +971,6 @@ fun NetworkStreamDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    TextButton(
-                        onClick = {
-                            val clipText = clipboardManager.getText()?.text
-                            if (!clipText.isNullOrBlank()) {
-                                urlText = clipText
-                                errorText = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentPaste,
-                            contentDescription = "Paste URL",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste URL")
-                    }
-
-                    TextButton(
-                        onClick = {
-                            urlText = ""
-                            errorText = null
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Clear URL",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Clear URL")
-                    }
-                }
 
                 TextButton(
                     onClick = {

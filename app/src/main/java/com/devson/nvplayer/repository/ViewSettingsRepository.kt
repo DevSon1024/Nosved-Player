@@ -45,9 +45,9 @@ class ViewSettingsRepository private constructor(context: Context) {
             showHistoryCard = prefs.getBoolean("show_history_card", true),
             showStorageTracker = prefs.getBoolean("show_storage_tracker", true),
             defaultScreen = try {
-                DefaultScreen.valueOf(prefs.getString("default_screen", DefaultScreen.HOME.name) ?: DefaultScreen.HOME.name)
+                DefaultScreen.valueOf(prefs.getString("default_screen", DefaultScreen.VIDEO_LIST.name) ?: DefaultScreen.VIDEO_LIST.name)
             } catch (e: Exception) {
-                DefaultScreen.HOME
+                DefaultScreen.VIDEO_LIST
             },
             layoutMode = try {
                 LayoutMode.valueOf(prefs.getString("layout_mode", LayoutMode.LIST.name) ?: LayoutMode.LIST.name)

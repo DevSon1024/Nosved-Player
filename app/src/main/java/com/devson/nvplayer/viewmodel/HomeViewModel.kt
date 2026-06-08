@@ -34,6 +34,9 @@ class HomeViewModel(
     private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
     private var watchHistoryJob: Job? = null
     
+    val networkHistory = dao.getNetworkStreams()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _history = MutableStateFlow<List<WatchHistory>>(emptyList())
     val history: StateFlow<List<WatchHistory>> = _history.asStateFlow()
  

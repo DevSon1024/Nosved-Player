@@ -9,7 +9,12 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import android.support.v4.media.MediaMetadataCompat
 import com.devson.nvplayer.MainActivity
+import android.graphics.Bitmap
+import com.devson.nvplayer.util.thumbnail.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +25,8 @@ class MediaPlaybackService : Service() {
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private var mediaSession: MediaSessionCompat? = null
+    private var currentThumbnail: Bitmap? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -81,6 +88,33 @@ class MediaPlaybackService : Service() {
         Log.d("MediaPlaybackService", "Service created")
         createNotificationChannel()
 
+        mediaSession = MediaSessionCompat(this, "NVPlayerMediaSession").apply {
+            isActive = true
+            setCallback(object : MediaSessionCompat.Callback() {
+                override fun onPlay() {
+                    MPVPlayerEngine.activeInstance?.play()
+                }
+                override fun onPause() {
+                    MPVPlayerEngine.activeInstance?.pause()
+                }
+                override fun onSkipToNext() {
+                    val broadcastIntent = Intent("com.devson.nvplayer.PIP_NEXT").apply {
+                        setPackage(packageName)
+                    }
+                    sendBroadcast(broadcastIntent)
+                }
+                override fun onSkipToPrevious() {
+                    val broadcastIntent = Intent("com.devson.nvplayer.PIP_PREV").apply {
+                        setPackage(packageName)
+                    }
+                    sendBroadcast(broadcastIntent)
+                }
+                override fun onSeekTo(pos: Long) {
+                    MPVPlayerEngine.activeInstance?.seekTo(pos, precise = false)
+                }
+            })
+        }
+
         val filter = IntentFilter().apply {
             addAction(ACTION_TOGGLE_PLAYBACK)
             addAction(ACTION_STOP)
@@ -112,14 +146,57 @@ class MediaPlaybackService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val title = intent?.getStringExtra(EXTRA_VIDEO_TITLE)
-        if (title != null) {
-            videoTitle = title
+        val uri = intent?.data
+
+        currentThumbnail = null
+
+        var resolvedTitle: String? = title
+        if (resolvedTitle.isNullOrBlank() || resolvedTitle.all { it.isDigit() } || resolvedTitle.startsWith("content://")) {
+            resolvedTitle = uri?.let { getDisplayNameFromUri(this, it) }
         }
+
+        if (resolvedTitle.isNullOrBlank() || resolvedTitle.startsWith("content://")) {
+            resolvedTitle = "Video Playback"
+        }
+
+        // Strip extension if present
+        val dot = resolvedTitle.lastIndexOf('.')
+        if (dot > 0 && dot < resolvedTitle.length - 1) {
+            resolvedTitle = resolvedTitle.substring(0, dot)
+        }
+
+        videoTitle = resolvedTitle
 
         // Disable video track in MPV to avoid hardware decoder crashes in background
         MPVPlayerEngine.activeInstance?.setVideoTrackEnabled(false)
 
         updateNotification()
+
+        if (uri != null) {
+            serviceScope.launch {
+                try {
+                    val metadata = withContext(Dispatchers.IO) {
+                        getVideoMetadata(this@MediaPlaybackService, uri)
+                    }
+                    val key = ThumbnailKey(
+                        uriString = uri.toString(),
+                        lastModified = metadata.lastModified,
+                        fileSize = metadata.fileSize,
+                        width = 512,
+                        height = 512
+                    )
+                    val bitmap = withContext(Dispatchers.IO) {
+                        ThumbnailLoader.getRepository(this@MediaPlaybackService).getThumbnail(key, uri)
+                    }
+                    if (bitmap != null) {
+                        currentThumbnail = bitmap
+                        updateNotification()
+                    }
+                } catch (e: Exception) {
+                    Log.e("MediaPlaybackService", "Error loading thumbnail for notification", e)
+                }
+            }
+        }
 
         return START_NOT_STICKY
     }
@@ -130,7 +207,7 @@ class MediaPlaybackService : Service() {
 
         // Dynamically get the currently playing file title from MPVLib
         var dynamicTitle = `is`.xyz.mpv.MPVLib.getPropertyString("media-title")
-        if (dynamicTitle.isNullOrEmpty()) {
+        if (dynamicTitle.isNullOrEmpty() || dynamicTitle.all { it.isDigit() } || dynamicTitle.startsWith("content://")) {
             dynamicTitle = videoTitle
         } else {
             // Strip extension
@@ -139,6 +216,33 @@ class MediaPlaybackService : Service() {
                 dynamicTitle = dynamicTitle.substring(0, dot)
             }
         }
+
+        // Update MediaSessionCompat metadata
+        val metadataBuilder = MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, dynamicTitle)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "NVPlayer")
+        currentThumbnail?.let {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, it)
+        }
+        mediaSession?.setMetadata(metadataBuilder.build())
+
+        // Update PlaybackStateCompat
+        val stateBuilder = PlaybackStateCompat.Builder()
+            .setActions(
+                PlaybackStateCompat.ACTION_PLAY or
+                PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_STOP or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackStateCompat.ACTION_SEEK_TO
+            )
+            .setState(
+                if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                activeEngine?.currentPosition?.value ?: 0L,
+                1.0f
+            )
+        mediaSession?.setPlaybackState(stateBuilder.build())
 
         val playPauseIcon = if (isPlaying) {
             android.R.drawable.ic_media_pause
@@ -170,6 +274,7 @@ class MediaPlaybackService : Service() {
             .setContentTitle(dynamicTitle)
             .setContentText(if (isPlaying) "Playing in background" else "Paused")
             .setSmallIcon(android.R.drawable.ic_media_play)
+            .setLargeIcon(currentThumbnail)
             .setContentIntent(contentPendingIntent)
             .setDeleteIntent(stopPendingIntent) // Stop service when swiped away
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -180,6 +285,7 @@ class MediaPlaybackService : Service() {
             .addAction(android.R.drawable.ic_media_next, "Next", nextPendingIntent)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
                     .setShowActionsInCompactView(0, 2, 4) // Show Prev, Play/Pause, Next
             )
             .setOngoing(isPlaying)
@@ -196,6 +302,13 @@ class MediaPlaybackService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d("MediaPlaybackService", "Service destroyed")
+
+        mediaSession?.apply {
+            isActive = false
+            release()
+        }
+        mediaSession = null
+
         // Re-enable video track in MPV for when we return to foreground
         MPVPlayerEngine.activeInstance?.setVideoTrackEnabled(true)
         try {
@@ -220,5 +333,34 @@ class MediaPlaybackService : Service() {
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(serviceChannel)
         }
+    }
+
+    private fun getDisplayNameFromUri(context: Context, uri: android.net.Uri): String? {
+        if (uri.scheme == "content") {
+            try {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.MediaStore.MediaColumns.DISPLAY_NAME),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val colIdx = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)
+                        if (colIdx >= 0) {
+                            val displayName = cursor.getString(colIdx)
+                            if (!displayName.isNullOrBlank()) {
+                                return displayName
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MediaPlaybackService", "Error querying display name from ContentResolver", e)
+            }
+        }
+        val lastSegment = uri.lastPathSegment
+        if (lastSegment != null && !lastSegment.all { it.isDigit() }) {
+            return lastSegment
+        }
+        return null
     }
 }
