@@ -131,6 +131,26 @@ fun PlayerInterfaceSettingsScreen(
                     },
                     onClick = { showSoftButtonDialog = true }
                 )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
+                    icon = Icons.Default.PlayCircle,
+                    title = "Bottom Play Button Layout",
+                    subtitle = "Move play/pause button to the bottom control bar",
+                    checked = playbackSettings.isBottomLayoutEnabled,
+                    onCheckedChange = { settingsViewModel.updateIsBottomLayoutEnabled(it) }
+                )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
+                    icon = Icons.Default.Gradient,
+                    title = "Show Control Gradients",
+                    subtitle = "Show top and bottom black fade behind player controls",
+                    checked = playbackSettings.showControlGradients,
+                    onCheckedChange = { settingsViewModel.updateShowControlGradients(it) }
+                )
             }
 
             Spacer(Modifier.height(20.dp))

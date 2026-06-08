@@ -801,6 +801,18 @@ class PlayerViewModel(
         }
     }
 
+    fun updateIsBottomLayoutEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateIsBottomLayoutEnabled(enabled)
+        }
+    }
+
+    fun updateShowControlGradients(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateShowControlGradients(show)
+        }
+    }
+
     fun updateTapAndHoldSpeed(speed: Float) {
         viewModelScope.launch {
             settingsRepo.updateTapAndHoldSpeed(speed)

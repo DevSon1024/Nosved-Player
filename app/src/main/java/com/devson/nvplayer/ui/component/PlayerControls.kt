@@ -16,6 +16,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -102,12 +107,17 @@ fun PlayerControls(
     onBackgroundPlayClick: () -> Unit = {},
     ytdlQuality: Int = -1,
     onShowQuality: () -> Unit = {},
+    isBottomLayoutEnabled: Boolean = false,
+    showControlGradients: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+    var isLeftExpanded by remember { mutableStateOf(false) }
+    var isRightExpanded by remember { mutableStateOf(false) }
 
     val phaseShiftState = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(isPlaying) {
@@ -168,18 +178,298 @@ fun PlayerControls(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black.copy(alpha = 0.65f),
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.8f)
+            .then(
+                if (showControlGradients) {
+                    Modifier.background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.65f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.8f)
+                            )
+                        )
                     )
-                )
+                } else {
+                    Modifier
+                }
             )
     ) {
         val filterChapters = { list: List<PlayerButton> ->
             if (hasChapters) list else list.filter { it != PlayerButton.CHAPTERS }
+        }
+
+        val sizeKey = controlIconSize.lowercase()
+        val playCircleSize = when (sizeKey) {
+            "small" -> if (isPortrait) 46.dp else 52.dp
+            "large" -> if (isPortrait) 64.dp else 72.dp
+            else    -> if (isPortrait) 54.dp else 60.dp  // "medium" default
+        }
+        val playIconSize = when (sizeKey) {
+            "small" -> if (isPortrait) 22.dp else 26.dp
+            "large" -> if (isPortrait) 36.dp else 42.dp
+            else    -> if (isPortrait) 28.dp else 32.dp
+        }
+        val actionCircleSize = when (sizeKey) {
+            "small" -> if (isPortrait) 40.dp else 46.dp
+            "large" -> if (isPortrait) 54.dp else 60.dp
+            else    -> if (isPortrait) 46.dp else 52.dp
+        }
+        val actionIconSize = when (sizeKey) {
+            "small" -> if (isPortrait) 18.dp else 22.dp
+            "large" -> if (isPortrait) 26.dp else 30.dp
+            else    -> if (isPortrait) 22.dp else 26.dp
+        }
+        val centerSpacing = if (isPortrait) 14.dp else 24.dp
+
+        val controlButton = @Composable { button: com.devson.nvplayer.model.PlayerButton ->
+            RenderPlayerButton(
+                button = button,
+                modifier = Modifier,
+                isPortrait = false,
+                title = title,
+                showElapsedTimeOverlay = showElapsedTimeOverlay,
+                currentPosition = currentPosition,
+                currentDecoder = currentDecoder,
+                hasChapters = hasChapters,
+                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                glowBrush = glowBrush,
+                glowAlpha = glowAlpha,
+                themePrimary = themePrimary,
+                onBackClick = onBackClick,
+                onShowDecoder = onShowDecoder,
+                onShowChapters = onShowChapters,
+                onCycleSubtitle = onCycleSubtitle,
+                onCycleAudio = onCycleAudio,
+                onEnhanceClick = onEnhanceClick,
+                onSpeedClick = onSpeedClick,
+                onLockClick = onLockClick,
+                onAspectClick = onAspectClick,
+                onPipClick = onPipClick,
+                activity = activity,
+                currentAspectMode = currentAspectMode,
+                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                onBackgroundPlayClick = onBackgroundPlayClick,
+                ytdlQuality = ytdlQuality,
+                onShowQuality = onShowQuality
+            )
+        }
+
+        val chevronButton = @Composable { icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit ->
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .clickable { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = "Toggle Expand",
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        val leftRegion = @Composable { buttons: List<com.devson.nvplayer.model.PlayerButton>, isExpanded: Boolean, onExpandedChange: (Boolean) -> Unit ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (buttons.size <= 2) {
+                    buttons.forEach { button ->
+                        controlButton(button)
+                    }
+                } else {
+                    if (!isExpanded) {
+                        buttons.take(2).forEach { button ->
+                            controlButton(button)
+                        }
+                        chevronButton(Icons.Rounded.ChevronRight) { onExpandedChange(true) }
+                    } else {
+                        buttons.take(2).forEach { button ->
+                            controlButton(button)
+                        }
+                        AnimatedVisibility(
+                            visible = isExpanded,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                buttons.drop(2).forEach { button ->
+                                    controlButton(button)
+                                }
+                            }
+                        }
+                        chevronButton(Icons.Rounded.ChevronLeft) { onExpandedChange(false) }
+                    }
+                }
+            }
+        }
+
+        val rightRegion = @Composable { buttons: List<com.devson.nvplayer.model.PlayerButton>, isExpanded: Boolean, onExpandedChange: (Boolean) -> Unit ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (buttons.size <= 2) {
+                    buttons.forEach { button ->
+                        controlButton(button)
+                    }
+                } else {
+                    if (!isExpanded) {
+                        chevronButton(Icons.Rounded.ChevronLeft) { onExpandedChange(true) }
+                        buttons.take(2).forEach { button ->
+                            controlButton(button)
+                        }
+                    } else {
+                        chevronButton(Icons.Rounded.ChevronRight) { onExpandedChange(false) }
+                        AnimatedVisibility(
+                            visible = isExpanded,
+                            enter = fadeIn() + expandHorizontally(),
+                            exit = fadeOut() + shrinkHorizontally()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                buttons.drop(2).forEach { button ->
+                                    controlButton(button)
+                                }
+                            }
+                        }
+                        buttons.take(2).forEach { button ->
+                            controlButton(button)
+                        }
+                    }
+                }
+            }
+        }
+
+        val bottomPlaybackControls = @Composable {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Skip Previous
+                if (showNextPrevButtons) {
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
+                            .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
+                            .clickable(enabled = hasPrevious) { onPrevClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous Video",
+                            tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+
+                // Rewind Button
+                if (showSeekButtons) {
+                    val rewindIcon = when (seekDurationSeconds) {
+                        5 -> Icons.Rounded.Replay5
+                        30 -> Icons.Rounded.Replay30
+                        else -> Icons.Rounded.Replay10
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                            .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = rewindIcon,
+                            contentDescription = "Rewind ${seekDurationSeconds}s",
+                            tint = Color.White,
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+
+                // Play/Pause Button
+                val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.05f, label = "PlayScale")
+                Box(
+                    modifier = Modifier
+                        .size(playCircleSize)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
+                            )
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .scale(playScale)
+                        .clickable { onPlayPauseToggle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(playIconSize)
+                    )
+                }
+
+                // Forward Button
+                if (showSeekButtons) {
+                    val forwardIcon = when (seekDurationSeconds) {
+                        5 -> Icons.Rounded.Forward5
+                        30 -> Icons.Rounded.Forward30
+                        else -> Icons.Rounded.Forward10
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                            .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = forwardIcon,
+                            contentDescription = "Forward ${seekDurationSeconds}s",
+                            tint = Color.White,
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+
+                // Skip Next
+                if (showNextPrevButtons) {
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
+                            .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
+                            .clickable(enabled = hasNext) { onNextClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next Video",
+                            tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+            }
         }
 
         // 1. TOP PANEL - separate lists for landscape vs portrait orientations
@@ -278,146 +568,123 @@ fun PlayerControls(
         }
 
         // 2. CENTER PANEL (Playback Actions)
-        // Icon sizes derived from the controlIconSize setting
-        val sizeKey = controlIconSize.lowercase()
-        val playCircleSize = when (sizeKey) {
-            "small" -> if (isPortrait) 60.dp else 68.dp
-            "large" -> if (isPortrait) 76.dp else 84.dp
-            else    -> if (isPortrait) 68.dp else 76.dp  // "medium" default
-        }
-        val playIconSize = when (sizeKey) {
-            "small" -> if (isPortrait) 32.dp else 36.dp
-            "large" -> if (isPortrait) 44.dp else 50.dp
-            else    -> if (isPortrait) 38.dp else 44.dp
-        }
-        val actionCircleSize = when (sizeKey) {
-            "small" -> if (isPortrait) 40.dp else 46.dp
-            "large" -> if (isPortrait) 54.dp else 60.dp
-            else    -> if (isPortrait) 46.dp else 52.dp
-        }
-        val actionIconSize = when (sizeKey) {
-            "small" -> if (isPortrait) 18.dp else 22.dp
-            "large" -> if (isPortrait) 26.dp else 30.dp
-            else    -> if (isPortrait) 22.dp else 26.dp
-        }
-
-        val centerSpacing = if (isPortrait) 14.dp else 24.dp
-
-        Row(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(centerSpacing),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Skip Previous
-            if (showNextPrevButtons) {
-                Box(
-                    modifier = Modifier
-                        .size(actionCircleSize)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
-                        .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
-                        .clickable(enabled = hasPrevious) { onPrevClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous Video",
-                        tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
-                        modifier = Modifier.size(actionIconSize)
-                    )
-                }
-            }
-
-            // Rewind Button
-            if (showSeekButtons) {
-                val rewindIcon = when (seekDurationSeconds) {
-                    5 -> Icons.Rounded.Replay5
-                    30 -> Icons.Rounded.Replay30
-                    else -> Icons.Rounded.Replay10
-                }
-                Box(
-                    modifier = Modifier
-                        .size(actionCircleSize)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.06f))
-                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                        .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = rewindIcon,
-                        contentDescription = "Rewind ${seekDurationSeconds}s",
-                        tint = Color.White,
-                        modifier = Modifier.size(actionIconSize)
-                    )
-                }
-            }
-
-            // Modern Play/Pause Circle Button
-            Box(
-                modifier = Modifier
-                    .size(playCircleSize)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
-                        )
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                    .scale(playScale)
-                    .clickable { onPlayPauseToggle() },
-                contentAlignment = Alignment.Center
+        if (!isBottomLayoutEnabled) {
+            Row(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalArrangement = Arrangement.spacedBy(centerSpacing),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(playIconSize)
-                )
-            }
-
-            // Forward Button
-            if (showSeekButtons) {
-                val forwardIcon = when (seekDurationSeconds) {
-                    5 -> Icons.Rounded.Forward5
-                    30 -> Icons.Rounded.Forward30
-                    else -> Icons.Rounded.Forward10
+                // Skip Previous
+                if (showNextPrevButtons) {
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
+                            .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
+                            .clickable(enabled = hasPrevious) { onPrevClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous Video",
+                            tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
                 }
+
+                // Rewind Button
+                if (showSeekButtons) {
+                    val rewindIcon = when (seekDurationSeconds) {
+                        5 -> Icons.Rounded.Replay5
+                        30 -> Icons.Rounded.Replay30
+                        else -> Icons.Rounded.Replay10
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                            .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = rewindIcon,
+                            contentDescription = "Rewind ${seekDurationSeconds}s",
+                            tint = Color.White,
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+
+                // Modern Play/Pause Circle Button
                 Box(
                     modifier = Modifier
-                        .size(actionCircleSize)
+                        .size(playCircleSize)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.06f))
-                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                        .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
+                            )
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .scale(playScale)
+                        .clickable { onPlayPauseToggle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = forwardIcon,
-                        contentDescription = "Forward ${seekDurationSeconds}s",
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = Color.White,
-                        modifier = Modifier.size(actionIconSize)
+                        modifier = Modifier.size(playIconSize)
                     )
                 }
-            }
 
-            // Skip Next
-            if (showNextPrevButtons) {
-                Box(
-                    modifier = Modifier
-                        .size(actionCircleSize)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
-                        .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
-                        .clickable(enabled = hasNext) { onNextClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next Video",
-                        tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
-                        modifier = Modifier.size(actionIconSize)
-                    )
+                // Forward Button
+                if (showSeekButtons) {
+                    val forwardIcon = when (seekDurationSeconds) {
+                        5 -> Icons.Rounded.Forward5
+                        30 -> Icons.Rounded.Forward30
+                        else -> Icons.Rounded.Forward10
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                            .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = forwardIcon,
+                            contentDescription = "Forward ${seekDurationSeconds}s",
+                            tint = Color.White,
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
+                }
+
+                // Skip Next
+                if (showNextPrevButtons) {
+                    Box(
+                        modifier = Modifier
+                            .size(actionCircleSize)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
+                            .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
+                            .clickable(enabled = hasNext) { onNextClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next Video",
+                            tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
+                            modifier = Modifier.size(actionIconSize)
+                        )
+                    }
                 }
             }
         }
@@ -430,126 +697,6 @@ fun PlayerControls(
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
         ) {
-            if (isPortrait) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    filterChapters(portraitBottomButtons).forEach { button ->
-                        RenderPlayerButton(
-                            button = button,
-                            modifier = Modifier,
-                            isPortrait = true,
-                            title = title,
-                            showElapsedTimeOverlay = showElapsedTimeOverlay,
-                            currentPosition = currentPosition,
-                            currentDecoder = currentDecoder,
-                            hasChapters = hasChapters,
-                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                            glowBrush = glowBrush,
-                            glowAlpha = glowAlpha,
-                            themePrimary = themePrimary,
-                            onBackClick = onBackClick,
-                            onShowDecoder = onShowDecoder,
-                            onShowChapters = onShowChapters,
-                            onCycleSubtitle = onCycleSubtitle,
-                            onCycleAudio = onCycleAudio,
-                            onEnhanceClick = onEnhanceClick,
-                            onSpeedClick = onSpeedClick,
-                            onLockClick = onLockClick,
-                            onAspectClick = onAspectClick,
-                            onPipClick = onPipClick,
-                            activity = activity,
-                            currentAspectMode = currentAspectMode,
-                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                            onBackgroundPlayClick = onBackgroundPlayClick
-                        )
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        filterChapters(bottomLeftButtons).forEach { button ->
-                            RenderPlayerButton(
-                                button = button,
-                                modifier = Modifier,
-                                isPortrait = false,
-                                title = title,
-                                showElapsedTimeOverlay = showElapsedTimeOverlay,
-                                currentPosition = currentPosition,
-                                currentDecoder = currentDecoder,
-                                hasChapters = hasChapters,
-                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                                glowBrush = glowBrush,
-                                glowAlpha = glowAlpha,
-                                themePrimary = themePrimary,
-                                onBackClick = onBackClick,
-                                onShowDecoder = onShowDecoder,
-                                onShowChapters = onShowChapters,
-                                onCycleSubtitle = onCycleSubtitle,
-                                onCycleAudio = onCycleAudio,
-                                onEnhanceClick = onEnhanceClick,
-                                onSpeedClick = onSpeedClick,
-                                onLockClick = onLockClick,
-                                onAspectClick = onAspectClick,
-                                onPipClick = onPipClick,
-                                activity = activity,
-                                currentAspectMode = currentAspectMode,
-                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                onBackgroundPlayClick = onBackgroundPlayClick
-                            )
-                        }
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        filterChapters(bottomRightButtons).forEach { button ->
-                            RenderPlayerButton(
-                                button = button,
-                                modifier = Modifier,
-                                isPortrait = false,
-                                title = title,
-                                showElapsedTimeOverlay = showElapsedTimeOverlay,
-                                currentPosition = currentPosition,
-                                currentDecoder = currentDecoder,
-                                hasChapters = hasChapters,
-                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                                glowBrush = glowBrush,
-                                glowAlpha = glowAlpha,
-                                themePrimary = themePrimary,
-                                onBackClick = onBackClick,
-                                onShowDecoder = onShowDecoder,
-                                onShowChapters = onShowChapters,
-                                onCycleSubtitle = onCycleSubtitle,
-                                onCycleAudio = onCycleAudio,
-                                onEnhanceClick = onEnhanceClick,
-                                onSpeedClick = onSpeedClick,
-                                onLockClick = onLockClick,
-                                onAspectClick = onAspectClick,
-                                onPipClick = onPipClick,
-                                activity = activity,
-                                currentAspectMode = currentAspectMode,
-                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                onBackgroundPlayClick = onBackgroundPlayClick
-                            )
-                        }
-                    }
-                }
-            }
-
             // Timers Row
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
@@ -714,6 +861,141 @@ fun PlayerControls(
                     }
                 }
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (isPortrait) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val filteredButtons = filterChapters(portraitBottomButtons)
+                    if (isBottomLayoutEnabled) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                filteredButtons.forEach { button ->
+                                    RenderPlayerButton(
+                                        button = button,
+                                        modifier = Modifier,
+                                        isPortrait = true,
+                                        title = title,
+                                        showElapsedTimeOverlay = showElapsedTimeOverlay,
+                                        currentPosition = currentPosition,
+                                        currentDecoder = currentDecoder,
+                                        hasChapters = hasChapters,
+                                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                        glowBrush = glowBrush,
+                                        glowAlpha = glowAlpha,
+                                        themePrimary = themePrimary,
+                                        onBackClick = onBackClick,
+                                        onShowDecoder = onShowDecoder,
+                                        onShowChapters = onShowChapters,
+                                        onCycleSubtitle = onCycleSubtitle,
+                                        onCycleAudio = onCycleAudio,
+                                        onEnhanceClick = onEnhanceClick,
+                                        onSpeedClick = onSpeedClick,
+                                        onLockClick = onLockClick,
+                                        onAspectClick = onAspectClick,
+                                        onPipClick = onPipClick,
+                                        activity = activity,
+                                        currentAspectMode = currentAspectMode,
+                                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                        onBackgroundPlayClick = onBackgroundPlayClick
+                                    )
+                                }
+                            }
+                            bottomPlaybackControls()
+                        }
+                    } else {
+                        filteredButtons.forEach { button ->
+                            RenderPlayerButton(
+                                button = button,
+                                modifier = Modifier,
+                                isPortrait = true,
+                                title = title,
+                                showElapsedTimeOverlay = showElapsedTimeOverlay,
+                                currentPosition = currentPosition,
+                                currentDecoder = currentDecoder,
+                                hasChapters = hasChapters,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                glowBrush = glowBrush,
+                                glowAlpha = glowAlpha,
+                                themePrimary = themePrimary,
+                                onBackClick = onBackClick,
+                                onShowDecoder = onShowDecoder,
+                                onShowChapters = onShowChapters,
+                                onCycleSubtitle = onCycleSubtitle,
+                                onCycleAudio = onCycleAudio,
+                                onEnhanceClick = onEnhanceClick,
+                                onSpeedClick = onSpeedClick,
+                                onLockClick = onLockClick,
+                                onAspectClick = onAspectClick,
+                                onPipClick = onPipClick,
+                                activity = activity,
+                                currentAspectMode = currentAspectMode,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                onBackgroundPlayClick = onBackgroundPlayClick
+                            )
+                        }
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isBottomLayoutEnabled) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            leftRegion(filterChapters(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
+                        }
+
+                        Box(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            bottomPlaybackControls()
+                        }
+
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            rightRegion(filterChapters(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
+                        }
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            leftRegion(filterChapters(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            rightRegion(filterChapters(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
+                        }
+                    }
+                }
+            }
         }
     }
 }

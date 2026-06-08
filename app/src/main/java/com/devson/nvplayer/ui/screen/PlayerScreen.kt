@@ -686,6 +686,8 @@ fun PlayerScreen(
                         PlayerControls(
                             title = videoTitle,
                             isPlaying = isPlaying,
+                            isBottomLayoutEnabled = playbackSettings.isBottomLayoutEnabled,
+                            showControlGradients = playbackSettings.showControlGradients,
                             isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
                             currentPosition = currentPosition,
                             bufferedPosition = bufferedPosition,

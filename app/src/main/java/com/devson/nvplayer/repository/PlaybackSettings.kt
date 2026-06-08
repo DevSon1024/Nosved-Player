@@ -115,7 +115,9 @@ data class PlaybackSettings(
     val sponsorBlockMark: String = "",
     val sponsorBlockRemove: String = "",
     val customRawOptions: String = "",
-    val isDataSaverEnabled: Boolean = false
+    val isDataSaverEnabled: Boolean = false,
+    val isBottomLayoutEnabled: Boolean = false,
+    val showControlGradients: Boolean = true
 )
 
 

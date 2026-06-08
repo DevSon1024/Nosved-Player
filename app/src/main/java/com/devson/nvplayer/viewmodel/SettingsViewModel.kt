@@ -176,7 +176,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 tapAndHoldSpeed = 2.0f,
                 doubleTapSeekDuration = 10000L,
                 screenshotLocation = "Pictures/NVPlayer/Screenshot",
-                keepAwakeAlways = false
+                keepAwakeAlways = false,
+                isBottomLayoutEnabled = false,
+                showControlGradients = true
             )
         )
 
@@ -512,6 +514,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
     fun updateYtdlCustomRawOptions(value: String) {
         viewModelScope.launch { settingsRepo.updateYtdlCustomRawOptions(value) }
+    }
+
+    fun updateIsBottomLayoutEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateIsBottomLayoutEnabled(enabled) }
+    }
+
+    fun updateShowControlGradients(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowControlGradients(show) }
     }
 
     override fun onCleared() {
