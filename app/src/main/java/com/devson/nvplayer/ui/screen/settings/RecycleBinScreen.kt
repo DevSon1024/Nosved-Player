@@ -207,19 +207,23 @@ fun RecycleBinScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(trashedVideos, key = { it.uri }) { video ->
+                    items(
+                        items = trashedVideos,
+                        key = { it.uri },
+                        contentType = { "trashed_video" }
+                    ) { video ->
                         val isSelected = selectedVideos.contains(video)
-                        TrashedVideoItem(
-                            video = video,
-                            isSelected = isSelected,
-                            onLongClick = {
+                        val onLongClick = remember(video, isSelected) {
+                            {
                                 selectedVideos = if (isSelected) {
                                     selectedVideos - video
                                 } else {
                                     selectedVideos + video
                                 }
-                            },
-                            onClick = {
+                            }
+                        }
+                        val onClick = remember(video, isSelected, isSelectionActive) {
+                            {
                                 if (isSelectionActive) {
                                     selectedVideos = if (isSelected) {
                                         selectedVideos - video
@@ -230,6 +234,12 @@ fun RecycleBinScreen(
                                     Toast.makeText(context, context.getString(R.string.recycle_bin_select_prompt), Toast.LENGTH_SHORT).show()
                                 }
                             }
+                        }
+                        TrashedVideoItem(
+                            video = video,
+                            isSelected = isSelected,
+                            onLongClick = onLongClick,
+                            onClick = onClick
                         )
                     }
                 }
@@ -281,6 +291,14 @@ private fun TrashedVideoItem(
     onClick: () -> Unit
 ) {
     val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    val formattedSize = remember(video.size) { formatSize(video.size) }
+    val formattedDate = remember(video.dateAdded) { formatDate(video.dateAdded) }
+    val daysLeft = remember(video.dateExpires) {
+        val expiresMs = video.dateExpires ?: 0L
+        val diffMs = expiresMs - System.currentTimeMillis()
+        if (diffMs > 0) (diffMs / (1000 * 60 * 60 * 24)).toInt() else 0
+    }
+
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -310,10 +328,6 @@ private fun TrashedVideoItem(
                     modifier = Modifier.fillMaxSize()
                 )
                 if (video.dateExpires != null && video.dateExpires > 0L) {
-                    val expiresMs = video.dateExpires
-                    val diffMs = expiresMs - System.currentTimeMillis()
-                    val daysLeft = if (diffMs > 0) (diffMs / (1000 * 60 * 60 * 24)).toInt() else 0
-                    
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -350,12 +364,12 @@ private fun TrashedVideoItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = formatSize(video.size),
+                        text = formattedSize,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = formatDate(video.dateAdded),
+                        text = formattedDate,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

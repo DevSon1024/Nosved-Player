@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,10 @@ fun VideoListContent(
     gridState: LazyGridState = rememberLazyGridState(),
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
+    val currentOnVideoClick by rememberUpdatedState(onVideoClick)
+    val currentOnVideoLongClick by rememberUpdatedState(onVideoLongClick)
+    val currentOnInfoClick by rememberUpdatedState(onInfoClick)
+
     if (videos.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CustomEmptyStateView(
@@ -65,13 +72,15 @@ fun VideoListContent(
                 key = { video -> video.uri },
                 contentType = { "video_item" }
             ) { video ->
+                val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
+                val onLongClick = remember(video) { { _: Video -> currentOnVideoLongClick(video) } }
                 VideoGridItem(
                     video = video,
                     settings = settings,
                     isSelected = video in selectedVideos,
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(video) },
-                    onLongClick = { onVideoLongClick(video) }
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
             }
         }
@@ -89,14 +98,26 @@ fun VideoListContent(
                 key = { video -> video.uri },
                 contentType = { "video_item" }
             ) { video ->
+                val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
+                val onLongClick = remember(video) { { _: Video -> currentOnVideoLongClick(video) } }
+                val onInfo = remember(video) {
+                    if (onInfoClick != null) {
+                        {
+                            currentOnInfoClick?.invoke(video)
+                            Unit
+                        }
+                    } else {
+                        null
+                    }
+                }
                 VideoListItem(
                     video = video,
                     settings = settings,
                     isSelected = video in selectedVideos,
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(video) },
-                    onLongClick = { onVideoLongClick(video) },
-                    onInfoClick = if (onInfoClick != null) { { onInfoClick(video) } } else null
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    onInfoClick = onInfo
                 )
             }
         }

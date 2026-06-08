@@ -45,6 +45,7 @@ fun ControlLayoutEditorScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+    val allButtons = remember { PlayerButton.entries.filter { it != PlayerButton.NONE } }
 
     // 1. Helper to parse regions safely
     fun parseRegion(value: String, region: ControlRegion): List<PlayerButton> {
@@ -305,9 +306,16 @@ fun ControlLayoutEditorScreen(
                             .padding(8.dp),
                         contentPadding = PaddingValues(4.dp)
                     ) {
-                        items(activeList, key = { it.name }) { button ->
+                        items(
+                            items = activeList,
+                            key = { it.name },
+                            contentType = { "active_control_button" }
+                        ) { button ->
                             ReorderableItem(reorderableLazyGridState, key = button.name) { isDragging ->
                                 val isMovable = button != PlayerButton.BACK_ARROW && button != PlayerButton.VIDEO_TITLE
+                                val onRemoveClick = remember(button, activeList) {
+                                    { onActiveListChange(activeList.filter { it != button }) }
+                                }
                                 Box(
                                     modifier = Modifier
                                         .padding(6.dp)
@@ -355,9 +363,7 @@ fun ControlLayoutEditorScreen(
                                                 .offset(x = 4.dp, y = (-4).dp)
                                                 .clip(CircleShape)
                                                 .background(MaterialTheme.colorScheme.error)
-                                                .clickable {
-                                                    onActiveListChange(activeList.filter { it != button })
-                                                },
+                                                .clickable(onClick = onRemoveClick),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -419,6 +425,9 @@ fun ControlLayoutEditorScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             paletteButtons.forEach { button ->
+                                val onPaletteClick = remember(button, activeList) {
+                                    { onActiveListChange(activeList + button) }
+                                }
                                 Box(
                                     modifier = Modifier
                                         .size(52.dp)
@@ -429,9 +438,7 @@ fun ControlLayoutEditorScreen(
                                             color = MaterialTheme.colorScheme.outlineVariant,
                                             shape = RoundedCornerShape(12.dp)
                                         )
-                                        .clickable {
-                                            onActiveListChange(activeList + button)
-                                        },
+                                        .clickable(onClick = onPaletteClick),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     PlayerButtonIcon(
@@ -492,7 +499,7 @@ fun ControlLayoutEditorScreen(
                         .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    PlayerButton.entries.filter { it != PlayerButton.NONE }.forEach { button ->
+                    allButtons.forEach { button ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier

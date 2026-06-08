@@ -210,6 +210,8 @@ fun MpvHelpScreen(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
             )
 
+            val currentCopyToClipboard by rememberUpdatedState<(HelpEntry) -> Unit>({ entry -> copyToClipboard(entry) })
+
             if (searchQuery.isNotBlank() && filteredEntries.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -240,17 +242,22 @@ fun MpvHelpScreen(
                         val category = pair.first
                         val entries = pair.second
                         if (category != null) {
-                            item(key = "header:${category.name}") {
+                            item(
+                                key = "header:${category.name}",
+                                contentType = { "category_header" }
+                            ) {
                                 CategoryHeader(category.name)
                             }
                         }
                         items(
                             items = entries,
                             key = { "${it.kind}:${it.name}" },
+                            contentType = { "help_entry" }
                         ) { entry ->
+                            val onClick = remember(entry) { { currentCopyToClipboard(entry) } }
                             HelpEntryCard(
                                 entry = entry,
-                                onClick = { copyToClipboard(entry) },
+                                onClick = onClick,
                             )
                         }
                     }

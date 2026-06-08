@@ -342,9 +342,14 @@ fun StorageExplorerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(breadcrumbs) { crumb ->
+                    items(
+                        items = breadcrumbs,
+                        key = { it.absolutePath },
+                        contentType = { "breadcrumb_item" }
+                    ) { crumb ->
                         val isLast = crumb == breadcrumbs.last()
                         val label = if (crumb.absolutePath == root.absolutePath) "Internal Storage" else crumb.name
+                        val onClick = remember(crumb) { { currentDir = crumb } }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = label,
@@ -357,7 +362,7 @@ fun StorageExplorerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .then(
-                                        if (!isLast) Modifier.clickable { currentDir = crumb }
+                                        if (!isLast) Modifier.clickable(onClick = onClick)
                                         else Modifier
                                     )
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
@@ -444,19 +449,28 @@ fun StorageExplorerScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            items(entries, key = { it.file.absolutePath }) { node ->
-                                ExplorerFolderRow(
-                                    node = node,
-                                    isBlacklistMode = isBlacklistMode,
-                                    isSelected = selectedFolders.contains(node.file.absolutePath),
-                                    onSelectedChange = { selected ->
+                            items(
+                                items = entries,
+                                key = { it.file.absolutePath },
+                                contentType = { "folder_node" }
+                            ) { node ->
+                                val onClick = remember(node) { { currentDir = node.file } }
+                                val onSelectedChange = remember(node) {
+                                    { selected: Boolean ->
                                         if (selected) {
                                             selectedFolders.add(node.file.absolutePath)
                                         } else {
                                             selectedFolders.remove(node.file.absolutePath)
                                         }
-                                    },
-                                    onClick = { currentDir = node.file }
+                                        Unit
+                                    }
+                                }
+                                ExplorerFolderRow(
+                                    node = node,
+                                    isBlacklistMode = isBlacklistMode,
+                                    isSelected = selectedFolders.contains(node.file.absolutePath),
+                                    onSelectedChange = onSelectedChange,
+                                    onClick = onClick
                                 )
                             }
                         }

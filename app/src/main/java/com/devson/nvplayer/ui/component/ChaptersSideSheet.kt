@@ -147,15 +147,23 @@ fun ChaptersSideSheet(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(bottom = 24.dp)
                         ) {
-                            items(chapters) { chapter ->
+                            items(
+                                items = chapters,
+                                key = { it.index },
+                                contentType = { "chapter_item" }
+                            ) { chapter ->
+                                val formattedTime = remember(chapter.timeMs) { formatTime(chapter.timeMs) }
+                                val onClick = remember(chapter) {
+                                    {
+                                        onSelectChapter(chapter.index)
+                                        onDismiss()
+                                    }
+                                }
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            onSelectChapter(chapter.index)
-                                            onDismiss()
-                                        },
+                                        .clickable(onClick = onClick),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                                     )
@@ -186,7 +194,7 @@ fun ChaptersSideSheet(
                                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                                         ) {
                                             Text(
-                                                text = formatTime(chapter.timeMs),
+                                                text = formattedTime,
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer

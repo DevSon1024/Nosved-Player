@@ -85,6 +85,9 @@ fun PlayerSettingsSideSheet(
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
+    val currentOnUpdateDoubleTapAction by rememberUpdatedState(onUpdateDoubleTapAction)
+    val currentOnUpdateDoubleTapSeekDuration by rememberUpdatedState(onUpdateDoubleTapSeekDuration)
+    val currentOnSpeedSelected by rememberUpdatedState(onSpeedSelected)
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val sheetWidthPercent = if (isLandscape) 0.5f else 1.0f
 
@@ -343,26 +346,33 @@ fun PlayerSettingsSideSheet(
 
     // Dialog: Double Tap Action
     if (showDoubleTapDialog) {
-        val actions = DoubleTapAction.values().toList()
+        val actions = remember { DoubleTapAction.values().toList() }
         FullListDialog(
             title = "Double Tap Action",
             onDismiss = { showDoubleTapDialog = false },
             onReset = {
-                onUpdateDoubleTapAction(DoubleTapAction.BOTH)
+                currentOnUpdateDoubleTapAction(DoubleTapAction.BOTH)
                 showDoubleTapDialog = false
             }
         ) {
-            items(actions) { action ->
+            items(
+                items = actions,
+                key = { it.name },
+                contentType = { "double_tap_action" }
+            ) { action ->
                 val selected = playbackSettings.doubleTapAction == action
+                val onClick = remember(action) {
+                    {
+                        currentOnUpdateDoubleTapAction(action)
+                        showDoubleTapDialog = false
+                    }
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .selectable(
                             selected = selected,
-                            onClick = {
-                                onUpdateDoubleTapAction(action)
-                                showDoubleTapDialog = false
-                            },
+                            onClick = onClick,
                             role = Role.RadioButton
                         )
                         .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -404,26 +414,33 @@ fun PlayerSettingsSideSheet(
 
     // Dialog: Double Tap Seek Duration
     if (showSeekDurationDialog) {
-        val durations = listOf(5000L, 10000L, 15000L, 30000L, 60000L)
+        val durations = remember { listOf(5000L, 10000L, 15000L, 30000L, 60000L) }
         FullListDialog(
             title = "Seek Duration",
             onDismiss = { showSeekDurationDialog = false },
             onReset = {
-                onUpdateDoubleTapSeekDuration(10000L)
+                currentOnUpdateDoubleTapSeekDuration(10000L)
                 showSeekDurationDialog = false
             }
         ) {
-            items(durations) { duration ->
+            items(
+                items = durations,
+                key = { it },
+                contentType = { "seek_duration" }
+            ) { duration ->
                 val selected = playbackSettings.doubleTapSeekDuration == duration
+                val onClick = remember(duration) {
+                    {
+                        currentOnUpdateDoubleTapSeekDuration(duration)
+                        showSeekDurationDialog = false
+                    }
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .selectable(
                             selected = selected,
-                            onClick = {
-                                onUpdateDoubleTapSeekDuration(duration)
-                                showSeekDurationDialog = false
-                            },
+                            onClick = onClick,
                             role = Role.RadioButton
                         )
                         .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -692,6 +709,7 @@ private fun SpeedTab(
     currentSpeed: Float,
     onSpeedSelected: (Float) -> Unit
 ) {
+    val currentOnSpeedSelected by rememberUpdatedState(onSpeedSelected)
     var isEditing by remember { mutableStateOf(false) }
     var textValue by remember(currentSpeed) {
         mutableStateOf(String.format(java.util.Locale.US, "%.2f", currentSpeed))
@@ -878,7 +896,7 @@ private fun SpeedTab(
         // Speed Presets
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SheetSectionLabel("Presets")
-            val presets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+            val presets = remember { listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f) }
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -890,6 +908,13 @@ private fun SpeedTab(
                     ) {
                         rowItems.forEach { speed ->
                             val isSelected = abs(currentSpeed - speed) < 0.01f
+                            val formattedSpeed = remember(speed) { String.format(java.util.Locale.US, "%.2fx", speed) }
+                            val onPresetClick = remember(speed) {
+                                {
+                                    currentOnSpeedSelected(speed)
+                                    textValue = String.format(java.util.Locale.US, "%.2f", speed)
+                                }
+                            }
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -905,14 +930,11 @@ private fun SpeedTab(
                                         else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                                         shape = RoundedCornerShape(12.dp)
                                     )
-                                    .clickable {
-                                        onSpeedSelected(speed)
-                                        textValue = String.format(java.util.Locale.US, "%.2f", speed)
-                                    },
+                                    .clickable(onClick = onPresetClick),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = String.format(java.util.Locale.US, "%.2fx", speed),
+                                    text = formattedSpeed,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -1369,8 +1391,9 @@ private fun SpeedInlineSlider(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                val formattedValue = remember(value) { String.format(java.util.Locale.US, "%.2fx", value) }
                 Text(
-                    text = String.format(java.util.Locale.US, "%.2fx", value),
+                    text = formattedValue,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

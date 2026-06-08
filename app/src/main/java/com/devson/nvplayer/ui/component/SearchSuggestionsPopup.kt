@@ -14,6 +14,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -27,6 +30,9 @@ fun SearchSuggestionsPopup(
     keyboard: SoftwareKeyboardController?,
     onSuggestionClick: (String) -> Unit
 ) {
+    val currentOnSuggestionClick by rememberUpdatedState(onSuggestionClick)
+    val currentKeyboard by rememberUpdatedState(keyboard)
+
     Popup(
         alignment = Alignment.TopCenter,
         properties = PopupProperties(focusable = false),
@@ -44,14 +50,21 @@ fun SearchSuggestionsPopup(
             LazyColumn(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(suggestions) { suggestion ->
+                items(
+                    items = suggestions,
+                    key = { it },
+                    contentType = { "suggestion" }
+                ) { suggestion ->
+                    val onClick = remember(suggestion) {
+                        {
+                            currentKeyboard?.hide()
+                            currentOnSuggestionClick(suggestion)
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                keyboard?.hide()
-                                onSuggestionClick(suggestion)
-                            }
+                            .clickable(onClick = onClick)
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
