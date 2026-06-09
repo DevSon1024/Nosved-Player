@@ -187,30 +187,36 @@ class VideoListViewModel(
                     val folderName = File(parentPath).name.ifEmpty { parentPath }
                     val videos = items.map { item ->
                         val uriStr = item.uri.toString()
-                        val cached = metadataDao.getMetadataByUri(uriStr)
                         
                         val finalSize: Long
                         val finalDateModified: Long
                         val finalDuration: Long
                         
-                        if (cached != null) {
-                            finalSize = cached.size
-                            finalDateModified = cached.dateModified
-                            finalDuration = cached.duration
-                        } else {
-                            val extracted = com.devson.nvplayer.util.getVideoMetadata(repository.context, item.uri)
-                            finalSize = if (extracted.fileSize > 0) extracted.fileSize else item.size
-                            finalDateModified = if (extracted.lastModified > 0) extracted.lastModified else item.dateModified * 1000
+                        if (item.size > 0 && item.duration > 0) {
+                            finalSize = item.size
+                            finalDateModified = item.dateModified * 1000
                             finalDuration = item.duration
-                            
-                            metadataDao.insertOrUpdate(
-                                com.devson.nvplayer.data.database.CachedVideoMetadata(
-                                    uri = uriStr,
-                                    size = finalSize,
-                                    dateModified = finalDateModified,
-                                    duration = finalDuration
+                        } else {
+                            val cached = metadataDao.getMetadataByUri(uriStr)
+                            if (cached != null) {
+                                finalSize = cached.size
+                                finalDateModified = cached.dateModified
+                                finalDuration = cached.duration
+                            } else {
+                                val extracted = com.devson.nvplayer.util.getVideoMetadata(repository.context, item.uri)
+                                finalSize = if (extracted.fileSize > 0) extracted.fileSize else item.size
+                                finalDateModified = if (extracted.lastModified > 0) extracted.lastModified else item.dateModified * 1000
+                                finalDuration = item.duration
+                                
+                                metadataDao.insertOrUpdate(
+                                    com.devson.nvplayer.data.database.CachedVideoMetadata(
+                                        uri = uriStr,
+                                        size = finalSize,
+                                        dateModified = finalDateModified,
+                                        duration = finalDuration
+                                    )
                                 )
-                            )
+                            }
                         }
 
                         Video(

@@ -5,17 +5,14 @@ import android.net.Uri
 import android.os.Build
 import android.util.Size
 import coil3.ImageLoader
+import coil3.asImage
 import coil3.decode.DataSource
-import coil3.decode.ImageSource
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
-import coil3.fetch.SourceFetchResult
+import coil3.fetch.ImageFetchResult
 import coil3.request.Options
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okio.Buffer
-import okio.FileSystem
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
 
 class MediaStoreThumbnailFetcher(
@@ -28,28 +25,20 @@ class MediaStoreThumbnailFetcher(
             uri.scheme == ContentResolver.SCHEME_CONTENT
         ) {
             try {
+                // Request a 512x512 thumbnail natively from the OS
                 val bitmap = options.context.contentResolver.loadThumbnail(
                     uri,
                     Size(512, 512),
                     null
                 ) ?: return@withContext null
 
-                val bos = ByteArrayOutputStream()
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, bos)
-                val buffer = Buffer().write(bos.toByteArray())
-
-                val imageSource = ImageSource(
-                    source = buffer,
-                    fileSystem = FileSystem.SYSTEM
-                )
-
-                return@withContext SourceFetchResult(
-                    source = imageSource,
-                    mimeType = "image/png",
+                return@withContext ImageFetchResult(
+                    image = bitmap.asImage(),
+                    isSampled = true,
                     dataSource = DataSource.DISK
                 )
-            } catch (_: Exception) {
-                // Return null to fall back to other decoders
+            } catch (e: Exception) {
+                // Fall back to Coil's default VideoFrameDecoder if fetching fails
                 return@withContext null
             }
         }

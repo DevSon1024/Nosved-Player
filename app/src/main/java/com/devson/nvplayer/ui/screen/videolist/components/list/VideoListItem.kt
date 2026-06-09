@@ -99,7 +99,7 @@ fun VideoListItem(
             }
             Card(
                 modifier = Modifier
-                    .size(width = 128.dp, height = 72.dp)
+                    .size(width = 100.dp, height = 60.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
@@ -119,7 +119,7 @@ fun VideoListItem(
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri = video.thumbnailUri ?: video.uri,
+                        uri = video.uri,
                         modifier = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected
                     )

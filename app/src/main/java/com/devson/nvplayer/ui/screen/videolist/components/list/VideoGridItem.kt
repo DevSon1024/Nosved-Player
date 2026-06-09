@@ -96,7 +96,7 @@ fun VideoGridItem(
                 ) {
                     if (settings.showThumbnail) {
                         VideoThumbnail(
-                            uri = video.thumbnailUri ?: video.uri,
+                            uri = video.uri,
                             modifier = Modifier.fillMaxSize(),
                             showPlayIcon = !isSelected
                         )
@@ -179,7 +179,7 @@ fun VideoGridItem(
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(
-                        uri = video.thumbnailUri ?: video.uri,
+                        uri = video.uri,
                         modifier = Modifier.fillMaxSize(),
                         showPlayIcon = !isSelected && !isDense
                     )

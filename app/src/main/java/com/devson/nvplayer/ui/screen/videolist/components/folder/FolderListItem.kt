@@ -96,7 +96,7 @@ fun FolderMediaPreview(
         if (videos.isNotEmpty() && settings.showThumbnail) {
             val firstVideo = videos.first()
             VideoThumbnail(
-                uri = firstVideo.thumbnailUri ?: firstVideo.uri,
+                uri = firstVideo.uri,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )
@@ -185,7 +185,7 @@ fun FolderListItem(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.size(width = 96.dp, height = 72.dp)
+                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
                     )
                     NewCountBadge(newCount)
                 }
