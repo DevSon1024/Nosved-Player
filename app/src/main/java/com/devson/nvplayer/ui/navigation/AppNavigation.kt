@@ -521,7 +521,6 @@ fun AppNavigation(
                 onUpdateAutoPlayEnabled = { settingsViewModel.updateAutoPlayEnabled(it) },
                 onUpdateShowSeekButtons = { settingsViewModel.updateShowSeekButtons(it) },
                 onUpdateShowNextPrevButtons = { settingsViewModel.updateShowNextPrevButtons(it) },
-                onUpdateShowElapsedTimeOverlay = { settingsViewModel.updateShowElapsedTimeOverlay(it) },
                 onUpdateShowRemainingTime = { settingsViewModel.updateShowRemainingTime(it) },
                 onUpdateShowBatteryClockOverlay = { settingsViewModel.updateShowBatteryClockOverlay(it) },
                 onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },

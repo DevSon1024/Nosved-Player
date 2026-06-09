@@ -215,16 +215,6 @@ fun PlayerInterfaceSettingsScreen(
             InterfaceSectionHeader("Info Overlays")
             InterfaceCard {
                 InterfaceToggleRow(
-                    icon = Icons.Default.Schedule,
-                    title = "Show Elapsed Time",
-                    subtitle = "Always show current playback time at top edge",
-                    checked = playbackSettings.showElapsedTimeOverlay,
-                    onCheckedChange = { settingsViewModel.updateShowElapsedTimeOverlay(it) }
-                )
-
-                InterfaceDivider()
-
-                InterfaceToggleRow(
                     icon = Icons.Default.HourglassBottom,
                     title = "Show Remaining Time",
                     subtitle = "Display remaining time instead of total duration",

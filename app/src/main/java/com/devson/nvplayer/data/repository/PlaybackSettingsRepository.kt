@@ -48,7 +48,7 @@ class PlaybackSettingsRepository(context: Context) {
             }
             "seek_duration_seconds", "seek_bar_style", "control_icon_size", "auto_play_enabled",
             "show_seek_buttons", "fastplay_speed", "orientation_mode", "fullscreen_mode", "soft_button_mode",
-            "show_elapsed_time_overlay", "show_battery_clock_overlay", "show_screen_rotation_button",
+            "show_battery_clock_overlay", "show_screen_rotation_button",
             "pause_when_obstructed", "show_remaining_time", "use_system_caption_style", "subtitle_font",
             "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_speed_sec_cm",
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
@@ -158,7 +158,6 @@ class PlaybackSettingsRepository(context: Context) {
             } catch (e: Exception) {
                 SoftButtonMode.AUTO_HIDE
             },
-            showElapsedTimeOverlay = prefs.getBoolean("show_elapsed_time_overlay", false),
             showBatteryClockOverlay = prefs.getBoolean("show_battery_clock_overlay", false),
             showScreenRotationButton = prefs.getBoolean("show_screen_rotation_button", true),
             pauseWhenObstructed = prefs.getBoolean("pause_when_obstructed", true),
@@ -385,7 +384,6 @@ class PlaybackSettingsRepository(context: Context) {
                 putString("orientation_mode", updated.orientationMode.name)
                 putString("fullscreen_mode", updated.fullScreenMode.name)
                 putString("soft_button_mode", updated.softButtonMode.name)
-                putBoolean("show_elapsed_time_overlay", updated.showElapsedTimeOverlay)
                 putBoolean("show_battery_clock_overlay", updated.showBatteryClockOverlay)
                 putBoolean("show_screen_rotation_button", updated.showScreenRotationButton)
                 putBoolean("pause_when_obstructed", updated.pauseWhenObstructed)
@@ -541,10 +539,6 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateSoftButtonMode(mode: SoftButtonMode) {
         updatePlaybackSettings { it.copy(softButtonMode = mode) }
-    }
-
-    suspend fun updateShowElapsedTimeOverlay(show: Boolean) {
-        updatePlaybackSettings { it.copy(showElapsedTimeOverlay = show) }
     }
 
     suspend fun updateShowBatteryClockOverlay(show: Boolean) {

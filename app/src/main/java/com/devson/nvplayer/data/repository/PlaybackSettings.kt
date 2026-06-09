@@ -46,7 +46,6 @@ data class PlaybackSettings(
     val orientationMode: OrientationMode = OrientationMode.SYSTEM_DEFAULT,
     val fullScreenMode: FullScreenMode = FullScreenMode.AUTO_SWITCH,
     val softButtonMode: SoftButtonMode = SoftButtonMode.AUTO_HIDE,
-    val showElapsedTimeOverlay: Boolean = false,
     val showBatteryClockOverlay: Boolean = false,
     val showScreenRotationButton: Boolean = true,
     val pauseWhenObstructed: Boolean = true,

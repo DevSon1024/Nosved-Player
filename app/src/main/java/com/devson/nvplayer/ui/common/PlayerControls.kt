@@ -90,7 +90,6 @@ fun PlayerControls(
     onPrevClick: () -> Unit = {},
     showSeekButtons: Boolean = true,
     showNextPrevButtons: Boolean = true,
-    showElapsedTimeOverlay: Boolean = false,
     showRemainingTime: Boolean = false,
     showBatteryClockOverlay: Boolean = false,
     showScreenRotationButton: Boolean = true,
@@ -231,7 +230,6 @@ fun PlayerControls(
                 modifier = Modifier,
                 isPortrait = false,
                 title = title,
-                showElapsedTimeOverlay = showElapsedTimeOverlay,
                 currentPosition = currentPosition,
                 currentDecoder = currentDecoder,
                 hasChapters = hasChapters,
@@ -504,7 +502,6 @@ fun PlayerControls(
                         modifier = if (button == PlayerButton.VIDEO_TITLE) Modifier.weight(1f) else Modifier,
                         isPortrait = isPortrait,
                         title = title,
-                        showElapsedTimeOverlay = showElapsedTimeOverlay,
                         currentPosition = currentPosition,
                         currentDecoder = currentDecoder,
                         hasChapters = hasChapters,
@@ -542,7 +539,6 @@ fun PlayerControls(
                         modifier = Modifier,
                         isPortrait = isPortrait,
                         title = title,
-                        showElapsedTimeOverlay = showElapsedTimeOverlay,
                         currentPosition = currentPosition,
                         currentDecoder = currentDecoder,
                         hasChapters = hasChapters,
@@ -896,7 +892,6 @@ fun PlayerControls(
                                         modifier = Modifier,
                                         isPortrait = true,
                                         title = title,
-                                        showElapsedTimeOverlay = showElapsedTimeOverlay,
                                         currentPosition = currentPosition,
                                         currentDecoder = currentDecoder,
                                         hasChapters = hasChapters,
@@ -930,7 +925,6 @@ fun PlayerControls(
                                 modifier = Modifier,
                                 isPortrait = true,
                                 title = title,
-                                showElapsedTimeOverlay = showElapsedTimeOverlay,
                                 currentPosition = currentPosition,
                                 currentDecoder = currentDecoder,
                                 hasChapters = hasChapters,
@@ -1085,7 +1079,6 @@ fun RenderPlayerButton(
     modifier: Modifier = Modifier,
     isPortrait: Boolean = false,
     title: String,
-    showElapsedTimeOverlay: Boolean,
     currentPosition: Long,
     currentDecoder: String,
     hasChapters: Boolean,
@@ -1120,15 +1113,6 @@ fun RenderPlayerButton(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (showElapsedTimeOverlay) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Elapsed: ${formatTime(currentPosition)}",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal
-                )
-            }
         }
         return
     }

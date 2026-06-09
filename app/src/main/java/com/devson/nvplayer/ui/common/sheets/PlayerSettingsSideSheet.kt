@@ -74,7 +74,6 @@ fun PlayerSettingsSideSheet(
     onUpdateAutoPlayEnabled: (Boolean) -> Unit = {},
     onUpdateShowSeekButtons: (Boolean) -> Unit = {},
     onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
-    onUpdateShowElapsedTimeOverlay: (Boolean) -> Unit = {},
     onUpdateShowRemainingTime: (Boolean) -> Unit = {},
     onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
     onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
@@ -324,7 +323,6 @@ fun PlayerSettingsSideSheet(
                             )
                             3 -> OverlaysTab(
                                 playbackSettings = playbackSettings,
-                                onUpdateShowElapsedTimeOverlay = onUpdateShowElapsedTimeOverlay,
                                 onUpdateShowRemainingTime = onUpdateShowRemainingTime,
                                 onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay,
                                 onUpdateShowScreenRotationButton = onUpdateShowScreenRotationButton
@@ -1137,7 +1135,6 @@ private fun InterfaceTab(
 @Composable
 private fun OverlaysTab(
     playbackSettings: PlaybackSettings,
-    onUpdateShowElapsedTimeOverlay: (Boolean) -> Unit,
     onUpdateShowRemainingTime: (Boolean) -> Unit,
     onUpdateShowBatteryClockOverlay: (Boolean) -> Unit,
     onUpdateShowScreenRotationButton: (Boolean) -> Unit
@@ -1145,16 +1142,6 @@ private fun OverlaysTab(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SheetSectionLabel("Info Overlays")
         SheetCard {
-            SheetToggleRow(
-                icon = Icons.Default.Schedule,
-                title = "Show Elapsed Time",
-                subtitle = "Always show current playback time at top edge",
-                checked = playbackSettings.showElapsedTimeOverlay,
-                onCheckedChange = onUpdateShowElapsedTimeOverlay
-            )
-
-            SheetDivider()
-
             SheetToggleRow(
                 icon = Icons.Default.HourglassBottom,
                 title = "Show Remaining Time",
