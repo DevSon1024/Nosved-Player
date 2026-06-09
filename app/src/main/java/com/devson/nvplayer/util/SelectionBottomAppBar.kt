@@ -47,7 +47,6 @@ fun SelectionBottomAppBar(
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onShare: () -> Unit,
-    onShowInfo: () -> Unit,
     onMarkStatus: (String) -> Unit,
     showTagAndShare: Boolean = true
 ) {
@@ -102,8 +101,6 @@ fun SelectionBottomAppBar(
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
             }
-            // Info
-            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
             // Tagging
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })

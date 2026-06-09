@@ -290,6 +290,7 @@ fun VideoListScreen(
                     selectedFolders = emptySet()
                     selectedVideos = emptySet()
                 },
+                onShowInfo = { showInfoBottomSheet = true },
                 onSelectAll = {
                     when (viewSettings.viewMode) {
                         ViewMode.ALL_FOLDERS -> {
@@ -437,7 +438,6 @@ fun VideoListScreen(
                             selectedFolders = emptySet()
                             selectedVideos = emptySet()
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
                         onMarkStatus = { status ->
                             selectedFolders.flatMap { videosByFolder[it] ?: emptyList() }.forEach { video ->
                                 val position = when(status) {
@@ -513,7 +513,6 @@ fun VideoListScreen(
                             selectedVideos = emptySet()
                             selectedFolders = emptySet()
                         },
-                        onShowInfo = { showInfoBottomSheet = true },
                         onMarkStatus = { status ->
                             selectedVideos.forEach { video ->
                                 val position = when(status) {

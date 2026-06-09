@@ -42,7 +42,6 @@ fun VideoSelectionBottomBar(
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onShowInfo: () -> Unit,
     onShare: () -> Unit,
     onMarkStatus: (String) -> Unit,
     showTagAndShare: Boolean = true
@@ -95,8 +94,6 @@ fun VideoSelectionBottomBar(
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
             }
-            // Info
-            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
             // Tagging
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })

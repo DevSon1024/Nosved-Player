@@ -24,6 +24,7 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -779,47 +780,50 @@ fun PlayerControls(
                                 val amplitude = 4.dp.toPx()
                                 val wavelength = 20.dp.toPx()
                                 
-                                // 1. Draw inactive flat track (full width)
-                                drawLine(
-                                    color = inactiveColor,
-                                    start = Offset(0f, centerY),
-                                    end = Offset(width, centerY),
-                                    strokeWidth = 4.dp.toPx(),
-                                    cap = StrokeCap.Round
-                                )
+                                // 1. Draw inactive flat track (only from activeProgress to end of canvas)
+                                if (activeWidth < width) {
+                                    drawLine(
+                                        color = inactiveColor,
+                                        start = Offset(activeWidth, centerY),
+                                        end = Offset(width, centerY),
+                                        strokeWidth = 4.dp.toPx(),
+                                        cap = StrokeCap.Round
+                                    )
+                                }
                                 
-                                // 2. Draw buffered flat track (only for network streams)
-                                if (isNetworkStream && bufferedWidth > 0f) {
+                                // 2. Draw buffered flat track (only for network streams from activeProgress to bufferedProgress)
+                                if (isNetworkStream && bufferedWidth > activeWidth) {
                                     drawLine(
                                         color = bufferedColor,
-                                        start = Offset(0f, centerY),
+                                        start = Offset(activeWidth, centerY),
                                         end = Offset(bufferedWidth, centerY),
                                         strokeWidth = 4.dp.toPx(),
                                         cap = StrokeCap.Round
                                     )
                                 }
                                 
-                                // 3. Draw active wavy track
+                                // 3. Draw active wavy track (clip to activeProgress to prevent drawing past thumb)
                                 if (activeWidth > 0) {
                                     val activePath = Path().apply {
                                         moveTo(0f, centerY)
                                         var x = 0f
-                                        while (x <= activeWidth) {
+                                        val endX = activeWidth + wavelength
+                                        while (x <= endX) {
                                             val y = centerY + amplitude * kotlin.math.sin((2 * Math.PI * x / wavelength).toFloat() - phaseShift)
                                             lineTo(x, y)
                                             x += 2f
                                         }
-                                        val lastY = centerY + amplitude * kotlin.math.sin((2 * Math.PI * activeWidth / wavelength).toFloat() - phaseShift)
-                                        lineTo(activeWidth, lastY)
                                     }
-                                    drawPath(
-                                        path = activePath,
-                                        color = themePrimary,
-                                        style = Stroke(
-                                            width = 3.dp.toPx(),
-                                            cap = StrokeCap.Round
+                                    clipRect(right = activeWidth) {
+                                        drawPath(
+                                            path = activePath,
+                                            color = themePrimary,
+                                            style = Stroke(
+                                                width = 3.dp.toPx(),
+                                                cap = StrokeCap.Round
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }

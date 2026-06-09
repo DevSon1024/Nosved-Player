@@ -16,6 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import com.devson.nvplayer.ui.mediainfo.MediaInfoOps
 import com.devson.nvplayer.ui.mediainfo.MediaInfoParser
 import com.devson.nvplayer.model.Video
@@ -62,20 +64,36 @@ fun InformationBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxSize(),
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(horizontal = 24.dp)
         ) {
-            Text(
-                text = "Information",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Information",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Close"
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (selectedVideos.size == 1) {
                 val video = selectedVideos.first()
@@ -190,10 +208,10 @@ fun InformationBottomSheet(
                         }
                     }
 
-                    SelectionContainer {
+                    SelectionContainer(modifier = Modifier.weight(1f)) {
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
                         ) {
                             when (selectedTab) {
@@ -216,6 +234,10 @@ fun InformationBottomSheet(
                                     // contains the full Android filesystem path
                                     if (video.path.isNotBlank()) {
                                         PropertyRow("Location", video.path)
+                                    }
+
+                                    if (video.dateAdded > 0) {
+                                        PropertyRow("Date Added", formatDate(video.dateAdded))
                                     }
 
                                     // Display any other unmatched sections (e.g. Menu) inside Overview
@@ -326,6 +348,7 @@ fun InformationBottomSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .weight(1f)
                             .verticalScroll(rememberScrollState())
                     ) {
                         InfoItem("Name", video.title)
@@ -353,6 +376,7 @@ fun InformationBottomSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
                     InfoItem("Selected Items", "${selectedVideos.size} videos")

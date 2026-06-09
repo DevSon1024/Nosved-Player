@@ -9,7 +9,8 @@ import java.util.Locale
 fun formatDate(timeMs: Long): String {
     return try {
         val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        sdf.format(Date(timeMs * 1000L)) // MediaStore date is usually in seconds
+        val ms = if (timeMs.toString().length < 13) timeMs * 1000L else timeMs
+        sdf.format(Date(ms))
     } catch (e: Exception) {
         ""
     }
@@ -29,8 +30,7 @@ fun formatDuration(durationMs: Long): String {
 
 fun formatRelativeTime(context: Context, timeMs: Long): String {
     return try {
-        // MediaStore time is in seconds, convert to milliseconds if needed
-        val ms = if (timeMs < 1000000000000L) timeMs * 1000L else timeMs
+        val ms = if (timeMs.toString().length < 13) timeMs * 1000L else timeMs
         DateUtils.getRelativeTimeSpanString(
             ms,
             System.currentTimeMillis(),

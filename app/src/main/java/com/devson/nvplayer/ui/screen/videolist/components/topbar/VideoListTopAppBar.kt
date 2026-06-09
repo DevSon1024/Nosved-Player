@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +44,7 @@ fun VideoListTopAppBar(
     showBackButton: Boolean,
     showHomeBackButton: Boolean = true,
     onClearSelection: () -> Unit,
+    onShowInfo: () -> Unit,
     onSelectAll: () -> Unit,
     onBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -80,6 +82,12 @@ fun VideoListTopAppBar(
                 )
             },
             actions = {
+                IconButton(onClick = onShowInfo) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Info"
+                    )
+                }
                 IconButton(onClick = onSelectAll) {
                     Icon(
                         imageVector = Icons.Filled.SelectAll,
