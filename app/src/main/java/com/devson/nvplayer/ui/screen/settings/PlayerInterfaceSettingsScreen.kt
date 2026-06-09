@@ -136,8 +136,8 @@ fun PlayerInterfaceSettingsScreen(
 
                 InterfaceToggleRow(
                     icon = Icons.Default.PlayCircle,
-                    title = "Bottom Play Button Layout",
-                    subtitle = "Move play/pause button to the bottom control bar",
+                    title = "Play/Pause Button Position",
+                    subtitle = "Move play/pause button to below Seekbar",
                     checked = playbackSettings.isBottomLayoutEnabled,
                     onCheckedChange = { settingsViewModel.updateIsBottomLayoutEnabled(it) }
                 )

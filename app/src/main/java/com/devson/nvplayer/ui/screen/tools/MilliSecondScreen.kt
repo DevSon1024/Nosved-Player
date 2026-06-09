@@ -12,8 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -26,7 +29,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MilliSecondScreen(onBack: () -> Unit) {
-    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+    val clipboardManager = remember(context) { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var liveMillis by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -145,7 +149,7 @@ fun MilliSecondScreen(onBack: () -> Unit) {
                             Text(liveMillis.toString(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
                         }
                         Button(onClick = {
-                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(liveMillis.toString()))
+                            clipboardManager.setPrimaryClip(ClipData.newPlainText("Timestamp", liveMillis.toString()))
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = null, Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -171,7 +175,7 @@ fun MilliSecondScreen(onBack: () -> Unit) {
                                 }
                             }
                             IconButton(onClick = {
-                                clipboardManager.getText()?.text?.let { text ->
+                                clipboardManager.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()?.let { text ->
                                     if (text.all { it.isDigit() }) millisInput = text
                                 }
                             }) {
@@ -209,7 +213,7 @@ fun MilliSecondScreen(onBack: () -> Unit) {
                         Text(selectedDate.time.toString(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
                     }
                     Button(onClick = {
-                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(selectedDate.time.toString()))
+                        clipboardManager.setPrimaryClip(ClipData.newPlainText("Timestamp", selectedDate.time.toString()))
                     }) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))

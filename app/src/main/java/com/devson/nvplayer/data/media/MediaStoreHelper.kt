@@ -222,6 +222,7 @@ class MediaStoreHelper(private val context: Context) {
         }.sortedBy { it.name }
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun getThumbnailsMap(context: Context): Map<Long, Uri> = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return@withContext emptyMap()

@@ -315,6 +315,7 @@ class MainActivity : ComponentActivity() {
         _isInPipMode.value = isInPictureInPictureMode
     }
 
+    @Suppress("DEPRECATION")
     private fun enterPipMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {

@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -893,7 +895,8 @@ fun NetworkStreamDialog(
     onPlay: (Uri) -> Unit,
     onHistoryClick: () -> Unit
 ) {
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = LocalContext.current
+    val clipboardManager = remember(context) { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     var urlText by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
 
@@ -948,7 +951,7 @@ fun NetworkStreamDialog(
                             }
                         } else {
                             IconButton(onClick = {
-                                val clipText = clipboardManager.getText()?.text
+                                val clipText = clipboardManager.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
                                 if (!clipText.isNullOrBlank()) {
                                     urlText = clipText
                                     errorText = null

@@ -785,8 +785,8 @@ private fun SpeedTab(
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
-                                    if (isValid && parsedSpeed != null) {
-                                        onSpeedSelected(parsedSpeed)
+                                    if (isValid) {
+                                        onSpeedSelected(parsedSpeed!!)
                                         keyboardController?.hide()
                                         isEditing = false
                                     }
@@ -810,8 +810,8 @@ private fun SpeedTab(
                         ) {
                             IconButton(
                                 onClick = {
-                                    if (isValid && parsedSpeed != null) {
-                                        onSpeedSelected(parsedSpeed)
+                                    if (isValid) {
+                                        onSpeedSelected(parsedSpeed!!)
                                         keyboardController?.hide()
                                         isEditing = false
                                     }
