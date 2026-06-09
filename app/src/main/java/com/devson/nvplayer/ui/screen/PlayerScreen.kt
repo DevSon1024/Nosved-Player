@@ -8,20 +8,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.VolumeMute
-import androidx.compose.material.icons.automirrored.rounded.VolumeDown
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -41,48 +32,50 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.devson.nvplayer.player.MPVSurfaceView
-import com.devson.nvplayer.player.PlayerState
-import com.devson.nvplayer.ui.component.PlayerControls
-import com.devson.nvplayer.ui.component.GestureOverlay
-import com.devson.nvplayer.ui.component.AspectIcons
-import com.devson.nvplayer.model.PlayerButton
+import com.devson.nvplayer.player.engine.MPVSurfaceView
+import com.devson.nvplayer.player.engine.PlayerState
+import com.devson.nvplayer.ui.common.PlayerControls
+import com.devson.nvplayer.ui.common.GestureOverlay
+import com.devson.nvplayer.ui.common.icons.AspectIcons
+import com.devson.nvplayer.domain.model.PlayerButton
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.coroutineScope
 import android.media.AudioManager
 import android.content.Context
-import com.devson.nvplayer.player.TrackInfo
-import com.devson.nvplayer.repository.SubtitleFont
-import com.devson.nvplayer.repository.PlaybackSettings
-import com.devson.nvplayer.repository.EnhanceMode
+import com.devson.nvplayer.util.findActivity
+import com.devson.nvplayer.player.model.TrackInfo
+import com.devson.nvplayer.data.repository.SubtitleFont
+import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.EnhanceMode
 import android.provider.MediaStore
-import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
-import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
-import com.devson.nvplayer.ui.component.QualitySettingsSideSheet
-import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
-import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
-import com.devson.nvplayer.ui.component.EnhanceSettingsSideSheet
-import com.devson.nvplayer.player.ChapterInfo
-import com.devson.nvplayer.ui.component.ChaptersSideSheet
-import com.devson.nvplayer.player.DecoderMode
-import com.devson.nvplayer.ui.component.DecoderSideSheet
+import com.devson.nvplayer.ui.common.SubtitleSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.AudioSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.QualitySettingsSideSheet
+import com.devson.nvplayer.ui.common.ComposeSubtitleOverlay
+import com.devson.nvplayer.ui.common.sheets.PlayerSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.EnhanceSettingsSideSheet
+import com.devson.nvplayer.player.model.ChapterInfo
+import com.devson.nvplayer.ui.common.sheets.ChaptersSideSheet
+import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.ui.common.sheets.DecoderSideSheet
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import android.os.BatteryManager
-import android.content.res.Configuration
 import android.os.Build
 import android.content.Intent
-import com.devson.nvplayer.player.MediaPlaybackService
+import android.widget.Toast
+import com.devson.nvplayer.player.service.MediaPlaybackService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.devson.nvplayer.ui.component.formatTime
-import androidx.compose.ui.platform.LocalConfiguration
+import com.devson.nvplayer.ui.common.formatTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.devson.nvplayer.data.repository.DoubleTapAction
+import com.devson.nvplayer.data.repository.FullScreenMode
+import com.devson.nvplayer.data.repository.OrientationMode
+import com.devson.nvplayer.data.repository.SoftButtonMode
+import com.devson.nvplayer.player.model.AspectMode
 
 @Composable
 fun PlayerScreen(
@@ -139,10 +132,10 @@ fun PlayerScreen(
     onUpdateDoubleTapSeekDuration: (Long) -> Unit = {},
     onUpdateLongPressEnabled: (Boolean) -> Unit = {},
     onUpdateLongPressSpeed: (Float) -> Unit = {},
-    onUpdateDoubleTapAction: (com.devson.nvplayer.repository.DoubleTapAction) -> Unit = {},
-    onUpdateOrientationMode: (com.devson.nvplayer.repository.OrientationMode) -> Unit = {},
-    onUpdateFullScreenMode: (com.devson.nvplayer.repository.FullScreenMode) -> Unit = {},
-    onUpdateSoftButtonMode: (com.devson.nvplayer.repository.SoftButtonMode) -> Unit = {},
+    onUpdateDoubleTapAction: (DoubleTapAction) -> Unit = {},
+    onUpdateOrientationMode: (OrientationMode) -> Unit = {},
+    onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
+    onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
     onUpdateControlIconSize: (String) -> Unit = {},
     onUpdateSeekBarStyle: (String) -> Unit = {},
     onUpdateAutoPlayEnabled: (Boolean) -> Unit = {},
@@ -236,10 +229,10 @@ fun PlayerScreen(
             isFirstAspectEmission = false
         } else {
             aspectOverlayText = when (playbackSettings.aspectMode) {
-                com.devson.nvplayer.player.AspectMode.FIT -> "Fit Screen"
-                com.devson.nvplayer.player.AspectMode.STRETCH -> "Stretch"
-                com.devson.nvplayer.player.AspectMode.CROP -> "Crop"
-                com.devson.nvplayer.player.AspectMode.ORIGINAL -> "100% Original"
+                AspectMode.FIT -> "Fit Screen"
+                AspectMode.STRETCH -> "Stretch"
+                AspectMode.CROP -> "Crop"
+                AspectMode.ORIGINAL -> "100% Original"
             }
         }
     }
@@ -393,15 +386,15 @@ fun PlayerScreen(
             if (currentContext is Activity) {
                 val orientationMode = playbackSettings.orientationMode
                 when (orientationMode) {
-                    com.devson.nvplayer.repository.OrientationMode.LANDSCAPE,
-                    com.devson.nvplayer.repository.OrientationMode.AUTO -> {
+                    OrientationMode.LANDSCAPE,
+                    OrientationMode.AUTO -> {
                         // Force landscape regardless of video dimensions
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
-                    com.devson.nvplayer.repository.OrientationMode.PORTRAIT -> {
+                    OrientationMode.PORTRAIT -> {
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
-                    com.devson.nvplayer.repository.OrientationMode.SYSTEM_DEFAULT -> {
+                    OrientationMode.SYSTEM_DEFAULT -> {
                         // Auto-detect from video dimensions (original behaviour)
                         if (videoWidth > 0 && videoHeight > 0) {
                             val isRotated = videoRotation == 90L || videoRotation == 270L
@@ -430,7 +423,7 @@ fun PlayerScreen(
             val window = act.window
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             when (playbackSettings.softButtonMode) {
-                com.devson.nvplayer.repository.SoftButtonMode.AUTO_HIDE -> {
+                SoftButtonMode.AUTO_HIDE -> {
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                     if (controlsVisible) {
                         insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
@@ -438,10 +431,10 @@ fun PlayerScreen(
                         insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                     }
                 }
-                com.devson.nvplayer.repository.SoftButtonMode.SHOW -> {
+                SoftButtonMode.SHOW -> {
                     insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 }
-                com.devson.nvplayer.repository.SoftButtonMode.HIDE -> {
+                SoftButtonMode.HIDE -> {
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                     insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 }
@@ -747,10 +740,10 @@ fun PlayerScreen(
                             onBackgroundPlayClick = {
                                 val newVal = !playbackSettings.backgroundPlayEnabled
                                 onUpdateBackgroundPlayEnabled(newVal)
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     context,
                                     if (newVal) "Background play enabled" else "Background play disabled",
-                                    android.widget.Toast.LENGTH_SHORT
+                                    Toast.LENGTH_SHORT
                                 ).show()
                             },
                             ytdlQuality = playbackSettings.ytdlQuality,
@@ -791,10 +784,10 @@ fun PlayerScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             val overlayIcon = when (playbackSettings.aspectMode) {
-                                com.devson.nvplayer.player.AspectMode.FIT -> AspectIcons.Fit
-                                com.devson.nvplayer.player.AspectMode.STRETCH -> AspectIcons.Stretch
-                                com.devson.nvplayer.player.AspectMode.CROP -> AspectIcons.Crop
-                                com.devson.nvplayer.player.AspectMode.ORIGINAL -> AspectIcons.Original
+                                AspectMode.FIT -> AspectIcons.Fit
+                                AspectMode.STRETCH -> AspectIcons.Stretch
+                                AspectMode.CROP -> AspectIcons.Crop
+                                AspectMode.ORIGINAL -> AspectIcons.Original
                             }
                             Icon(
                                 imageVector = overlayIcon,
@@ -1076,15 +1069,6 @@ private fun PersistentTopBar(
             }
         }
     }
-}
-
-private fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
 }
 
 @Composable

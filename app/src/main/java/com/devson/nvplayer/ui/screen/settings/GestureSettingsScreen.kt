@@ -27,8 +27,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.nvplayer.repository.DoubleTapAction
-import com.devson.nvplayer.repository.MultiFingerAction
+import com.devson.nvplayer.data.repository.DoubleTapAction
+import com.devson.nvplayer.data.repository.MultiFingerAction
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import kotlin.math.abs
 import kotlin.math.roundToInt

@@ -15,26 +15,26 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.devson.nvplayer.player.PlayerEngine
-import com.devson.nvplayer.player.PlayerState
-import com.devson.nvplayer.player.TrackInfo
-import com.devson.nvplayer.player.ChapterInfo
-import com.devson.nvplayer.player.DecoderMode
+import com.devson.nvplayer.player.engine.PlayerEngine
+import com.devson.nvplayer.player.engine.PlayerState
+import com.devson.nvplayer.player.model.TrackInfo
+import com.devson.nvplayer.player.model.ChapterInfo
+import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
-import com.devson.nvplayer.repository.EnhanceMode
-import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.EnhanceMode
+import com.devson.nvplayer.data.repository.PlaybackSettings
 import com.devson.nvplayer.data.database.AppDatabase
 import com.devson.nvplayer.data.database.WatchHistoryEntity
+import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
+import com.devson.nvplayer.player.model.AspectMode
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -103,7 +103,7 @@ class PlayerViewModel(
     private val _audioBoostVolume = MutableStateFlow(100)
     val audioBoostVolume: StateFlow<Int> = _audioBoostVolume.asStateFlow()
 
-    private val settingsRepo = com.devson.nvplayer.repository.PlaybackSettingsRepository(application.applicationContext)
+    private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
     val playbackSettings = settingsRepo.playbackSettingsFlow
 
     init {
@@ -148,7 +148,7 @@ class PlayerViewModel(
         // Observe decoder and aspect mode changes from settings and apply immediately if video is active
         viewModelScope.launch {
             var lastDecoderMode: DecoderMode? = null
-            var lastAspectMode: com.devson.nvplayer.player.AspectMode? = null
+            var lastAspectMode: AspectMode? = null
             playbackSettings.collect { settings ->
                 if (lastDecoderMode != settings.decoderMode) {
                     lastDecoderMode = settings.decoderMode

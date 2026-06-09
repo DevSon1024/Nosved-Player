@@ -47,8 +47,8 @@
 # MPVSurfaceView implements SurfaceHolder.Callback - surfaceCreated/Changed/
 # Destroyed are called by the Android framework by name.
 # -----------------------------------------------------------------------------
--keep class com.devson.nvplayer.player.MPVPlayerEngine { *; }
--keep class com.devson.nvplayer.player.MPVSurfaceView { *; }
+-keep class com.devson.nvplayer.player.engine.MPVPlayerEngine { *; }
+-keep class com.devson.nvplayer.player.engine.MPVSurfaceView { *; }
 -keep class com.devson.nvplayer.player.** { *; }
 
 # Keep all data/enum classes used across JNI boundaries or serialised via

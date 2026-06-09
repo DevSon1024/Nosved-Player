@@ -21,7 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
-import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import com.devson.nvplayer.ui.navigation.AppNavigation
 import com.devson.nvplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nvplayer.viewmodel.HomeViewModel
@@ -42,6 +42,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.net.Uri
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
+import com.devson.nvplayer.player.service.MediaPlaybackService
 
 class MainActivity : ComponentActivity() {
 
@@ -143,7 +145,7 @@ class MainActivity : ComponentActivity() {
 
     private val mediaStoreHelper by lazy { MediaStoreHelper(this) }
     private val repository by lazy { VideoRepository(mediaStoreHelper, this) }
-    private val viewSettingsRepo by lazy { com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(applicationContext) }
+    private val viewSettingsRepo by lazy { ViewSettingsRepository.getInstance(applicationContext) }
 
     private val homeViewModel by lazy { HomeViewModel(applicationContext, repository) }
     private val settingsViewModel by lazy { ViewModelProvider(this)[SettingsViewModel::class.java] }
@@ -337,7 +339,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java)
+        val serviceIntent = Intent(this, MediaPlaybackService::class.java)
         stopService(serviceIntent)
     }
 
@@ -346,9 +348,9 @@ class MainActivity : ComponentActivity() {
         val bgPlayEnabled = if (playerViewModelLazy.isInitialized()) playerViewModel.playbackSettings.value.backgroundPlayEnabled else false
         if (bgPlayEnabled && playerViewModelLazy.isInitialized() && playerViewModel.isPlaying.value) {
             val title = playerViewModel.currentUri.value?.lastPathSegment ?: "Video Playback"
-            val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java).apply {
+            val serviceIntent = Intent(this, MediaPlaybackService::class.java).apply {
                 data = playerViewModel.currentUri.value
-                putExtra(com.devson.nvplayer.player.MediaPlaybackService.EXTRA_VIDEO_TITLE, title)
+                putExtra(MediaPlaybackService.EXTRA_VIDEO_TITLE, title)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -364,7 +366,7 @@ class MainActivity : ComponentActivity() {
         try {
             unregisterReceiver(pipReceiver)
         } catch (_: Exception) {}
-        val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java)
+        val serviceIntent = Intent(this, MediaPlaybackService::class.java)
         stopService(serviceIntent)
     }
 }

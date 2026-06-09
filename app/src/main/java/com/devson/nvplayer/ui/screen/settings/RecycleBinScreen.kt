@@ -35,7 +35,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.devson.nvplayer.R
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatSize
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel

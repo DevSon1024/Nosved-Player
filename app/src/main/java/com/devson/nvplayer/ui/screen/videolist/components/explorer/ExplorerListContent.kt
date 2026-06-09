@@ -21,13 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import com.devson.nvplayer.model.LayoutMode
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screen.videolist.components.list.VideoGridItem
-import com.devson.nvplayer.ui.screen.videolist.components.list.VideoListItem
+import com.devson.nvplayer.domain.model.LayoutMode
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoGridItem
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListItem
 import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderGridItem
 import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderListItem
 

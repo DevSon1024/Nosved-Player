@@ -3,11 +3,23 @@ package com.devson.nvplayer.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.devson.nvplayer.repository.PlaybackSettingsRepository
+import com.devson.nvplayer.data.repository.DoubleTapAction
+import com.devson.nvplayer.data.repository.FullScreenMode
+import com.devson.nvplayer.data.repository.MpvConfigRepository
+import com.devson.nvplayer.data.repository.MultiFingerAction
+import com.devson.nvplayer.data.repository.OrientationMode
+import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.SoftButtonMode
+import com.devson.nvplayer.data.repository.SubtitleFont
+import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.ui.theme.AppThemePalette
 import com.devson.nvplayer.ui.theme.AppThemePaletteHelper
-import com.devson.nvplayer.model.PlayerButton
-import com.devson.nvplayer.model.ControlRegion
+import com.devson.nvplayer.domain.model.PlayerButton
+import com.devson.nvplayer.domain.model.ControlRegion
+import com.devson.nvplayer.domain.model.DefaultScreen
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.player.model.DecoderMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +31,10 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
-    private val viewSettingsRepo = com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(application.applicationContext)
+    private val viewSettingsRepo = ViewSettingsRepository.getInstance(application.applicationContext)
 
     val viewSettings = viewSettingsRepo.viewSettingsFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.devson.nvplayer.model.ViewSettings())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ViewSettings())
 
     /**
      * Returns the DefaultScreen that was persisted in SharedPreferences.
@@ -30,7 +42,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * subscribes), this reads the repository's MutableStateFlow which is populated
      * synchronously in ViewSettingsRepository's constructor - safe to call at composition time.
      */
-    fun getInitialDefaultScreen(): com.devson.nvplayer.model.DefaultScreen =
+    fun getInitialDefaultScreen(): DefaultScreen =
         viewSettingsRepo.viewSettingsFlow.value.defaultScreen
 
     /**
@@ -133,7 +145,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { viewSettingsRepo.updateShowStorageTracker(show) }
     }
 
-    fun updateDefaultScreen(screen: com.devson.nvplayer.model.DefaultScreen) {
+    fun updateDefaultScreen(screen: DefaultScreen) {
         viewModelScope.launch { viewSettingsRepo.updateDefaultScreen(screen) }
     }
 
@@ -141,23 +153,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
-            com.devson.nvplayer.repository.PlaybackSettings(
+            PlaybackSettings(
                 seekDurationSeconds = 10,
                 seekBarStyle = "standard",
                 controlIconSize = "medium",
                 autoPlayEnabled = false,
                 showSeekButtons = true,
                 fastplaySpeed = 2.0f,
-                orientationMode = com.devson.nvplayer.repository.OrientationMode.SYSTEM_DEFAULT,
-                fullScreenMode = com.devson.nvplayer.repository.FullScreenMode.AUTO_SWITCH,
-                softButtonMode = com.devson.nvplayer.repository.SoftButtonMode.AUTO_HIDE,
+                orientationMode = OrientationMode.SYSTEM_DEFAULT,
+                fullScreenMode = FullScreenMode.AUTO_SWITCH,
+                softButtonMode = SoftButtonMode.AUTO_HIDE,
                 showElapsedTimeOverlay = false,
                 showBatteryClockOverlay = false,
                 showScreenRotationButton = true,
                 pauseWhenObstructed = true,
                 showRemainingTime = false,
                 useSystemCaptionStyle = false,
-                subtitleFont = com.devson.nvplayer.repository.SubtitleFont.DEFAULT,
+                subtitleFont = SubtitleFont.DEFAULT,
                 isSubtitleBold = false,
                 forceAssSubtitleOverride = false,
                 // New Gesture Defaults
@@ -167,11 +179,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 brightnessSensitivity = 0.5f,
                 volumeGestureEnabled = true,
                 volumeSensitivity = 0.5f,
-                twoFingerAction = com.devson.nvplayer.repository.MultiFingerAction.PLAY_PAUSE,
-                threeFingerAction = com.devson.nvplayer.repository.MultiFingerAction.FAST_PLAY,
+                twoFingerAction = MultiFingerAction.PLAY_PAUSE,
+                threeFingerAction = MultiFingerAction.FAST_PLAY,
                 longPressEnabled = true,
                 longPressSpeed = 2.0f,
-                doubleTapAction = com.devson.nvplayer.repository.DoubleTapAction.BOTH,
+                doubleTapAction = DoubleTapAction.BOTH,
                 customPlaybackSpeed = 1.0f,
                 tapAndHoldSpeed = 2.0f,
                 doubleTapSeekDuration = 10000L,
@@ -186,15 +198,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateSeekBarStyle(style) }
     }
 
-    fun updateOrientationMode(mode: com.devson.nvplayer.repository.OrientationMode) {
+    fun updateOrientationMode(mode: OrientationMode) {
         viewModelScope.launch { settingsRepo.updateOrientationMode(mode) }
     }
 
-    fun updateFullScreenMode(mode: com.devson.nvplayer.repository.FullScreenMode) {
+    fun updateFullScreenMode(mode: FullScreenMode) {
         viewModelScope.launch { settingsRepo.updateFullScreenMode(mode) }
     }
 
-    fun updateSoftButtonMode(mode: com.devson.nvplayer.repository.SoftButtonMode) {
+    fun updateSoftButtonMode(mode: SoftButtonMode) {
         viewModelScope.launch { settingsRepo.updateSoftButtonMode(mode) }
     }
 
@@ -229,7 +241,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateUseSystemCaptionStyle(useSystem) }
     }
 
-    fun updateSubtitleFont(font: com.devson.nvplayer.repository.SubtitleFont) {
+    fun updateSubtitleFont(font: SubtitleFont) {
         viewModelScope.launch { settingsRepo.updateSubtitleFont(font) }
     }
 
@@ -267,11 +279,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateVolumeSensitivity(sensitivity) }
     }
 
-    fun updateTwoFingerAction(action: com.devson.nvplayer.repository.MultiFingerAction) {
+    fun updateTwoFingerAction(action: MultiFingerAction) {
         viewModelScope.launch { settingsRepo.updateTwoFingerAction(action) }
     }
 
-    fun updateThreeFingerAction(action: com.devson.nvplayer.repository.MultiFingerAction) {
+    fun updateThreeFingerAction(action: MultiFingerAction) {
         viewModelScope.launch { settingsRepo.updateThreeFingerAction(action) }
     }
 
@@ -283,7 +295,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateLongPressSpeed(speed) }
     }
 
-    fun updateDoubleTapAction(action: com.devson.nvplayer.repository.DoubleTapAction) {
+    fun updateDoubleTapAction(action: DoubleTapAction) {
         viewModelScope.launch { settingsRepo.updateDoubleTapAction(action) }
     }
 
@@ -372,13 +384,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun loadMpvConfig() {
         viewModelScope.launch {
-            _mpvConfigFlow.value = com.devson.nvplayer.repository.MpvConfigRepository.loadMpvConfig(getApplication())
+            _mpvConfigFlow.value = MpvConfigRepository.loadMpvConfig(getApplication())
         }
     }
 
     fun saveMpvConfig(content: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            val success = com.devson.nvplayer.repository.MpvConfigRepository.saveMpvConfig(getApplication(), content)
+            val success = MpvConfigRepository.saveMpvConfig(getApplication(), content)
             if (success) {
                 _mpvConfigFlow.value = content
             }
@@ -394,7 +406,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateBackgroundPlayEnabled(enabled) }
     }
 
-    fun updateDecoderMode(mode: com.devson.nvplayer.player.DecoderMode) {
+    fun updateDecoderMode(mode: DecoderMode) {
         viewModelScope.launch { settingsRepo.updateDecoderMode(mode) }
     }
 
@@ -530,4 +542,4 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         // that SharedPreferences holds to the settingsRepo lambda (prevents GC leak in release).
         settingsRepo.close()
     }
-}
+}

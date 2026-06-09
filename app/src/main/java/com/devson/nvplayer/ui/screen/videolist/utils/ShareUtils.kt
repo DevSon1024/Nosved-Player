@@ -3,7 +3,7 @@ package com.devson.nvplayer.ui.screens.videolist.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 import java.util.ArrayList
 
 fun shareVideos(context: Context, videos: List<Video>) {

@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.devson.nvplayer.BuildConfig
 import com.devson.nvplayer.R
-import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import `is`.xyz.mpv.MPVLib
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -3,8 +3,15 @@ package com.devson.nvplayer.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.repository.VideoRepository
-import com.devson.nvplayer.repository.ViewSettingsRepository
-import com.devson.nvplayer.model.*
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
+import com.devson.nvplayer.domain.model.LayoutMode
+import com.devson.nvplayer.domain.model.SortDirection
+import com.devson.nvplayer.domain.model.SortField
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewMode
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

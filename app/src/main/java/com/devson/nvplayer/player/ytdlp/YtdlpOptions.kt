@@ -1,6 +1,6 @@
 package com.devson.nvplayer.player.ytdlp
 
-import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.PlaybackSettings
 
 enum class YtdlCodecPreference(val title: String) {
     AUTO("Auto"),

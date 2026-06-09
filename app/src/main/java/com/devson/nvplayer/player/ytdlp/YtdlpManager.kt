@@ -3,7 +3,7 @@ package com.devson.nvplayer.player.ytdlp
 import android.content.Context
 import android.system.Os
 import android.util.Log
-import com.devson.nvplayer.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.PlaybackSettings
 import `is`.xyz.mpv.MPVLib
 import java.io.*
 import kotlinx.coroutines.Dispatchers

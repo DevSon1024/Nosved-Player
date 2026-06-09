@@ -3,17 +3,15 @@ package com.devson.nvplayer.data.repository
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.model.VideoItem
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-import coil3.imageLoader
 
 class VideoRepository(
     private val mediaStoreHelper: MediaStoreHelper,
     val context: android.content.Context
 ) {
-    private val settingsRepo = com.devson.nvplayer.repository.PlaybackSettingsRepository(context)
+    private val settingsRepo = PlaybackSettingsRepository(context)
     val videoMetadataDao = com.devson.nvplayer.data.database.AppDatabase.getDatabase(context).videoMetadataDao()
 
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
@@ -34,7 +32,7 @@ class VideoRepository(
     /**
      * Retrieves videos that are in the system trash and maps them to the app's Video model.
      */
-    suspend fun getTrashedVideos(): List<com.devson.nvplayer.model.Video> = withContext(Dispatchers.IO) {
+    suspend fun getTrashedVideos(): List<Video> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
         val trashedItems = mediaStoreHelper.getTrashedVideos(blacklisted)
         val metadataDao = videoMetadataDao
@@ -71,7 +69,7 @@ class VideoRepository(
                 }
             }
 
-            com.devson.nvplayer.model.Video(
+            Video(
                 uri = uriStr,
                 title = item.title,
                 duration = finalDuration,

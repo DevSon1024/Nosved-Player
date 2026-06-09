@@ -17,7 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import com.devson.nvplayer.ui.component.AspectIcons
+import com.devson.nvplayer.ui.common.icons.AspectIcons
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,10 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.nvplayer.model.ControlRegion
-import com.devson.nvplayer.model.PlayerButton
-import com.devson.nvplayer.model.allPlayerButtons
-import com.devson.nvplayer.player.AspectMode
+import com.devson.nvplayer.domain.model.ControlRegion
+import com.devson.nvplayer.domain.model.PlayerButton
+import com.devson.nvplayer.domain.model.allPlayerButtons
+import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState

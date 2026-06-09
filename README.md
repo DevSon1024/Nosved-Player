@@ -21,7 +21,7 @@ The transition from ExoPlayer to `is.xyz.mpv` allows NVPlayer to offer a truly d
 - **Rich Subtitle Support:** Cycle tracks, adjust synchronization delays, customize fonts, and tweak scaling/offsets directly from the player.
 - **Smart Enhance Mode:** Real-time hardware-level adjustments for Video Brightness, Contrast, Saturation, Gamma, and Hue.
 
-> ### Clean, Native UI
+> > ### Clean, Native UI
 
 - **Material Design 3:** fully integrated with Android's Dynamic Color palette.
 - **AMOLED & Dark Themes:** True black modes for battery saving and comfortable nighttime viewing.
@@ -37,13 +37,13 @@ The transition from ExoPlayer to `is.xyz.mpv` allows NVPlayer to offer a truly d
 
 > ## Building the Project
 
-### Prerequisites
+> > ### Prerequisites
 
 - Android Studio (Latest Stable or Ladybug)
 - JDK 17+
 - Android SDK API 34+
 
-### Clone & Build
+> > ### Clone & Build
 
 ```bash
 git clone https://github.com/DevSon1024/NVPlayer.git

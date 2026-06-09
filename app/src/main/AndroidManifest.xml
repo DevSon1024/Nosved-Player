@@ -14,7 +14,6 @@
 
     <application
         android:name=".NosvedApplication"
-        android:extractNativeLibs="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -58,7 +57,7 @@
             </intent-filter>
         </activity-alias>
         <service
-            android:name=".player.MediaPlaybackService"
+            android:name=".player.service.MediaPlaybackService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />

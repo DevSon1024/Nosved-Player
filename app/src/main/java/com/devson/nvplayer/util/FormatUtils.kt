@@ -2,6 +2,7 @@ package com.devson.nvplayer.util
 
 import android.content.Context
 import android.text.format.DateUtils
+import com.devson.nvplayer.domain.model.SortField
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,18 +61,18 @@ fun formatSize(bytes: Long): String {
     return String.format(Locale.US, "%.2f %s", bytes / Math.pow(1024.0, groupIndex.toDouble()), units[groupIndex])
 }
 
-fun formatSortField(field: com.devson.nvplayer.model.SortField): String {
+fun formatSortField(field: SortField): String {
     return when (field) {
-        com.devson.nvplayer.model.SortField.TITLE -> "Title"
-        com.devson.nvplayer.model.SortField.DATE -> "Date Added"
-        com.devson.nvplayer.model.SortField.PLAYED_TIME -> "Last Played"
-        com.devson.nvplayer.model.SortField.STATUS -> "Progress Status"
-        com.devson.nvplayer.model.SortField.LENGTH -> "Duration"
-        com.devson.nvplayer.model.SortField.SIZE -> "File Size"
-        com.devson.nvplayer.model.SortField.RESOLUTION -> "Resolution"
-        com.devson.nvplayer.model.SortField.PATH -> "File Path"
-        com.devson.nvplayer.model.SortField.FRAME_RATE -> "Frame Rate"
-        com.devson.nvplayer.model.SortField.TYPE -> "File Type"
+        SortField.TITLE -> "Title"
+        SortField.DATE -> "Date Added"
+        SortField.PLAYED_TIME -> "Last Played"
+        SortField.STATUS -> "Progress Status"
+        SortField.LENGTH -> "Duration"
+        SortField.SIZE -> "File Size"
+        SortField.RESOLUTION -> "Resolution"
+        SortField.PATH -> "File Path"
+        SortField.FRAME_RATE -> "Frame Rate"
+        SortField.TYPE -> "File Type"
     }
 }
 

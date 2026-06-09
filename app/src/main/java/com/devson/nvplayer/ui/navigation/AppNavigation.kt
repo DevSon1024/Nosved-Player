@@ -6,7 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import com.devson.nvplayer.model.DefaultScreen
+import com.devson.nvplayer.domain.model.DefaultScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -36,9 +36,9 @@ import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
-import com.devson.nvplayer.model.ViewMode
-import com.devson.nvplayer.player.DecoderMode
-import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.domain.model.ViewMode
+import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
