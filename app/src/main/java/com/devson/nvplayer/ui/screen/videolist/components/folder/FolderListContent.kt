@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.folder
+package com.devson.nvplayer.ui.screen.videolist.components.folder
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement

@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.folder
+package com.devson.nvplayer.ui.screen.videolist.components.folder
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -49,8 +49,8 @@ import com.devson.nvplayer.model.VideoFolder
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.model.WatchHistory
 import com.devson.nvplayer.ui.component.FolderShape
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 import com.devson.nvplayer.ui.screen.videolist.components.list.VideoThumbnail
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
 import com.devson.nvplayer.util.formatDate

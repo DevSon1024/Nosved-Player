@@ -26,10 +26,10 @@ import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.VideoFolder
 import com.devson.nvplayer.model.ViewSettings
 import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoGridItem
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
-import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderGridItem
-import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListItem
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoGridItem
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoListItem
+import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderGridItem
+import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderListItem
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

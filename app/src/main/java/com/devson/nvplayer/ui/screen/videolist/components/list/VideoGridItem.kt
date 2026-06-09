@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.list
+package com.devson.nvplayer.ui.screen.videolist.components.list
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -24,14 +24,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.ui.screen.videolist.components.list.DurationBadge
-import com.devson.nvplayer.ui.screen.videolist.components.list.ThumbnailSelectionOverlay
-import com.devson.nvplayer.ui.screen.videolist.components.list.VideoThumbnail
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoMetadataChips
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.common.WatchProgressBar
-import com.devson.nvplayer.ui.screens.videolist.components.common.WatchStateBadge
-import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoMetadataChips
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.WatchProgressBar
+import com.devson.nvplayer.ui.screen.videolist.components.common.WatchStateBadge
+import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

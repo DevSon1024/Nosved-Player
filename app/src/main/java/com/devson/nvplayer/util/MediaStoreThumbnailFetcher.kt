@@ -3,17 +3,19 @@ package com.devson.nvplayer.util
 import android.content.ContentResolver
 import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import android.util.Size
 import coil3.ImageLoader
-import coil3.asImage
 import coil3.decode.DataSource
-import coil3.fetch.ImageFetchResult
+import coil3.decode.ImageSource
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
+import coil3.fetch.SourceFetchResult
 import coil3.request.Options
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.Buffer
+import okio.FileSystem
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
 
 class MediaStoreThumbnailFetcher(
@@ -26,56 +28,47 @@ class MediaStoreThumbnailFetcher(
             uri.scheme == ContentResolver.SCHEME_CONTENT
         ) {
             try {
-                val bitmap = options.context.contentResolver
-                    .loadThumbnail(uri, MINI_KIND_SIZE, null)
-                return@withContext ImageFetchResult(
-                    image = bitmap.asImage(),
-                    isSampled = true,
+                val bitmap = options.context.contentResolver.loadThumbnail(
+                    uri,
+                    Size(512, 512),
+                    null
+                ) ?: return@withContext null
+
+                val bos = ByteArrayOutputStream()
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, bos)
+                val buffer = Buffer().write(bos.toByteArray())
+
+                val imageSource = ImageSource(
+                    source = buffer,
+                    fileSystem = FileSystem.SYSTEM
+                )
+
+                return@withContext SourceFetchResult(
+                    source = imageSource,
+                    mimeType = "image/png",
                     dataSource = DataSource.DISK
                 )
-            } catch (_: Exception) {}
-        }
-
-        val retriever = android.media.MediaMetadataRetriever()
-        try {
-            if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
-                retriever.setDataSource(options.context, uri)
-            } else {
-                retriever.setDataSource(uri.path)
+            } catch (_: Exception) {
+                // Return null to fall back to other decoders
+                return@withContext null
             }
-            val durationMs = retriever
-                .extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                ?.toLongOrNull() ?: 0L
-            val seekUs = if (durationMs > 0) (durationMs * 0.20).toLong() * 1_000L else 0L
-
-            val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                retriever.getScaledFrameAtTime(
-                    seekUs,
-                    android.media.MediaMetadataRetriever.OPTION_PREVIOUS_SYNC,
-                    512, 384
-                )
-            } else {
-                retriever.getFrameAtTime(seekUs, android.media.MediaMetadataRetriever.OPTION_PREVIOUS_SYNC)
-            } ?: return@withContext null
-
-            ImageFetchResult(
-                image = bitmap.asImage(),
-                isSampled = true,
-                dataSource = DataSource.DISK
-            )
-        } catch (_: Exception) {
-            null
-        } finally {
-            try { retriever.release() } catch (_: Exception) {}
         }
+        null
     }
 
     class Factory : Fetcher.Factory<Uri> {
         private val mimeCache = ConcurrentHashMap<String, Boolean>()
 
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? {
-            val isVideo = mimeCache.getOrPut(data.toString()) { isVideoUri(data, options) }
-            return if (isVideo) MediaStoreThumbnailFetcher(data, options) else null
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                data.scheme == ContentResolver.SCHEME_CONTENT
+            ) {
+                val isVideo = mimeCache.getOrPut(data.toString()) { isVideoUri(data, options) }
+                if (isVideo) {
+                    return MediaStoreThumbnailFetcher(data, options)
+                }
+            }
+            return null
         }
 
         private fun isVideoUri(uri: Uri, options: Options): Boolean {
@@ -109,7 +102,6 @@ class MediaStoreThumbnailFetcher(
     }
 
     companion object {
-        private val MINI_KIND_SIZE = Size(512, 384)
         private val VIDEO_EXTENSIONS = listOf(
             ".mp4", ".mkv", ".webm", ".avi", ".3gp",
             ".flv", ".mov", ".m4v", ".ts", ".wmv"

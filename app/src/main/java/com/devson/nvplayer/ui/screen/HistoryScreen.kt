@@ -17,8 +17,7 @@ import com.devson.nvplayer.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.model.Video
 import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
+import com.devson.nvplayer.ui.screen.videolist.components.list.VideoListItem
 import com.devson.nvplayer.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
