@@ -10,6 +10,9 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
 import com.devson.nvplayer.util.MediaStoreThumbnailFetcher
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
+import com.devson.nvplayer.domain.thumbnail.CoilVideoThumbnailDecoder
+import com.devson.nvplayer.domain.thumbnail.toThumbnailStrategy
 import okio.Path.Companion.toOkioPath
 
 class NosvedApplication : Application(), SingletonImageLoader.Factory {
@@ -21,8 +24,18 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
             .toLong()
             .coerceIn(50L * 1024 * 1024, 500L * 1024 * 1024)
 
+        val viewSettingsRepo = ViewSettingsRepository.getInstance(context)
+
         return ImageLoader.Builder(context)
             .components {
+                add(
+                    CoilVideoThumbnailDecoder.Factory(
+                        thumbnailStrategy = {
+                            val settings = viewSettingsRepo.viewSettingsFlow.value
+                            settings.thumbnailMode.toThumbnailStrategy(settings.thumbnailFramePosition)
+                        }
+                    )
+                )
                 add(MediaStoreThumbnailFetcher.Factory())
                 add(MediaStoreThumbnailFetcher.StringFactory())
                 add(VideoFrameDecoder.Factory())

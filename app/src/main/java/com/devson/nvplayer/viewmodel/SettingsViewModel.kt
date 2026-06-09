@@ -19,6 +19,8 @@ import com.devson.nvplayer.domain.model.PlayerButton
 import com.devson.nvplayer.domain.model.ControlRegion
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.ThumbnailMode
+import com.devson.nvplayer.domain.thumbnail.ThumbnailRepository
 import com.devson.nvplayer.player.model.DecoderMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -127,6 +129,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateSelectByThumbnail(select: Boolean) {
         viewModelScope.launch { viewSettingsRepo.updateSelectByThumbnail(select) }
+    }
+
+    fun updateShowThumbnail(show: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateShowThumbnail(show) }
+    }
+
+    fun updateThumbnailMode(mode: ThumbnailMode) {
+        viewModelScope.launch { viewSettingsRepo.updateThumbnailMode(mode) }
+    }
+
+    fun updateThumbnailFramePosition(pos: Float) {
+        viewModelScope.launch { viewSettingsRepo.updateThumbnailFramePosition(pos) }
+    }
+
+    fun clearThumbnailCache() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            ThumbnailRepository.getInstance(getApplication()).clearThumbnailCache()
+        }
     }
 
     fun updateEnableFabPreview(enable: Boolean) {

@@ -272,6 +272,11 @@ class VideoListViewModel(
 
     fun selectFolder(folder: VideoFolder?) {
         _selectedFolder.value = folder
+        if (folder != null) {
+            val folderVideos = _rawVideosByFolder.value[folder] ?: emptyList()
+            com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)
+                .startFolderThumbnailGeneration(folder.id, folderVideos, 512, 384)
+        }
     }
 
     fun clearSearch() {
@@ -302,6 +307,9 @@ class VideoListViewModel(
 
     fun navigateToExplorerPath(path: String) {
         _currentExplorerPath.value = path
+        val folderVideos = _rawVideosFlat.value.filter { it.path.startsWith(path) }
+        com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)
+            .startFolderThumbnailGeneration(path, folderVideos, 512, 384)
     }
 
     fun navigateExplorerUp() {

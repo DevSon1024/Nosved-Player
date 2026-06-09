@@ -43,6 +43,7 @@ import com.devson.nvplayer.R
 import com.devson.nvplayer.ui.theme.AppThemePalette
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import com.devson.nvplayer.domain.model.ThumbnailMode
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
@@ -298,6 +299,139 @@ fun AppearanceSettingsScreen(
                     subtitle = if (isMarathi) stringResource(R.string.appearance_marathi) else stringResource(R.string.appearance_english),
                     onClick  = { showLanguageDialog = true }
                 )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            //  THUMBNAILS section
+            AppearanceSectionLabel("Thumbnails")
+            AppearanceCard {
+                var showModeDialog by remember { mutableStateOf(false) }
+                var showClearConfirmDialog by remember { mutableStateOf(false) }
+                val viewSettingsVal by settingsViewModel.viewSettings.collectAsState()
+
+                AppearanceToggleRow(
+                    icon = Icons.Default.Photo,
+                    title = "Show Video Thumbnails",
+                    subtitle = "Display generated thumbnails in video lists and folders",
+                    checked = viewSettingsVal.showThumbnail,
+                    onCheckedChange = { settingsViewModel.updateShowThumbnail(it) }
+                )
+
+                if (viewSettingsVal.showThumbnail) {
+                    AppearanceDivider()
+                    AppearanceNavRow(
+                        icon = Icons.Default.Tune,
+                        title = "Thumbnail Strategy",
+                        subtitle = viewSettingsVal.thumbnailMode.displayName,
+                        onClick = { showModeDialog = true }
+                    )
+
+                    if (viewSettingsVal.thumbnailMode == ThumbnailMode.FRAME_AT_POSITION) {
+                        AppearanceDivider()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Frame Position",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = "${viewSettingsVal.thumbnailFramePosition.toInt()}%",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Slider(
+                                value = viewSettingsVal.thumbnailFramePosition,
+                                onValueChange = { settingsViewModel.updateThumbnailFramePosition(it) },
+                                valueRange = 1f..90f,
+                                steps = 88,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                AppearanceDivider()
+                AppearanceNavRow(
+                    icon = Icons.Default.DeleteSweep,
+                    title = "Clear Thumbnail Cache",
+                    subtitle = "Delete all cached video thumbnails from storage",
+                    onClick = { showClearConfirmDialog = true }
+                )
+
+                if (showModeDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showModeDialog = false },
+                        shape = RoundedCornerShape(20.dp),
+                        containerColor = MaterialTheme.colorScheme.background,
+                        title = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Text("Thumbnail Strategy", style = MaterialTheme.typography.titleMedium)
+                            }
+                        },
+                        text = {
+                            Column(modifier = Modifier.selectableGroup()) {
+                                ThumbnailMode.entries.forEach { mode ->
+                                    ThemeOption(
+                                        text = mode.displayName,
+                                        selected = viewSettingsVal.thumbnailMode == mode,
+                                        icon = Icons.Default.Check,
+                                        onClick = {
+                                            settingsViewModel.updateThumbnailMode(mode)
+                                            showModeDialog = false
+                                        }
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showModeDialog = false }) { Text("Close") }
+                        }
+                    )
+                }
+
+                if (showClearConfirmDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showClearConfirmDialog = false },
+                        title = { Text("Clear thumbnail cache?") },
+                        text = { Text("This will delete cached thumbnails from storage. They will be regenerated as you browse.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    settingsViewModel.clearThumbnailCache()
+                                    showClearConfirmDialog = false
+                                }
+                            ) {
+                                Text("Clear", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showClearConfirmDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
 
             Spacer(Modifier.height(16.dp))

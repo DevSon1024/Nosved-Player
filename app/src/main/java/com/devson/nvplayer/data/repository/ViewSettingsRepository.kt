@@ -8,6 +8,7 @@ import com.devson.nvplayer.domain.model.SortDirection
 import com.devson.nvplayer.domain.model.SortField
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.ThumbnailMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,7 +97,16 @@ class ViewSettingsRepository private constructor(context: Context) {
                 )
             } catch (e: Exception) {
                 ViewMode.ALL_FOLDERS
-            }
+            },
+            thumbnailMode = try {
+                ThumbnailMode.valueOf(
+                    prefs.getString("thumbnail_mode", ThumbnailMode.SMART.name)
+                        ?: ThumbnailMode.SMART.name
+                )
+            } catch (e: Exception) {
+                ThumbnailMode.SMART
+            },
+            thumbnailFramePosition = prefs.getFloat("thumbnail_frame_position", 33f)
         )
     }
 
@@ -129,6 +139,8 @@ class ViewSettingsRepository private constructor(context: Context) {
             putString("sort_field", updated.sortField.name)
             putString("sort_direction", updated.sortDirection.name)
             putString("view_mode", updated.viewMode.name)
+            putString("thumbnail_mode", updated.thumbnailMode.name)
+            putFloat("thumbnail_frame_position", updated.thumbnailFramePosition)
             apply()
         }
     }
@@ -219,5 +231,13 @@ class ViewSettingsRepository private constructor(context: Context) {
 
     suspend fun updateViewMode(mode: ViewMode) {
         updateSettings { it.copy(viewMode = mode) }
+    }
+
+    suspend fun updateThumbnailMode(mode: ThumbnailMode) {
+        updateSettings { it.copy(thumbnailMode = mode) }
+    }
+
+    suspend fun updateThumbnailFramePosition(pos: Float) {
+        updateSettings { it.copy(thumbnailFramePosition = pos) }
     }
 }

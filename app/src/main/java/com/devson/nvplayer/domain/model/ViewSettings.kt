@@ -28,5 +28,7 @@ data class ViewSettings(
     val showFrameRate: Boolean = true,
     val sortField: SortField = SortField.TITLE,
     val sortDirection: SortDirection = SortDirection.ASCENDING,
-    val viewMode: ViewMode = ViewMode.ALL_FOLDERS
+    val viewMode: ViewMode = ViewMode.ALL_FOLDERS,
+    val thumbnailMode: ThumbnailMode = ThumbnailMode.SMART,
+    val thumbnailFramePosition: Float = 33f
 )
