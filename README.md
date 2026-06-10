@@ -2,6 +2,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-B125EA?logo=kotlin&logoColor=white)
+[![Downloads](https://img.shields.io/github/downloads/DevSon1024/Nosved-Player/total.svg?logo=github)](https://github.com/DevSon1024/Nosved-Player/releases)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
 Nosved Player is a high-performance, native Android video player built with a focus on absolute playback smoothness, clean aesthetics, and extensive user customization.

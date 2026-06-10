@@ -95,16 +95,25 @@ fun ControlLayoutEditorScreen(
         }
     }
 
-    // 3. Save all updated control configurations on Leave/Dispose
-    DisposableEffect(topLeftList, topRightList, bottomLeftList, bottomRightList, portraitTopLeftList, portraitTopRightList, portraitBottomList) {
+    // Capture the latest state variables so they can be read safely inside onDispose
+    val latestTopLeft by rememberUpdatedState(topLeftList)
+    val latestTopRight by rememberUpdatedState(topRightList)
+    val latestBottomLeft by rememberUpdatedState(bottomLeftList)
+    val latestBottomRight by rememberUpdatedState(bottomRightList)
+    val latestPortraitTopLeft by rememberUpdatedState(portraitTopLeftList)
+    val latestPortraitTopRight by rememberUpdatedState(portraitTopRightList)
+    val latestPortraitBottom by rememberUpdatedState(portraitBottomList)
+
+    // 3. Save all updated control configurations ONLY on Leave/Dispose
+    DisposableEffect(Unit) {
         onDispose {
-            settingsViewModel.updateControls(ControlRegion.TOP_LEFT, topLeftList)
-            settingsViewModel.updateControls(ControlRegion.TOP_RIGHT, topRightList)
-            settingsViewModel.updateControls(ControlRegion.BOTTOM_LEFT, bottomLeftList)
-            settingsViewModel.updateControls(ControlRegion.BOTTOM_RIGHT, bottomRightList)
-            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_LEFT, portraitTopLeftList)
-            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_RIGHT, portraitTopRightList)
-            settingsViewModel.updateControls(ControlRegion.PORTRAIT_BOTTOM, portraitBottomList)
+            settingsViewModel.updateControls(ControlRegion.TOP_LEFT, latestTopLeft)
+            settingsViewModel.updateControls(ControlRegion.TOP_RIGHT, latestTopRight)
+            settingsViewModel.updateControls(ControlRegion.BOTTOM_LEFT, latestBottomLeft)
+            settingsViewModel.updateControls(ControlRegion.BOTTOM_RIGHT, latestBottomRight)
+            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_LEFT, latestPortraitTopLeft)
+            settingsViewModel.updateControls(ControlRegion.PORTRAIT_TOP_RIGHT, latestPortraitTopRight)
+            settingsViewModel.updateControls(ControlRegion.PORTRAIT_BOTTOM, latestPortraitBottom)
         }
     }
 
