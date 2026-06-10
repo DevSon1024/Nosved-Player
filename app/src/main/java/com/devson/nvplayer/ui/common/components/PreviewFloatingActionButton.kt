@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -70,15 +71,18 @@ fun PreviewFloatingActionButton(
     previewTitle: String?,
     previewDurationMs: Long,
     previewLastPositionMs: Long,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
+    onNetworkStreamClick: () -> Unit
 ) {
     var isPreviewVisible by remember { mutableStateOf(false) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(enablePreview) {
         if (!enablePreview) isPreviewVisible = false
     }
 
     Box(contentAlignment = Alignment.BottomEnd) {
+        // 1. Last Played Preview Card (Long Press)
         AnimatedVisibility(
             visible = enablePreview && isPreviewVisible,
             enter = scaleIn(
@@ -105,29 +109,70 @@ fun PreviewFloatingActionButton(
             )
         }
 
+        // 2. Speed Dial Menu (Single Tap)
+        AnimatedVisibility(
+            visible = isMenuExpanded,
+            enter = scaleIn(
+                transformOrigin = TransformOrigin(0.9f, 1f),
+                animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow)
+            ) + fadeIn(),
+            exit = scaleOut(
+                transformOrigin = TransformOrigin(0.9f, 1f),
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+            ) + fadeOut(),
+            modifier = Modifier.padding(bottom = 72.dp, end = 4.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Option 1: Network Stream
+                SpeedDialItem(
+                    label = "Network Stream",
+                    icon = Icons.Rounded.Language,
+                    onClick = {
+                        isMenuExpanded = false
+                        onNetworkStreamClick()
+                    }
+                )
+                // Option 2: Last Played (only if we have a last played video previewUri)
+                if (previewUri != null) {
+                    SpeedDialItem(
+                        label = "Last Played",
+                        icon = Icons.Filled.PlayArrow,
+                        onClick = {
+                            isMenuExpanded = false
+                            onPlay()
+                        }
+                    )
+                }
+            }
+        }
+
         val fabColor by animateColorAsState(
-            targetValue = if (isPreviewVisible) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+            targetValue = if (isPreviewVisible || isMenuExpanded) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
             label = "fabColor"
         )
         val iconColor by animateColorAsState(
-            targetValue = if (isPreviewVisible) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
+            targetValue = if (isPreviewVisible || isMenuExpanded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
             label = "iconColor"
         )
 
         Surface(
             modifier = Modifier
                 .size(56.dp)
-                .pointerInput(enablePreview) {
+                .pointerInput(enablePreview, isMenuExpanded, isPreviewVisible, previewUri) {
                     detectTapGestures(
                         onTap = {
                             if (isPreviewVisible) {
                                 isPreviewVisible = false
                             } else {
-                                onPlay()
+                                isMenuExpanded = !isMenuExpanded
                             }
                         },
                         onLongPress = {
                             if (enablePreview && previewUri != null) {
+                                isMenuExpanded = false
                                 isPreviewVisible = true
                             }
                         }
@@ -135,24 +180,72 @@ fun PreviewFloatingActionButton(
                 },
             shape = FabShape,
             color = fabColor,
-            shadowElevation = if (isPreviewVisible) 2.dp else 6.dp,
+            shadowElevation = if (isPreviewVisible || isMenuExpanded) 2.dp else 6.dp,
             tonalElevation = 0.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
                 AnimatedContent(
-                    targetState = isPreviewVisible,
+                    targetState = isPreviewVisible || isMenuExpanded,
                     transitionSpec = {
                         (scaleIn() + fadeIn()).togetherWith(scaleOut() + fadeOut())
                     },
                     label = "iconTransition"
-                ) { isVisible ->
+                ) { isClose ->
                     Icon(
-                        imageVector = if (isVisible) Icons.Filled.Close else Icons.Filled.PlayArrow,
-                        contentDescription = if (isVisible) "Close Preview" else "Play",
+                        imageVector = if (isClose) Icons.Filled.Close else Icons.Filled.PlayArrow,
+                        contentDescription = if (isClose) "Close Menu" else "Play",
                         tint = iconColor,
                         modifier = Modifier.size(28.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedDialItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(4.dp)
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.95f)
+            ),
+            shape = RoundedCornerShape(8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            shadowElevation = 4.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

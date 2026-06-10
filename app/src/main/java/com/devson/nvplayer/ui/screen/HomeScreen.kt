@@ -138,7 +138,8 @@ fun HomeScreen(
                         onPlay = {
                             val playlist = listOf(Uri.parse(lastPlayedVideo.uri))
                             onVideoClick(Uri.parse(lastPlayedVideo.uri), playlist)
-                        }
+                        },
+                        onNetworkStreamClick = { showNetworkDialog = true }
                     )
                 }
             }

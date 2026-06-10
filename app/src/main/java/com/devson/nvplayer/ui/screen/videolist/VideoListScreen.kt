@@ -541,16 +541,17 @@ fun VideoListScreen(
         },
         floatingActionButton = {
             if (viewSettings.showQuickFab && !isSelectionActive) {
-                lastPlayedVideo?.let { video ->
-                    val lastHistoryEntry = remember(video, historyMap) { historyMap[video.uri] }
-                    val allVideosFlat = videosFlat
-                    PreviewFloatingActionButton(
-                        enablePreview = viewSettings.enableFabPreview,
-                        previewUri = video.uri,
-                        previewTitle = video.title,
-                        previewDurationMs = video.duration,
-                        previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
-                        onPlay = {
+                val video = lastPlayedVideo
+                val lastHistoryEntry = remember(video, historyMap) { video?.let { historyMap[it.uri] } }
+                val allVideosFlat = videosFlat
+                PreviewFloatingActionButton(
+                    enablePreview = viewSettings.enableFabPreview && video != null,
+                    previewUri = video?.uri,
+                    previewTitle = video?.title,
+                    previewDurationMs = video?.duration ?: 0L,
+                    previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
+                    onPlay = {
+                        video?.let { vid ->
                             val playlist = when (viewSettings.viewMode) {
                                 ViewMode.FILES -> allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
@@ -564,10 +565,11 @@ fun VideoListScreen(
                                     allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                             }
-                            onVideoSelected(video, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
+                            onVideoSelected(vid, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
                         }
-                    )
-                }
+                    },
+                    onNetworkStreamClick = { showNetworkDialog = true }
+                )
             }
         }
     ) { padding ->
