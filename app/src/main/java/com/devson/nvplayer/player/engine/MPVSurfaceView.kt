@@ -40,46 +40,49 @@ class MPVSurfaceView @JvmOverloads constructor(
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         Log.d("MPVSurfaceView", "Surface created - attaching native surface to MPVLib")
-        try {
-            setActiveSurface(holder.surface)
-            MPVLib.attachSurface(holder.surface)
-            MPVLib.setOptionString("force-window", "yes")
-            MPVLib.setPropertyString("vo", "gpu")
-            onSurfaceCreatedListener?.invoke()
-        } catch (e: Exception) {
-            Log.e("MPVSurfaceView", "Error attaching surface to MPVLib", e)
+        synchronized(MPVSurfaceView) {
+            try {
+                setActiveSurface(holder.surface)
+                MPVLib.attachSurface(holder.surface)
+                MPVLib.setOptionString("force-window", "yes")
+                MPVLib.setPropertyString("vo", "gpu")
+                onSurfaceCreatedListener?.invoke()
+            } catch (e: Exception) {
+                Log.e("MPVSurfaceView", "Error attaching surface to MPVLib", e)
+            }
         }
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         Log.d("MPVSurfaceView", "Surface changed - format: $format, width: $width, height: $height")
-        try {
-            MPVLib.setPropertyString("android-surface-size", "${width}x${height}")
-        } catch (e: Exception) {
-            Log.e("MPVSurfaceView", "Error setting surface size", e)
+        synchronized(MPVSurfaceView) {
+            try {
+                MPVLib.setPropertyString("android-surface-size", "${width}x${height}")
+            } catch (e: Exception) {
+                Log.e("MPVSurfaceView", "Error setting surface size", e)
+            }
         }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         Log.d("MPVSurfaceView", "Surface destroyed - detaching native surface from MPVLib")
         val surface = holder.surface
-        try {
-            if (getActiveSurface() === surface) {
-                setActiveSurface(null)
-                Thread {
-                    try {
-                        MPVLib.setPropertyString("vo", "null")
-                        MPVLib.setOptionString("force-window", "no")
-                        MPVLib.detachSurface()
-                    } catch (e: Exception) {
-                        Log.e("MPVSurfaceView", "Error detaching surface from MPVLib in background thread", e)
-                    }
-                }.start()
-            } else {
-                Log.d("MPVSurfaceView", "Surface destroyed matches an inactive surface. Skipping detach.")
+        synchronized(MPVSurfaceView) { // Synchronize on companion object to serialize native calls
+            try {
+                if (getActiveSurface() === surface) {
+                    setActiveSurface(null)
+                    
+                    // MUST BE SYNCHRONOUS. Do not run this inside a background thread.
+                    // The surface is invalidated by the system immediately when this method returns.
+                    MPVLib.setPropertyString("vo", "null")
+                    MPVLib.setOptionString("force-window", "no")
+                    MPVLib.detachSurface()
+                } else {
+                    Log.d("MPVSurfaceView", "Surface destroyed matches an inactive surface. Skipping detach.")
+                }
+            } catch (e: Exception) {
+                Log.e("MPVSurfaceView", "Error in surfaceDestroyed", e)
             }
-        } catch (e: Exception) {
-            Log.e("MPVSurfaceView", "Error in surfaceDestroyed", e)
         }
         onSurfaceDestroyedListener?.invoke()
     }
