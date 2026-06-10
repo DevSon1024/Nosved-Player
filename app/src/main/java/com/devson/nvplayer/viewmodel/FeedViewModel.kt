@@ -6,9 +6,10 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.player.MPVPlayerEngine
-import com.devson.nvplayer.player.PlayerState
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
+import com.devson.nvplayer.player.engine.PlayerState
+import com.devson.nvplayer.player.model.AspectMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,7 +108,7 @@ class FeedViewModel(
         viewModelScope.launch {
             try {
                 engine.setPlaybackSpeed(1.0f)
-                engine.setAspectMode(com.devson.nvplayer.player.AspectMode.FIT)
+                engine.setAspectMode(AspectMode.FIT)
                 engine.loadVideo(Uri.parse(uri))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load pending video after surface attach", e)
@@ -159,7 +160,7 @@ class FeedViewModel(
         viewModelScope.launch {
             try {
                 engine.setPlaybackSpeed(1.0f) // Reset speed to normal on page change
-                engine.setAspectMode(com.devson.nvplayer.player.AspectMode.FIT)
+                engine.setAspectMode(AspectMode.FIT)
                 engine.loadVideo(Uri.parse(video.uri))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load video at index $index", e)
@@ -175,7 +176,7 @@ class FeedViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        // Do NOT release the engine here — it is owned by PlayerViewModel/MainActivity.
+        // Do NOT release the engine here - it is owned by PlayerViewModel/MainActivity.
         Log.d(TAG, "FeedViewModel cleared (engine not released; owned externally)")
     }
 

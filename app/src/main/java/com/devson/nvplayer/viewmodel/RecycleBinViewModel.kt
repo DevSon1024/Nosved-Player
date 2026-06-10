@@ -3,7 +3,7 @@ package com.devson.nvplayer.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
 import kotlinx.coroutines.Dispatchers

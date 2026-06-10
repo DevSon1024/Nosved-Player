@@ -14,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DriveFileRenameOutline
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.BottomAppBar
@@ -28,10 +27,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.util.TagStatusDialog
 
 @Composable
@@ -42,7 +43,6 @@ fun VideoSelectionBottomBar(
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onRename: () -> Unit,
-    onShowInfo: () -> Unit,
     onShare: () -> Unit,
     onMarkStatus: (String) -> Unit,
     showTagAndShare: Boolean = true
@@ -95,8 +95,6 @@ fun VideoSelectionBottomBar(
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.Filled.Share, label = "Share", onClick = onShare)
             }
-            // Info
-            ActionColumn(icon = Icons.Filled.Info, label = "Info", onClick = onShowInfo)
             // Tagging
             if (showTagAndShare) {
                 ActionColumn(icon = Icons.AutoMirrored.Filled.Label, label = "Tag", onClick = { showTagDialog = true })
@@ -114,6 +112,7 @@ private fun ActionColumn(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {

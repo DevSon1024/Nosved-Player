@@ -1,10 +1,9 @@
 package com.devson.nvplayer.ui.screens.videolist.utils
 
-import android.content.Context
 import android.net.Uri
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 
 /**
  * Common extension functions for Video objects and lists inside the VideoList screen.

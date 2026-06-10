@@ -20,13 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.devson.nvplayer.model.LayoutMode
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.applySort
-import com.devson.nvplayer.ui.component.InformationBottomSheet
-import com.devson.nvplayer.ui.components.IconToggleButton
-import com.devson.nvplayer.ui.components.SettingsSectionLabel
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListContent
+import com.devson.nvplayer.domain.model.LayoutMode
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.applySort
+import com.devson.nvplayer.ui.common.sheets.InformationBottomSheet
+import com.devson.nvplayer.ui.common.sheets.IconToggleButton
+import com.devson.nvplayer.ui.common.sheets.SettingsSectionLabel
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListContent
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 

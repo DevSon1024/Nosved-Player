@@ -4,7 +4,7 @@ This document serves as the absolute source of truth for any AI agent or LLM ass
 
 ## 1. Core Development Philosophy
 
-- **Goal:** NVPlayer is a high-performance, native Android video player application built with Kotlin, Jetpack Compose, Coroutines/Flow, Coil 3, and the MPV Player Engine.
+- **Goal:** NVPlayer is a high-performance, native Android video player application built with Kotlin, Jetpack Compose, Coroutines/Flow, coil3 3, and the MPV Player Engine.
 - **Flawless Execution:** The app MUST work smoothly without any bottleneck bugs. Performance regressions, UI lag, and stuttering (especially during list scrolling and thumbnail generation) are unacceptable.
 - **Zero Crash Tolerance:** Improve code robustness to ensure the app does not crash under any circumstances. Always prioritize graceful degradation (e.g., showing an error state, fallback UI, or empty list) over throwing unhandled exceptions.
 - **No Hallucinations:** Only use existing APIs, classes, and resources within the project. If you are unsure about an existing implementation, ask the developer to fetch the file contents.
@@ -35,8 +35,11 @@ You must actively maintain the project's changelog. After every completed task, 
 
 - Do NOT read or rewrite the whole file every time. Simply append the new data at the very end of the document.
 - Include a Date and Time stamp for the update.
-- **Type of Details:** (e.g., Error Solving, New Update, Refactor, Performance Improvement, UI Polish).
-- **Description:** A brief, clear summary of what was changed, fixed, or added in the recent interaction.
+  Whenever a fix, optimization, or feature is completed, you MUST document it using the following format:
+
+- **Issue:** (Briefly describe the exact issue or bottleneck that was just solved)
+- **Type:** (Specify the category: e.g., Error, Bug, UI, Performance, Architecture, Feature)
+- **Solution:** (Explain how the issue was solved. Maximum 10 lines.)
 - After the details of the latest update, you must append exactly `---` on a new line to close out that specific session.
 - Do not include any conversational filler in the file.
 

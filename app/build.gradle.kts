@@ -1,5 +1,6 @@
 import java.io.FileInputStream
 import java.util.Properties
+import com.android.build.api.variant.FilterConfiguration
 
 plugins {
     alias(libs.plugins.android.application)
@@ -23,16 +24,27 @@ android {
         version = release(36)
     }
 
+    androidResources {
+        ignoreAssetsPatterns.add("native-v9a")
+        ignoreAssetsPatterns.add("py.arm64-v8a")
+    }
+
     defaultConfig {
         applicationId = "com.devson.nvplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.1.2"
+        versionCode = 115
+        versionName = "1.1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+
+        externalNativeBuild {
+            cmake {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
         }
     }
     signingConfigs {
@@ -66,14 +78,17 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            ndk {
+                debugSymbolLevel = "none"
+            }
         }
     }
     splits {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-            isUniversalApk = true
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = false
         }
     }
     applicationVariants.all {
@@ -100,6 +115,12 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8"
     }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
     ndkVersion = "27.0.12077973"
 
     packaging {
@@ -110,16 +131,20 @@ android {
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+            excludes += "assets/native-v9a/**"
+            excludes += "assets/py.*/**"
         }
         jniLibs {
             useLegacyPackaging = true
+            pickFirsts += "**/libc++_shared.so"
+            excludes += "**/libpython_bin.so"
         }
     }
 }
 
 dependencies {
     implementation("com.github.marlboro-advance:mediainfoAndroid:v1.0.0-fix")
-    implementation(files("libs/mpv-android-lib-v0.0.1.aar"))
+    implementation(files("libs/mpvlib.aar"))
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.graphics.shapes)
     implementation("androidx.appcompat:appcompat:1.7.0")
@@ -147,7 +172,29 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("sh.calvin.reorderable:reorderable:3.1.0")
+    implementation(libs.sora.editor.core)
+    implementation(libs.sora.editor.textmate)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+}
+
+androidComponents {
+    val abiCodes = mapOf(
+        "armeabi-v7a" to 1,
+        "arm64-v8a" to 2
+    )
+
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val abi = output.filters
+                .find { it.filterType == FilterConfiguration.FilterType.ABI }
+                ?.identifier
+
+            // Multiplies original version code by 10 and adds the ABI digit
+            output.versionCode.set(
+                (output.versionCode.orNull ?: 0) * 10 + (abiCodes[abi] ?: 0)
+            )
+        }
+    }
 }

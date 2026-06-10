@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.model.VideoItem
@@ -13,7 +14,10 @@ import java.io.File
 
 class MediaStoreHelper(private val context: Context) {
 
-    suspend fun getAllVideos(blacklistedFolders: List<String> = emptyList()): List<VideoItem> = withContext(Dispatchers.IO) {
+    suspend fun getAllVideos(
+        blacklistedFolders: List<String> = emptyList(),
+        folderName: String? = null
+    ): List<VideoItem> = withContext(Dispatchers.IO) {
         val videos = mutableListOf<VideoItem>()
         val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
         val thumbnailsMap = getThumbnailsMap(context)
@@ -31,16 +35,24 @@ class MediaStoreHelper(private val context: Context) {
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
-        var selection: String? = null
-        var selectionArgs: Array<String>? = null
+        val selectionParts = mutableListOf<String>()
+        val selectionArgsList = mutableListOf<String>()
+
+        if (folderName != null) {
+            selectionParts.add("${MediaStore.Video.Media.BUCKET_DISPLAY_NAME} = ?")
+            selectionArgsList.add(folderName)
+        }
 
         if (blacklistedFolders.isNotEmpty()) {
-            selection = blacklistedFolders.joinToString(" AND ") { "${MediaStore.Video.Media.DATA} NOT LIKE ?" }
-            selectionArgs = blacklistedFolders.map { path ->
+            blacklistedFolders.forEach { path ->
+                selectionParts.add("${MediaStore.Video.Media.DATA} NOT LIKE ?")
                 val cleanPath = if (path.endsWith("/")) path else "$path/"
-                "$cleanPath%"
-            }.toTypedArray()
+                selectionArgsList.add("$cleanPath%")
+            }
         }
+
+        val selection = if (selectionParts.isNotEmpty()) selectionParts.joinToString(" AND ") else null
+        val selectionArgs = if (selectionArgsList.isNotEmpty()) selectionArgsList.toTypedArray() else null
 
         context.contentResolver.query(
             collection,
@@ -69,7 +81,7 @@ class MediaStoreHelper(private val context: Context) {
                 val dateModified = cursor.getLong(dateModifiedColumn)
 
                 val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-                val folderName = File(data).parentFile?.name ?: "Unknown"
+                val resolvedFolderName = File(data).parentFile?.name ?: "Unknown"
                 val thumbnailUri = thumbnailsMap[id] ?: contentUri
 
                 videos.add(
@@ -77,7 +89,7 @@ class MediaStoreHelper(private val context: Context) {
                         uri = contentUri,
                         title = title,
                         duration = duration,
-                        folderName = folderName,
+                        folderName = resolvedFolderName,
                         path = data,
                         thumbnailUri = thumbnailUri,
                         size = size,
@@ -90,6 +102,9 @@ class MediaStoreHelper(private val context: Context) {
         }
         videos
     }
+
+    suspend fun getVideosByFolder(folderName: String, blacklistedFolders: List<String> = emptyList()): List<VideoItem> =
+        getAllVideos(blacklistedFolders, folderName)
 
     /**
      * Retrieves videos that are in the system trash (MediaStore IS_TRASHED flag).
@@ -207,10 +222,30 @@ class MediaStoreHelper(private val context: Context) {
         }.sortedBy { it.name }
     }
 
+    @Suppress("DEPRECATION")
     private suspend fun getThumbnailsMap(context: Context): Map<Long, Uri> = withContext(Dispatchers.IO) {
-        // MediaStore.Video.Thumbnails is deprecated since API 29.
-        // Coil (coil-video) extracts frames from the video content URI directly,
-        // so a separate thumbnails map is no longer needed.
-        emptyMap()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return@withContext emptyMap()
+        }
+        val map = mutableMapOf<Long, Uri>()
+        try {
+            context.contentResolver.query(
+                MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Video.Thumbnails.VIDEO_ID, MediaStore.Video.Thumbnails._ID),
+                "${MediaStore.Video.Thumbnails.KIND}=${MediaStore.Video.Thumbnails.MINI_KIND}",
+                null, null
+            )?.use { cursor ->
+                val videoIdCol = cursor.getColumnIndex(MediaStore.Video.Thumbnails.VIDEO_ID)
+                val thumbIdCol = cursor.getColumnIndex(MediaStore.Video.Thumbnails._ID)
+                while (cursor.moveToNext()) {
+                    val videoId = cursor.getLong(videoIdCol)
+                    val thumbId = cursor.getLong(thumbIdCol)
+                    map[videoId] = ContentUris.withAppendedId(
+                        MediaStore.Video.Thumbnails.EXTERNAL_CONTENT_URI, thumbId
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        map
     }
 }

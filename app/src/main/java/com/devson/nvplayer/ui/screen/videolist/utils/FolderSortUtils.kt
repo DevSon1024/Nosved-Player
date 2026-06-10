@@ -1,9 +1,9 @@
 package com.devson.nvplayer.ui.screens.videolist.utils
 
-import com.devson.nvplayer.model.SortDirection
-import com.devson.nvplayer.model.SortField
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
+import com.devson.nvplayer.domain.model.SortDirection
+import com.devson.nvplayer.domain.model.SortField
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
 
 fun List<VideoFolder>.applyFolderSort(
     folderMap: Map<VideoFolder, List<Video>>,

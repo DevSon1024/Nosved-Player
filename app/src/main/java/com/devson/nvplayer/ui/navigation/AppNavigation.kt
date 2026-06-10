@@ -2,49 +2,56 @@ package com.devson.nvplayer.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import com.devson.nvplayer.model.DefaultScreen
+import com.devson.nvplayer.domain.model.DefaultScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.NavController
+import androidx.lifecycle.Lifecycle
 import com.devson.nvplayer.ui.screen.HomeScreen
 import com.devson.nvplayer.ui.screen.HistoryScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
-import com.devson.nvplayer.ui.screen.AppearanceSettingsScreen
-import com.devson.nvplayer.ui.screen.RecycleBinScreen
-import com.devson.nvplayer.ui.screen.GestureSettingsScreen
-import com.devson.nvplayer.ui.screen.CustomHomeSettingsScreen
-import com.devson.nvplayer.ui.screen.PlayerInterfaceSettingsScreen
-import com.devson.nvplayer.ui.screen.AboutScreen
-import com.devson.nvplayer.ui.screen.FolderScreen
+import com.devson.nvplayer.ui.screen.settings.AppearanceSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.RecycleBinScreen
+import com.devson.nvplayer.ui.screen.settings.GestureSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.CustomHomeSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.PlayerInterfaceSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.AboutScreen
+import com.devson.nvplayer.ui.screen.settings.FolderScreen
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
+import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
+import com.devson.nvplayer.ui.screen.settings.MpvConfigSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
-import com.devson.nvplayer.model.ViewMode
-import com.devson.nvplayer.player.DecoderMode
-import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.domain.model.ViewMode
+import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
-import com.devson.nvplayer.ui.screens.settings.ToolScreen
+import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
+import com.devson.nvplayer.ui.screen.editor.MpvHelpScreen
+import com.devson.nvplayer.ui.screen.NetworkHistoryScreen
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import com.devson.nvplayer.ui.screen.settings.ControlLayoutEditorScreen
 
 @Composable
 fun AppNavigation(
@@ -55,15 +62,15 @@ fun AppNavigation(
     videoListViewModel: VideoListViewModel,
     fileOpsViewModel: FileOperationsViewModel,
     isInPipMode: Boolean = false,
-    onEnterPip: () -> Unit = {}
+    onEnterPip: () -> Unit = {},
+    initialUri: Uri? = null,
+    onDeepLinkHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
 
     // 1. Create a safe back navigation helper to prevent popping the start destination
     val safePopBackStack: () -> Unit = {
-        if (navController.previousBackStackEntry != null) {
-            navController.popBackStack()
-        }
+        navController.safePopBackStack()
     }
 
     val startDestination = remember {
@@ -71,6 +78,16 @@ fun AppNavigation(
             "video_list"
         } else {
             "home"
+        }
+    }
+
+    LaunchedEffect(initialUri) {
+        if (initialUri != null) {
+            playerViewModel().prepareVideo(initialUri, listOf(initialUri))
+            navController.navigate("player") {
+                launchSingleTop = true
+            }
+            onDeepLinkHandled()
         }
     }
 
@@ -111,30 +128,67 @@ fun AppNavigation(
                     val folder = videoListViewModel.videosByFolder.value.keys.find { it.id == folderId }
                     videoListViewModel.selectFolder(folder)
                     videoListViewModel.updateViewMode(ViewMode.ALL_FOLDERS)
-                    navController.navigate("video_list")
+                    navController.navigate("video_list") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onSettingsClick = {
-                    navController.navigate("settings")
+                    navController.navigate("settings") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onVideoClick = { uri, playlist ->
                     playerViewModel().prepareVideo(uri, playlist)
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onRecycleBinClick = {
-                    navController.navigate("recycle_bin")
+                    navController.navigate("recycle_bin") {
+                        launchSingleTop = true
+                    }
                 },
                 onSearch = { query ->
-                    navController.navigate("search_results/${Uri.encode(query)}")
+                    navController.navigate("search_results/${Uri.encode(query)}") {
+                        launchSingleTop = true
+                    }
                 },
                 onBrowseClick = {
-                    navController.navigate("video_list")
+                    navController.navigate("video_list") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onFeedClick = {
                     videoListViewModel.setFeedVideos(null)
-                    navController.navigate("feed/0")
+                    navController.navigate("feed/0") {
+                        launchSingleTop = true
+                    }
                 },
                 onSeeMoreHistoryClick = {
-                    navController.navigate("history")
+                    navController.navigate("history") {
+                        launchSingleTop = true
+                    }
+                },
+                onNetworkHistoryClick = {
+                    navController.navigate("network_history") {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable("network_history") {
+            NetworkHistoryScreen(
+                homeViewModel = homeViewModel,
+                onBack = safePopBackStack,
+                onPlayStream = { uri ->
+                    playerViewModel().prepareVideo(uri, listOf(uri))
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -143,19 +197,28 @@ fun AppNavigation(
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSettings = {
-                    navController.navigate("settings")
+                    navController.navigate("settings") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
                 onBack = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onNavigateToSearch = { query ->
-                    navController.navigate("search_results/${Uri.encode(query)}")
+                    navController.navigate("search_results/${Uri.encode(query)}") {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToFeed = { startIndex ->
-                    navController.navigate("feed/$startIndex")
+                    navController.navigate("feed/$startIndex") {
+                        launchSingleTop = true
+                    }
                 },
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel
@@ -163,13 +226,14 @@ fun AppNavigation(
         }
 
         composable("history") {
-            val videosByFolder by videoListViewModel.videosByFolder.collectAsStateWithLifecycle()
-            val allVideos = remember(videosByFolder) { videosByFolder.values.flatten() }
+            val allVideos by videoListViewModel.videosFlat.collectAsStateWithLifecycle()
             HistoryScreen(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
                 },
                 onBack = safePopBackStack,
                 homeViewModel = homeViewModel
@@ -186,16 +250,39 @@ fun AppNavigation(
         composable("settings") {
             SettingsScreen(
                 onBack = safePopBackStack, // 2. Use the safe helper
-                onNavigateToAbout = { navController.navigate("about") },
+                onNavigateToAbout = { navController.navigate("about") { launchSingleTop = true } },
                 onNavigateToLogs = {},
-                onNavigateToPrivacyPolicy = { navController.navigate("privacy_policy") },
-                onNavigateToAppearance = { navController.navigate("appearance") },
-                onNavigateToGestures = { navController.navigate("gestures") },
-                onNavigateToCustomHome = { navController.navigate("custom_home") },
-                onNavigateToPlayerInterface = { navController.navigate("player_interface") },
-                onNavigateToScanFolders = { navController.navigate("folder_settings") },
-                onNavigateToTool = { navController.navigate("tools") },
-                onNavigateToRecycleBin = { navController.navigate("recycle_bin") },
+                onNavigateToPrivacyPolicy = { navController.navigate("privacy_policy") { launchSingleTop = true } },
+                onNavigateToAppearance = { navController.navigate("appearance") { launchSingleTop = true } },
+                onNavigateToGestures = { navController.navigate("gestures") { launchSingleTop = true } },
+                onNavigateToCustomHome = { navController.navigate("custom_home") { launchSingleTop = true } },
+                onNavigateToPlayerInterface = { navController.navigate("player_interface") { launchSingleTop = true } },
+                onNavigateToScanFolders = { navController.navigate("folder_settings") { launchSingleTop = true } },
+                onNavigateToTool = { navController.navigate("tools") { launchSingleTop = true } },
+                onNavigateToRecycleBin = { navController.navigate("recycle_bin") { launchSingleTop = true } },
+                onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") { launchSingleTop = true } },
+                onNavigateToMpvConfig = { navController.navigate("mpv_config") { launchSingleTop = true } },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("mpv_config") {
+            MpvConfigSettingsScreen(
+                onNavigateBack = safePopBackStack,
+                onNavigateToHelp = { navController.navigate("mpv_help") { launchSingleTop = true } },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("mpv_help") {
+            MpvHelpScreen(
+                onNavigateBack = safePopBackStack
+            )
+        }
+
+        composable("ytdlp_settings") {
+            YtdlpSettingsScreen(
+                onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )
         }
@@ -209,9 +296,9 @@ fun AppNavigation(
         composable("tools") {
             ToolScreen(
                 onBack = safePopBackStack,
-                onNavigateToMilliSeconds = { navController.navigate("tools_milliseconds") },
+                onNavigateToMilliSeconds = { navController.navigate("tools_milliseconds") { launchSingleTop = true } },
                 onNavigateToVideoEditor = {},
-                onNavigateToMediaStoreFinder = { navController.navigate("tools_mediastore_finder") }
+                onNavigateToMediaStoreFinder = { navController.navigate("tools_mediastore_finder") { launchSingleTop = true } }
             )
         }
 
@@ -230,7 +317,7 @@ fun AppNavigation(
         composable("folder_settings") {
             FolderScreen(
                 onNavigateBack = safePopBackStack,
-                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") },
+                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -240,10 +327,10 @@ fun AppNavigation(
                 isBlacklistMode = true,
                 onFoldersBlacklisted = { selectedPaths ->
                     settingsViewModel.addToBlacklist(selectedPaths)
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 },
                 onCancel = {
-                    navController.popBackStack()
+                    navController.safePopBackStack()
                 }
             )
         }
@@ -279,7 +366,7 @@ fun AppNavigation(
             PlayerInterfaceSettingsScreen(
                 onNavigateBack = safePopBackStack,
                 onNavigateToControlEditor = {
-                    navController.navigate("control_layout_editor")
+                    navController.navigate("control_layout_editor") { launchSingleTop = true }
                 },
                 settingsViewModel = settingsViewModel
             )
@@ -288,7 +375,7 @@ fun AppNavigation(
         composable(
             route = "control_layout_editor"
         ) {
-            com.devson.nvplayer.ui.screen.ControlLayoutEditorScreen(
+            ControlLayoutEditorScreen(
                 onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )
@@ -304,7 +391,7 @@ fun AppNavigation(
             val startIndex = backStackEntry.arguments?.getInt("startIndex") ?: 0
             val feedVideosState by videoListViewModel.feedVideos.collectAsStateWithLifecycle()
             val videos = remember(feedVideosState) {
-                feedVideosState ?: videoListViewModel.videosByFolder.value.values.flatten()
+                feedVideosState ?: videoListViewModel.videosFlat.value
             }
             FeedScreen(
                 videos     = videos,
@@ -313,7 +400,7 @@ fun AppNavigation(
                 onBack     = safePopBackStack,
                 onPlayVideoInPlayer = { video, playlist ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") { launchSingleTop = true }
                 }
             )
         }
@@ -329,7 +416,7 @@ fun AppNavigation(
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player")
+                    navController.navigate("player") { launchSingleTop = true }
                 },
                 onBack = safePopBackStack
             )
@@ -434,7 +521,6 @@ fun AppNavigation(
                 onUpdateAutoPlayEnabled = { settingsViewModel.updateAutoPlayEnabled(it) },
                 onUpdateShowSeekButtons = { settingsViewModel.updateShowSeekButtons(it) },
                 onUpdateShowNextPrevButtons = { settingsViewModel.updateShowNextPrevButtons(it) },
-                onUpdateShowElapsedTimeOverlay = { settingsViewModel.updateShowElapsedTimeOverlay(it) },
                 onUpdateShowRemainingTime = { settingsViewModel.updateShowRemainingTime(it) },
                 onUpdateShowBatteryClockOverlay = { settingsViewModel.updateShowBatteryClockOverlay(it) },
                 onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },
@@ -458,5 +544,17 @@ fun AppNavigation(
                 onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) }
             )
         }
+    }
+}
+
+fun NavController.safePopBackStack(): Boolean {
+    val currentEntry = currentBackStackEntry
+    return if (previousBackStackEntry != null && 
+        currentEntry != null && 
+        currentEntry.lifecycle.currentState == Lifecycle.State.RESUMED
+    ) {
+        popBackStack()
+    } else {
+        false
     }
 }

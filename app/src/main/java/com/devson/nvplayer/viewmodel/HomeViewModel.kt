@@ -9,8 +9,8 @@ import com.devson.nvplayer.data.database.AppDatabase
 import com.devson.nvplayer.data.database.WatchHistoryEntity
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.repository.VideoRepository
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.WatchHistory
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.WatchHistory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +34,9 @@ class HomeViewModel(
     private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
     private var watchHistoryJob: Job? = null
     
+    val networkHistory = dao.getNetworkStreams()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _history = MutableStateFlow<List<WatchHistory>>(emptyList())
     val history: StateFlow<List<WatchHistory>> = _history.asStateFlow()
  

@@ -1,7 +1,7 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
 import android.net.Uri
-import com.devson.nvplayer.model.Video
+import com.devson.nvplayer.domain.model.Video
 
 /**
  * Represents one-off UI events (like showing a Toast, navigating to a player)

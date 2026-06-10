@@ -7,5 +7,7 @@ import androidx.room.PrimaryKey
 data class WatchHistoryEntity(
     @PrimaryKey val uri: String,
     val lastPositionMs: Long,
-    val lastPlayedAt: Long
+    val lastPlayedAt: Long,
+    val isNetworkStream: Boolean = false,
+    val videoTitle: String? = null
 )

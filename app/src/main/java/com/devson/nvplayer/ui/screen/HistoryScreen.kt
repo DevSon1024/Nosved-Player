@@ -15,10 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devson.nvplayer.R
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListItem
 import com.devson.nvplayer.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,6 +67,8 @@ fun HistoryScreen(
             val playlist = remember(historyVideos) { historyVideos }
             val defaultSettings = remember { ViewSettings() }
 
+            val historyMap = remember(history) { history.associateBy { it.uri } }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -75,15 +76,22 @@ fun HistoryScreen(
                     bottom = padding.calculateBottomPadding() + 32.dp
                 )
             ) {
-                items(historyVideos, key = { it.uri }) { video ->
-                    val historyEntry = remember(video, history) { history.find { it.uri == video.uri } }
+                items(
+                    items = historyVideos,
+                    key = { it.uri },
+                    contentType = { "history_video" }
+                ) { video ->
+                    val historyEntry = remember(video.uri, historyMap) { historyMap[video.uri] }
                     val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+                    val onClick = remember(video, playlist, lastPositionMs) {
+                        { _: Video -> onVideoSelected(video, playlist, lastPositionMs) }
+                    }
                     VideoListItem(
                         video = video,
                         settings = defaultSettings,
                         isSelected = false,
                         lastPositionMs = lastPositionMs,
-                        onClick = { onVideoSelected(video, playlist, lastPositionMs) },
+                        onClick = onClick,
                         onLongClick = {}
                     )
                 }

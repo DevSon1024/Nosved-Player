@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -35,7 +34,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -44,14 +42,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.player.MPVSurfaceView
-import com.devson.nvplayer.player.PlayerState
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.player.engine.MPVSurfaceView
+import com.devson.nvplayer.player.engine.PlayerState
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.viewmodel.FeedViewModel
 import com.devson.nvplayer.viewmodel.FilterMode
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import kotlinx.coroutines.delay
 
 // FeedScreen 
@@ -64,7 +63,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun FeedScreen(
     videos: List<Video>,
-    engine: com.devson.nvplayer.player.MPVPlayerEngine,
+    engine: MPVPlayerEngine,
     startIndex: Int = 0,
     onBack: () -> Unit = {},
     onPlayVideoInPlayer: (Video, List<Video>) -> Unit = { _, _ -> }
@@ -280,7 +279,7 @@ fun FeedScreen(
 private fun FeedPage(
     video: Video,
     isActive: Boolean,
-    engine: com.devson.nvplayer.player.MPVPlayerEngine,
+    engine: MPVPlayerEngine,
     isPlaying: Boolean,
     playerState: PlayerState,
     controlsVisible: Boolean,

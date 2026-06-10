@@ -13,7 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.*
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -31,14 +33,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.ui.component.PreviewFloatingActionButton
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoThumbnail
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.ui.common.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoThumbnail
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +60,8 @@ fun HomeScreen(
     onSearch: (String) -> Unit,
     onBrowseClick: () -> Unit,
     onFeedClick: () -> Unit,
-    onSeeMoreHistoryClick: () -> Unit
+    onSeeMoreHistoryClick: () -> Unit,
+    onNetworkHistoryClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -63,6 +71,7 @@ fun HomeScreen(
     }
 
     val videosByFolder by viewModel.videosByFolder.collectAsState()
+    val videosFlat by viewModel.videosFlat.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val viewSettings by viewModel.viewSettings.collectAsState()
 
@@ -70,10 +79,14 @@ fun HomeScreen(
     val history by homeViewModel.history.collectAsState()
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
+    var clickedVideoUri by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                clickedVideoUri = null
                 homeViewModel.loadWatchHistory(forceVerify = false)
             }
         }
@@ -83,7 +96,7 @@ fun HomeScreen(
         }
     }
 
-    val allVideosFlat = remember(videosByFolder) { videosByFolder.values.flatten() }
+    val allVideosFlat = videosFlat
     val folders = remember(videosByFolder) { videosByFolder.keys.toList() }
 
     val continueWatchingVideos = remember(history, allVideosFlat) {
@@ -92,10 +105,18 @@ fun HomeScreen(
         }
     }
 
+    var displayedContinueWatchingVideos by remember { mutableStateOf(continueWatchingVideos) }
+    LaunchedEffect(continueWatchingVideos) {
+        if (clickedVideoUri == null) {
+            displayedContinueWatchingVideos = continueWatchingVideos
+        }
+    }
+
     var searchQuery by remember { mutableStateOf("") }
     val storageInfo by homeViewModel.storageInfo.collectAsState()
 
     var showNetworkDialog by remember { mutableStateOf(false) }
+    var showYtdlpMissingDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -160,7 +181,7 @@ fun HomeScreen(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Public,
+                            imageVector = Icons.Rounded.Language,
                             contentDescription = "Network Stream",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -224,76 +245,100 @@ fun HomeScreen(
                     )
 
                     val maxVideos = 10
-                    val videoDisplayList = remember(continueWatchingVideos) {
-                        if (continueWatchingVideos.size > maxVideos) continueWatchingVideos.take(maxVideos) else continueWatchingVideos
+                    val videoDisplayList = remember(displayedContinueWatchingVideos) {
+                        if (displayedContinueWatchingVideos.size > maxVideos) displayedContinueWatchingVideos.take(maxVideos) else displayedContinueWatchingVideos
                     }
-                    val carouselState = rememberCarouselState(itemCount = { videoDisplayList.size + 1 })
 
-                    HorizontalMultiBrowseCarousel(
-                        state = carouselState,
-                        preferredItemWidth = 150.dp,
-                        itemSpacing = 12.dp,
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { index ->
-                        if (index < videoDisplayList.size) {
-                            val video = videoDisplayList[index]
-                            val historyEntry = historyMap[video.uri]
-                            val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+                    key(videoDisplayList) {
+                        val carouselState = rememberCarouselState(itemCount = { videoDisplayList.size + 1 })
 
-                            ContinueWatchingCard(
-                                video = video,
-                                lastPositionMs = lastPositionMs,
-                                onClick = {
-                                    val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
-                                    onVideoClick(Uri.parse(video.uri), playlist)
-                                },
-                                modifier = Modifier
-                                    .height(220.dp)
-                                    .maskClip(RoundedCornerShape(24.dp))
-                            )
-                        } else {
-                            Card(
-                                modifier = Modifier
-                                    .height(220.dp)
-                                    .width(150.dp)
-                                    .maskClip(RoundedCornerShape(24.dp))
-                                    .clickable { onSeeMoreHistoryClick() },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        HorizontalMultiBrowseCarousel(
+                            state = carouselState,
+                            preferredItemWidth = 150.dp,
+                            itemSpacing = 12.dp,
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { index ->
+                            if (index < videoDisplayList.size) {
+                                val video = videoDisplayList[index]
+                                val historyEntry = historyMap[video.uri]
+                                val lastPositionMs = historyEntry?.lastPositionMs ?: 0L
+
+                                val isClicked = clickedVideoUri == video.uri
+                                val animatedAlpha by animateFloatAsState(
+                                    targetValue = if (isClicked) 0f else 1f,
+                                    animationSpec = tween(durationMillis = 250),
+                                    label = "cardAlpha"
                                 )
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = if (isClicked) 0.85f else 1f,
+                                    animationSpec = tween(durationMillis = 250),
+                                    label = "cardScale"
+                                )
+
+                                ContinueWatchingCard(
+                                    video = video,
+                                    lastPositionMs = lastPositionMs,
+                                    onClick = {
+                                        clickedVideoUri = video.uri
+                                        coroutineScope.launch {
+                                            delay(200)
+                                            val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
+                                            onVideoClick(Uri.parse(video.uri), playlist)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            alpha = animatedAlpha
+                                            scaleX = animatedScale
+                                            scaleY = animatedScale
+                                        }
+                                        .height(220.dp)
+                                        .maskClip(RoundedCornerShape(24.dp))
+                                )
+                            } else {
+                                Card(
+                                    modifier = Modifier
+                                        .height(220.dp)
+                                        .width(150.dp)
+                                        .maskClip(RoundedCornerShape(24.dp))
+                                        .clickable { onSeeMoreHistoryClick() },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                                contentDescription = "See More",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(28.dp)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                    contentDescription = "See More",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = "See More",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "See More",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
                                     }
                                 }
                             }
@@ -350,17 +395,6 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-
-                // Bento Quaternary Network Stream Card
-                QuickActionCardBento(
-                    title = "Network Stream",
-                    subtitle = "Play video from a URL/network stream",
-                    icon = Icons.Default.Language,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    onClick = { showNetworkDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
 
             // 5. Stats Dashboard Section
@@ -471,9 +505,65 @@ fun HomeScreen(
         NetworkStreamDialog(
             onDismiss = { showNetworkDialog = false },
             onPlay = { uri ->
+                val uriString = uri.toString().lowercase(java.util.Locale.ROOT)
+                val isYoutube = uriString.contains("youtube") || uriString.contains("youtu.be")
+                val isYtdlpInstalled = java.io.File(
+                    com.devson.nvplayer.player.ytdlp.YtdlpManager.getYtdlDir(context),
+                    "yt-dlp"
+                ).exists()
+
+                if (isYoutube && !isYtdlpInstalled) {
+                    showNetworkDialog = false
+                    showYtdlpMissingDialog = true
+                } else {
+                    showNetworkDialog = false
+                    onVideoClick(uri, listOf(uri))
+                }
+            },
+            onHistoryClick = {
                 showNetworkDialog = false
-                onVideoClick(uri, listOf(uri))
+                onNetworkHistoryClick()
             }
+        )
+    }
+
+    if (showYtdlpMissingDialog) {
+        AlertDialog(
+            onDismissRequest = { showYtdlpMissingDialog = false },
+            title = {
+                Text(
+                    text = "yt-dlp Required",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Text(
+                    text = "This stream requires yt-dlp to extract the video. Please install yt-dlp first under App Settings to play YouTube videos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showYtdlpMissingDialog = false
+                        onSettingsClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Go to Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showYtdlpMissingDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
@@ -802,19 +892,35 @@ fun FolderCard(
 @Composable
 fun NetworkStreamDialog(
     onDismiss: () -> Unit,
-    onPlay: (Uri) -> Unit
+    onPlay: (Uri) -> Unit,
+    onHistoryClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboardManager = remember(context) { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     var urlText by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Play Network Stream",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleLarge
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Play Network Stream",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(onClick = onHistoryClick) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.History,
+                        contentDescription = "Stream History",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         },
         text = {
             Column(
@@ -835,6 +941,29 @@ fun NetworkStreamDialog(
                     placeholder = { Text("https://example.com/video.mp4") },
                     singleLine = true,
                     isError = errorText != null,
+                    trailingIcon = {
+                        if (urlText.isNotEmpty()) {
+                            IconButton(onClick = { urlText = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear Text"
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = {
+                                val clipText = clipboardManager.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+                                if (!clipText.isNullOrBlank()) {
+                                    urlText = clipText
+                                    errorText = null
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Paste Clipboard"
+                                )
+                            }
+                        }
+                    },
                     supportingText = {
                         if (errorText != null) {
                             Text(
@@ -846,6 +975,7 @@ fun NetworkStreamDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
                 TextButton(
                     onClick = {
                         urlText = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"

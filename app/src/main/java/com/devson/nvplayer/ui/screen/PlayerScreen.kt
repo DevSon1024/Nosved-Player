@@ -8,20 +8,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.VolumeMute
-import androidx.compose.material.icons.automirrored.rounded.VolumeDown
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -41,47 +32,50 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.devson.nvplayer.player.MPVSurfaceView
-import com.devson.nvplayer.player.PlayerState
-import com.devson.nvplayer.ui.component.PlayerControls
-import com.devson.nvplayer.ui.component.GestureOverlay
-import com.devson.nvplayer.ui.component.AspectIcons
-import com.devson.nvplayer.model.PlayerButton
+import com.devson.nvplayer.player.engine.MPVSurfaceView
+import com.devson.nvplayer.player.engine.PlayerState
+import com.devson.nvplayer.ui.common.PlayerControls
+import com.devson.nvplayer.ui.common.GestureOverlay
+import com.devson.nvplayer.ui.common.icons.AspectIcons
+import com.devson.nvplayer.domain.model.PlayerButton
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.coroutineScope
 import android.media.AudioManager
 import android.content.Context
-import com.devson.nvplayer.player.TrackInfo
-import com.devson.nvplayer.repository.SubtitleFont
-import com.devson.nvplayer.repository.PlaybackSettings
-import com.devson.nvplayer.repository.EnhanceMode
+import com.devson.nvplayer.util.findActivity
+import com.devson.nvplayer.player.model.TrackInfo
+import com.devson.nvplayer.data.repository.SubtitleFont
+import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.data.repository.EnhanceMode
 import android.provider.MediaStore
-import com.devson.nvplayer.ui.component.SubtitleSettingsSideSheet
-import com.devson.nvplayer.ui.component.AudioSettingsSideSheet
-import com.devson.nvplayer.ui.component.ComposeSubtitleOverlay
-import com.devson.nvplayer.ui.component.PlayerSettingsSideSheet
-import com.devson.nvplayer.ui.component.EnhanceSettingsSideSheet
-import com.devson.nvplayer.player.ChapterInfo
-import com.devson.nvplayer.ui.component.ChaptersSideSheet
-import com.devson.nvplayer.player.DecoderMode
-import com.devson.nvplayer.ui.component.DecoderSideSheet
+import com.devson.nvplayer.ui.common.SubtitleSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.AudioSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.QualitySettingsSideSheet
+import com.devson.nvplayer.ui.common.ComposeSubtitleOverlay
+import com.devson.nvplayer.ui.common.sheets.PlayerSettingsSideSheet
+import com.devson.nvplayer.ui.common.sheets.EnhanceSettingsSideSheet
+import com.devson.nvplayer.player.model.ChapterInfo
+import com.devson.nvplayer.ui.common.sheets.ChaptersSideSheet
+import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.ui.common.sheets.DecoderSideSheet
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import android.os.BatteryManager
-import android.content.res.Configuration
 import android.os.Build
 import android.content.Intent
-import com.devson.nvplayer.player.MediaPlaybackService
+import android.widget.Toast
+import com.devson.nvplayer.player.service.MediaPlaybackService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.devson.nvplayer.ui.component.formatTime
-import androidx.compose.ui.platform.LocalConfiguration
+import com.devson.nvplayer.ui.common.formatTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.devson.nvplayer.data.repository.DoubleTapAction
+import com.devson.nvplayer.data.repository.FullScreenMode
+import com.devson.nvplayer.data.repository.OrientationMode
+import com.devson.nvplayer.data.repository.SoftButtonMode
+import com.devson.nvplayer.player.model.AspectMode
 
 @Composable
 fun PlayerScreen(
@@ -138,16 +132,15 @@ fun PlayerScreen(
     onUpdateDoubleTapSeekDuration: (Long) -> Unit = {},
     onUpdateLongPressEnabled: (Boolean) -> Unit = {},
     onUpdateLongPressSpeed: (Float) -> Unit = {},
-    onUpdateDoubleTapAction: (com.devson.nvplayer.repository.DoubleTapAction) -> Unit = {},
-    onUpdateOrientationMode: (com.devson.nvplayer.repository.OrientationMode) -> Unit = {},
-    onUpdateFullScreenMode: (com.devson.nvplayer.repository.FullScreenMode) -> Unit = {},
-    onUpdateSoftButtonMode: (com.devson.nvplayer.repository.SoftButtonMode) -> Unit = {},
+    onUpdateDoubleTapAction: (DoubleTapAction) -> Unit = {},
+    onUpdateOrientationMode: (OrientationMode) -> Unit = {},
+    onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
+    onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
     onUpdateControlIconSize: (String) -> Unit = {},
     onUpdateSeekBarStyle: (String) -> Unit = {},
     onUpdateAutoPlayEnabled: (Boolean) -> Unit = {},
     onUpdateShowSeekButtons: (Boolean) -> Unit = {},
     onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
-    onUpdateShowElapsedTimeOverlay: (Boolean) -> Unit = {},
     onUpdateShowRemainingTime: (Boolean) -> Unit = {},
     onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
     onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
@@ -182,6 +175,7 @@ fun PlayerScreen(
     }
     val activeViewModel = viewModel ?: resolvedViewModel
     val bufferedPosition by (activeViewModel?.bufferedPosition ?: kotlinx.coroutines.flow.MutableStateFlow(bufferedPosition)).collectAsStateWithLifecycle()
+    val engineMediaTitle by (activeViewModel?.mediaTitle ?: kotlinx.coroutines.flow.MutableStateFlow("")).collectAsStateWithLifecycle()
 
     var controlsVisible by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
@@ -193,6 +187,7 @@ fun PlayerScreen(
     var showChaptersSideSheet by remember { mutableStateOf(false) }
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
+    var showQualitySideSheet by remember { mutableStateOf(false) }
 
     val topLeftButtons = remember(playbackSettings.topLeftControls) {
         // Landscape TopLeft: always starts with BACK_ARROW + VIDEO_TITLE (non-editable anchor)
@@ -233,10 +228,10 @@ fun PlayerScreen(
             isFirstAspectEmission = false
         } else {
             aspectOverlayText = when (playbackSettings.aspectMode) {
-                com.devson.nvplayer.player.AspectMode.FIT -> "Fit Screen"
-                com.devson.nvplayer.player.AspectMode.STRETCH -> "Stretch"
-                com.devson.nvplayer.player.AspectMode.CROP -> "Crop"
-                com.devson.nvplayer.player.AspectMode.ORIGINAL -> "100% Original"
+                AspectMode.FIT -> "Fit Screen"
+                AspectMode.STRETCH -> "Stretch"
+                AspectMode.CROP -> "Crop"
+                AspectMode.ORIGINAL -> "100% Original"
             }
         }
     }
@@ -276,27 +271,66 @@ fun PlayerScreen(
     //  Resolve the real video title 
     // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
     // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
-    val videoTitle: String = remember(currentUri) {
-        if (currentUri == null) return@remember "Local Video"
-        // 1. Try ContentResolver (works for content:// MediaStore URIs)
-        try {
-            context.contentResolver.query(
-                currentUri,
-                arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
-                null, null, null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                    if (nameCol >= 0) {
-                        val fullName = cursor.getString(nameCol) ?: ""
-                        // Strip extension
-                        val dot = fullName.lastIndexOf('.')
-                        return@remember if (dot > 0) fullName.substring(0, dot) else fullName
+    val videoTitle: String = remember(currentUri, engineMediaTitle) {
+        if (currentUri == null) {
+            return@remember if (!engineMediaTitle.isNullOrBlank()) engineMediaTitle else "Local Video"
+        }
+        
+        val scheme = currentUri.scheme
+        val isLocal = scheme == null || scheme == "content" || scheme == "file"
+        
+        if (isLocal) {
+            // For local videos, try ContentResolver first to get DISPLAY_NAME
+            try {
+                context.contentResolver.query(
+                    currentUri,
+                    arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                        if (nameCol >= 0) {
+                            val fullName = cursor.getString(nameCol) ?: ""
+                            // Strip extension
+                            val dot = fullName.lastIndexOf('.')
+                            val nameWithoutExt = if (dot > 0) fullName.substring(0, dot) else fullName
+                            if (nameWithoutExt.isNotBlank()) {
+                                return@remember nameWithoutExt
+                            }
+                        }
                     }
                 }
+            } catch (_: Exception) { }
+            
+            // If ContentResolver fails, try to extract from the path segment
+            val seg = currentUri.lastPathSegment ?: currentUri.toString()
+            val name = seg.substringAfterLast('/')
+            // Only use the segment name if it is not just a numeric ID and we have a valid engineMediaTitle
+            val isNumericId = name.all { it.isDigit() }
+            if (isNumericId && !engineMediaTitle.isNullOrBlank() && !engineMediaTitle.all { it.isDigit() }) {
+                val dot = engineMediaTitle.lastIndexOf('.')
+                return@remember if (dot > 0) engineMediaTitle.substring(0, dot) else engineMediaTitle
             }
-        } catch (_: Exception) { }
-        // 2. Fall back: use last path segment and strip extension
+            
+            val dot = name.lastIndexOf('.')
+            val resolvedLocalName = if (dot > 0) name.substring(0, dot) else name
+            if (resolvedLocalName.isNotBlank() && !resolvedLocalName.all { it.isDigit() }) {
+                return@remember resolvedLocalName
+            }
+        }
+        
+        // For network streams or as a fallback, use engineMediaTitle if available
+        if (!engineMediaTitle.isNullOrBlank()) {
+            val cleanTitle = if (engineMediaTitle.startsWith("http://") || engineMediaTitle.startsWith("https://")) {
+                val parsed = runCatching { Uri.parse(engineMediaTitle) }.getOrNull()
+                parsed?.lastPathSegment ?: engineMediaTitle
+            } else {
+                engineMediaTitle
+            }
+            return@remember cleanTitle
+        }
+        
+        // Final fallback: segment extraction
         val seg = currentUri.lastPathSegment ?: currentUri.toString()
         val name = seg.substringAfterLast('/')
         val dot = name.lastIndexOf('.')
@@ -351,15 +385,15 @@ fun PlayerScreen(
             if (currentContext is Activity) {
                 val orientationMode = playbackSettings.orientationMode
                 when (orientationMode) {
-                    com.devson.nvplayer.repository.OrientationMode.LANDSCAPE,
-                    com.devson.nvplayer.repository.OrientationMode.AUTO -> {
+                    OrientationMode.LANDSCAPE,
+                    OrientationMode.AUTO -> {
                         // Force landscape regardless of video dimensions
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
-                    com.devson.nvplayer.repository.OrientationMode.PORTRAIT -> {
+                    OrientationMode.PORTRAIT -> {
                         currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
-                    com.devson.nvplayer.repository.OrientationMode.SYSTEM_DEFAULT -> {
+                    OrientationMode.SYSTEM_DEFAULT -> {
                         // Auto-detect from video dimensions (original behaviour)
                         if (videoWidth > 0 && videoHeight > 0) {
                             val isRotated = videoRotation == 90L || videoRotation == 270L
@@ -388,7 +422,7 @@ fun PlayerScreen(
             val window = act.window
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
             when (playbackSettings.softButtonMode) {
-                com.devson.nvplayer.repository.SoftButtonMode.AUTO_HIDE -> {
+                SoftButtonMode.AUTO_HIDE -> {
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                     if (controlsVisible) {
                         insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
@@ -396,10 +430,10 @@ fun PlayerScreen(
                         insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                     }
                 }
-                com.devson.nvplayer.repository.SoftButtonMode.SHOW -> {
+                SoftButtonMode.SHOW -> {
                     insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 }
-                com.devson.nvplayer.repository.SoftButtonMode.HIDE -> {
+                SoftButtonMode.HIDE -> {
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                     insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 }
@@ -452,7 +486,9 @@ fun PlayerScreen(
                 val bgPlayEnabled = playbackSettings.backgroundPlayEnabled
                 if (bgPlayEnabled) {
                     val intent = Intent(context, MediaPlaybackService::class.java).apply {
+                        data = currentUri
                         putExtra(MediaPlaybackService.EXTRA_VIDEO_TITLE, videoTitle)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         context.startForegroundService(intent)
@@ -642,6 +678,8 @@ fun PlayerScreen(
                         PlayerControls(
                             title = videoTitle,
                             isPlaying = isPlaying,
+                            isBottomLayoutEnabled = playbackSettings.isBottomLayoutEnabled,
+                            showControlGradients = playbackSettings.showControlGradients,
                             isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
                             currentPosition = currentPosition,
                             bufferedPosition = bufferedPosition,
@@ -680,7 +718,6 @@ fun PlayerScreen(
                             onPrevClick = onPrevClick,
                             showSeekButtons = playbackSettings.showSeekButtons,
                             showNextPrevButtons = playbackSettings.showNextPrevButtons,
-                            showElapsedTimeOverlay = playbackSettings.showElapsedTimeOverlay,
                             showRemainingTime = playbackSettings.showRemainingTime,
                             showBatteryClockOverlay = playbackSettings.showBatteryClockOverlay,
                             showScreenRotationButton = playbackSettings.showScreenRotationButton,
@@ -701,12 +738,14 @@ fun PlayerScreen(
                             onBackgroundPlayClick = {
                                 val newVal = !playbackSettings.backgroundPlayEnabled
                                 onUpdateBackgroundPlayEnabled(newVal)
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     context,
                                     if (newVal) "Background play enabled" else "Background play disabled",
-                                    android.widget.Toast.LENGTH_SHORT
+                                    Toast.LENGTH_SHORT
                                 ).show()
                             },
+                            ytdlQuality = playbackSettings.ytdlQuality,
+                            onShowQuality = { showQualitySideSheet = true },
                             modifier = Modifier
                         )
                     }
@@ -743,10 +782,10 @@ fun PlayerScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             val overlayIcon = when (playbackSettings.aspectMode) {
-                                com.devson.nvplayer.player.AspectMode.FIT -> AspectIcons.Fit
-                                com.devson.nvplayer.player.AspectMode.STRETCH -> AspectIcons.Stretch
-                                com.devson.nvplayer.player.AspectMode.CROP -> AspectIcons.Crop
-                                com.devson.nvplayer.player.AspectMode.ORIGINAL -> AspectIcons.Original
+                                AspectMode.FIT -> AspectIcons.Fit
+                                AspectMode.STRETCH -> AspectIcons.Stretch
+                                AspectMode.CROP -> AspectIcons.Crop
+                                AspectMode.ORIGINAL -> AspectIcons.Original
                             }
                             Icon(
                                 imageVector = overlayIcon,
@@ -784,6 +823,18 @@ fun PlayerScreen(
             onDismiss = { showSubtitleSettingsSideSheet = false }
         )
 
+        QualitySettingsSideSheet(
+            visible = showQualitySideSheet,
+            playbackSettings = playbackSettings,
+            onSelectQuality = { quality ->
+                activeViewModel?.changeYtdlQuality(quality)
+            },
+            onDataSaverToggled = { enabled ->
+                activeViewModel?.toggleDataSaver(enabled)
+            },
+            onDismiss = { showQualitySideSheet = false }
+        )
+
         AudioSettingsSideSheet(
             visible = showAudioSettingsSideSheet,
             audioTracks = audioTracks,
@@ -813,7 +864,6 @@ fun PlayerScreen(
             onUpdateAutoPlayEnabled = onUpdateAutoPlayEnabled,
             onUpdateShowSeekButtons = onUpdateShowSeekButtons,
             onUpdateShowNextPrevButtons = onUpdateShowNextPrevButtons,
-            onUpdateShowElapsedTimeOverlay = onUpdateShowElapsedTimeOverlay,
             onUpdateShowRemainingTime = onUpdateShowRemainingTime,
             onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay,
             onUpdateShowScreenRotationButton = onUpdateShowScreenRotationButton,
@@ -1016,15 +1066,6 @@ private fun PersistentTopBar(
             }
         }
     }
-}
-
-private fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
 }
 
 @Composable

@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.folder
+package com.devson.nvplayer.ui.screen.videolist.components.folder
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -44,14 +44,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.R
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.component.FolderShape
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoThumbnail
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.common.shapes.FolderShape
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoThumbnail
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatSize
@@ -94,8 +94,9 @@ fun FolderMediaPreview(
         contentAlignment = Alignment.Center
     ) {
         if (videos.isNotEmpty() && settings.showThumbnail) {
+            val firstVideo = videos.first()
             VideoThumbnail(
-                uri = videos.first().thumbnailUri ?: videos.first().uri,
+                uri = firstVideo.uri,
                 modifier = Modifier.fillMaxSize(),
                 showPlayIcon = false
             )
@@ -184,7 +185,7 @@ fun FolderListItem(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.size(width = 96.dp, height = 72.dp)
+                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
                     )
                     NewCountBadge(newCount)
                 }
@@ -223,17 +224,20 @@ fun FolderMetadataRow(videos: List<Video>, settings: ViewSettings, isGrid: Boole
  
 @Composable
 fun FolderMetadataChips(videos: List<Video>, settings: ViewSettings, isGrid: Boolean = false) {
-    val tokens = buildList {
-        add(Pair(stringResource(R.string.folder_videos_count, videos.size), true))   // count → primary chip
-        if (settings.showSize) {
-            val totalSize = videos.sumOf { it.size }
-            add(Pair(formatSize(totalSize), false))
-        }
-        if (settings.showDate) {
-            val oldest = videos.minOfOrNull { it.dateAdded } ?: 0L
-            if (oldest > 0) add(Pair(formatDate(oldest), false))
-        }
-    }.filter { it.first.isNotBlank() }
+    val countText = stringResource(R.string.folder_videos_count, videos.size)
+    val tokens = remember(videos, settings, countText) {
+        buildList {
+            add(Pair(countText, true))   // count → primary chip
+            if (settings.showSize) {
+                val totalSize = videos.sumOf { it.size }
+                add(Pair(formatSize(totalSize), false))
+            }
+            if (settings.showDate) {
+                val oldest = videos.minOfOrNull { it.dateAdded } ?: 0L
+                if (oldest > 0) add(Pair(formatDate(oldest), false))
+            }
+        }.filter { it.first.isNotBlank() }
+    }
  
     if (tokens.isEmpty()) return
  

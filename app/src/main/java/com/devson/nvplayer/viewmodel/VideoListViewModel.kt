@@ -3,8 +3,15 @@ package com.devson.nvplayer.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.repository.VideoRepository
-import com.devson.nvplayer.repository.ViewSettingsRepository
-import com.devson.nvplayer.model.*
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
+import com.devson.nvplayer.domain.model.LayoutMode
+import com.devson.nvplayer.domain.model.SortDirection
+import com.devson.nvplayer.domain.model.SortField
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewMode
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +30,7 @@ class VideoListViewModel(
 
     // Raw (unfiltered) scan result - populated once per disk scan
     private val _rawVideosByFolder = MutableStateFlow<Map<VideoFolder, List<Video>>>(emptyMap())
+    private val _rawVideosFlat = MutableStateFlow<List<Video>>(emptyList())
  
     private val _historyMap = MutableStateFlow<Map<String, WatchHistory>>(emptyMap())
 
@@ -84,20 +92,36 @@ class VideoListViewModel(
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    val videosFlat: StateFlow<List<Video>> =
+        combine(_rawVideosFlat, _searchQuery) { rawFlat, query ->
+            rawFlat.filter { video ->
+                val matchesPath = !video.path.contains("/.")
+                val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
+                matchesPath && matchesSearch
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val navContext: StateFlow<Triple<ViewMode, VideoFolder?, String?>> = combine(
+        viewSettingsRepo.viewSettingsFlow,
+        _selectedFolder,
+        _currentExplorerPath
+    ) { settings, folder, path ->
+        Triple(settings.viewMode, folder, path)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Triple(ViewMode.ALL_FOLDERS, null, null))
  
     val quickFabLastPlayedVideo: StateFlow<Video?> = combine(
         videosByFolder,
-        _currentExplorerPath,
-        _selectedFolder,
-        viewSettingsRepo.viewSettingsFlow,
+        videosFlat,
+        navContext,
         _historyMap
-    ) { videosMap, explorerPath, selectedFld, settings, histMap ->
-        val allVideosFlat = videosMap.values.flatten()
+    ) { videosMap, allVideosFlat, navCtx, histMap ->
+        val (viewMode, selectedFld, explorerPath) = navCtx
         val candidateVideos = when {
-            settings.viewMode == ViewMode.ALL_FOLDERS && selectedFld != null -> {
+            viewMode == ViewMode.ALL_FOLDERS && selectedFld != null -> {
                 videosMap[selectedFld] ?: emptyList()
             }
-            settings.viewMode == ViewMode.FOLDERS && explorerPath != null -> {
+            viewMode == ViewMode.FOLDERS && explorerPath != null -> {
                 allVideosFlat.filter { it.path.startsWith(explorerPath) }
             }
             else -> {
@@ -144,7 +168,7 @@ class VideoListViewModel(
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
@@ -155,6 +179,7 @@ class VideoListViewModel(
             try {
                 val videoItems = repository.getAllVideos()
                 val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
+                val metadataDao = repository.videoMetadataDao
                 
                 // Group by parent folder absolute path
                 val groupedByPath = videoItems.groupBy { item ->
@@ -168,17 +193,50 @@ class VideoListViewModel(
                     
                     val folderName = File(parentPath).name.ifEmpty { parentPath }
                     val videos = items.map { item ->
+                        val uriStr = item.uri.toString()
+                        
+                        val finalSize: Long
+                        val finalDateModified: Long
+                        val finalDuration: Long
+                        
+                        if (item.size > 0 && item.duration > 0) {
+                            finalSize = item.size
+                            finalDateModified = item.dateModified * 1000
+                            finalDuration = item.duration
+                        } else {
+                            val cached = metadataDao.getMetadataByUri(uriStr)
+                            if (cached != null) {
+                                finalSize = cached.size
+                                finalDateModified = cached.dateModified
+                                finalDuration = cached.duration
+                            } else {
+                                val extracted = com.devson.nvplayer.util.getVideoMetadata(repository.context, item.uri)
+                                finalSize = if (extracted.fileSize > 0) extracted.fileSize else item.size
+                                finalDateModified = if (extracted.lastModified > 0) extracted.lastModified else item.dateModified * 1000
+                                finalDuration = item.duration
+                                
+                                metadataDao.insertOrUpdate(
+                                    com.devson.nvplayer.data.database.CachedVideoMetadata(
+                                        uri = uriStr,
+                                        size = finalSize,
+                                        dateModified = finalDateModified,
+                                        duration = finalDuration
+                                    )
+                                )
+                            }
+                        }
+
                         Video(
-                            uri = item.uri.toString(),
+                            uri = uriStr,
                             title = item.title,
-                            duration = item.duration,
+                            duration = finalDuration,
                             folderName = item.folderName,
                             path = item.path,
-                            size = item.size,
+                            size = finalSize,
                             width = item.width,
                             height = item.height,
-                            dateAdded = item.dateModified,
-                            dateModified = item.dateModified,
+                            dateAdded = finalDateModified,
+                            dateModified = finalDateModified,
                             playedTime = null,
                             lastPlayedAt = null,
                             resolution = "${item.width}x${item.height}",
@@ -199,6 +257,7 @@ class VideoListViewModel(
                 _loadingProgress.value = 1f
                 // Store raw (unfiltered) - the combine flow handles filtering reactively
                 _rawVideosByFolder.value = mappedVideos
+                _rawVideosFlat.value = mappedVideos.values.flatten()
             } catch (e: Exception) {
                 // RELEASE FIX: e.printStackTrace() is silently discarded in release builds.
                 // Emit to the error flow so the UI can react (show snackbar / empty state).
@@ -213,6 +272,11 @@ class VideoListViewModel(
 
     fun selectFolder(folder: VideoFolder?) {
         _selectedFolder.value = folder
+        if (folder != null) {
+            val folderVideos = _rawVideosByFolder.value[folder] ?: emptyList()
+            com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)
+                .startFolderThumbnailGeneration(folder.id, folderVideos, 512, 384)
+        }
     }
 
     fun clearSearch() {
@@ -225,7 +289,7 @@ class VideoListViewModel(
         if (query.isBlank()) {
             _searchSuggestions.value = emptyList()
         } else {
-            val allVideos = _rawVideosByFolder.value.values.flatten()
+            val allVideos = _rawVideosFlat.value
             val matches = allVideos.filter { it.title.contains(query, ignoreCase = true) }
                 .map { it.title }
                 .distinct()
@@ -236,13 +300,16 @@ class VideoListViewModel(
 
     fun getSearchResults(query: String): List<Video> {
         if (query.isBlank()) return emptyList()
-        return _rawVideosByFolder.value.values.flatten().filter { it.title.contains(query, ignoreCase = true) }
+        return _rawVideosFlat.value.filter { it.title.contains(query, ignoreCase = true) }
     }
 
     // Explorer Path Navigation 
 
     fun navigateToExplorerPath(path: String) {
         _currentExplorerPath.value = path
+        val folderVideos = _rawVideosFlat.value.filter { it.path.startsWith(path) }
+        com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)
+            .startFolderThumbnailGeneration(path, folderVideos, 512, 384)
     }
 
     fun navigateExplorerUp() {

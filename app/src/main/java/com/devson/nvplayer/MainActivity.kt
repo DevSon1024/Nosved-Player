@@ -21,7 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
-import com.devson.nvplayer.player.MPVPlayerEngine
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import com.devson.nvplayer.ui.navigation.AppNavigation
 import com.devson.nvplayer.ui.theme.NosvedPlayerTheme
 import com.devson.nvplayer.viewmodel.HomeViewModel
@@ -29,12 +29,6 @@ import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
-import coil3.ImageLoader
-import coil3.SingletonImageLoader
-import coil3.video.VideoFrameDecoder
-import com.devson.nvplayer.util.VideoThumbnailFetcher
-import coil3.disk.DiskCache
-import coil3.disk.directory
 import android.content.res.Configuration
 import android.util.Log
 import android.app.PendingIntent
@@ -45,11 +39,39 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.net.Uri
+import com.devson.nvplayer.data.repository.ViewSettingsRepository
+import com.devson.nvplayer.player.service.MediaPlaybackService
 
 class MainActivity : ComponentActivity() {
 
     private val _isInPipMode = mutableStateOf(false)
+    private val deepLinkUri = mutableStateOf<Uri?>(null)
+
+    private fun handleIntent(intent: Intent?): Uri? {
+        if (intent == null) return null
+        if (intent.getBooleanExtra("DEEP_LINK_CONSUMED", false)) return null
+
+        var uri: Uri? = null
+        val action = intent.action
+        val type = intent.type
+
+        if (Intent.ACTION_VIEW == action) {
+            uri = intent.data
+        } else if (Intent.ACTION_SEND == action && type == "text/plain") {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (!sharedText.isNullOrBlank()) {
+                uri = Uri.parse(sharedText.trim())
+            }
+        }
+
+        if (uri != null) {
+            intent.putExtra("DEEP_LINK_CONSUMED", true)
+        }
+        return uri
+    }
 
     private val pipReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -123,7 +145,7 @@ class MainActivity : ComponentActivity() {
 
     private val mediaStoreHelper by lazy { MediaStoreHelper(this) }
     private val repository by lazy { VideoRepository(mediaStoreHelper, this) }
-    private val viewSettingsRepo by lazy { com.devson.nvplayer.repository.ViewSettingsRepository.getInstance(applicationContext) }
+    private val viewSettingsRepo by lazy { ViewSettingsRepository.getInstance(applicationContext) }
 
     private val homeViewModel by lazy { HomeViewModel(applicationContext, repository) }
     private val settingsViewModel by lazy { ViewModelProvider(this)[SettingsViewModel::class.java] }
@@ -161,6 +183,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val uri = handleIntent(intent)
+        deepLinkUri.value = uri
+
+        // Asynchronously copy yt-dlp assets
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                com.devson.nvplayer.player.ytdlp.YtdlpManager.copyAssets(applicationContext)
+                Log.d("MainActivity", "yt-dlp assets copy completed")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to copy yt-dlp assets at startup", e)
+            }
+        }
+
         // Register PiP action receiver
         val filter = IntentFilter().apply {
             addAction("com.devson.nvplayer.PIP_PREV")
@@ -189,20 +224,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val imageLoader = ImageLoader.Builder(this)
-            .components {
-                add(VideoThumbnailFetcher.Factory(applicationContext))
-                add(VideoThumbnailFetcher.StringFactory(applicationContext))
-                add(VideoFrameDecoder.Factory())
-            }
-            .diskCache {
-                DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(512 * 1024 * 1024) // 512 MB
-                    .build()
-            }
-            .build()
-        SingletonImageLoader.setSafe { imageLoader }
+
 
         checkAndRequestPermissions()
 
@@ -232,10 +254,21 @@ class MainActivity : ComponentActivity() {
                         videoListViewModel = videoListViewModel,
                         fileOpsViewModel = fileOpsViewModel,
                         isInPipMode = _isInPipMode.value,
-                        onEnterPip = { enterPipMode() }
+                        onEnterPip = { enterPipMode() },
+                        initialUri = deepLinkUri.value,
+                        onDeepLinkHandled = { deepLinkUri.value = null }
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val uri = handleIntent(intent)
+        if (uri != null) {
+            deepLinkUri.value = uri
         }
     }
 
@@ -282,6 +315,7 @@ class MainActivity : ComponentActivity() {
         _isInPipMode.value = isInPictureInPictureMode
     }
 
+    @Suppress("DEPRECATION")
     private fun enterPipMode() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
@@ -306,7 +340,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java)
+        val serviceIntent = Intent(this, MediaPlaybackService::class.java)
         stopService(serviceIntent)
     }
 
@@ -315,8 +349,10 @@ class MainActivity : ComponentActivity() {
         val bgPlayEnabled = if (playerViewModelLazy.isInitialized()) playerViewModel.playbackSettings.value.backgroundPlayEnabled else false
         if (bgPlayEnabled && playerViewModelLazy.isInitialized() && playerViewModel.isPlaying.value) {
             val title = playerViewModel.currentUri.value?.lastPathSegment ?: "Video Playback"
-            val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java).apply {
-                putExtra(com.devson.nvplayer.player.MediaPlaybackService.EXTRA_VIDEO_TITLE, title)
+            val serviceIntent = Intent(this, MediaPlaybackService::class.java).apply {
+                data = playerViewModel.currentUri.value
+                putExtra(MediaPlaybackService.EXTRA_VIDEO_TITLE, title)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
@@ -331,7 +367,7 @@ class MainActivity : ComponentActivity() {
         try {
             unregisterReceiver(pipReceiver)
         } catch (_: Exception) {}
-        val serviceIntent = Intent(this, com.devson.nvplayer.player.MediaPlaybackService::class.java)
+        val serviceIntent = Intent(this, MediaPlaybackService::class.java)
         stopService(serviceIntent)
     }
 }

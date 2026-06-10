@@ -15,27 +15,31 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.devson.nvplayer.player.PlayerEngine
-import com.devson.nvplayer.player.PlayerState
-import com.devson.nvplayer.player.TrackInfo
-import com.devson.nvplayer.player.ChapterInfo
-import com.devson.nvplayer.player.DecoderMode
+import com.devson.nvplayer.player.engine.PlayerEngine
+import com.devson.nvplayer.player.engine.PlayerState
+import com.devson.nvplayer.player.model.TrackInfo
+import com.devson.nvplayer.player.model.ChapterInfo
+import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
-import com.devson.nvplayer.repository.EnhanceMode
-import com.devson.nvplayer.repository.PlaybackSettings
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
+import com.devson.nvplayer.data.repository.EnhanceMode
+import com.devson.nvplayer.data.repository.PlaybackSettings
 import com.devson.nvplayer.data.database.AppDatabase
 import com.devson.nvplayer.data.database.WatchHistoryEntity
+import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
+import com.devson.nvplayer.player.model.AspectMode
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
  */
+@kotlin.OptIn(kotlinx.coroutines.FlowPreview::class)
 class PlayerViewModel(
     application: Application,
     private val playerEngine: PlayerEngine
@@ -55,6 +59,7 @@ class PlayerViewModel(
     val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
     val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
     val bufferedPosition: StateFlow<Long> = playerEngine.bufferedPosition
+    val mediaTitle: StateFlow<String> = playerEngine.mediaTitle
 
     val networkSpeedBytesPerSec = MutableStateFlow(0L)
     val bufferDurationSeconds = MutableStateFlow(0.0)
@@ -98,7 +103,7 @@ class PlayerViewModel(
     private val _audioBoostVolume = MutableStateFlow(100)
     val audioBoostVolume: StateFlow<Int> = _audioBoostVolume.asStateFlow()
 
-    private val settingsRepo = com.devson.nvplayer.repository.PlaybackSettingsRepository(application.applicationContext)
+    private val settingsRepo = PlaybackSettingsRepository(application.applicationContext)
     val playbackSettings = settingsRepo.playbackSettingsFlow
 
     init {
@@ -106,6 +111,22 @@ class PlayerViewModel(
         _savedVolume.value = playerPrefs.getInt("volume", -1)
         _audioBoosterEnabled.value = playerPrefs.getBoolean("audio_booster_enabled", false)
         _audioBoostVolume.value = playerPrefs.getInt("audio_boost_volume", 200)
+
+        // Observe mediaTitle changes to update the network stream history title in the database
+        viewModelScope.launch {
+            (mediaTitle as kotlinx.coroutines.flow.Flow<String>)
+                .distinctUntilChanged()
+                .debounce(500L)
+                .collectLatest { title ->
+                    val uri = _currentUri.value
+                    if (uri != null && !title.isNullOrBlank() && isNetworkStream.value) {
+                        withContext(Dispatchers.IO) {
+                            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                            dao.insertOrUpdateStream(uri.toString(), title)
+                        }
+                    }
+                }
+        }
         viewModelScope.launch {
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && !isPositionRestored) {
@@ -127,7 +148,7 @@ class PlayerViewModel(
         // Observe decoder and aspect mode changes from settings and apply immediately if video is active
         viewModelScope.launch {
             var lastDecoderMode: DecoderMode? = null
-            var lastAspectMode: com.devson.nvplayer.player.AspectMode? = null
+            var lastAspectMode: AspectMode? = null
             playbackSettings.collect { settings ->
                 if (lastDecoderMode != settings.decoderMode) {
                     lastDecoderMode = settings.decoderMode
@@ -148,7 +169,7 @@ class PlayerViewModel(
 
         // Coroutine 1: Detect RUNTIME fallback (HW was active, then dropped to SW mid-playback).
         // Uses collectLatest so any in-flight delay is cancelled when hwdecCurrent changes.
-        // NOTE: This does NOT handle the "HW never became active" case — StateFlow won't
+        // NOTE: This does NOT handle the "HW never became active" case - StateFlow won't
         // re-emit "no" if hwdecCurrent was already "no" before playback started.
         viewModelScope.launch {
             playerEngine.hwdecCurrent.collectLatest { actual ->
@@ -156,7 +177,7 @@ class PlayerViewModel(
                 val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
 
                 if (preferredIsHw && actual != "no") {
-                    // HW decoder confirmed active — mark it for this video session
+                    // HW decoder confirmed active - mark it for this video session
                     if (!hwdecEverActiveForCurrentVideo) {
                         Log.d("PlayerViewModel", "HW decoder confirmed active: $actual")
                         hwdecEverActiveForCurrentVideo = true
@@ -164,7 +185,7 @@ class PlayerViewModel(
                     _isHwSupported.value = true
 
                 } else if (preferredIsHw && actual == "no" && hwdecEverActiveForCurrentVideo) {
-                    // HW was confirmed active before, but just dropped to "no" — potential runtime fallback.
+                    // HW was confirmed active before, but just dropped to "no" - potential runtime fallback.
                     // Guard: only act if actively playing (not a teardown/close event).
                     val state = playerEngine.playbackState.value
                     if (!isVideoLoaded || state !is PlayerState.Playing) return@collectLatest
@@ -195,7 +216,7 @@ class PlayerViewModel(
             var prevState: PlayerState = PlayerState.Idle
             playbackState.collect { state ->
                 if (state is PlayerState.Playing && prevState !is PlayerState.Playing) {
-                    // State just transitioned to Playing — spawn a one-shot check after stabilization
+                    // State just transitioned to Playing - spawn a one-shot check after stabilization
                     viewModelScope.launch {
                         delay(2500L) // Give HW decoder time to start up
 
@@ -371,23 +392,30 @@ class PlayerViewModel(
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            val existing = dao.getHistory(uri.toString())
-            if (existing == null) {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = 0L,
-                        lastPlayedAt = System.currentTimeMillis()
-                    )
-                )
+            if (isNetworkStream.value) {
+                dao.insertOrUpdateStream(uri.toString(), null)
             } else {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = existing.lastPositionMs,
-                        lastPlayedAt = System.currentTimeMillis()
+                val existing = dao.getHistory(uri.toString())
+                if (existing == null) {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = 0L,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = false
+                        )
                     )
-                )
+                } else {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = existing.lastPositionMs,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing.isNetworkStream,
+                            videoTitle = existing.videoTitle
+                        )
+                    )
+                }
             }
         }
 
@@ -479,23 +507,30 @@ class PlayerViewModel(
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            val existing = dao.getHistory(uri.toString())
-            if (existing == null) {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = 0L,
-                        lastPlayedAt = System.currentTimeMillis()
-                    )
-                )
+            if (isNetworkStream.value) {
+                dao.insertOrUpdateStream(uri.toString(), null)
             } else {
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = existing.lastPositionMs,
-                        lastPlayedAt = System.currentTimeMillis()
+                val existing = dao.getHistory(uri.toString())
+                if (existing == null) {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = 0L,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = false
+                        )
                     )
-                )
+                } else {
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = existing.lastPositionMs,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing.isNetworkStream,
+                            videoTitle = existing.videoTitle
+                        )
+                    )
+                }
             }
         }
 
@@ -540,11 +575,14 @@ class PlayerViewModel(
         if (shouldSave) {
             viewModelScope.launch(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                val existing = dao.getHistory(uri.toString())
                 dao.insert(
                     WatchHistoryEntity(
                         uri = uri.toString(),
                         lastPositionMs = pos,
-                        lastPlayedAt = System.currentTimeMillis()
+                        lastPlayedAt = System.currentTimeMillis(),
+                        isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                        videoTitle = existing?.videoTitle ?: mediaTitle.value
                     )
                 )
                 Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
@@ -604,6 +642,100 @@ class PlayerViewModel(
         playerEngine.selectChapter(index)
     }
 
+    fun changeYtdlQuality(quality: Int) {
+        viewModelScope.launch {
+            settingsRepo.updateYtdlQuality(quality)
+            val updatedSettings = settingsRepo.playbackSettingsFlow.value.copy(ytdlQuality = quality)
+            
+            val uri = _currentUri.value
+            if (uri != null && isNetworkStream.value) {
+                val currentPos = playerEngine.currentPosition.value
+                val isPlayingBefore = playerEngine.isPlaying.value
+                
+                Log.d("PlayerViewModel", "Reloading stream with new quality: $quality at pos: $currentPos")
+                
+                // Save progress to watch history first so it is restored on reload
+                withContext(Dispatchers.IO) {
+                    val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    val existing = dao.getHistory(uri.toString())
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = currentPos,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                            videoTitle = existing?.videoTitle ?: mediaTitle.value
+                        )
+                    )
+                }
+                
+                isPositionRestored = false
+                
+                // Re-apply options in the running MPV engine
+                YtdlpManager.setupMpvOptions(getApplication(), updatedSettings)
+                
+                // Force reload of the video
+                playerEngine.loadVideo(uri)
+                
+                if (isPlayingBefore) {
+                    playerEngine.play()
+                }
+            }
+        }
+    }
+
+    fun toggleDataSaver(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateDataSaverEnabled(enabled)
+            val updatedSettings = settingsRepo.playbackSettingsFlow.value.copy(isDataSaverEnabled = enabled)
+            
+            val uri = _currentUri.value
+            if (uri != null && isNetworkStream.value) {
+                val currentPos = playerEngine.currentPosition.value
+                val isPlayingBefore = playerEngine.isPlaying.value
+                
+                Log.d("PlayerViewModel", "Reloading stream with Data Saver = $enabled at pos: $currentPos")
+                
+                // Save progress to watch history first so it is restored on reload
+                withContext(Dispatchers.IO) {
+                    val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                    val existing = dao.getHistory(uri.toString())
+                    dao.insert(
+                        WatchHistoryEntity(
+                            uri = uri.toString(),
+                            lastPositionMs = currentPos,
+                            lastPlayedAt = System.currentTimeMillis(),
+                            isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                            videoTitle = existing?.videoTitle ?: mediaTitle.value
+                        )
+                    )
+                }
+                
+                isPositionRestored = false
+                
+                // Re-apply options in the running MPV engine
+                YtdlpManager.setupMpvOptions(getApplication(), updatedSettings)
+                
+                // Update cache and buffer limits dynamically
+                try {
+                    val readaheadSecs = if (enabled) 60 else 300
+                    val maxBytes = if (enabled) 50 * 1024 * 1024 else 400 * 1024 * 1024
+                    `is`.xyz.mpv.MPVLib.setPropertyString("demuxer-readahead-secs", "$readaheadSecs")
+                    `is`.xyz.mpv.MPVLib.setPropertyString("demuxer-max-bytes", "$maxBytes")
+                } catch (e: Exception) {
+                    Log.e("PlayerViewModel", "Failed to update demuxer cache options dynamically", e)
+                }
+
+                // Force reload of the video
+                playerEngine.loadVideo(uri)
+                
+                if (isPlayingBefore) {
+                    playerEngine.play()
+                }
+            }
+        }
+    }
+
     fun cycleDecoder() {
         val currentMode = playbackSettings.value.decoderMode
         var nextMode = currentMode.next()
@@ -635,7 +767,7 @@ class PlayerViewModel(
         } else {
             // Reset the HW-ever-active flag when the user intentionally changes decoder mode.
             // This prevents Coroutine 1 from misinterpreting the intentional hwdec-current="no"
-            // (caused by switching to SW) as a runtime HW fallback event — a race condition that
+            // (caused by switching to SW) as a runtime HW fallback event - a race condition that
             // is especially pronounced in Release builds where R8 tightens coroutine scheduling.
             if (mode == DecoderMode.SW) {
                 hwdecEverActiveForCurrentVideo = false
@@ -666,6 +798,18 @@ class PlayerViewModel(
         viewModelScope.launch {
             settingsRepo.updateCustomPlaybackSpeed(speed)
             setPlaybackSpeed(speed)
+        }
+    }
+
+    fun updateIsBottomLayoutEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateIsBottomLayoutEnabled(enabled)
+        }
+    }
+
+    fun updateShowControlGradients(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.updateShowControlGradients(show)
         }
     }
 

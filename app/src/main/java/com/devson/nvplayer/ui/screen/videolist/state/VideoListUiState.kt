@@ -1,8 +1,8 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewSettings
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewSettings
 
 data class VideoListUiState(
     val videosByFolder: Map<VideoFolder, List<Video>> = emptyMap(),

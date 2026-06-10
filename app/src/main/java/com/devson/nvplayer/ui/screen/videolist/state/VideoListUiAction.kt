@@ -1,7 +1,7 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
 
 sealed class VideoListUiAction {
     data class OnVideoClick(val video: Video) : VideoListUiAction()

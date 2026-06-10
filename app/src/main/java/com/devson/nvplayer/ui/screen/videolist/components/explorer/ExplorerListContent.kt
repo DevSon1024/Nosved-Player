@@ -15,19 +15,21 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import com.devson.nvplayer.model.LayoutMode
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoGridItem
-import com.devson.nvplayer.ui.screens.videolist.components.list.VideoListItem
-import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderGridItem
-import com.devson.nvplayer.ui.screens.videolist.components.folder.FolderListItem
+import com.devson.nvplayer.domain.model.LayoutMode
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoGridItem
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListItem
+import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderGridItem
+import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderListItem
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -49,6 +51,17 @@ fun ExplorerListContent(
 ) {
     val haptic = LocalHapticFeedback.current
 
+    val folderVideosMap = remember(folders, allVideosForSize) {
+        folders.associateWith { folder ->
+            allVideosForSize.filter { it.path.startsWith(folder.id) }
+        }
+    }
+
+    val currentOnFolderClick by rememberUpdatedState(onFolderClick)
+    val currentOnFolderLongClick by rememberUpdatedState(onFolderLongClick)
+    val currentOnVideoClick by rememberUpdatedState(onVideoClick)
+    val currentOnVideoLongClick by rememberUpdatedState(onVideoLongClick)
+
     if (settings.layoutMode == LayoutMode.GRID) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(settings.gridColumns),
@@ -63,31 +76,47 @@ fun ExplorerListContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(folders) { folder ->
-                val folderVideos = remember(folder, allVideosForSize) { allVideosForSize.filter { it.path.startsWith(folder.id) } }
+            items(
+                items = folders,
+                key = { folder -> folder.id },
+                contentType = { "folder_item" }
+            ) { folder ->
+                val folderVideos = remember(folder, folderVideosMap) { folderVideosMap[folder] ?: emptyList() }
+                val onClick = remember(folder) { { currentOnFolderClick(folder) } }
+                val onLongClick = remember(folder) {
+                    {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnFolderLongClick(folder)
+                    }
+                }
                 FolderGridItem(
                     folder = folder,
                     videos = folderVideos,
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    onClick = { onFolderClick(folder) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onFolderLongClick(folder)
-                    }
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
             }
-            items(videos) { video ->
+            items(
+                items = videos,
+                key = { video -> video.uri },
+                contentType = { "video_item" }
+            ) { video ->
+                val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
+                val onLongClick = remember(video) {
+                    { _: Video ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnVideoLongClick(video)
+                    }
+                }
                 VideoGridItem(
                     video = video,
                     settings = settings,
                     isSelected = video in selectedVideos,
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(video) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onVideoLongClick(video)
-                    }
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
             }
         }
@@ -100,31 +129,47 @@ fun ExplorerListContent(
                 bottom = contentPadding.calculateBottomPadding() + 16.dp
             )
         ) {
-            items(folders) { folder ->
-                val folderVideos = remember(folder, allVideosForSize) { allVideosForSize.filter { it.path.startsWith(folder.id) } }
+            items(
+                items = folders,
+                key = { folder -> folder.id },
+                contentType = { "folder_item" }
+            ) { folder ->
+                val folderVideos = remember(folder, folderVideosMap) { folderVideosMap[folder] ?: emptyList() }
+                val onClick = remember(folder) { { currentOnFolderClick(folder) } }
+                val onLongClick = remember(folder) {
+                    {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnFolderLongClick(folder)
+                    }
+                }
                 FolderListItem(
                     folder = folder,
                     videos = folderVideos,
                     settings = settings,
                     isSelected = folder in selectedFolders,
-                    onClick = { onFolderClick(folder) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onFolderLongClick(folder)
-                    }
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
             }
-            items(videos) { video ->
+            items(
+                items = videos,
+                key = { video -> video.uri },
+                contentType = { "video_item" }
+            ) { video ->
+                val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
+                val onLongClick = remember(video) {
+                    { _: Video ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnVideoLongClick(video)
+                    }
+                }
                 VideoListItem(
                     video = video,
                     settings = settings,
                     isSelected = video in selectedVideos,
                     lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                    onClick = { onVideoClick(video) },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onVideoLongClick(video)
-                    }
+                    onClick = onClick,
+                    onLongClick = onLongClick
                 )
             }
         }

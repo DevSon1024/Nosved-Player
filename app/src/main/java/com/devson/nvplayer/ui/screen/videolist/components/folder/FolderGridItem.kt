@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.folder
+package com.devson.nvplayer.ui.screen.videolist.components.folder
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -27,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -37,12 +36,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.R
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.VideoFolder
-import com.devson.nvplayer.model.ViewSettings
-import com.devson.nvplayer.model.WatchHistory
-import com.devson.nvplayer.ui.screens.videolist.components.common.VideoWatchState
-import com.devson.nvplayer.ui.screens.videolist.components.common.getWatchState
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
+import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -104,7 +103,7 @@ fun FolderGridItem(
                 ) {
                     Box(modifier = Modifier.size(width = 124.dp, height = 82.dp)) {
                         FolderMediaPreview(
-                            videos   = videos,
+                            videos = videos,
                             isSelected = false,
                             settings = settings,
                             modifier = Modifier.fillMaxSize()
@@ -155,7 +154,7 @@ fun FolderGridItem(
                         .weight(1f)
                     ) {
                     FolderMediaPreview(
-                        videos   = videos,
+                        videos = videos,
                         isSelected = false,
                         settings = settings,
                         modifier = Modifier
@@ -205,7 +204,7 @@ fun FolderGridItem(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             FolderMediaPreview(
-                videos   = videos,
+                videos = videos,
                 isSelected = false,
                 settings = settings,
                 modifier = Modifier.fillMaxSize()

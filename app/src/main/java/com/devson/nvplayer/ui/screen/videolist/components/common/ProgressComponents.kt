@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.common
+package com.devson.nvplayer.ui.screen.videolist.components.common
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth

@@ -1,4 +1,4 @@
-package com.devson.nvplayer.ui.screens.videolist.components.common
+package com.devson.nvplayer.ui.screen.videolist.components.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +16,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devson.nvplayer.model.Video
-import com.devson.nvplayer.model.ViewSettings
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.util.formatRelativeTime
