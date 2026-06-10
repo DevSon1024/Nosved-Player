@@ -1,5 +1,6 @@
 package com.devson.nvplayer.ui.screens.videolist.components.topbar
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -97,93 +98,95 @@ fun VideoListTopAppBar(
             }
         )
     } else {
-        TopAppBar(
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-                scrolledContainerColor = MaterialTheme.colorScheme.background
-            ),
-            title = {
-                if (searchActive) {
-                    OutlinedTextField(
-                        value = searchText,
-                        onValueChange = onSearchTextChange,
-                        placeholder = { Text("Search videos...") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                keyboard?.hide()
-                                if (searchText.isNotBlank()) {
-                                    onSearchActiveChange(false)
-                                    onSearch(searchText)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                ),
+                title = {
+                    if (searchActive) {
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = onSearchTextChange,
+                            placeholder = { Text("Search videos...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    keyboard?.hide()
+                                    if (searchText.isNotBlank()) {
+                                        onSearchActiveChange(false)
+                                        onSearch(searchText)
+                                    }
                                 }
-                            }
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent
+                            )
                         )
-                    )
-                } else {
-                    Text(
-                        titleText ?: "Nosved Player",
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            },
-            navigationIcon = {
-                if (showBackButton) {
-                    IconButton(onClick = onBackToFolders) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    } else {
+                        Text(
+                            titleText ?: "Nosved Player",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                } else if (showHomeBackButton) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
-                    }
-                }
-            },
-            actions = {
-                if (searchActive) {
-                    IconButton(onClick = { onSearchActiveChange(false) }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close Search")
-                    }
-                } else {
-                    onRecycleBinClick?.let { onClick ->
-                        IconButton(onClick = onClick) {
-                            Icon(imageVector = Icons.Filled.Delete, contentDescription = "Recycle Bin")
+                },
+                navigationIcon = {
+                    if (showBackButton) {
+                        IconButton(onClick = onBackToFolders) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    } else if (showHomeBackButton) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Home")
                         }
                     }
-                    onPlayFolder?.let { onClick ->
-                        IconButton(onClick = onClick) {
-                            Icon(imageVector = Icons.Filled.PlayCircle, contentDescription = "Play Folder in Feed")
+                },
+                actions = {
+                    if (searchActive) {
+                        IconButton(onClick = { onSearchActiveChange(false) }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close Search")
+                        }
+                    } else {
+                        onRecycleBinClick?.let { onClick ->
+                            IconButton(onClick = onClick) {
+                                Icon(imageVector = Icons.Filled.Delete, contentDescription = "Recycle Bin")
+                            }
+                        }
+                        onPlayFolder?.let { onClick ->
+                            IconButton(onClick = onClick) {
+                                Icon(imageVector = Icons.Filled.PlayCircle, contentDescription = "Play Folder in Feed")
+                            }
+                        }
+                        IconButton(onClick = { onSearchActiveChange(true) }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = onShowSettings) {
+                            Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
                         }
                     }
-                    IconButton(onClick = { onSearchActiveChange(true) }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
-                    }
-                    IconButton(onClick = onShowSettings) {
-                        Icon(imageVector = Icons.Filled.Tune, contentDescription = "View Settings")
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                }
-            }
-        )
-        if (searchActive && searchSuggestions.isNotEmpty()) {
-            SearchSuggestionsPopup(
-                suggestions = searchSuggestions,
-                keyboard = keyboard,
-                onSuggestionClick = { title ->
-                    onSearchActiveChange(false)
-                    onSearch(title)
                 }
             )
+            if (searchActive && searchSuggestions.isNotEmpty()) {
+                SearchSuggestionsPopup(
+                    suggestions = searchSuggestions,
+                    keyboard = keyboard,
+                    onSuggestionClick = { title ->
+                        onSearchActiveChange(false)
+                        onSearch(title)
+                    }
+                )
+            }
         }
     }
 }
