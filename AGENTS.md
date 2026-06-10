@@ -8,6 +8,7 @@ This document serves as the absolute source of truth for any AI agent or LLM ass
 - **Flawless Execution:** The app MUST work smoothly without any bottleneck bugs. Performance regressions, UI lag, and stuttering (especially during list scrolling and thumbnail generation) are unacceptable.
 - **Zero Crash Tolerance:** Improve code robustness to ensure the app does not crash under any circumstances. Always prioritize graceful degradation (e.g., showing an error state, fallback UI, or empty list) over throwing unhandled exceptions.
 - **No Hallucinations:** Only use existing APIs, classes, and resources within the project. If you are unsure about an existing implementation, ask the developer to fetch the file contents.
+- **One Line Explanation** Do not exlpian the things in long phrases and paragraphs just be short and precise and do not explain the things if it is not required.
 
 ## 2. UI / Jetpack Compose Guidelines
 

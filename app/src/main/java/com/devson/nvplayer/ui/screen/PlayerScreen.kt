@@ -162,6 +162,8 @@ fun PlayerScreen(
     isInPipMode: Boolean = false,
     onEnterPip: () -> Unit = {},
     onUpdateBackgroundPlayEnabled: (Boolean) -> Unit = {},
+    onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
+    onUpdateShowControlGradients: (Boolean) -> Unit = {},
     networkSpeedBytesPerSec: Long = 0L,
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
@@ -869,6 +871,8 @@ fun PlayerScreen(
             onUpdateShowScreenRotationButton = onUpdateShowScreenRotationButton,
             onUpdatePauseWhenObstructed = onUpdatePauseWhenObstructed,
             onUpdateKeepAwakeAlways = onUpdateKeepAwakeAlways,
+            onUpdateIsBottomLayoutEnabled = onUpdateIsBottomLayoutEnabled,
+            onUpdateShowControlGradients = onUpdateShowControlGradients,
             onDismiss = { showPlayerSettingsSideSheet = false }
         )
 

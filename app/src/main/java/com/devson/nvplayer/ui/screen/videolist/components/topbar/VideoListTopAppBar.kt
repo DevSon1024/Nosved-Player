@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,7 +61,8 @@ fun VideoListTopAppBar(
     searchFocusRequester: FocusRequester = remember { FocusRequester() },
     keyboard: SoftwareKeyboardController? = null,
     onRecycleBinClick: (() -> Unit)? = null,
-    onPlayFolder: (() -> Unit)? = null
+    onPlayFolder: (() -> Unit)? = null,
+    onNetworkStreamClick: (() -> Unit)? = null
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -163,6 +165,11 @@ fun VideoListTopAppBar(
                         onPlayFolder?.let { onClick ->
                             IconButton(onClick = onClick) {
                                 Icon(imageVector = Icons.Filled.PlayCircle, contentDescription = "Play Folder in Feed")
+                            }
+                        }
+                        onNetworkStreamClick?.let { onClick ->
+                            IconButton(onClick = onClick) {
+                                Icon(imageVector = Icons.Rounded.Language, contentDescription = "Network Stream")
                             }
                         }
                         IconButton(onClick = { onSearchActiveChange(true) }) {

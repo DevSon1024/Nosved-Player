@@ -79,6 +79,8 @@ fun PlayerSettingsSideSheet(
     onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
     onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
+    onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
+    onUpdateShowControlGradients: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -315,6 +317,8 @@ fun PlayerSettingsSideSheet(
                                 onUpdateAutoPlayEnabled = onUpdateAutoPlayEnabled,
                                 onUpdateShowSeekButtons = onUpdateShowSeekButtons,
                                 onUpdateShowNextPrevButtons = onUpdateShowNextPrevButtons,
+                                onUpdateIsBottomLayoutEnabled = onUpdateIsBottomLayoutEnabled,
+                                onUpdateShowControlGradients = onUpdateShowControlGradients,
                                 onShowOrientationDialog = { showOrientationDialog = true },
                                 onShowScalingDialog = { showScalingDialog = true },
                                 onShowSoftButtonDialog = { showSoftButtonDialog = true },
@@ -1026,6 +1030,8 @@ private fun InterfaceTab(
     onUpdateAutoPlayEnabled: (Boolean) -> Unit,
     onUpdateShowSeekButtons: (Boolean) -> Unit,
     onUpdateShowNextPrevButtons: (Boolean) -> Unit,
+    onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit,
+    onUpdateShowControlGradients: (Boolean) -> Unit,
     onShowOrientationDialog: () -> Unit,
     onShowScalingDialog: () -> Unit,
     onShowSoftButtonDialog: () -> Unit,
@@ -1072,6 +1078,26 @@ private fun InterfaceTab(
                     SoftButtonMode.HIDE -> "Always hide (Immersive mode)"
                 },
                 onClick = onShowSoftButtonDialog
+            )
+
+            SheetDivider()
+
+            SheetToggleRow(
+                icon = Icons.Default.PlayCircle,
+                title = "Play/Pause Button Position",
+                subtitle = "Move play/pause button to below Seekbar",
+                checked = playbackSettings.isBottomLayoutEnabled,
+                onCheckedChange = onUpdateIsBottomLayoutEnabled
+            )
+
+            SheetDivider()
+
+            SheetToggleRow(
+                icon = Icons.Default.Gradient,
+                title = "Show Control Gradients",
+                subtitle = "Show top and bottom black fade behind player controls",
+                checked = playbackSettings.showControlGradients,
+                onCheckedChange = onUpdateShowControlGradients
             )
         }
 

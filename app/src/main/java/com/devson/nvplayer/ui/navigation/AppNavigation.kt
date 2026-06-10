@@ -220,6 +220,17 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 },
+                onPlayStream = { uri ->
+                    playerViewModel().prepareVideo(uri, listOf(uri))
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
+                },
+                onNetworkHistoryClick = {
+                    navController.navigate("network_history") {
+                        launchSingleTop = true
+                    }
+                },
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel
             )
@@ -526,6 +537,8 @@ fun AppNavigation(
                 onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },
                 onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
+                onUpdateIsBottomLayoutEnabled = { settingsViewModel.updateIsBottomLayoutEnabled(it) },
+                onUpdateShowControlGradients = { settingsViewModel.updateShowControlGradients(it) },
                 onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
                 onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
                 onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },
