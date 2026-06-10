@@ -25,6 +25,7 @@ import com.devson.nvplayer.ui.screen.settings.GestureSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.CustomHomeSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.PlayerInterfaceSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.AboutScreen
+import com.devson.nvplayer.ui.screen.settings.CreditsScreen
 import com.devson.nvplayer.ui.screen.settings.FolderScreen
 import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
@@ -348,6 +349,13 @@ fun AppNavigation(
 
         composable("about") {
             AboutScreen(
+                onBack = safePopBackStack,
+                onNavigateToCredits = { navController.navigate("credits") { launchSingleTop = true } }
+            )
+        }
+
+        composable("credits") {
+            CreditsScreen(
                 onBack = safePopBackStack
             )
         }

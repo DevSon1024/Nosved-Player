@@ -39,7 +39,8 @@ import `is`.xyz.mpv.MPVLib
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToCredits: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -134,7 +135,7 @@ fun AboutScreen(
             AboutLinksCard(context = context)
 
             // 6. Credits
-            AboutCreditsCard()
+            AboutCreditsCard(onClick = onNavigateToCredits)
 
             Spacer(Modifier.height(24.dp))
         }
@@ -397,6 +398,15 @@ private fun AboutLinksCard(context: Context) {
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 44.dp))
         LinkRow(
+            icon = Icons.Default.Update,
+            title = "Latest Release",
+            subtitle = "Check out the latest release notes and updates",
+            onClick = {
+                openUrl(context, "https://github.com/DevSon1024/Nosved-Player/releases")
+            }
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 44.dp))
+        LinkRow(
             icon = Icons.Default.BugReport,
             title = "Report an Issue",
             subtitle = "Found a bug? Help us improve by listing it",
@@ -417,26 +427,51 @@ private fun AboutLinksCard(context: Context) {
 }
 
 @Composable
-private fun AboutCreditsCard() {
+private fun AboutCreditsCard(onClick: () -> Unit) {
     AboutCard {
-        Text(
-            text = "Credits",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = "Nosved Player is built on top of the MPV media engine project. We thank all the open-source developers of MPV, FFmpeg, and the Jetpack Compose communities for their contributions.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Developed by DevSon1024 & contributors.",
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Credits & Open Source",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Open source libraries, versions, and licenses",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
