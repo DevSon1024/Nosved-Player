@@ -1,16 +1,16 @@
-# NVPlayer (Nosved Player)
+# Nosved Player (Nosved Player)
 
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-B125EA?logo=kotlin&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-NVPlayer is a high-performance, native Android video player built with a focus on absolute playback smoothness, clean aesthetics, and extensive user customization.
+Nosved Player is a high-performance, native Android video player built with a focus on absolute playback smoothness, clean aesthetics, and extensive user customization.
 
-Originally built as an ExoPlayer-based application, NVPlayer has been completely re-engineered under the hood to utilize the **mpv-android** engine. This architectural shift merges our minimalist Material Design UI with the raw decoding power of MPV, delivering unmatched format compatibility, hardware acceleration, and seamless video handling.
+Originally built as an ExoPlayer-based application, Nosved Player has been completely re-engineered under the hood to utilize the **mpv-android** engine. This architectural shift merges our minimalist Material Design UI with the raw decoding power of MPV, delivering unmatched format compatibility, hardware acceleration, and seamless video handling.
 
 > ## Why MPV?
 
-The transition from ExoPlayer to `is.xyz.mpv` allows NVPlayer to offer a truly desktop-class media experience on mobile. It brings native hardware decoding (`mediacodec`), superior subtitle rendering, and real-time color enhancement capabilities without sacrificing battery life or UI responsiveness.
+The transition from ExoPlayer to `is.xyz.mpv` allows Nosved Player to offer a truly desktop-class media experience on mobile. It brings native hardware decoding (`mediacodec`), superior subtitle rendering, and real-time color enhancement capabilities without sacrificing battery life or UI responsiveness.
 
 > ## Key Features
 
@@ -46,7 +46,7 @@ The transition from ExoPlayer to `is.xyz.mpv` allows NVPlayer to offer a truly d
 > > ### Clone & Build
 
 ```bash
-git clone https://github.com/DevSon1024/NVPlayer.git
-cd NVPlayer
-./gradlew assembleDebug
+git clone https://github.com/DevSon1024/Nosved-Player.git
+cd Nosved-Player
+./gradlew assembleRelease
 ```

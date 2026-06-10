@@ -1,5 +1,5 @@
 # =============================================================================
-# NVPlayer ProGuard / R8 Rules
+# Nosved Player ProGuard / R8 Rules
 # =============================================================================
 # IMPORTANT: Release builds use isMinifyEnabled=true with proguard-android-optimize.txt.
 # These rules guard all JNI bridges, native-callback interfaces, and coroutine
@@ -40,7 +40,7 @@
 
 
 # -----------------------------------------------------------------------------
-# 2.  NVPLAYER PLAYER PACKAGE  (JNI + SurfaceHolder callbacks)
+# 2.  Nosved PLAYER PLAYER PACKAGE  (JNI + SurfaceHolder callbacks)
 # -----------------------------------------------------------------------------
 # MPVPlayerEngine implements MPVLib.EventObserver - its JNI callback methods
 # must not be renamed or stripped.

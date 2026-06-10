@@ -73,7 +73,7 @@ data class PlaybackSettings(
     val customPlaybackSpeed: Float = 1.0f,
     val tapAndHoldSpeed: Float = 2.0f,
     val doubleTapSeekDuration: Long = 10000L,
-    val screenshotLocation: String = "Pictures/NVPlayer/Screenshot",
+    val screenshotLocation: String = "Pictures/Nosved Player/Screenshot",
     val blacklistedFolders: Set<String> = emptySet(),
     val keepAwakeAlways: Boolean = false,
     val decoderMode: DecoderMode = DecoderMode.HW,

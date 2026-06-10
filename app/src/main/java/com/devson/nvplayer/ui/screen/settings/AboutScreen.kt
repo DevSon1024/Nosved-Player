@@ -392,7 +392,7 @@ private fun AboutLinksCard(context: Context) {
             title = "GitHub Repository",
             subtitle = "Browse source code and contribute",
             onClick = {
-                openUrl(context, "https://github.com/DevSon1024/NVPlayer")
+                openUrl(context, "https://github.com/DevSon1024/Nosved-Player")
             }
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 44.dp))
@@ -401,7 +401,7 @@ private fun AboutLinksCard(context: Context) {
             title = "Report an Issue",
             subtitle = "Found a bug? Help us improve by listing it",
             onClick = {
-                openUrl(context, "https://github.com/DevSon1024/NVPlayer/issues/new")
+                openUrl(context, "https://github.com/DevSon1024/Nosved-Player/issues/new")
             }
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(start = 44.dp))

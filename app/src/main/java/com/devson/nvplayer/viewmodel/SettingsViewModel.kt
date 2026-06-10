@@ -206,7 +206,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 customPlaybackSpeed = 1.0f,
                 tapAndHoldSpeed = 2.0f,
                 doubleTapSeekDuration = 10000L,
-                screenshotLocation = "Pictures/NVPlayer/Screenshot",
+                screenshotLocation = "Pictures/Nosved Player/Screenshot",
                 keepAwakeAlways = false,
                 isBottomLayoutEnabled = false,
                 showControlGradients = true

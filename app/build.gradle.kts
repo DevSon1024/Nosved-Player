@@ -64,7 +64,7 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            resValue("string", "app_name", "nvplayer Beta")
+            resValue("string", "app_name", "NPlay Beta")
         }
 
         release {
@@ -74,7 +74,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            resValue("string", "app_name", "NV Player")
+            resValue("string", "app_name", "Nosved Player")
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -96,7 +96,7 @@ android {
         variant.outputs.all {
             val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val abiName = outputImpl.filters.find { it.filterType == "ABI" }?.identifier ?: "universal"
-            outputFileName = "NVPlayer-v${variant.versionName}-${abiName}.apk"
+            outputFileName = "NosvedPlayer-v${variant.versionName}-${abiName}.apk"
         }
     }
     compileOptions {

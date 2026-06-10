@@ -929,7 +929,7 @@ class PlayerViewModel(
 
         val defaultDir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-            "NVPlayer/Screenshot"
+            "Nosved Player/Screenshot"
         )
         if (!defaultDir.exists()) {
             defaultDir.mkdirs()

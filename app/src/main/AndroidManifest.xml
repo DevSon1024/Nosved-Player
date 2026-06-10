@@ -36,7 +36,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter android:label="NV Player">
+            <intent-filter android:label="Nosved Player">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -48,7 +48,7 @@
         <activity-alias
             android:name=".NvStreamAlias"
             android:targetActivity=".MainActivity"
-            android:label="NV Stream"
+            android:label="Nosved Stream"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

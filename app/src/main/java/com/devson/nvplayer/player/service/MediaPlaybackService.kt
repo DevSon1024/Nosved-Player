@@ -99,7 +99,7 @@ class MediaPlaybackService : Service() {
         Log.d("MediaPlaybackService", "Service created")
         createNotificationChannel()
 
-        mediaSession = MediaSessionCompat(this, "NVPlayerMediaSession").apply {
+        mediaSession = MediaSessionCompat(this, "NosvedPlayerMediaSession").apply {
             isActive = true
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
@@ -250,7 +250,7 @@ class MediaPlaybackService : Service() {
         // Update MediaSessionCompat metadata
         val metadataBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, dynamicTitle)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "NVPlayer")
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "Nosved Player")
         currentThumbnail?.let {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, it)
         }
