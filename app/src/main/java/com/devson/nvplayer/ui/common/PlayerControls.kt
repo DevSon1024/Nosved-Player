@@ -197,8 +197,12 @@ fun PlayerControls(
                 }
             )
     ) {
-        val filterChapters = { list: List<PlayerButton> ->
-            if (hasChapters) list else list.filter { it != PlayerButton.CHAPTERS }
+        val filterButtons = { list: List<PlayerButton> ->
+            list.filter { button ->
+                if (button == PlayerButton.CHAPTERS && !hasChapters) return@filter false
+                if (button == PlayerButton.STREAM_QUALITY && !isNetworkStream) return@filter false
+                true
+            }
         }
 
         val sizeKey = controlIconSize.lowercase()
@@ -475,9 +479,16 @@ fun PlayerControls(
         }
 
         // 1. TOP PANEL - separate lists for landscape vs portrait orientations
-        val effectiveTopLeft = filterChapters(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
-        val rawTopRight = filterChapters(if (isPortrait) portraitTopRightButtons else topRightButtons)
-        val effectiveTopRight = if (isNetworkStream && !rawTopRight.contains(PlayerButton.STREAM_QUALITY)) {
+        val effectiveTopLeft = filterButtons(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
+        val rawTopRight = filterButtons(if (isPortrait) portraitTopRightButtons else topRightButtons)
+        
+        val allActiveButtons = if (isPortrait) {
+            portraitTopLeftButtons + portraitTopRightButtons + portraitBottomButtons
+        } else {
+            topLeftButtons + topRightButtons + bottomLeftButtons + bottomRightButtons
+        }
+
+        val effectiveTopRight = if (isNetworkStream && !allActiveButtons.contains(PlayerButton.STREAM_QUALITY)) {
             rawTopRight + PlayerButton.STREAM_QUALITY
         } else {
             rawTopRight
@@ -874,7 +885,7 @@ fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val filteredButtons = filterChapters(portraitBottomButtons)
+                    val filteredButtons = filterButtons(portraitBottomButtons)
                     if (isBottomLayoutEnabled) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -963,7 +974,7 @@ fun PlayerControls(
                             horizontalArrangement = Arrangement.Start,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            leftRegion(filterChapters(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
+                            leftRegion(filterButtons(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
                         }
 
                         Box(
@@ -978,21 +989,21 @@ fun PlayerControls(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            rightRegion(filterChapters(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
+                            rightRegion(filterButtons(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
                         }
                     } else {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            leftRegion(filterChapters(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
+                            leftRegion(filterButtons(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
                         }
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            rightRegion(filterChapters(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
+                            rightRegion(filterButtons(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
                         }
                     }
                 }

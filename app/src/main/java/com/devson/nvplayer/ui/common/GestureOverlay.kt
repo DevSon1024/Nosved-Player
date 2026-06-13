@@ -774,67 +774,77 @@ fun GestureOverlay(
 
 @Composable
 private fun CenterRippleWave(wasPlaying: Boolean, rippleTick: Int) {
+    // Custom easing for a snappy start and smooth tail
+    val rippleEasing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
+
     val ring1 = remember { Animatable(0f) }
     val ring2 = remember { Animatable(0f) }
-    val ring3 = remember { Animatable(0f) }
     val scrim = remember { Animatable(0f) }
 
     LaunchedEffect(rippleTick) {
-        ring1.snapTo(0f); ring2.snapTo(0f); ring3.snapTo(0f); scrim.snapTo(0f)
-        launch {
-            scrim.animateTo(1f, tween(60))
-            delay(180)
-            scrim.animateTo(0f, tween(400, easing = EaseOut))
+        if (rippleTick > 0) {
+            // Cancel current animations and snap to start for rapid taps
+            ring1.snapTo(0f)
+            ring2.snapTo(0f)
+            scrim.snapTo(0f)
+
+            launch {
+                scrim.animateTo(1f, tween(100, easing = LinearEasing))
+                scrim.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
+            }
+            launch { 
+                ring1.animateTo(1f, tween(600, easing = rippleEasing)) 
+            }
+            launch { 
+                delay(100) 
+                ring2.animateTo(1f, tween(600, easing = rippleEasing)) 
+            }
         }
-        launch { ring1.animateTo(1f, tween(520, easing = EaseOut)) }
-        launch { delay(80); ring2.animateTo(1f, tween(520, easing = EaseOut)) }
-        launch { delay(180); ring3.animateTo(1f, tween(520, easing = EaseOut)) }
     }
 
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val maxRadius = sqrt(cx * cx + cy * cy)
+    if (scrim.value > 0f || ring1.value > 0f) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val maxRadius = sqrt(cx * cx + cy * cy)
 
-        drawRect(color = Color.White.copy(alpha = 0.07f * scrim.value), size = size)
+            // Background Scrim
+            drawRect(color = Color.Black.copy(alpha = 0.15f * scrim.value), size = size)
 
-        val r1 = maxRadius * ring1.value
-        val a1 = (1f - ring1.value).coerceIn(0f, 1f)
-        drawCircle(
-            color = Color.White.copy(alpha = 0.55f * a1),
-            radius = r1,
-            center = Offset(cx, cy),
-            style = Stroke(width = 2.5.dp.toPx())
-        )
+            // Dynamic Alpha calculation: fades as it grows
+            val dynamicAlpha1 = (1f - ring1.value).coerceIn(0f, 1f)
+            val dynamicAlpha2 = (1f - ring2.value).coerceIn(0f, 1f)
 
-        val r2 = maxRadius * ring2.value
-        val a2 = (1f - ring2.value).coerceIn(0f, 1f)
-        drawCircle(
-            color = Color.White.copy(alpha = 0.30f * a2),
-            radius = r2,
-            center = Offset(cx, cy),
-            style = Stroke(width = 1.8.dp.toPx())
-        )
+            // Ring 1 (Thick, fast)
+            if (ring1.value > 0f) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.6f * dynamicAlpha1),
+                    radius = maxRadius * ring1.value,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = (4.dp.toPx() * dynamicAlpha1).coerceAtLeast(1f))
+                )
+                // Central Burst attached to Ring 1
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.2f * dynamicAlpha1), Color.Transparent),
+                        center = Offset(cx, cy),
+                        radius = (maxRadius * 0.4f * ring1.value).coerceAtLeast(1f)
+                    ),
+                    radius = (maxRadius * 0.4f * ring1.value).coerceAtLeast(1f),
+                    center = Offset(cx, cy)
+                )
+            }
 
-        val r3 = maxRadius * ring3.value
-        val a3 = (1f - ring3.value).coerceIn(0f, 1f)
-        drawCircle(
-            color = Color.White.copy(alpha = 0.15f * a3),
-            radius = r3,
-            center = Offset(cx, cy),
-            style = Stroke(width = 1.2.dp.toPx())
-        )
-
-        val burstAlpha = ((1f - ring1.value) * 0.18f).coerceIn(0f, 0.18f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color.White.copy(alpha = burstAlpha), Color.Transparent),
-                center = Offset(cx, cy),
-                radius = maxRadius * 0.35f * ring1.value.coerceAtLeast(0.01f)
-            ),
-            radius = maxRadius * 0.35f * ring1.value.coerceAtLeast(0.01f),
-            center = Offset(cx, cy)
-        )
+            // Ring 2 (Thin, delayed)
+            if (ring2.value > 0f) {
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.3f * dynamicAlpha2),
+                    radius = maxRadius * ring2.value,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = (2.dp.toPx() * dynamicAlpha2).coerceAtLeast(1f))
+                )
+            }
+        }
     }
 }
 
