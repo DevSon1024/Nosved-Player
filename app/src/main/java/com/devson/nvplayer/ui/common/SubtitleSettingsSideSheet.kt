@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.player.model.TrackInfo
@@ -64,7 +65,8 @@ fun SubtitleSettingsSideSheet(
     onUpdateSubtitleDelay: (Long) -> Unit,
     onUpdateSubtitleVerticalOffset: (Float) -> Unit,
     onUpdateSubtitleGesturesEnabled: (Boolean) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onImportSubtitleClick: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -221,12 +223,32 @@ fun SubtitleSettingsSideSheet(
                     ) {
                         // Section 1: Subtitle Tracks
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SectionHeader(title = "Subtitle Tracks")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SectionHeader(title = "Subtitle Tracks")
+                                TextButton(
+                                    onClick = onImportSubtitleClick,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Add,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Import", fontSize = 13.sp)
+                                }
+                            }
 
                             subtitleTracks.forEach { track ->
                                 TrackItem(
                                     title = track.name,
                                     isSelected = track.selected,
+                                    isExternal = track.isExternal,
+                                    isNone = track.id == -1,
                                     onClick = { onSelectSubtitleTrack(track.id) }
                                 )
                             }
@@ -626,6 +648,8 @@ fun SubtitleSettingsSideSheet(
 private fun TrackItem(
     title: String,
     isSelected: Boolean,
+    isExternal: Boolean,
+    isNone: Boolean,
     onClick: () -> Unit
 ) {
     val containerColor = if (isSelected) {
@@ -655,20 +679,57 @@ private fun TrackItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = contentColor,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
-        )
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Rounded.CheckCircle,
-                contentDescription = "Selected",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            if (isExternal) {
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "ext",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (!isNone) {
+                Text(
+                    text = if (isExternal) "External" else "Embedded",
+                    fontSize = 11.sp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Normal
+                )
+            }
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.size(18.dp))
+            }
         }
     }
 }

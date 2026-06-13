@@ -312,12 +312,31 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         try {
             if (id == -1) {
                 MPVLib.setPropertyString("sid", "no")
+                MPVLib.setPropertyString("sub-visibility", "no")
+                _currentSubtitleText.value = ""
             } else {
                 MPVLib.setPropertyInt("sid", id)
+                MPVLib.setPropertyString("sub-visibility", "yes")
             }
             updateTracks()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to select subtitle track: $id", e)
+        }
+    }
+
+    override fun addExternalSubtitle(path: String, select: Boolean) {
+        Log.d("MPVPlayerEngine", "Adding external subtitle: $path, select: $select")
+        try {
+            val file = java.io.File(path)
+            val title = file.name.substringBeforeLast('.')
+            val flag = if (select) "select" else "auto"
+            MPVLib.command("sub-add", path, flag, title)
+            if (select) {
+                MPVLib.setPropertyString("sub-visibility", "yes")
+            }
+            updateTracks()
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to add external subtitle: $path", e)
         }
     }
 
@@ -391,7 +410,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             val audios = mutableListOf<TrackInfo>()
 
             // Add fallback/disable option for subtitle
-            subs.add(TrackInfo(-1, "sub", "None (Disabled)", false))
+            subs.add(TrackInfo(-1, "sub", "None (Disabled)", false, isExternal = false))
 
             for (i in 0 until count) {
                 val type = MPVLib.getPropertyString("track-list/$i/type") ?: ""
@@ -399,15 +418,17 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 val title = MPVLib.getPropertyString("track-list/$i/title") ?: ""
                 val lang = MPVLib.getPropertyString("track-list/$i/lang") ?: ""
                 val selected = MPVLib.getPropertyBoolean("track-list/$i/selected") ?: false
+                val external = MPVLib.getPropertyBoolean("track-list/$i/external") ?: false
 
                 val trackName = when {
                     title.isNotEmpty() && lang.isNotEmpty() -> "$title ($lang)"
                     title.isNotEmpty() -> title
                     lang.isNotEmpty() -> lang
+                    external -> "External Subtitle #$id"
                     else -> "${type.replaceFirstChar { it.uppercaseChar() }} Track #$id"
                 }
 
-                val track = TrackInfo(id, type, trackName, selected)
+                val track = TrackInfo(id, type, trackName, selected, isExternal = external)
                 if (type == "sub") {
                     subs.add(track)
                 } else if (type == "audio") {
@@ -419,6 +440,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             val anySubSelected = subs.filter { it.id != -1 }.any { it.selected }
             if (!anySubSelected && subs.isNotEmpty()) {
                 subs[0] = subs[0].copy(selected = true)
+                _currentSubtitleText.value = ""
             }
 
             _subtitleTracks.value = subs

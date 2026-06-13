@@ -129,8 +129,13 @@ class PlayerViewModel(
         }
         viewModelScope.launch {
             playbackState.collect { state ->
-                if (state is PlayerState.Playing && !isPositionRestored) {
-                    restorePlaybackProgress()
+                if (state is PlayerState.Playing) {
+                    if (!isPositionRestored) {
+                        restorePlaybackProgress()
+                    }
+                    if (!isExternalSubtitleLoaded) {
+                        loadSavedExternalSubtitle()
+                    }
                 } else if (state is PlayerState.Ended) {
                     clearPlaybackProgress()
                 }
@@ -355,6 +360,7 @@ class PlayerViewModel(
 
     private var isVideoLoaded = false
     private var isPositionRestored = false
+    private var isExternalSubtitleLoaded = false
 
     private fun updateNavigationStates() {
         val current = _currentUri.value
@@ -384,6 +390,7 @@ class PlayerViewModel(
         updateNavigationStates()
         isVideoLoaded = false
         isPositionRestored = false
+        isExternalSubtitleLoaded = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
         val scheme = uri.scheme
@@ -499,6 +506,7 @@ class PlayerViewModel(
         _currentUri.value = uri
         isVideoLoaded = false
         isPositionRestored = false
+        isExternalSubtitleLoaded = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
         val scheme = uri.scheme
@@ -632,6 +640,65 @@ class PlayerViewModel(
 
     fun selectSubtitleTrack(id: Int) {
         playerEngine.selectSubtitleTrack(id)
+    }
+
+    fun importSubtitle(uri: Uri, select: Boolean = true) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = if (uri.scheme == "file") {
+                    File(uri.path ?: "")
+                } else if (uri.scheme == null) {
+                    File(uri.toString())
+                } else {
+                    null
+                }
+                
+                if (file != null && (!file.exists() || !file.canRead())) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(getApplication(), "Subtitle file is not readable", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
+                
+                val absolutePath = file?.absolutePath ?: uri.toString()
+                val fileName = file?.name ?: uri.lastPathSegment ?: "External Subtitle"
+                
+                // Save to database
+                val videoUriStr = _currentUri.value?.toString()
+                if (videoUriStr != null) {
+                    val dao = AppDatabase.getDatabase(getApplication()).videoMetadataDao()
+                    dao.saveExternalSubtitle(videoUriStr, uri.toString())
+                }
+                
+                withContext(Dispatchers.Main) {
+                    playerEngine.addExternalSubtitle(absolutePath, select)
+                    if (select) {
+                        Toast.makeText(getApplication(), "Subtitle imported: $fileName", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: java.lang.Exception) {
+                Log.e("PlayerViewModel", "Error importing subtitle", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getApplication(), "Failed to import subtitle: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun loadSavedExternalSubtitle() {
+        val uri = _currentUri.value ?: return
+        isExternalSubtitleLoaded = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = AppDatabase.getDatabase(getApplication()).videoMetadataDao()
+            val metadata = dao.getMetadataByUri(uri.toString())
+            val savedSubUriStr = metadata?.externalSubtitleUri
+            if (!savedSubUriStr.isNullOrBlank()) {
+                Log.d("PlayerViewModel", "Auto-loading saved subtitle: $savedSubUriStr")
+                withContext(Dispatchers.Main) {
+                    importSubtitle(Uri.parse(savedSubUriStr), select = false)
+                }
+            }
+        }
     }
 
     fun selectAudioTrack(id: Int) {

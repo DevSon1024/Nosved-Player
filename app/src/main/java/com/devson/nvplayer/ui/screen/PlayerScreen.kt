@@ -190,6 +190,7 @@ fun PlayerScreen(
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
     var showQualitySideSheet by remember { mutableStateOf(false) }
+    var showImportSubtitleDialog by remember { mutableStateOf(false) }
 
     val topLeftButtons = remember(playbackSettings.topLeftControls) {
         // Landscape TopLeft: always starts with BACK_ARROW + VIDEO_TITLE (non-editable anchor)
@@ -822,8 +823,42 @@ fun PlayerScreen(
             onUpdateSubtitleDelay = onUpdateSubtitleDelay,
             onUpdateSubtitleVerticalOffset = onUpdateSubtitleVerticalOffset,
             onUpdateSubtitleGesturesEnabled = onUpdateSubtitleGesturesEnabled,
-            onDismiss = { showSubtitleSettingsSideSheet = false }
+            onDismiss = { showSubtitleSettingsSideSheet = false },
+            onImportSubtitleClick = {
+                showImportSubtitleDialog = true
+                showSubtitleSettingsSideSheet = false
+            }
         )
+
+        if (showImportSubtitleDialog) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { showImportSubtitleDialog = false },
+                properties = androidx.compose.ui.window.DialogProperties(
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 600.dp)
+                        .fillMaxWidth(0.9f)
+                        .heightIn(max = 500.dp)
+                        .fillMaxHeight(0.85f)
+                        .clip(RoundedCornerShape(16.dp)),
+                    color = MaterialTheme.colorScheme.background,
+                    tonalElevation = 4.dp
+                ) {
+                    StorageExplorerScreen(
+                        operationType = "SELECT_FILE",
+                        allowedExtensions = listOf(".srt", ".vtt", ".ssa", ".ass", ".ttml", ".sub", ".pgs", ".sbv"),
+                        onFileSelected = { file ->
+                            showImportSubtitleDialog = false
+                            activeViewModel?.importSubtitle(Uri.fromFile(file))
+                        },
+                        onCancel = { showImportSubtitleDialog = false }
+                    )
+                }
+            }
+        }
 
         QualitySettingsSideSheet(
             visible = showQualitySideSheet,

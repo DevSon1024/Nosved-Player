@@ -40,6 +40,7 @@ interface PlayerEngine {
     fun setSubtitleStyle(scale: Float, font: String, bold: Boolean)
     fun seekNextSubtitle()
     fun seekPrevSubtitle()
+    fun addExternalSubtitle(path: String, select: Boolean = true)
     fun setAudioBoost(boost: Boolean)
     fun setMpvVolume(volume: Double)
     fun setDecoder(mode: DecoderMode)

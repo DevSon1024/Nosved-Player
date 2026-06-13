@@ -44,15 +44,18 @@ import java.io.File
 
 private data class FileNode(
     val file: File,
-    val childDirCount: Int
+    val childDirCount: Int,
+    val isDirectory: Boolean
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageExplorerScreen(
-    operationType: String = "MOVE", // "MOVE" or "COPY"
+    operationType: String = "MOVE", // "MOVE", "COPY", or "SELECT_FILE"
     sourceUris: List<Uri> = emptyList(),
     isBlacklistMode: Boolean = false,
+    allowedExtensions: List<String> = emptyList(),
+    onFileSelected: (File) -> Unit = {},
     onFoldersBlacklisted: (List<String>) -> Unit = {},
     onComplete: () -> Unit = {},
     fileOpsViewModel: FileOperationsViewModel = viewModel(),
@@ -74,11 +77,22 @@ fun StorageExplorerScreen(
         isLoading = true
         entries = withContext(Dispatchers.IO) {
             (currentDir.listFiles() ?: emptyArray())
-                .filter { it.isDirectory && !it.name.startsWith(".") }
-                .sortedWith(compareBy { it.name.lowercase() })
-                .map { dir ->
-                    val childCount = dir.listFiles()?.count { it.isDirectory } ?: 0
-                    FileNode(file = dir, childDirCount = childCount)
+                .filter { file ->
+                    if (file.name.startsWith(".")) return@filter false
+                    if (file.isDirectory) true
+                    else if (operationType == "SELECT_FILE") {
+                        val ext = "." + file.name.substringAfterLast('.', "").lowercase()
+                        allowedExtensions.map { it.lowercase() }.contains(ext)
+                    } else false
+                }
+                .sortedWith(compareByDescending<File> { it.isDirectory }.thenBy { it.name.lowercase() })
+                .map { file ->
+                    if (file.isDirectory) {
+                        val childCount = file.listFiles()?.count { it.isDirectory } ?: 0
+                        FileNode(file = file, childDirCount = childCount, isDirectory = true)
+                    } else {
+                        FileNode(file = file, childDirCount = 0, isDirectory = false)
+                    }
                 }
         }
         isLoading = false
@@ -135,10 +149,22 @@ fun StorageExplorerScreen(
                     coroutineScope.launch {
                         entries = withContext(Dispatchers.IO) {
                             (currentDir.listFiles() ?: emptyArray())
-                                .filter { it.isDirectory && !it.name.startsWith(".") }
-                                .sortedWith(compareBy { it.name.lowercase() })
-                                .map { dir ->
-                                    FileNode(file = dir, childDirCount = dir.listFiles()?.count { it.isDirectory } ?: 0)
+                                .filter { file ->
+                                    if (file.name.startsWith(".")) return@filter false
+                                    if (file.isDirectory) true
+                                    else if (operationType == "SELECT_FILE") {
+                                        val ext = "." + file.name.substringAfterLast('.', "").lowercase()
+                                        allowedExtensions.map { it.lowercase() }.contains(ext)
+                                    } else false
+                                }
+                                .sortedWith(compareByDescending<File> { it.isDirectory }.thenBy { it.name.lowercase() })
+                                .map { file ->
+                                    if (file.isDirectory) {
+                                        val childCount = file.listFiles()?.count { it.isDirectory } ?: 0
+                                        FileNode(file = file, childDirCount = childCount, isDirectory = true)
+                                    } else {
+                                        FileNode(file = file, childDirCount = 0, isDirectory = false)
+                                    }
                                 }
                         }
                     }
@@ -156,7 +182,7 @@ fun StorageExplorerScreen(
                 title = {
                     Column {
                         Text(
-                            text = if (isBlacklistMode) "Add to Blacklist" else if (operationType == "MOVE") "Move to…" else "Copy to…",
+                            text = if (operationType == "SELECT_FILE") "Import Subtitle" else if (isBlacklistMode) "Add to Blacklist" else if (operationType == "MOVE") "Move to…" else "Copy to…",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -204,123 +230,125 @@ fun StorageExplorerScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp))
-            ) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            if (operationType != "SELECT_FILE") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp))
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                if (isBlacklistMode) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onCancel,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                    if (isBlacklistMode) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Cancel")
-                        }
+                            OutlinedButton(
+                                onClick = onCancel,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Cancel")
+                            }
 
-                        Button(
-                            onClick = {
-                                onFoldersBlacklisted(selectedFolders.toList())
-                            },
-                            enabled = selectedFolders.isNotEmpty(),
-                            modifier = Modifier.weight(2f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                            Button(
+                                onClick = {
+                                    onFoldersBlacklisted(selectedFolders.toList())
+                                },
+                                enabled = selectedFolders.isNotEmpty(),
+                                modifier = Modifier.weight(2f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Block,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Blacklist Selected (${selectedFolders.size})",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    } else {
+                        // Destination path indicator
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                                .border(
+                                    width = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Block,
+                                imageVector = Icons.Rounded.FolderSpecial,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Blacklist Selected (${selectedFolders.size})",
-                                fontWeight = FontWeight.SemiBold
+                                text = targetRelativePath,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                    }
-                } else {
-                    // Destination path indicator
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.FolderSpecial,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = targetRelativePath,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onCancel,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Cancel")
-                        }
+                            OutlinedButton(
+                                onClick = onCancel,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Cancel")
+                            }
 
-                        Button(
-                            onClick = {
-                                if (operationType == "MOVE") {
-                                    fileOpsViewModel.moveVideosByUri(context, sourceUris, targetRelativePath)
-                                } else {
-                                    fileOpsViewModel.copyVideosByUri(context, sourceUris, targetRelativePath)
-                                }
-                                onComplete()
-                            },
-                            modifier = Modifier.weight(2f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = if (operationType == "MOVE") Icons.AutoMirrored.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (operationType == "MOVE") "Move Here" else "Copy Here",
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Button(
+                                onClick = {
+                                    if (operationType == "MOVE") {
+                                        fileOpsViewModel.moveVideosByUri(context, sourceUris, targetRelativePath)
+                                    } else {
+                                        fileOpsViewModel.copyVideosByUri(context, sourceUris, targetRelativePath)
+                                    }
+                                    onComplete()
+                                },
+                                modifier = Modifier.weight(2f),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (operationType == "MOVE") Icons.AutoMirrored.Rounded.DriveFileMove else Icons.Rounded.ContentCopy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (operationType == "MOVE") "Move Here" else "Copy Here",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
@@ -409,7 +437,7 @@ fun StorageExplorerScreen(
                                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.FolderOpen,
+                                    imageVector = if (operationType == "SELECT_FILE") Icons.Rounded.Subtitles else Icons.Rounded.FolderOpen,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                                     modifier = Modifier.size(36.dp)
@@ -417,29 +445,31 @@ fun StorageExplorerScreen(
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                "No subfolders",
+                                if (operationType == "SELECT_FILE") "No subtitles found" else "No subfolders",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                "You can select this folder or create a new one",
+                                if (operationType == "SELECT_FILE") "Place subtitle files in this folder to select them" else "You can select this folder or create a new one",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedButton(
-                                onClick = { showNewFolderDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CreateNewFolder,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("New Folder Here")
+                            if (operationType != "SELECT_FILE") {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                OutlinedButton(
+                                    onClick = { showNewFolderDialog = true },
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.CreateNewFolder,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("New Folder Here")
+                                }
                             }
                         }
                     }
@@ -452,26 +482,34 @@ fun StorageExplorerScreen(
                             items(
                                 items = entries,
                                 key = { it.file.absolutePath },
-                                contentType = { "folder_node" }
+                                contentType = { if (it.isDirectory) "folder_node" else "file_node" }
                             ) { node ->
-                                val onClick = remember(node) { { currentDir = node.file } }
-                                val onSelectedChange = remember(node) {
-                                    { selected: Boolean ->
-                                        if (selected) {
-                                            selectedFolders.add(node.file.absolutePath)
-                                        } else {
-                                            selectedFolders.remove(node.file.absolutePath)
+                                if (node.isDirectory) {
+                                    val onClick = remember(node) { { currentDir = node.file } }
+                                    val onSelectedChange = remember(node) {
+                                        { selected: Boolean ->
+                                            if (selected) {
+                                                selectedFolders.add(node.file.absolutePath)
+                                            } else {
+                                                selectedFolders.remove(node.file.absolutePath)
+                                            }
+                                            Unit
                                         }
-                                        Unit
                                     }
+                                    ExplorerFolderRow(
+                                        node = node,
+                                        isBlacklistMode = isBlacklistMode,
+                                        isSelected = selectedFolders.contains(node.file.absolutePath),
+                                        onSelectedChange = onSelectedChange,
+                                        onClick = onClick
+                                    )
+                                } else {
+                                    val onClick = remember(node) { { onFileSelected(node.file) } }
+                                    ExplorerFileRow(
+                                        node = node,
+                                        onClick = onClick
+                                    )
                                 }
-                                ExplorerFolderRow(
-                                    node = node,
-                                    isBlacklistMode = isBlacklistMode,
-                                    isSelected = selectedFolders.contains(node.file.absolutePath),
-                                    onSelectedChange = onSelectedChange,
-                                    onClick = onClick
-                                )
                             }
                         }
                     }
@@ -590,6 +628,71 @@ private fun ExplorerFolderRow(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExplorerFileRow(
+    node: FileNode,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Subtitles,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = node.file.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val sizeStr = remember(node.file) {
+                    val bytes = node.file.length()
+                    if (bytes < 1024) "$bytes B"
+                    else if (bytes < 1024 * 1024) "${bytes / 1024} KB"
+                    else "%.2f MB".format(bytes / (1024.0 * 1024.0))
+                }
+                Text(
+                    text = sizeStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = "Select",
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
             )
         }
