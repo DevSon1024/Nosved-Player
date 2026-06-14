@@ -7,6 +7,8 @@
 
 Nosved Player is a high-performance, native Android video player built with a focus on absolute playback smoothness, clean aesthetics, and extensive user customization.
 
+---
+
 Originally built as an ExoPlayer-based application, Nosved Player has been completely re-engineered under the hood to utilize the **mpv-android** engine. This architectural shift merges our minimalist Material Design UI with the raw decoding power of MPV, delivering unmatched format compatibility, hardware acceleration, and seamless video handling.
 
 > ## Why MPV?
