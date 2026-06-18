@@ -54,6 +54,7 @@ import com.devson.nvplayer.ui.screen.NetworkStreamDialog
 import com.devson.nvplayer.ui.screens.videolist.components.topbar.VideoListTopAppBar
 import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListContent
 import com.devson.nvplayer.ui.screens.videolist.components.explorer.ExplorerListContent
+import com.devson.nvplayer.ui.screens.videolist.components.explorer.ExplorerPathStrip
 import com.devson.nvplayer.ui.screens.videolist.components.selection.VideoSelectionBottomBar
 import com.devson.nvplayer.ui.screens.videolist.utils.applyFolderSort
 import com.devson.nvplayer.ui.screens.videolist.utils.shareVideos
@@ -742,37 +743,53 @@ fun VideoListScreen(
                                 sortedItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
                             }
 
-                            ExplorerListContent(
-                                items = sortedItems,
-                                allVideosForSize = allVideosForSize,
-                                settings = viewSettings,
-                                selectedFolders = selectedFolders,
-                                selectedVideos = selectedVideos,
-                                historyMap = historyMap,
-                                onFolderClick = { folder ->
-                                    if (isSelectionActive) {
+                            val pathSegments = remember(currentExplorerPath) {
+                                viewModel.getPathSegments(currentExplorerPath)
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = padding.calculateTopPadding())
+                            ) {
+                                ExplorerPathStrip(
+                                    segments = pathSegments,
+                                    onSegmentClick = { segment ->
+                                        viewModel.onPathSegmentClicked(segment.absolutePath)
+                                    }
+                                )
+                                ExplorerListContent(
+                                    items = sortedItems,
+                                    allVideosForSize = allVideosForSize,
+                                    settings = viewSettings,
+                                    selectedFolders = selectedFolders,
+                                    selectedVideos = selectedVideos,
+                                    historyMap = historyMap,
+                                    onFolderClick = { folder ->
+                                        if (isSelectionActive) {
+                                            selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
+                                        } else {
+                                            viewModel.navigateToExplorerPath(folder.id)
+                                        }
+                                    },
+                                    onFolderLongClick = { folder ->
                                         selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                    } else {
-                                        viewModel.navigateToExplorerPath(folder.id)
-                                    }
-                                },
-                                onFolderLongClick = { folder ->
-                                    selectedFolders = if (folder in selectedFolders) selectedFolders - folder else selectedFolders + folder
-                                },
-                                onVideoClick = { video ->
-                                    if (isSelectionActive) {
+                                    },
+                                    onVideoClick = { video ->
+                                        if (isSelectionActive) {
+                                            selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
+                                        } else {
+                                            onVideoSelected(video, sortedExpVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
+                                        }
+                                    },
+                                    onVideoLongClick = { video ->
                                         selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
-                                    } else {
-                                        onVideoSelected(video, sortedExpVideos, historyMap[video.uri]?.lastPositionMs ?: 0L)
-                                    }
-                                },
-                                onVideoLongClick = { video ->
-                                    selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
-                                },
-                                listState = folderListState,
-                                gridState = folderGridState,
-                                contentPadding = padding
-                            )
+                                    },
+                                    listState = folderListState,
+                                    gridState = folderGridState,
+                                    contentPadding = PaddingValues(bottom = padding.calculateBottomPadding())
+                                )
+                            }
                         }
                     }
                 }

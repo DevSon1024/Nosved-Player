@@ -9,6 +9,8 @@ sealed interface ExplorerItem {
     data class VideoItem(val video: Video) : ExplorerItem
 }
 
+data class PathSegment(val name: String, val absolutePath: String)
+
 data class VideoListUiState(
     val videosByFolder: Map<VideoFolder, List<Video>> = emptyMap(),
     val selectedVideos: Set<Video> = emptySet(),

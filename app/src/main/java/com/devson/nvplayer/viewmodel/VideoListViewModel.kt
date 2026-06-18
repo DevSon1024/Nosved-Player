@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import com.devson.nvplayer.ui.screens.videolist.state.ExplorerItem
+import com.devson.nvplayer.ui.screens.videolist.state.PathSegment
 
 class VideoListViewModel(
     private val repository: VideoRepository,
@@ -335,6 +336,31 @@ class VideoListViewModel(
         
         return folders.values.map { ExplorerItem.FolderItem(it) } + 
                videosInPath.map { ExplorerItem.VideoItem(it) }
+    }
+
+    fun onPathSegmentClicked(path: String) {
+        navigateToExplorerPath(path)
+    }
+
+    fun getPathSegments(currentPath: String): List<PathSegment> {
+        val baseRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+        if (!currentPath.startsWith(baseRoot)) {
+            return listOf(PathSegment("Internal Storage", baseRoot))
+        }
+        
+        val segments = mutableListOf<PathSegment>()
+        segments.add(PathSegment("Internal Storage", baseRoot))
+        
+        val relativePart = currentPath.removePrefix(baseRoot).trim('/')
+        if (relativePart.isNotEmpty()) {
+            val parts = relativePart.split('/')
+            var accumulatedPath = baseRoot
+            parts.forEach { part ->
+                accumulatedPath = "$accumulatedPath/$part"
+                segments.add(PathSegment(part, accumulatedPath))
+            }
+        }
+        return segments
     }
 
     // View Settings Update Callbacks

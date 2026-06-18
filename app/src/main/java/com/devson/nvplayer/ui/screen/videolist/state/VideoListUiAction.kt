@@ -22,4 +22,5 @@ sealed class VideoListUiAction {
     object OnShare : VideoListUiAction()
     object OnShowInfo : VideoListUiAction()
     object OnShowSettings : VideoListUiAction()
+    data class OnPathSegmentClicked(val path: String) : VideoListUiAction()
 }
