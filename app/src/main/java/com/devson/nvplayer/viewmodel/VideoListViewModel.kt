@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import com.devson.nvplayer.ui.screens.videolist.state.ExplorerItem
 
 class VideoListViewModel(
     private val repository: VideoRepository,
@@ -58,11 +59,13 @@ class VideoListViewModel(
 
     val viewSettings: StateFlow<ViewSettings> = viewSettingsRepo.viewSettingsFlow
 
-    private val _currentExplorerPath = MutableStateFlow<String?>(null)
-    val currentExplorerPath: StateFlow<String?> = _currentExplorerPath.asStateFlow()
+    private val _currentExplorerPath = MutableStateFlow<String>(
+        android.os.Environment.getExternalStorageDirectory().absolutePath
+    )
+    val currentExplorerPath: StateFlow<String> = _currentExplorerPath.asStateFlow()
 
-    private val _explorerNodes = MutableStateFlow<Pair<List<VideoFolder>, List<Video>>>(Pair(emptyList(), emptyList()))
-    val explorerNodes: StateFlow<Pair<List<VideoFolder>, List<Video>>> = _explorerNodes.asStateFlow()
+    private val _explorerItems = MutableStateFlow<List<ExplorerItem>>(emptyList())
+    val explorerItems: StateFlow<List<ExplorerItem>> = _explorerItems.asStateFlow()
 
     private val _searchSuggestions = MutableStateFlow<List<String>>(emptyList())
     val searchSuggestions: StateFlow<List<String>> = _searchSuggestions.asStateFlow()
@@ -140,29 +143,10 @@ class VideoListViewModel(
 
     init {
         viewModelScope.launch {
-            combine(_currentExplorerPath, videosByFolder) { currentPath, snapshot ->
-                Pair(currentPath, snapshot)
-            }.collect { (currentPath, snapshot) ->
-                val folders = mutableListOf<VideoFolder>()
-                val videos = mutableListOf<Video>()
-
-                if (currentPath == null) {
-                    snapshot.keys.forEach { folder -> folders.add(folder) }
-                } else {
-                    snapshot.forEach { (folder, videoList) ->
-                        if (folder.id == currentPath) {
-                            videos.addAll(videoList)
-                        } else if (folder.id.startsWith(currentPath) && folder.id != currentPath) {
-                            val remainingPath = folder.id.removePrefix(currentPath).removePrefix("/")
-                            val nextSegment = remainingPath.substringBefore("/")
-                            val subFolderId = "$currentPath/$nextSegment"
-                            if (folders.none { it.id == subFolderId }) {
-                                folders.add(VideoFolder(id = subFolderId, name = nextSegment))
-                            }
-                        }
-                    }
-                }
-                _explorerNodes.value = Pair(folders.distinctBy { it.id }, videos.distinctBy { it.uri })
+            combine(_currentExplorerPath, videosFlat) { currentPath, flatVideos ->
+                getExplorerItemsForPath(currentPath, flatVideos)
+            }.collect { items ->
+                _explorerItems.value = items
             }
         }
     }
@@ -312,12 +296,45 @@ class VideoListViewModel(
             .startFolderThumbnailGeneration(path, folderVideos, 512, 384)
     }
 
-    fun navigateExplorerUp() {
+    fun MapsUpInExplorer() {
         val current = _currentExplorerPath.value
-        if (current != null) {
-            val parent = File(current).parent
-            _currentExplorerPath.value = if (parent == null || parent == "/" || parent.isBlank()) null else parent
+        val baseRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+        if (current == baseRoot) {
+            return
         }
+        val parent = File(current).parent
+        if (parent != null && parent.startsWith(baseRoot)) {
+            _currentExplorerPath.value = parent
+        }
+    }
+
+    fun getExplorerItemsForPath(currentPath: String, allVideos: List<Video>): List<ExplorerItem> {
+        val normalizedCurrentPath = currentPath.trimEnd('/')
+        val prefix = "$normalizedCurrentPath/"
+        
+        val folders = mutableMapOf<String, VideoFolder>()
+        val videosInPath = mutableListOf<Video>()
+        
+        allVideos.forEach { video ->
+            if (video.path.startsWith(prefix)) {
+                val relativePath = video.path.removePrefix(prefix)
+                val nextSegment = relativePath.substringBefore('/')
+                if (nextSegment == relativePath) {
+                    videosInPath.add(video)
+                } else {
+                    val subFolderPath = "$normalizedCurrentPath/$nextSegment"
+                    if (!folders.containsKey(subFolderPath)) {
+                        folders[subFolderPath] = VideoFolder(
+                            id = subFolderPath,
+                            name = nextSegment
+                        )
+                    }
+                }
+            }
+        }
+        
+        return folders.values.map { ExplorerItem.FolderItem(it) } + 
+               videosInPath.map { ExplorerItem.VideoItem(it) }
     }
 
     // View Settings Update Callbacks

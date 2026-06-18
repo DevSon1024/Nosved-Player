@@ -4,6 +4,11 @@ import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.ViewSettings
 
+sealed interface ExplorerItem {
+    data class FolderItem(val folder: VideoFolder) : ExplorerItem
+    data class VideoItem(val video: Video) : ExplorerItem
+}
+
 data class VideoListUiState(
     val videosByFolder: Map<VideoFolder, List<Video>> = emptyMap(),
     val selectedVideos: Set<Video> = emptySet(),
@@ -12,8 +17,8 @@ data class VideoListUiState(
     val viewSettings: ViewSettings = ViewSettings(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val explorerNodes: Pair<List<VideoFolder>, List<Video>> = Pair(emptyList(), emptyList()),
-    val currentExplorerPath: String? = null,
+    val explorerItems: List<ExplorerItem> = emptyList(),
+    val currentExplorerPath: String = android.os.Environment.getExternalStorageDirectory().absolutePath,
     val searchText: String = "",
     val searchActive: Boolean = false,
     val searchSuggestions: List<String> = emptyList()

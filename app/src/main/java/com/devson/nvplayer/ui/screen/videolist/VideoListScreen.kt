@@ -61,6 +61,7 @@ import com.devson.nvplayer.ui.common.components.SelectionBottomAppBar
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
+import com.devson.nvplayer.ui.screens.videolist.state.ExplorerItem
 import kotlin.collections.get
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -120,7 +121,7 @@ fun VideoListScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val selectedFolder by viewModel.selectedFolder.collectAsStateWithLifecycle()
     val viewSettings by viewModel.viewSettings.collectAsStateWithLifecycle()
-    val explorerNodes by viewModel.explorerNodes.collectAsStateWithLifecycle()
+    val explorerItems by viewModel.explorerItems.collectAsStateWithLifecycle()
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsStateWithLifecycle()
 
     val searchSuggestions by viewModel.searchSuggestions.collectAsStateWithLifecycle()
@@ -264,13 +265,15 @@ fun VideoListScreen(
     // Drives progress bar visibility
     val opInProgress by fileOpsViewModel.operationInProgress.collectAsStateWithLifecycle()
 
+    val baseRoot = remember { android.os.Environment.getExternalStorageDirectory().absolutePath }
+
     // Back handler: clears selection first before navigating out
-    BackHandler(enabled = selectedFolder != null || isSelectionActive || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null)) {
+    BackHandler(enabled = selectedFolder != null || isSelectionActive || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot)) {
         when {
             selectedVideos.isNotEmpty() -> selectedVideos = emptySet()
             selectedFolders.isNotEmpty() -> selectedFolders = emptySet()
             selectedFolder != null -> viewModel.selectFolder(null)
-            viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null -> viewModel.navigateExplorerUp()
+            viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot -> viewModel.MapsUpInExplorer()
             else -> {}
         }
     }
@@ -280,7 +283,10 @@ fun VideoListScreen(
             val titleText = when (viewSettings.viewMode) {
                 ViewMode.ALL_FOLDERS -> selectedFolder?.name
                 ViewMode.FILES -> "All Files"
-                ViewMode.FOLDERS -> currentExplorerPath?.substringBeforeLast('/')?.substringAfterLast('/') ?: "Folders"
+                ViewMode.FOLDERS -> {
+                    if (currentExplorerPath == baseRoot) "Internal Storage"
+                    else currentExplorerPath.substringAfterLast('/')
+                }
             }
             VideoListTopAppBar(
                 isSelectionActive = isSelectionActive,
@@ -289,9 +295,9 @@ fun VideoListScreen(
                 totalCount = when (viewSettings.viewMode) {
                     ViewMode.ALL_FOLDERS -> if (selectedFolder != null) (videosByFolder[selectedFolder] ?: emptyList()).size else sortedFolderKeys.size
                     ViewMode.FILES -> videosFlat.size
-                    ViewMode.FOLDERS -> explorerNodes.first.size + explorerNodes.second.size
+                    ViewMode.FOLDERS -> explorerItems.size
                 },
-                showBackButton = selectedFolder != null || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null),
+                showBackButton = selectedFolder != null || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot),
                 showHomeBackButton = viewSettings.defaultScreen != DefaultScreen.VIDEO_LIST,
                 onClearSelection = { 
                     selectedFolders = emptySet()
@@ -313,8 +319,8 @@ fun VideoListScreen(
                             selectedVideos = if (selectedVideos.size == allVideos.size) emptySet() else allVideos.toSet()
                         }
                         ViewMode.FOLDERS -> {
-                            val allExpVideos = explorerNodes.second
-                            val allExpFolders = explorerNodes.first
+                            val allExpVideos = explorerItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
+                            val allExpFolders = explorerItems.filterIsInstance<ExplorerItem.FolderItem>().map { it.folder }
                             if (selectedVideos.size + selectedFolders.size == allExpVideos.size + allExpFolders.size) {
                                 selectedVideos = emptySet()
                                 selectedFolders = emptySet()
@@ -344,18 +350,18 @@ fun VideoListScreen(
                 keyboard = keyboard,
                 onNetworkStreamClick = { showNetworkDialog = true },
                 onBackToFolders = { 
-                    if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null) {
-                        viewModel.navigateExplorerUp()
+                    if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot) {
+                        viewModel.MapsUpInExplorer()
                     } else {
                         viewModel.selectFolder(null)
                     }
                 },
                 onPlayFolder = if ((viewSettings.viewMode == ViewMode.ALL_FOLDERS && selectedFolder != null) ||
-                                  (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != null)) {
+                                  (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot)) {
                     {
                         val folderVideos = when (viewSettings.viewMode) {
                             ViewMode.ALL_FOLDERS -> videosByFolder[selectedFolder] ?: emptyList()
-                            ViewMode.FOLDERS -> explorerNodes.second
+                            ViewMode.FOLDERS -> explorerItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
                             else -> emptyList()
                         }
                         val sortedVideos = folderVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
@@ -478,7 +484,8 @@ fun VideoListScreen(
                                     folderVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                                 ViewMode.FOLDERS -> {
-                                    explorerNodes.second.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                    explorerItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
+                                        .applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                             }
                             // Find start index: the first selected video in the full sorted playlist
@@ -559,10 +566,8 @@ fun VideoListScreen(
                                 } else {
                                     allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
-                                ViewMode.FOLDERS -> if (currentExplorerPath != null) {
-                                    allVideosFlat.filter { it.path.startsWith(currentExplorerPath!!) }.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                                } else {
-                                    allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                ViewMode.FOLDERS -> {
+                                    allVideosFlat.filter { it.path.startsWith(currentExplorerPath) }.applySort(viewSettings.sortField, viewSettings.sortDirection)
                                 }
                             }
                             onVideoSelected(vid, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
@@ -718,25 +723,27 @@ fun VideoListScreen(
                             )
                         }
                         ViewMode.FOLDERS -> {
-                            val (expFolders, expVideos) = explorerNodes
-                            val sortedExpVideos = remember(expVideos, viewSettings.sortField, viewSettings.sortDirection) {
-                                expVideos.applySort(viewSettings.sortField, viewSettings.sortDirection)
-                            }
-                            // Need a map to resolve explorer nodes content
-                            val mappedVideosByFolder = remember(videosByFolder, expFolders) {
-                                val allVideos = videosFlat
-                                expFolders.associateWith { folder ->
-                                    allVideos.filter { it.path.startsWith(folder.id) }
-                                }
-                            }
-                            val sortedExpFolders = remember(expFolders, viewSettings.sortField, viewSettings.sortDirection, mappedVideosByFolder) {
-                                expFolders.applyFolderSort(mappedVideosByFolder, viewSettings.sortField, viewSettings.sortDirection)
-                            }
                             val allVideosForSize = videosFlat
+                            val sortedItems = remember(explorerItems, viewSettings.sortField, viewSettings.sortDirection, allVideosForSize) {
+                                val folders = explorerItems.filterIsInstance<ExplorerItem.FolderItem>().map { it.folder }
+                                val videos = explorerItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
+                                
+                                val folderVideosMap = folders.associateWith { folder ->
+                                    allVideosForSize.filter { it.path.startsWith(folder.id) }
+                                }
+                                
+                                val sortedFolders = folders.applyFolderSort(folderVideosMap, viewSettings.sortField, viewSettings.sortDirection)
+                                val sortedVideos = videos.applySort(viewSettings.sortField, viewSettings.sortDirection)
+                                
+                                sortedFolders.map { ExplorerItem.FolderItem(it) } + sortedVideos.map { ExplorerItem.VideoItem(it) }
+                            }
+                            
+                            val sortedExpVideos = remember(sortedItems) {
+                                sortedItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
+                            }
 
                             ExplorerListContent(
-                                folders = sortedExpFolders,
-                                videos = sortedExpVideos,
+                                items = sortedItems,
                                 allVideosForSize = allVideosForSize,
                                 settings = viewSettings,
                                 selectedFolders = selectedFolders,
