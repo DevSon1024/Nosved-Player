@@ -124,6 +124,8 @@ fun VideoListScreen(
     val viewSettings by viewModel.viewSettings.collectAsStateWithLifecycle()
     val explorerItems by viewModel.explorerItems.collectAsStateWithLifecycle()
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsStateWithLifecycle()
+    val availableStorages by viewModel.availableStorages.collectAsStateWithLifecycle()
+    val selectedStorage by viewModel.selectedStorage.collectAsStateWithLifecycle()
 
     val searchSuggestions by viewModel.searchSuggestions.collectAsStateWithLifecycle()
     var searchActive by remember { mutableStateOf(false) }
@@ -179,6 +181,8 @@ fun VideoListScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 homeViewModel.loadWatchHistory()
+                // Re-detect storage volumes on resume for SD card insertion/ejection
+                viewModel.refreshStorages(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -266,7 +270,9 @@ fun VideoListScreen(
     // Drives progress bar visibility
     val opInProgress by fileOpsViewModel.operationInProgress.collectAsStateWithLifecycle()
 
-    val baseRoot = remember { android.os.Environment.getExternalStorageDirectory().absolutePath }
+    // Derive the active base root dynamically from the selected storage (fallback to internal)
+    val baseRoot = selectedStorage?.rootPath
+        ?: android.os.Environment.getExternalStorageDirectory().absolutePath
 
     // Back handler: clears selection first before navigating out
     BackHandler(enabled = selectedFolder != null || isSelectionActive || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot)) {
@@ -285,7 +291,7 @@ fun VideoListScreen(
                 ViewMode.ALL_FOLDERS -> selectedFolder?.name
                 ViewMode.FILES -> "All Files"
                 ViewMode.FOLDERS -> {
-                    if (currentExplorerPath == baseRoot) "Internal Storage"
+                    if (currentExplorerPath == baseRoot) selectedStorage?.name ?: "Internal Storage"
                     else currentExplorerPath.substringAfterLast('/')
                 }
             }
@@ -350,7 +356,7 @@ fun VideoListScreen(
                 searchFocusRequester = searchFocusRequester,
                 keyboard = keyboard,
                 onNetworkStreamClick = { showNetworkDialog = true },
-                onBackToFolders = { 
+                onBackToFolders = {
                     if (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot) {
                         viewModel.MapsUpInExplorer()
                     } else {
@@ -369,7 +375,10 @@ fun VideoListScreen(
                         viewModel.setFeedVideos(sortedVideos)
                         onNavigateToFeed(0)
                     }
-                } else null
+                } else null,
+                availableStorages = availableStorages,
+                selectedStorage = selectedStorage,
+                onStorageSelected = { storage -> viewModel.onStorageSelected(storage) }
             )
         },
         bottomBar = {

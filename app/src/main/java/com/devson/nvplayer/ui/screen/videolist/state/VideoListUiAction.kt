@@ -1,5 +1,6 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
+import com.devson.nvplayer.domain.model.StorageVolumeInfo
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 
@@ -23,4 +24,5 @@ sealed class VideoListUiAction {
     object OnShowInfo : VideoListUiAction()
     object OnShowSettings : VideoListUiAction()
     data class OnPathSegmentClicked(val path: String) : VideoListUiAction()
+    data class OnStorageSelected(val storage: StorageVolumeInfo) : VideoListUiAction()
 }

@@ -1,11 +1,15 @@
 package com.devson.nvplayer.ui.screens.videolist.components.topbar
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayCircle
@@ -15,6 +19,8 @@ import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,7 +31,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -34,6 +44,8 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.devson.nvplayer.domain.model.StorageVolumeInfo
 import com.devson.nvplayer.ui.common.popup.SearchSuggestionsPopup
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +74,11 @@ fun VideoListTopAppBar(
     keyboard: SoftwareKeyboardController? = null,
     onRecycleBinClick: (() -> Unit)? = null,
     onPlayFolder: (() -> Unit)? = null,
-    onNetworkStreamClick: (() -> Unit)? = null
+    onNetworkStreamClick: (() -> Unit)? = null,
+    // Storage selector params
+    availableStorages: List<StorageVolumeInfo> = emptyList(),
+    selectedStorage: StorageVolumeInfo? = null,
+    onStorageSelected: (StorageVolumeInfo) -> Unit = {}
 ) {
     if (isSelectionActive) {
         val allSelected = selectedCount == totalCount
@@ -100,6 +116,11 @@ fun VideoListTopAppBar(
             }
         )
     } else {
+        // Whether to show the dropdown arrow (only when multiple volumes are available and not in back-button context)
+        val showStorageDropdown = availableStorages.size > 1 && !showBackButton && !searchActive
+
+        var storageMenuExpanded by remember { mutableStateOf(false) }
+
         Box(modifier = Modifier.fillMaxWidth()) {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -131,6 +152,50 @@ fun VideoListTopAppBar(
                                 focusedBorderColor = Color.Transparent
                             )
                         )
+                    } else if (showStorageDropdown) {
+                        // Clickable title row that opens the storage DropdownMenu
+                        Box {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { storageMenuExpanded = true }
+                            ) {
+                                Text(
+                                    text = titleText ?: selectedStorage?.name ?: "Nosved Player",
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 200.dp)
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowDropDown,
+                                    contentDescription = "Select Storage",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = storageMenuExpanded,
+                                onDismissRequest = { storageMenuExpanded = false }
+                            ) {
+                                availableStorages.forEach { storage ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = storage.name,
+                                                fontWeight = if (storage.id == selectedStorage?.id) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (storage.id == selectedStorage?.id)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            storageMenuExpanded = false
+                                            onStorageSelected(storage)
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         Text(
                             titleText ?: "Nosved Player",

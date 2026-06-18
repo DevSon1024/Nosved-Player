@@ -1,5 +1,6 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
+import com.devson.nvplayer.domain.model.StorageVolumeInfo
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.ViewSettings
@@ -23,5 +24,8 @@ data class VideoListUiState(
     val currentExplorerPath: String = android.os.Environment.getExternalStorageDirectory().absolutePath,
     val searchText: String = "",
     val searchActive: Boolean = false,
-    val searchSuggestions: List<String> = emptyList()
+    val searchSuggestions: List<String> = emptyList(),
+    val availableStorages: List<StorageVolumeInfo> = emptyList(),
+    val selectedStorage: StorageVolumeInfo? = null
 )
+

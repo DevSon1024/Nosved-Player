@@ -1,5 +1,6 @@
 package com.devson.nvplayer.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.repository.VideoRepository
@@ -7,11 +8,13 @@ import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.SortDirection
 import com.devson.nvplayer.domain.model.SortField
+import com.devson.nvplayer.domain.model.StorageVolumeInfo
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.util.getAvailableStorageVolumes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +53,6 @@ class VideoListViewModel(
     val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
 
     // RELEASE FIX: Expose load errors via StateFlow so the UI can show an error state.
-    // Previously, exceptions were swallowed by e.printStackTrace() which is a no-op in release.
     private val _loadError = MutableStateFlow<String?>(null)
     val loadError: StateFlow<String?> = _loadError.asStateFlow()
     fun clearLoadError() { _loadError.value = null }
@@ -59,6 +61,13 @@ class VideoListViewModel(
     val selectedFolder: StateFlow<VideoFolder?> = _selectedFolder.asStateFlow()
 
     val viewSettings: StateFlow<ViewSettings> = viewSettingsRepo.viewSettingsFlow
+
+    // Storage selection state
+    private val _availableStorages = MutableStateFlow<List<StorageVolumeInfo>>(emptyList())
+    val availableStorages: StateFlow<List<StorageVolumeInfo>> = _availableStorages.asStateFlow()
+
+    private val _selectedStorage = MutableStateFlow<StorageVolumeInfo?>(null)
+    val selectedStorage: StateFlow<StorageVolumeInfo?> = _selectedStorage.asStateFlow()
 
     private val _currentExplorerPath = MutableStateFlow<String>(
         android.os.Environment.getExternalStorageDirectory().absolutePath
@@ -82,24 +91,33 @@ class VideoListViewModel(
     }
 
     /**
-     * Public, filtered view of videos by folder.
-     * Instantly re-derived in memory whenever raw data or settings change -
-     * no disk I/O is triggered by toggling showHiddenFiles / recognizeNoMedia.
+     * Master-filtered flat list: applies storage path filter first, then search query.
+     * All subsequent derived flows consume this instead of _rawVideosFlat directly.
+     */
+    private val _activeVideosFlat: StateFlow<List<Video>> =
+        combine(_rawVideosFlat, _selectedStorage) { raw, storage ->
+            if (storage == null) raw
+            else raw.filter { it.path.startsWith(storage.rootPath) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Master-filtered folder map: storage-filtered then hidden-path and search filtered.
      */
     val videosByFolder: StateFlow<Map<VideoFolder, List<Video>>> =
-        combine(_rawVideosByFolder, _searchQuery) { raw, query ->
+        combine(_rawVideosByFolder, _selectedStorage, _searchQuery) { raw, storage, query ->
             raw.mapValues { (_, videos) ->
                 videos.filter { video ->
+                    val matchesStorage = storage == null || video.path.startsWith(storage.rootPath)
                     val matchesPath = !video.path.contains("/.")
                     val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
-                    matchesPath && matchesSearch
+                    matchesStorage && matchesPath && matchesSearch
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val videosFlat: StateFlow<List<Video>> =
-        combine(_rawVideosFlat, _searchQuery) { rawFlat, query ->
-            rawFlat.filter { video ->
+        combine(_activeVideosFlat, _searchQuery) { activeFlat, query ->
+            activeFlat.filter { video ->
                 val matchesPath = !video.path.contains("/.")
                 val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
                 matchesPath && matchesSearch
@@ -143,6 +161,9 @@ class VideoListViewModel(
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
+        // Initialize storages; root path will be set before first video load
+        refreshStorages(repository.context)
+
         viewModelScope.launch {
             combine(_currentExplorerPath, videosFlat) { currentPath, flatVideos ->
                 getExplorerItemsForPath(currentPath, flatVideos)
@@ -150,6 +171,32 @@ class VideoListViewModel(
                 _explorerItems.value = items
             }
         }
+    }
+
+    /**
+     * Detects all currently mounted storage volumes.
+     * If the previously selected storage is no longer mounted, falls back to internal.
+     */
+    fun refreshStorages(context: Context) {
+        val volumes = getAvailableStorageVolumes(context)
+        _availableStorages.value = volumes
+
+        val current = _selectedStorage.value
+        if (current == null || volumes.none { it.id == current.id }) {
+            // Fallback: select internal storage
+            val internal = volumes.firstOrNull { it.isInternal } ?: volumes.firstOrNull()
+            _selectedStorage.value = internal
+            // Reset explorer path to the new root
+            internal?.let { _currentExplorerPath.value = it.rootPath }
+        }
+    }
+
+    /** Switches active storage and resets the explorer path to the new root. */
+    fun onStorageSelected(storage: StorageVolumeInfo) {
+        _selectedStorage.value = storage
+        _currentExplorerPath.value = storage.rootPath
+        // Clear folder selection so filtered views update cleanly
+        _selectedFolder.value = null
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
@@ -240,12 +287,10 @@ class VideoListViewModel(
                 }
 
                 _loadingProgress.value = 1f
-                // Store raw (unfiltered) - the combine flow handles filtering reactively
+                // Store raw (unfiltered) - the combine flows handle storage + search filtering reactively
                 _rawVideosByFolder.value = mappedVideos
                 _rawVideosFlat.value = mappedVideos.values.flatten()
             } catch (e: Exception) {
-                // RELEASE FIX: e.printStackTrace() is silently discarded in release builds.
-                // Emit to the error flow so the UI can react (show snackbar / empty state).
                 android.util.Log.e("VideoListViewModel", "Failed to load videos", e)
                 _loadError.value = e.localizedMessage ?: "Failed to load videos"
             } finally {
@@ -288,7 +333,11 @@ class VideoListViewModel(
         return _rawVideosFlat.value.filter { it.title.contains(query, ignoreCase = true) }
     }
 
-    // Explorer Path Navigation 
+    // Explorer Path Navigation
+
+    private fun currentBaseRoot(): String =
+        _selectedStorage.value?.rootPath
+            ?: android.os.Environment.getExternalStorageDirectory().absolutePath
 
     fun navigateToExplorerPath(path: String) {
         _currentExplorerPath.value = path
@@ -299,10 +348,8 @@ class VideoListViewModel(
 
     fun MapsUpInExplorer() {
         val current = _currentExplorerPath.value
-        val baseRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
-        if (current == baseRoot) {
-            return
-        }
+        val baseRoot = currentBaseRoot()
+        if (current == baseRoot) return
         val parent = File(current).parent
         if (parent != null && parent.startsWith(baseRoot)) {
             _currentExplorerPath.value = parent
@@ -334,7 +381,7 @@ class VideoListViewModel(
             }
         }
         
-        return folders.values.map { ExplorerItem.FolderItem(it) } + 
+        return folders.values.map { ExplorerItem.FolderItem(it) } +
                videosInPath.map { ExplorerItem.VideoItem(it) }
     }
 
@@ -343,13 +390,15 @@ class VideoListViewModel(
     }
 
     fun getPathSegments(currentPath: String): List<PathSegment> {
-        val baseRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+        val baseRoot = currentBaseRoot()
+        val rootName = _selectedStorage.value?.name ?: "Internal Storage"
+
         if (!currentPath.startsWith(baseRoot)) {
-            return listOf(PathSegment("Internal Storage", baseRoot))
+            return listOf(PathSegment(rootName, baseRoot))
         }
         
         val segments = mutableListOf<PathSegment>()
-        segments.add(PathSegment("Internal Storage", baseRoot))
+        segments.add(PathSegment(rootName, baseRoot))
         
         val relativePart = currentPath.removePrefix(baseRoot).trim('/')
         if (relativePart.isNotEmpty()) {
@@ -371,6 +420,10 @@ class VideoListViewModel(
         }
         if (mode == ViewMode.FILES || mode == ViewMode.FOLDERS) {
             _selectedFolder.value = null
+        }
+        // Reset explorer to the root of the active storage when switching to Explorer mode
+        if (mode == ViewMode.FOLDERS) {
+            _currentExplorerPath.value = currentBaseRoot()
         }
     }
 
