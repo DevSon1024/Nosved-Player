@@ -528,7 +528,6 @@ fun AppNavigation(
                 onUpdateShowNextPrevButtons = { settingsViewModel.updateShowNextPrevButtons(it) },
                 onUpdateShowRemainingTime = { settingsViewModel.updateShowRemainingTime(it) },
                 onUpdateShowBatteryClockOverlay = { settingsViewModel.updateShowBatteryClockOverlay(it) },
-                onUpdateShowScreenRotationButton = { settingsViewModel.updateShowScreenRotationButton(it) },
                 onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
                 onUpdateIsBottomLayoutEnabled = { settingsViewModel.updateIsBottomLayoutEnabled(it) },

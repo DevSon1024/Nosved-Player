@@ -76,7 +76,6 @@ fun PlayerSettingsSideSheet(
     onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
     onUpdateShowRemainingTime: (Boolean) -> Unit = {},
     onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
-    onUpdateShowScreenRotationButton: (Boolean) -> Unit = {},
     onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
     onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
@@ -328,8 +327,7 @@ fun PlayerSettingsSideSheet(
                             3 -> OverlaysTab(
                                 playbackSettings = playbackSettings,
                                 onUpdateShowRemainingTime = onUpdateShowRemainingTime,
-                                onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay,
-                                onUpdateShowScreenRotationButton = onUpdateShowScreenRotationButton
+                                onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay
                             )
                             4 -> AutomationTab(
                                 playbackSettings = playbackSettings,
@@ -394,7 +392,7 @@ fun PlayerSettingsSideSheet(
                         )
                         Text(
                             text = when (action) {
-                                DoubleTapAction.BOTH         -> "Tap left to rewind, right to forward"
+                                DoubleTapAction.BOTH         -> "Double Tap left to rewind, right to forward"
                                 DoubleTapAction.PLAY_PAUSE   -> "Double tap anywhere to toggle playback"
                                 DoubleTapAction.FAST_FORWARD -> "Double tap to jump forward"
                                 DoubleTapAction.REWIND       -> "Double tap to jump backward"
@@ -1162,8 +1160,7 @@ private fun InterfaceTab(
 private fun OverlaysTab(
     playbackSettings: PlaybackSettings,
     onUpdateShowRemainingTime: (Boolean) -> Unit,
-    onUpdateShowBatteryClockOverlay: (Boolean) -> Unit,
-    onUpdateShowScreenRotationButton: (Boolean) -> Unit
+    onUpdateShowBatteryClockOverlay: (Boolean) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SheetSectionLabel("Info Overlays")
@@ -1184,16 +1181,6 @@ private fun OverlaysTab(
                 subtitle = "Display battery status and device clock on control bar",
                 checked = playbackSettings.showBatteryClockOverlay,
                 onCheckedChange = onUpdateShowBatteryClockOverlay
-            )
-
-            SheetDivider()
-
-            SheetToggleRow(
-                icon = Icons.AutoMirrored.Filled.RotateRight,
-                title = "Show Quick Rotation Button",
-                subtitle = "Display rotation lock toggle button in player interface",
-                checked = playbackSettings.showScreenRotationButton,
-                onCheckedChange = onUpdateShowScreenRotationButton
             )
         }
     }

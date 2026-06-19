@@ -48,7 +48,7 @@ class PlaybackSettingsRepository(context: Context) {
             }
             "seek_duration_seconds", "seek_bar_style", "control_icon_size", "auto_play_enabled",
             "show_seek_buttons", "fastplay_speed", "orientation_mode", "fullscreen_mode", "soft_button_mode",
-            "show_battery_clock_overlay", "show_screen_rotation_button",
+            "show_battery_clock_overlay",
             "pause_when_obstructed", "show_remaining_time", "use_system_caption_style", "subtitle_font",
             "is_subtitle_bold", "force_ass_subtitle_override", "seek_gesture_enabled", "seek_speed_sec_cm",
             "brightness_gesture_enabled", "brightness_sensitivity", "volume_gesture_enabled", "volume_sensitivity",
@@ -160,7 +160,6 @@ class PlaybackSettingsRepository(context: Context) {
                 SoftButtonMode.AUTO_HIDE
             },
             showBatteryClockOverlay = prefs.getBoolean("show_battery_clock_overlay", false),
-            showScreenRotationButton = prefs.getBoolean("show_screen_rotation_button", true),
             pauseWhenObstructed = prefs.getBoolean("pause_when_obstructed", true),
             showRemainingTime = prefs.getBoolean("show_remaining_time", false),
             useSystemCaptionStyle = prefs.getBoolean("use_system_caption_style", false),
@@ -396,7 +395,6 @@ class PlaybackSettingsRepository(context: Context) {
                 putString("fullscreen_mode", updated.fullScreenMode.name)
                 putString("soft_button_mode", updated.softButtonMode.name)
                 putBoolean("show_battery_clock_overlay", updated.showBatteryClockOverlay)
-                putBoolean("show_screen_rotation_button", updated.showScreenRotationButton)
                 putBoolean("pause_when_obstructed", updated.pauseWhenObstructed)
                 putBoolean("show_remaining_time", updated.showRemainingTime)
                 putBoolean("use_system_caption_style", updated.useSystemCaptionStyle)
@@ -564,10 +562,6 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateShowBatteryClockOverlay(show: Boolean) {
         updatePlaybackSettings { it.copy(showBatteryClockOverlay = show) }
-    }
-
-    suspend fun updateShowScreenRotationButton(show: Boolean) {
-        updatePlaybackSettings { it.copy(showScreenRotationButton = show) }
     }
 
     suspend fun updatePauseWhenObstructed(pause: Boolean) {

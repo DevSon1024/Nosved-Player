@@ -231,16 +231,6 @@ fun PlayerInterfaceSettingsScreen(
                     checked = playbackSettings.showBatteryClockOverlay,
                     onCheckedChange = { settingsViewModel.updateShowBatteryClockOverlay(it) }
                 )
-
-                InterfaceDivider()
-
-                InterfaceToggleRow(
-                    icon = Icons.AutoMirrored.Filled.RotateRight,
-                    title = "Show Quick Rotation Button",
-                    subtitle = "Display rotation lock toggle button in player interface",
-                    checked = playbackSettings.showScreenRotationButton,
-                    onCheckedChange = { settingsViewModel.updateShowScreenRotationButton(it) }
-                )
             }
 
             Spacer(Modifier.height(20.dp))

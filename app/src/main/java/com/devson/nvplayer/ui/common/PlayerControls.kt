@@ -92,7 +92,6 @@ fun PlayerControls(
     showNextPrevButtons: Boolean = true,
     showRemainingTime: Boolean = false,
     showBatteryClockOverlay: Boolean = false,
-    showScreenRotationButton: Boolean = true,
     seekDurationSeconds: Int = 10,
     controlIconSize: String = "medium",
     topLeftButtons: List<PlayerButton> = emptyList(),

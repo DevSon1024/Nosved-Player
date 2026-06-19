@@ -185,7 +185,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 fullScreenMode = FullScreenMode.AUTO_SWITCH,
                 softButtonMode = SoftButtonMode.AUTO_HIDE,
                 showBatteryClockOverlay = false,
-                showScreenRotationButton = true,
                 pauseWhenObstructed = true,
                 showRemainingTime = false,
                 useSystemCaptionStyle = false,
@@ -232,10 +231,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateShowBatteryClockOverlay(show: Boolean) {
         viewModelScope.launch { settingsRepo.updateShowBatteryClockOverlay(show) }
-    }
-
-    fun updateShowScreenRotationButton(show: Boolean) {
-        viewModelScope.launch { settingsRepo.updateShowScreenRotationButton(show) }
     }
 
     fun updatePauseWhenObstructed(pause: Boolean) {
