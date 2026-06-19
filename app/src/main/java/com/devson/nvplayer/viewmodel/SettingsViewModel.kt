@@ -23,6 +23,7 @@ import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.ThumbnailMode
 import com.devson.nvplayer.domain.thumbnail.ThumbnailRepository
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.AspectMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -223,6 +224,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateFullScreenMode(mode: FullScreenMode) {
         viewModelScope.launch { settingsRepo.updateFullScreenMode(mode) }
+    }
+
+    fun updateAspectMode(mode: AspectMode) {
+        viewModelScope.launch { settingsRepo.updateAspectMode(mode) }
     }
 
     fun updateSoftButtonMode(mode: SoftButtonMode) {

@@ -38,6 +38,8 @@ import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.data.repository.MultiFingerAction
 import com.devson.nvplayer.player.engine.MPVPlayerEngine
 import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nvplayer.ui.screen.settings.ToolScreen
@@ -518,8 +520,11 @@ fun AppNavigation(
                 onUpdateLongPressEnabled = { settingsViewModel.updateLongPressEnabled(it) },
                 onUpdateLongPressSpeed = { settingsViewModel.updateLongPressSpeed(it) },
                 onUpdateDoubleTapAction = { settingsViewModel.updateDoubleTapAction(it) },
+                onUpdateTwoFingerAction = { settingsViewModel.updateTwoFingerAction(it) },
+                onUpdateThreeFingerAction = { settingsViewModel.updateThreeFingerAction(it) },
                 onUpdateOrientationMode = { settingsViewModel.updateOrientationMode(it) },
                 onUpdateFullScreenMode = { settingsViewModel.updateFullScreenMode(it) },
+                onUpdateAspectMode = { settingsViewModel.updateAspectMode(it) },
                 onUpdateSoftButtonMode = { settingsViewModel.updateSoftButtonMode(it) },
                 onUpdateControlIconSize = { settingsViewModel.updateControlIconSize(it) },
                 onUpdateSeekBarStyle = { settingsViewModel.updateSeekBarStyle(it) },

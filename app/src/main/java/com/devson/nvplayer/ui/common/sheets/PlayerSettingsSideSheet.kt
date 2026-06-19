@@ -47,6 +47,9 @@ import com.devson.nvplayer.data.repository.FullScreenMode
 import com.devson.nvplayer.data.repository.OrientationMode
 import com.devson.nvplayer.data.repository.PlaybackSettings
 import com.devson.nvplayer.data.repository.SoftButtonMode
+import com.devson.nvplayer.data.repository.MultiFingerAction
+import com.devson.nvplayer.player.model.AspectMode
+import androidx.compose.foundation.BorderStroke
 import com.devson.nvplayer.util.repeatingClickable
 import com.devson.nvplayer.util.roundToTwoDecimals
 import java.util.Locale
@@ -68,6 +71,9 @@ fun PlayerSettingsSideSheet(
     onUpdateLongPressSpeed: (Float) -> Unit = {},
     onUpdateOrientationMode: (OrientationMode) -> Unit = {},
     onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
+    onUpdateAspectMode: (AspectMode) -> Unit = {},
+    onUpdateTwoFingerAction: (MultiFingerAction) -> Unit = {},
+    onUpdateThreeFingerAction: (MultiFingerAction) -> Unit = {},
     onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
     onUpdateControlIconSize: (String) -> Unit = {},
     onUpdateSeekBarStyle: (String) -> Unit = {},
@@ -94,6 +100,8 @@ fun PlayerSettingsSideSheet(
     // Dialog trigger states
     var showDoubleTapDialog by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
+    var showTwoFingerDialog by remember { mutableStateOf(false) }
+    var showThreeFingerDialog by remember { mutableStateOf(false) }
     var showOrientationDialog by remember { mutableStateOf(false) }
     var showScalingDialog by remember { mutableStateOf(false) }
     var showSoftButtonDialog by remember { mutableStateOf(false) }
@@ -309,7 +317,9 @@ fun PlayerSettingsSideSheet(
                                 onUpdateTapAndHoldSpeed = onUpdateTapAndHoldSpeed,
                                 onUpdateLongPressSpeed = onUpdateLongPressSpeed,
                                 onShowDoubleTapDialog = { showDoubleTapDialog = true },
-                                onShowSeekDurationDialog = { showSeekDurationDialog = true }
+                                onShowSeekDurationDialog = { showSeekDurationDialog = true },
+                                onShowTwoFingerDialog = { showTwoFingerDialog = true },
+                                onShowThreeFingerDialog = { showThreeFingerDialog = true }
                             )
                             2 -> InterfaceTab(
                                 playbackSettings = playbackSettings,
@@ -345,213 +355,195 @@ fun PlayerSettingsSideSheet(
     // Dialog: Double Tap Action
     if (showDoubleTapDialog) {
         val actions = remember { DoubleTapAction.values().toList() }
-        FullListDialog(
+        PremiumSelectionDialog(
             title = "Double Tap Action",
             onDismiss = { showDoubleTapDialog = false },
             onReset = {
                 currentOnUpdateDoubleTapAction(DoubleTapAction.BOTH)
                 showDoubleTapDialog = false
-            }
-        ) {
-            items(
-                items = actions,
-                key = { it.name },
-                contentType = { "double_tap_action" }
-            ) { action ->
-                val selected = playbackSettings.doubleTapAction == action
-                val onClick = remember(action) {
-                    {
-                        currentOnUpdateDoubleTapAction(action)
-                        showDoubleTapDialog = false
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = selected,
-                            onClick = onClick,
-                            role = Role.RadioButton
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = selected, onClick = null)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = when (action) {
-                                DoubleTapAction.BOTH         -> "Seek Left/Right"
-                                DoubleTapAction.PLAY_PAUSE   -> "Play / Pause"
-                                DoubleTapAction.FAST_FORWARD -> "Fast Forward Only"
-                                DoubleTapAction.REWIND       -> "Rewind Only"
-                                DoubleTapAction.NONE         -> "Disable Double Tap"
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                        Text(
-                            text = when (action) {
-                                DoubleTapAction.BOTH         -> "Double Tap left to rewind, right to forward"
-                                DoubleTapAction.PLAY_PAUSE   -> "Double tap anywhere to toggle playback"
-                                DoubleTapAction.FAST_FORWARD -> "Double tap to jump forward"
-                                DoubleTapAction.REWIND       -> "Double tap to jump backward"
-                                DoubleTapAction.NONE         -> "No gesture on double tap"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                if (action != actions.last()) {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            }
-        }
-    }
-
-    // Dialog: Double Tap Seek Duration
-    if (showSeekDurationDialog) {
-        val durations = remember { listOf(5000L, 10000L, 15000L, 30000L, 60000L) }
-        FullListDialog(
-            title = "Seek Duration",
-            onDismiss = { showSeekDurationDialog = false },
-            onReset = {
-                currentOnUpdateDoubleTapSeekDuration(10000L)
-                showSeekDurationDialog = false
-            }
-        ) {
-            items(
-                items = durations,
-                key = { it },
-                contentType = { "seek_duration" }
-            ) { duration ->
-                val selected = playbackSettings.doubleTapSeekDuration == duration
-                val onClick = remember(duration) {
-                    {
-                        currentOnUpdateDoubleTapSeekDuration(duration)
-                        showSeekDurationDialog = false
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = selected,
-                            onClick = onClick,
-                            role = Role.RadioButton
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = selected, onClick = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = "${duration / 1000} seconds",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
-                if (duration != durations.last()) {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            }
-        }
-    }
-
-    // Dialog: Screen Orientation
-    if (showOrientationDialog) {
-        AlertDialog(
-            onDismissRequest = { showOrientationDialog = false },
-            title = { Text("Screen Orientation") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    OrientationMode.values().forEach { mode ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.orientationMode == mode),
-                                    onClick = {
-                                        onUpdateOrientationMode(mode)
-                                        showOrientationDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.orientationMode == mode),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = when (mode) {
-                                    OrientationMode.SYSTEM_DEFAULT -> "System Default"
-                                    OrientationMode.LANDSCAPE -> "Landscape Only"
-                                    OrientationMode.PORTRAIT -> "Portrait Only"
-                                    OrientationMode.AUTO -> "Sensor Auto-Rotate"
-                                },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
+            },
+            options = actions,
+            selectedOption = playbackSettings.doubleTapAction,
+            onOptionSelected = {
+                currentOnUpdateDoubleTapAction(it)
+                showDoubleTapDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    DoubleTapAction.BOTH         -> "Seek Left/Right"
+                    DoubleTapAction.PLAY_PAUSE   -> "Play / Pause"
+                    DoubleTapAction.FAST_FORWARD -> "Fast Forward Only"
+                    DoubleTapAction.REWIND       -> "Rewind Only"
+                    DoubleTapAction.NONE         -> "Disable Double Tap"
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showOrientationDialog = false }) {
-                    Text("Cancel")
+            optionDescription = {
+                when (it) {
+                    DoubleTapAction.BOTH         -> "Double tap left to rewind, right to forward"
+                    DoubleTapAction.PLAY_PAUSE   -> "Double tap anywhere to toggle playback"
+                    DoubleTapAction.FAST_FORWARD -> "Double tap to jump forward"
+                    DoubleTapAction.REWIND       -> "Double tap to jump backward"
+                    DoubleTapAction.NONE         -> "No gesture on double tap"
                 }
             }
         )
     }
 
-    // Dialog: Scaling mode
-    if (showScalingDialog) {
-        AlertDialog(
-            onDismissRequest = { showScalingDialog = false },
-            title = { Text("Fullscreen Scaling") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    FullScreenMode.values().forEach { mode ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.fullScreenMode == mode),
-                                    onClick = {
-                                        onUpdateFullScreenMode(mode)
-                                        showScalingDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.fullScreenMode == mode),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = when (mode) {
-                                    FullScreenMode.AUTO_SWITCH -> "Auto Stretch/Crop"
-                                    FullScreenMode.STRETCH -> "Stretch to Fill"
-                                    FullScreenMode.CROP -> "Zoom Crop"
-                                    FullScreenMode.FIT -> "Fit Letterbox"
-                                },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
+    // Dialog: Double Tap Seek Duration
+    if (showSeekDurationDialog) {
+        val durations = remember { listOf(5000L, 10000L, 15000L, 30000L, 60000L) }
+        PremiumSelectionDialog(
+            title = "Seek Duration",
+            onDismiss = { showSeekDurationDialog = false },
+            onReset = {
+                currentOnUpdateDoubleTapSeekDuration(10000L)
+                showSeekDurationDialog = false
+            },
+            options = durations,
+            selectedOption = playbackSettings.doubleTapSeekDuration,
+            onOptionSelected = {
+                currentOnUpdateDoubleTapSeekDuration(it)
+                showSeekDurationDialog = false
+            },
+            optionLabel = { "${it / 1000} seconds" }
+        )
+    }
+
+    // Dialog: Two Finger Tap Action
+    if (showTwoFingerDialog) {
+        val actions = remember { MultiFingerAction.values().toList() }
+        PremiumSelectionDialog(
+            title = "Two Finger Tap Action",
+            onDismiss = { showTwoFingerDialog = false },
+            onReset = {
+                onUpdateTwoFingerAction(MultiFingerAction.PINCH_ZOOM)
+                showTwoFingerDialog = false
+            },
+            options = actions,
+            selectedOption = playbackSettings.twoFingerAction,
+            onOptionSelected = {
+                onUpdateTwoFingerAction(it)
+                showTwoFingerDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
+                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
+                    MultiFingerAction.MUTE -> "Mute / Unmute"
+                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
+                    MultiFingerAction.NONE -> "No Action"
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showScalingDialog = false }) {
-                    Text("Cancel")
+            optionDescription = {
+                when (it) {
+                    MultiFingerAction.PLAY_PAUSE -> "Double-finger tap to play or pause"
+                    MultiFingerAction.FAST_PLAY -> "Double-finger tap to toggle fast play speed"
+                    MultiFingerAction.MUTE -> "Double-finger tap to mute or unmute audio"
+                    MultiFingerAction.SCREENSHOT -> "Double-finger tap to capture video frame"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch gesture to zoom and pan the video"
+                    MultiFingerAction.NONE -> "Disable two-finger gesture actions"
+                }
+            }
+        )
+    }
+
+    // Dialog: Three Finger Tap Action
+    if (showThreeFingerDialog) {
+        val actions = remember { MultiFingerAction.values().toList() }
+        PremiumSelectionDialog(
+            title = "Three Finger Tap Action",
+            onDismiss = { showThreeFingerDialog = false },
+            onReset = {
+                onUpdateThreeFingerAction(MultiFingerAction.FAST_PLAY)
+                showThreeFingerDialog = false
+            },
+            options = actions,
+            selectedOption = playbackSettings.threeFingerAction,
+            onOptionSelected = {
+                onUpdateThreeFingerAction(it)
+                showThreeFingerDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
+                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
+                    MultiFingerAction.MUTE -> "Mute / Unmute"
+                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
+                    MultiFingerAction.NONE -> "No Action"
+                }
+            },
+            optionDescription = {
+                when (it) {
+                    MultiFingerAction.PLAY_PAUSE -> "Triple-finger tap to play or pause"
+                    MultiFingerAction.FAST_PLAY -> "Triple-finger tap to toggle fast play speed"
+                    MultiFingerAction.MUTE -> "Triple-finger tap to mute or unmute audio"
+                    MultiFingerAction.SCREENSHOT -> "Triple-finger tap to capture video frame"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch gesture to zoom and pan the video"
+                    MultiFingerAction.NONE -> "Disable three-finger gesture actions"
+                }
+            }
+        )
+    }
+
+    // Dialog: Screen Orientation
+    if (showOrientationDialog) {
+        val modes = remember { OrientationMode.values().toList() }
+        PremiumSelectionDialog(
+            title = "Screen Orientation",
+            onDismiss = { showOrientationDialog = false },
+            onReset = {
+                onUpdateOrientationMode(OrientationMode.SYSTEM_DEFAULT)
+                showOrientationDialog = false
+            },
+            options = modes,
+            selectedOption = playbackSettings.orientationMode,
+            onOptionSelected = {
+                onUpdateOrientationMode(it)
+                showOrientationDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    OrientationMode.SYSTEM_DEFAULT -> "System Default"
+                    OrientationMode.LANDSCAPE -> "Landscape Only"
+                    OrientationMode.PORTRAIT -> "Portrait Only"
+                    OrientationMode.AUTO -> "Sensor Auto-Rotate"
+                }
+            }
+        )
+    }
+
+    // Dialog: Fullscreen Scaling Mode (Aligns with Aspect Mode!)
+    if (showScalingDialog) {
+        val modes = remember { AspectMode.values().toList() }
+        PremiumSelectionDialog(
+            title = "Fullscreen Scaling",
+            onDismiss = { showScalingDialog = false },
+            onReset = {
+                onUpdateAspectMode(AspectMode.FIT)
+                showScalingDialog = false
+            },
+            options = modes,
+            selectedOption = playbackSettings.aspectMode,
+            onOptionSelected = {
+                onUpdateAspectMode(it)
+                showScalingDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    AspectMode.FIT -> "Fit Screen"
+                    AspectMode.STRETCH -> "Stretch"
+                    AspectMode.CROP -> "Crop"
+                    AspectMode.ORIGINAL -> "100% Original"
+                }
+            },
+            optionDescription = {
+                when (it) {
+                    AspectMode.FIT -> "Fit to screen (Letterbox)"
+                    AspectMode.STRETCH -> "Stretch to fill screen"
+                    AspectMode.CROP -> "Crop and zoom to fill"
+                    AspectMode.ORIGINAL -> "Original video resolution"
                 }
             }
         )
@@ -559,47 +551,25 @@ fun PlayerSettingsSideSheet(
 
     // Dialog: Soft Buttons mode
     if (showSoftButtonDialog) {
-        AlertDialog(
-            onDismissRequest = { showSoftButtonDialog = false },
-            title = { Text("System Buttons Mode") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    SoftButtonMode.values().forEach { mode ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.softButtonMode == mode),
-                                    onClick = {
-                                        onUpdateSoftButtonMode(mode)
-                                        showSoftButtonDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.softButtonMode == mode),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = when (mode) {
-                                    SoftButtonMode.AUTO_HIDE -> "Auto Hide Navigation Bar"
-                                    SoftButtonMode.SHOW -> "Always Show Navigation Bar"
-                                    SoftButtonMode.HIDE -> "Always Hide Navigation Bar"
-                                },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
+        val modes = remember { SoftButtonMode.values().toList() }
+        PremiumSelectionDialog(
+            title = "System Buttons Mode",
+            onDismiss = { showSoftButtonDialog = false },
+            onReset = {
+                onUpdateSoftButtonMode(SoftButtonMode.AUTO_HIDE)
+                showSoftButtonDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showSoftButtonDialog = false }) {
-                    Text("Cancel")
+            options = modes,
+            selectedOption = playbackSettings.softButtonMode,
+            onOptionSelected = {
+                onUpdateSoftButtonMode(it)
+                showSoftButtonDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    SoftButtonMode.AUTO_HIDE -> "Auto Hide Navigation Bar"
+                    SoftButtonMode.SHOW -> "Always Show Navigation Bar"
+                    SoftButtonMode.HIDE -> "Always Hide Navigation Bar"
                 }
             }
         )
@@ -607,93 +577,45 @@ fun PlayerSettingsSideSheet(
 
     // Dialog: Icon size
     if (showIconSizeDialog) {
-        val sizes = listOf("small", "medium", "large")
-        AlertDialog(
-            onDismissRequest = { showIconSizeDialog = false },
-            title = { Text("Controls Icon Size") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    sizes.forEach { size ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.controlIconSize == size),
-                                    onClick = {
-                                        onUpdateControlIconSize(size)
-                                        showIconSizeDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.controlIconSize == size),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = size.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
+        val sizes = remember { listOf("small", "medium", "large") }
+        PremiumSelectionDialog(
+            title = "Controls Icon Size",
+            onDismiss = { showIconSizeDialog = false },
+            onReset = {
+                onUpdateControlIconSize("medium")
+                showIconSizeDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showIconSizeDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            options = sizes,
+            selectedOption = playbackSettings.controlIconSize,
+            onOptionSelected = {
+                onUpdateControlIconSize(it)
+                showIconSizeDialog = false
+            },
+            optionLabel = { it.replaceFirstChar { char -> char.uppercase() } }
         )
     }
 
     // Dialog: Seekbar style
     if (showSeekBarStyleDialog) {
-        val styles = listOf("standard", "wavy", "thick")
-        AlertDialog(
-            onDismissRequest = { showSeekBarStyleDialog = false },
-            title = { Text("Seekbar Style") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    styles.forEach { style ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.seekBarStyle == style),
-                                    onClick = {
-                                        onUpdateSeekBarStyle(style)
-                                        showSeekBarStyleDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.seekBarStyle == style),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = when (style) {
-                                    "wavy" -> "Wavy"
-                                    "thick" -> "Thick"
-                                    else -> "Standard"
-                                },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
+        val styles = remember { listOf("standard", "wavy", "thick") }
+        PremiumSelectionDialog(
+            title = "Seekbar Style",
+            onDismiss = { showSeekBarStyleDialog = false },
+            onReset = {
+                onUpdateSeekBarStyle("standard")
+                showSeekBarStyleDialog = false
             },
-            confirmButton = {
-                TextButton(onClick = { showSeekBarStyleDialog = false }) {
-                    Text("Cancel")
+            options = styles,
+            selectedOption = playbackSettings.seekBarStyle,
+            onOptionSelected = {
+                onUpdateSeekBarStyle(it)
+                showSeekBarStyleDialog = false
+            },
+            optionLabel = {
+                when (it) {
+                    "wavy" -> "Wavy"
+                    "thick" -> "Thick"
+                    else -> "Standard"
                 }
             }
         )
@@ -956,7 +878,9 @@ private fun GesturesTab(
     onUpdateTapAndHoldSpeed: (Float) -> Unit,
     onUpdateLongPressSpeed: (Float) -> Unit,
     onShowDoubleTapDialog: () -> Unit,
-    onShowSeekDurationDialog: () -> Unit
+    onShowSeekDurationDialog: () -> Unit,
+    onShowTwoFingerDialog: () -> Unit,
+    onShowThreeFingerDialog: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SheetSectionLabel("Press & Tap Controls")
@@ -984,6 +908,40 @@ private fun GesturesTab(
                 title = "Double Tap Seek Duration",
                 subtitle = "${playbackSettings.doubleTapSeekDuration / 1000} seconds",
                 onClick = onShowSeekDurationDialog
+            )
+
+            SheetDivider()
+
+            // Two Finger Action row
+            SheetRow(
+                icon = Icons.Default.TouchApp,
+                title = "Two Finger Tap Action",
+                subtitle = when (playbackSettings.twoFingerAction) {
+                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
+                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
+                    MultiFingerAction.MUTE -> "Mute / Unmute"
+                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
+                    MultiFingerAction.NONE -> "No Action"
+                },
+                onClick = onShowTwoFingerDialog
+            )
+
+            SheetDivider()
+
+            // Three Finger Action row
+            SheetRow(
+                icon = Icons.Default.TouchApp,
+                title = "Three Finger Tap Action",
+                subtitle = when (playbackSettings.threeFingerAction) {
+                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
+                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
+                    MultiFingerAction.MUTE -> "Mute / Unmute"
+                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
+                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
+                    MultiFingerAction.NONE -> "No Action"
+                },
+                onClick = onShowThreeFingerDialog
             )
 
             SheetDivider()
@@ -1056,11 +1014,11 @@ private fun InterfaceTab(
             SheetRow(
                 icon = Icons.Default.AspectRatio,
                 title = "Fullscreen Scale Mode",
-                subtitle = when (playbackSettings.fullScreenMode) {
-                    FullScreenMode.AUTO_SWITCH -> "Auto Switch aspect ratio"
-                    FullScreenMode.STRETCH -> "Stretch to fill screen"
-                    FullScreenMode.CROP -> "Crop and zoom to fill"
-                    FullScreenMode.FIT -> "Fit to screen (Letterbox)"
+                subtitle = when (playbackSettings.aspectMode) {
+                    AspectMode.FIT -> "Fit Screen (Letterbox)"
+                    AspectMode.STRETCH -> "Stretch to Fill"
+                    AspectMode.CROP -> "Crop and Zoom"
+                    AspectMode.ORIGINAL -> "100% Original"
                 },
                 onClick = onShowScalingDialog
             )
@@ -1508,11 +1466,15 @@ private fun LongPressStepButton(
 }
 
 @Composable
-private fun FullListDialog(
+private fun <T> PremiumSelectionDialog(
     title: String,
     onDismiss: () -> Unit,
-    onReset: () -> Unit,
-    content: LazyListScope.() -> Unit
+    onReset: (() -> Unit)? = null,
+    options: List<T>,
+    selectedOption: T,
+    onOptionSelected: (T) -> Unit,
+    optionLabel: @Composable (T) -> String,
+    optionDescription: (@Composable (T) -> String?)? = null
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -1522,55 +1484,133 @@ private fun FullListDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 8.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+            ) {
+                // Title and Reset
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    TextButton(
-                        onClick = onReset,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Reset",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Reset", style = MaterialTheme.typography.labelMedium)
+                    if (onReset != null) {
+                        TextButton(
+                            onClick = onReset,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Reset",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Reset", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
 
-                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
 
+                // Options List
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
-                    content = content
-                )
-
-                HorizontalDivider()
-
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(end = 12.dp, bottom = 8.dp, top = 4.dp)
+                        .heightIn(max = 350.dp)
+                        .padding(horizontal = 12.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text("Cancel")
+                    items(options) { option ->
+                        val isSelected = option == selectedOption
+                        val cardBgColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                        } else {
+                            Color.Transparent
+                        }
+                        val cardBorderColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        } else {
+                            Color.Transparent
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = cardBgColor,
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            onClick = {
+                                onOptionSelected(option)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = MaterialTheme.colorScheme.primary,
+                                        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = optionLabel(option),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    val desc = optionDescription?.invoke(option)
+                                    if (desc != null) {
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = desc,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                Spacer(Modifier.height(8.dp))
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = onDismiss
+                    ) {
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         }

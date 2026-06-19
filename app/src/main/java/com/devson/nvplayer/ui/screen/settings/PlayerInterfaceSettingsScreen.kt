@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.data.repository.FullScreenMode
 import com.devson.nvplayer.data.repository.OrientationMode
 import com.devson.nvplayer.data.repository.SoftButtonMode
+import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,11 +111,11 @@ fun PlayerInterfaceSettingsScreen(
                 InterfaceRow(
                     icon = Icons.Default.AspectRatio,
                     title = "Fullscreen Scale Mode",
-                    subtitle = when (playbackSettings.fullScreenMode) {
-                        FullScreenMode.AUTO_SWITCH -> "Auto Switch aspect ratio"
-                        FullScreenMode.STRETCH -> "Stretch to fill screen"
-                        FullScreenMode.CROP -> "Crop and zoom to fill"
-                        FullScreenMode.FIT -> "Fit to screen (Letterbox)"
+                    subtitle = when (playbackSettings.aspectMode) {
+                        AspectMode.FIT -> "Fit Screen (Letterbox)"
+                        AspectMode.STRETCH -> "Stretch to Fill"
+                        AspectMode.CROP -> "Crop and Zoom"
+                        AspectMode.ORIGINAL -> "100% Original"
                     },
                     onClick = { showScalingDialog = true }
                 )
@@ -326,15 +327,15 @@ fun PlayerInterfaceSettingsScreen(
             title = { Text("Fullscreen Scaling") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    FullScreenMode.values().forEach { mode ->
+                    AspectMode.values().forEach { mode ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
-                                    selected = (playbackSettings.fullScreenMode == mode),
+                                    selected = (playbackSettings.aspectMode == mode),
                                     onClick = {
-                                        settingsViewModel.updateFullScreenMode(mode)
+                                        settingsViewModel.updateAspectMode(mode)
                                         showScalingDialog = false
                                     },
                                     role = Role.RadioButton
@@ -343,16 +344,16 @@ fun PlayerInterfaceSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.fullScreenMode == mode),
+                                selected = (playbackSettings.aspectMode == mode),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
                                 text = when (mode) {
-                                    FullScreenMode.AUTO_SWITCH -> "Auto Stretch/Crop"
-                                    FullScreenMode.STRETCH -> "Stretch to Fill"
-                                    FullScreenMode.CROP -> "Zoom Crop"
-                                    FullScreenMode.FIT -> "Fit Letterbox"
+                                    AspectMode.FIT -> "Fit Screen"
+                                    AspectMode.STRETCH -> "Stretch"
+                                    AspectMode.CROP -> "Crop"
+                                    AspectMode.ORIGINAL -> "100% Original"
                                 },
                                 style = MaterialTheme.typography.bodyLarge
                             )

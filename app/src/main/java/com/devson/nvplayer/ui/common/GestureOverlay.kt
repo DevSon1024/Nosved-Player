@@ -270,7 +270,7 @@ fun GestureOverlay(
                             if (!dragStarted && isEdge && playbackSettingsState.value.longPressEnabled) {
                                 isLongPressSpeedActive = true
                                 speedBeforeLongPress = playbackSpeedState.value
-                                onSetPlaybackSpeedState.value(tapAndHoldSpeed)
+                                onSetPlaybackSpeedState.value(playbackSettingsState.value.tapAndHoldSpeed)
                             }
                         }
 
@@ -385,7 +385,7 @@ fun GestureOverlay(
                                         onPlayPause = onPlayPauseToggleState.value,
                                         onSetSpeed = onSetPlaybackSpeedState.value,
                                         currentSpeed = playbackSpeedState.value,
-                                        customSpeed = customPlaybackSpeed,
+                                        customSpeed = settings.customPlaybackSpeed,
                                         audioManager = audioManager,
                                         maxVolume = maxVolume,
                                         onShowToast = { msg ->
@@ -449,10 +449,10 @@ fun GestureOverlay(
                                         when (settings.doubleTapAction) {
                                             DoubleTapAction.BOTH -> {
                                                 if (x < width * 0.4f) {
-                                                    targetSeekPos = (targetSeekPos - doubleTapSeekDurationMs).coerceIn(0L, durationState.value)
+                                                    targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
                                                     onSeekState.value(targetSeekPos, true)
                                                     leftClearJob?.cancel()
-                                                    leftAccumulatedMs += doubleTapSeekDurationMs
+                                                    leftAccumulatedMs += settings.doubleTapSeekDuration
                                                     leftRippleTick++
                                                     leftRippleActive = true
                                                     leftClearJob = launch {
@@ -461,10 +461,10 @@ fun GestureOverlay(
                                                         leftRippleActive = false
                                                     }
                                                 } else if (x > width * 0.6f) {
-                                                    targetSeekPos = (targetSeekPos + doubleTapSeekDurationMs).coerceIn(0L, durationState.value)
+                                                    targetSeekPos = (targetSeekPos + settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
                                                     onSeekState.value(targetSeekPos, true)
                                                     rightClearJob?.cancel()
-                                                    rightAccumulatedMs += doubleTapSeekDurationMs
+                                                    rightAccumulatedMs += settings.doubleTapSeekDuration
                                                     rightRippleTick++
                                                     rightRippleActive = true
                                                     rightClearJob = launch {
@@ -480,10 +480,10 @@ fun GestureOverlay(
                                                 onPlayPauseToggleState.value()
                                             }
                                             DoubleTapAction.FAST_FORWARD -> {
-                                                targetSeekPos = (targetSeekPos + doubleTapSeekDurationMs).coerceIn(0L, durationState.value)
+                                                targetSeekPos = (targetSeekPos + settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
                                                 onSeekState.value(targetSeekPos, true)
                                                 rightClearJob?.cancel()
-                                                rightAccumulatedMs += doubleTapSeekDurationMs
+                                                rightAccumulatedMs += settings.doubleTapSeekDuration
                                                 rightRippleTick++
                                                 rightRippleActive = true
                                                 rightClearJob = launch {
@@ -493,10 +493,10 @@ fun GestureOverlay(
                                                 }
                                             }
                                             DoubleTapAction.REWIND -> {
-                                                targetSeekPos = (targetSeekPos - doubleTapSeekDurationMs).coerceIn(0L, durationState.value)
+                                                targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
                                                 onSeekState.value(targetSeekPos, true)
                                                 leftClearJob?.cancel()
-                                                leftAccumulatedMs += doubleTapSeekDurationMs
+                                                leftAccumulatedMs += settings.doubleTapSeekDuration
                                                 leftRippleTick++
                                                 leftRippleActive = true
                                                 leftClearJob = launch {

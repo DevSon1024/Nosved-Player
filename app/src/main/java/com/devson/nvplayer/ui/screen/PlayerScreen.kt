@@ -46,6 +46,7 @@ import com.devson.nvplayer.player.model.TrackInfo
 import com.devson.nvplayer.data.repository.SubtitleFont
 import com.devson.nvplayer.data.repository.PlaybackSettings
 import com.devson.nvplayer.data.repository.EnhanceMode
+import com.devson.nvplayer.data.repository.MultiFingerAction
 import android.provider.MediaStore
 import com.devson.nvplayer.ui.common.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.common.sheets.AudioSettingsSideSheet
@@ -133,8 +134,11 @@ fun PlayerScreen(
     onUpdateLongPressEnabled: (Boolean) -> Unit = {},
     onUpdateLongPressSpeed: (Float) -> Unit = {},
     onUpdateDoubleTapAction: (DoubleTapAction) -> Unit = {},
+    onUpdateTwoFingerAction: (MultiFingerAction) -> Unit = {},
+    onUpdateThreeFingerAction: (MultiFingerAction) -> Unit = {},
     onUpdateOrientationMode: (OrientationMode) -> Unit = {},
     onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
+    onUpdateAspectMode: (AspectMode) -> Unit = {},
     onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
     onUpdateControlIconSize: (String) -> Unit = {},
     onUpdateSeekBarStyle: (String) -> Unit = {},
@@ -888,11 +892,14 @@ fun PlayerScreen(
             },
             onUpdateDoubleTapAction = onUpdateDoubleTapAction,
             onUpdateDoubleTapSeekDuration = onUpdateDoubleTapSeekDuration,
+            onUpdateTwoFingerAction = onUpdateTwoFingerAction,
+            onUpdateThreeFingerAction = onUpdateThreeFingerAction,
             onUpdateLongPressEnabled = onUpdateLongPressEnabled,
             onUpdateTapAndHoldSpeed = onUpdateTapAndHoldSpeed,
             onUpdateLongPressSpeed = onUpdateLongPressSpeed,
             onUpdateOrientationMode = onUpdateOrientationMode,
             onUpdateFullScreenMode = onUpdateFullScreenMode,
+            onUpdateAspectMode = onUpdateAspectMode,
             onUpdateSoftButtonMode = onUpdateSoftButtonMode,
             onUpdateControlIconSize = onUpdateControlIconSize,
             onUpdateSeekBarStyle = onUpdateSeekBarStyle,
