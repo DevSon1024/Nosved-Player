@@ -35,6 +35,10 @@ enum class EnhanceMode {
     OFF, DEFAULT, CUSTOM
 }
 
+enum class FolderFilterMode {
+    NONE, WHITELIST, BLACKLIST
+}
+
 data class PlaybackSettings(
     val seekDurationSeconds: Int = 10,
     val seekBarStyle: String = "standard",
@@ -75,6 +79,8 @@ data class PlaybackSettings(
     val doubleTapSeekDuration: Long = 10000L,
     val screenshotLocation: String = "Pictures/Nosved Player/Screenshot",
     val blacklistedFolders: Set<String> = emptySet(),
+    val whitelistedFolders: Set<String> = emptySet(),
+    val folderFilterMode: FolderFilterMode = FolderFilterMode.NONE,
     val keepAwakeAlways: Boolean = false,
     val decoderMode: DecoderMode = DecoderMode.HW,
     val enhanceMode: EnhanceMode = EnhanceMode.OFF,

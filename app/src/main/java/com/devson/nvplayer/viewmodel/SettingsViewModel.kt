@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.repository.DoubleTapAction
 import com.devson.nvplayer.data.repository.FullScreenMode
+import com.devson.nvplayer.data.repository.FolderFilterMode
 import com.devson.nvplayer.data.repository.MpvConfigRepository
 import com.devson.nvplayer.data.repository.MultiFingerAction
 import com.devson.nvplayer.data.repository.OrientationMode
@@ -391,6 +392,32 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun clearBlacklist() {
         viewModelScope.launch {
             settingsRepo.updateBlacklistedFolders(emptySet())
+        }
+    }
+
+    fun addToWhitelist(path: String) {
+        viewModelScope.launch {
+            val current = settingsRepo.playbackSettingsFlow.value.whitelistedFolders
+            settingsRepo.updateWhitelistedFolders(current + path)
+        }
+    }
+
+    fun removeFromWhitelist(path: String) {
+        viewModelScope.launch {
+            val current = settingsRepo.playbackSettingsFlow.value.whitelistedFolders
+            settingsRepo.updateWhitelistedFolders(current - path)
+        }
+    }
+
+    fun clearWhitelist() {
+        viewModelScope.launch {
+            settingsRepo.updateWhitelistedFolders(emptySet())
+        }
+    }
+
+    fun setFolderFilterMode(mode: FolderFilterMode) {
+        viewModelScope.launch {
+            settingsRepo.updateFolderFilterMode(mode)
         }
     }
 

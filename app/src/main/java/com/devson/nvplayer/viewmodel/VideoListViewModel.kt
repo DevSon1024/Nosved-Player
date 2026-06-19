@@ -3,6 +3,8 @@ package com.devson.nvplayer.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.devson.nvplayer.data.repository.FolderFilterMode
+import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.VideoRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.domain.model.LayoutMode
@@ -30,7 +32,8 @@ import com.devson.nvplayer.ui.screens.videolist.state.PathSegment
 
 class VideoListViewModel(
     private val repository: VideoRepository,
-    private val viewSettingsRepo: ViewSettingsRepository
+    private val viewSettingsRepo: ViewSettingsRepository,
+    private val playbackSettingsRepo: PlaybackSettingsRepository
 ) : ViewModel() {
 
     // Raw (unfiltered) scan result - populated once per disk scan
@@ -91,26 +94,63 @@ class VideoListViewModel(
     }
 
     /**
-     * Master-filtered flat list: applies storage path filter first, then search query.
+     * Master-filtered flat list: applies storage path filter, then folder filter mode (whitelist/blacklist).
      * All subsequent derived flows consume this instead of _rawVideosFlat directly.
      */
     private val _activeVideosFlat: StateFlow<List<Video>> =
-        combine(_rawVideosFlat, _selectedStorage) { raw, storage ->
-            if (storage == null) raw
+        combine(
+            _rawVideosFlat,
+            _selectedStorage,
+            playbackSettingsRepo.playbackSettingsFlow
+        ) { raw, storage, settings ->
+            val storageFiltered = if (storage == null) raw
             else raw.filter { it.path.startsWith(storage.rootPath) }
+
+            when (settings.folderFilterMode) {
+                FolderFilterMode.WHITELIST -> {
+                    val whitelist = settings.whitelistedFolders
+                    if (whitelist.isEmpty()) emptyList()
+                    else storageFiltered.filter { video ->
+                        whitelist.any { video.path.startsWith(it) }
+                    }
+                }
+                FolderFilterMode.BLACKLIST -> {
+                    val blacklist = settings.blacklistedFolders
+                    if (blacklist.isEmpty()) storageFiltered
+                    else storageFiltered.filter { video ->
+                        blacklist.none { video.path.startsWith(it) }
+                    }
+                }
+                FolderFilterMode.NONE -> storageFiltered
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
-     * Master-filtered folder map: storage-filtered then hidden-path and search filtered.
+     * Master-filtered folder map: storage+folder-mode filtered, then hidden-path and search filtered.
      */
     val videosByFolder: StateFlow<Map<VideoFolder, List<Video>>> =
-        combine(_rawVideosByFolder, _selectedStorage, _searchQuery) { raw, storage, query ->
+        combine(
+            _rawVideosByFolder,
+            _selectedStorage,
+            _searchQuery,
+            playbackSettingsRepo.playbackSettingsFlow
+        ) { raw, storage, query, settings ->
             raw.mapValues { (_, videos) ->
                 videos.filter { video ->
                     val matchesStorage = storage == null || video.path.startsWith(storage.rootPath)
                     val matchesPath = !video.path.contains("/.")
                     val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
-                    matchesStorage && matchesPath && matchesSearch
+                    val matchesFilter = when (settings.folderFilterMode) {
+                        FolderFilterMode.WHITELIST -> {
+                            val whitelist = settings.whitelistedFolders
+                            whitelist.isEmpty() || whitelist.any { video.path.startsWith(it) }
+                        }
+                        FolderFilterMode.BLACKLIST -> {
+                            settings.blacklistedFolders.none { video.path.startsWith(it) }
+                        }
+                        FolderFilterMode.NONE -> true
+                    }
+                    matchesStorage && matchesPath && matchesSearch && matchesFilter
                 }
             }.filterValues { it.isNotEmpty() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())

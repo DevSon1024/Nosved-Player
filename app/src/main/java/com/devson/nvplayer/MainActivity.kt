@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.net.Uri
+import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.player.service.MediaPlaybackService
 
@@ -146,10 +147,11 @@ class MainActivity : ComponentActivity() {
     private val mediaStoreHelper by lazy { MediaStoreHelper(this) }
     private val repository by lazy { VideoRepository(mediaStoreHelper, this) }
     private val viewSettingsRepo by lazy { ViewSettingsRepository.getInstance(applicationContext) }
+    private val playbackSettingsRepo by lazy { PlaybackSettingsRepository(applicationContext) }
 
     private val homeViewModel by lazy { HomeViewModel(applicationContext, repository) }
     private val settingsViewModel by lazy { ViewModelProvider(this)[SettingsViewModel::class.java] }
-    private val videoListViewModel by lazy { VideoListViewModel(repository, viewSettingsRepo) }
+    private val videoListViewModel by lazy { VideoListViewModel(repository, viewSettingsRepo, playbackSettingsRepo) }
     private val fileOpsViewModel by lazy { ViewModelProvider(this)[FileOperationsViewModel::class.java] }
 
     private val playerEngine by lazy { MPVPlayerEngine(applicationContext) }

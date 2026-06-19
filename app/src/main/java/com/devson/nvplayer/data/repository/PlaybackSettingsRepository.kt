@@ -63,7 +63,8 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_container_preference", "ytdl_format_sort", "ytdl_merge_output_format", "ytdl_write_subs", "ytdl_write_auto_subs",
             "ytdl_subtitle_languages", "ytdl_custom_user_agent", "ytdl_referer", "ytdl_cookies_file", "ytdl_proxy", "ytdl_extractor_args",
             "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options",
-            "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients" -> {
+            "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
+            "whitelisted_folders", "folder_filter_mode" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -226,6 +227,16 @@ class PlaybackSettingsRepository(context: Context) {
             ) ?: "Pictures/Nosved Player/Screenshot",
             blacklistedFolders = prefs.getStringSet("blacklisted_folders", emptySet())
                 ?: emptySet(),
+            whitelistedFolders = prefs.getStringSet("whitelisted_folders", emptySet())
+                ?: emptySet(),
+            folderFilterMode = try {
+                FolderFilterMode.valueOf(
+                    prefs.getString("folder_filter_mode", FolderFilterMode.NONE.name)
+                        ?: FolderFilterMode.NONE.name
+                )
+            } catch (e: Exception) {
+                FolderFilterMode.NONE
+            },
             keepAwakeAlways = prefs.getBoolean("keep_awake_always", false),
             decoderMode = try {
                 DecoderMode.valueOf(
@@ -413,6 +424,8 @@ class PlaybackSettingsRepository(context: Context) {
                 putLong("double_tap_seek_duration", updated.doubleTapSeekDuration)
                 putString("screenshot_location", updated.screenshotLocation)
                 putStringSet("blacklisted_folders", updated.blacklistedFolders)
+                putStringSet("whitelisted_folders", updated.whitelistedFolders)
+                putString("folder_filter_mode", updated.folderFilterMode.name)
                 putBoolean("keep_awake_always", updated.keepAwakeAlways)
                 putString("decoder_mode", updated.decoderMode.name)
                 putString("enhance_mode", updated.enhanceMode.name)
@@ -471,6 +484,14 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateBlacklistedFolders(folders: Set<String>) {
         updatePlaybackSettings { it.copy(blacklistedFolders = folders) }
+    }
+
+    suspend fun updateWhitelistedFolders(folders: Set<String>) {
+        updatePlaybackSettings { it.copy(whitelistedFolders = folders) }
+    }
+
+    suspend fun updateFolderFilterMode(mode: FolderFilterMode) {
+        updatePlaybackSettings { it.copy(folderFilterMode = mode) }
     }
 
     // Setters for Theme / General Settings

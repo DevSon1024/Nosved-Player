@@ -7,7 +7,7 @@ This document serves as the absolute source of truth for any AI agent or LLM ass
 - **Goal:** Nosved Player is a high-performance, native Android video player application built with Kotlin, Jetpack Compose, Coroutines/Flow, coil3 3, and the MPV Player Engine.
 - **Flawless Execution:** The app MUST work smoothly without any bottleneck bugs. Performance regressions, UI lag, and stuttering (especially during list scrolling and thumbnail generation) are unacceptable.
 - **Zero Crash Tolerance:** Improve code robustness to ensure the app does not crash under any circumstances. Always prioritize graceful degradation (e.g., showing an error state, fallback UI, or empty list) over throwing unhandled exceptions.
-- **No Hallucinations:** Only use existing APIs, classes, and resources within the project. If you are unsure about an existing implementation, ask the developer to fetch the file contents.
+- **No Hallucinations:** Only use existing APIs, classes, and resources within the project. If you are unsure about an existing implementation, ask the developer to fetch the file contents. also for checking you are not hellucinating start every chat with 'Hey Devson' words.
 - **One Line Explanation** Do not exlpian the things in long phrases and paragraphs just be short and precise and do not explain the things if it is not required.
 
 ## 2. UI / Jetpack Compose Guidelines
@@ -27,6 +27,7 @@ This document serves as the absolute source of truth for any AI agent or LLM ass
   - **Disk I/O:** Always dispatch database, MediaStore queries, or file reading/writing operations to `Dispatchers.IO`. Never hit the file system (e.g., `File.lastModified()`) on the Main thread or inside loop iterations that block rendering.
   - **Memory Management:** Be aggressive about optimizing memory. Avoid unnecessary object allocations (like compressing/decompressing Bitmaps back to ByteArrays unnecessarily).
   - **Concurrency:** Ensure tasks like generating thumbnails or parsing media files are properly parallelized using appropriately sized thread pools, avoiding single-thread bottlenecks.
+- **Code Writing Format** do not add '─' anywhere in the code files
 
 ## 4. Documentation & Update Tracking
 

@@ -27,7 +27,6 @@ import com.devson.nvplayer.ui.screen.settings.PlayerInterfaceSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.AboutScreen
 import com.devson.nvplayer.ui.screen.settings.CreditsScreen
 import com.devson.nvplayer.ui.screen.settings.FolderScreen
-import com.devson.nvplayer.ui.screen.StorageExplorerScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
 import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
@@ -329,21 +328,8 @@ fun AppNavigation(
         composable("folder_settings") {
             FolderScreen(
                 onNavigateBack = safePopBackStack,
-                onNavigateToExplorer = { navController.navigate("storage_explorer_blacklist") { launchSingleTop = true } },
+                onNavigateToExplorer = {},  // In-app picker used now
                 settingsViewModel = settingsViewModel
-            )
-        }
-
-        composable("storage_explorer_blacklist") {
-            StorageExplorerScreen(
-                isBlacklistMode = true,
-                onFoldersBlacklisted = { selectedPaths ->
-                    settingsViewModel.addToBlacklist(selectedPaths)
-                    navController.safePopBackStack()
-                },
-                onCancel = {
-                    navController.safePopBackStack()
-                }
             )
         }
 
