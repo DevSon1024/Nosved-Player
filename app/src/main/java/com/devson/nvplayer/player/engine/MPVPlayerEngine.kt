@@ -229,6 +229,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _bufferDurationSeconds.value = 0.0
         _bufferedPosition.value = 0L
 
+        applyMpvConfOptions()
+
         val uriString = uri.toString()
         Log.d("MPVPlayerEngine", "Loading media file: $uriString")
         try {
@@ -634,6 +636,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _isPlaying.value = true
                 updateTracks()
                 updateChapters()
+                togglePerformanceOverlayFromConf()
             }
             16, 21 -> {
                 Log.d("MPVPlayerEngine", "Tracks changed/restart event received ($eventId)")
@@ -644,6 +647,70 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _isPlaying.value = false
                 _currentPosition.value = 0L
             }
+        }
+    }
+
+    private fun applyMpvConfOptions() {
+        val mpvConfFile = File(context.filesDir, "mpv.conf")
+        if (!mpvConfFile.exists()) return
+        Log.d("MPVPlayerEngine", "Reading mpv.conf options for dynamic application in loadVideo")
+        try {
+            mpvConfFile.forEachLine { line ->
+                val trimmed = line.trim()
+                if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                    val eqIdx = trimmed.indexOf('=')
+                    if (eqIdx != -1) {
+                        val key = trimmed.substring(0, eqIdx).trim()
+                        val value = trimmed.substring(eqIdx + 1).trim()
+                        if (key.isNotEmpty()) {
+                            try {
+                                MPVLib.setPropertyString(key, value)
+                                Log.d("MPVPlayerEngine", "Dynamic setPropertyString: $key = $value")
+                            } catch (e: Exception) {
+                                try {
+                                    MPVLib.setOptionString(key, value)
+                                    Log.d("MPVPlayerEngine", "Dynamic setOptionString: $key = $value")
+                                } catch (ex: Exception) {
+                                    Log.e("MPVPlayerEngine", "Failed to dynamically set property/option: $key = $value", ex)
+                                }
+                            }
+                        }
+                    } else {
+                        val key = trimmed
+                        try {
+                            MPVLib.setPropertyString(key, "")
+                        } catch (e: Exception) {
+                            try {
+                                MPVLib.setOptionString(key, "")
+                            } catch (ex: Exception) {
+                                Log.e("MPVPlayerEngine", "Failed to dynamically set flag: $key", ex)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Error dynamically applying mpv.conf in loadVideo", e)
+        }
+    }
+
+    private fun togglePerformanceOverlayFromConf() {
+        val mpvConfFile = File(context.filesDir, "mpv.conf")
+        if (!mpvConfFile.exists()) return
+        try {
+            var showStats = false
+            mpvConfFile.forEachLine { line ->
+                val trimmed = line.trim()
+                if (trimmed.startsWith("stats-ring=yes")) {
+                    showStats = true
+                }
+            }
+            if (showStats) {
+                MPVLib.command("script-binding", "stats/display-stats")
+                Log.d("MPVPlayerEngine", "Performance overlay displayed via script-binding")
+            }
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to toggle performance overlay", e)
         }
     }
 }
