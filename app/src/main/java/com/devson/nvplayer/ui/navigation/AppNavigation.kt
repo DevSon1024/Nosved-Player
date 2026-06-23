@@ -459,7 +459,11 @@ fun AppNavigation(
             val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
             val bufferedPosition by playerVm.bufferedPosition.collectAsStateWithLifecycle()
 
+            val isDynamicSpeedActive by playerVm.isDynamicSpeedActive.collectAsStateWithLifecycle()
+
             PlayerScreen(
+                isDynamicSpeedActive = isDynamicSpeedActive,
+                onSetDynamicSpeedActive = { playerVm.setDynamicSpeedActive(it) },
                 networkSpeedBytesPerSec = networkSpeedBytesPerSec,
                 bufferDurationSeconds = bufferDurationSeconds,
                 isNetworkStream = isNetworkStream,

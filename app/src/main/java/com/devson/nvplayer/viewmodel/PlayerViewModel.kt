@@ -87,6 +87,13 @@ class PlayerViewModel(
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
+    private val _isDynamicSpeedActive = MutableStateFlow(false)
+    val isDynamicSpeedActive: StateFlow<Boolean> = _isDynamicSpeedActive.asStateFlow()
+
+    fun setDynamicSpeedActive(active: Boolean) {
+        _isDynamicSpeedActive.value = active
+    }
+
     private val playerPrefs by lazy {
         getApplication<Application>().getSharedPreferences("player_settings_prefs", Context.MODE_PRIVATE)
     }

@@ -2,6 +2,7 @@ package com.devson.nvplayer.ui.common
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import com.devson.nvplayer.util.findActivity
 import android.media.AudioManager
 import android.view.View
@@ -34,6 +35,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -73,13 +76,26 @@ fun GestureOverlay(
     audioBoosterEnabled: Boolean = false,
     audioBoostVolume: Int = 100,
     onSetAudioBoostVolume: (Int) -> Unit = {},
+    isDynamicSpeedActive: Boolean = false,
+    onSetDynamicSpeedActive: (Boolean) -> Unit = {},
+    onSaveTapAndHoldSpeed: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val haptic = LocalHapticFeedback.current
     val activity = remember(context) { context.findActivity() }
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember(audioManager) { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+    val vibrator = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        }
+    }
 
     val audioBoosterEnabledState = rememberUpdatedState(audioBoosterEnabled)
     val audioBoostVolumeState = rememberUpdatedState(audioBoostVolume)
@@ -163,6 +179,7 @@ fun GestureOverlay(
     val onSaveVolumeState = rememberUpdatedState(onSaveVolume)
     val onControlsVisibleChangedState = rememberUpdatedState(onControlsVisibleChanged)
     val playbackSettingsState = rememberUpdatedState(playbackSettings)
+    val onSaveTapAndHoldSpeedState = rememberUpdatedState(onSaveTapAndHoldSpeed)
 
     // Helper to execute a multi-finger tap action
     fun executeMultiFingerAction(
@@ -254,213 +271,273 @@ fun GestureOverlay(
                     var lastDragY = 0f
                     var multiFingerToastJob: Job? = null
                     var targetSeekPos = 0L
+                    var latestPointerX = 0f
+                    var dragAnchorX = 0f
+                    var currentDynamicSpeed = 2.0f
+                    val speedSteps = listOf(0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
+                    var currentIndex = 4
+                    val stepThresholdPx = with(density) { 50.dp.toPx() }
 
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val startPosition = down.position
-                        lastDragY = startPosition.y
-                        dragStarted = false
-                        var isSeekDrag = false
-                        var seekStartPos = 0L
-                        isLeftHalfDrag = startPosition.x < size.width / 2f
+                        try {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val startPosition = down.position
+                            lastDragY = startPosition.y
+                            latestPointerX = startPosition.x
+                            dragStarted = false
+                            var isSeekDrag = false
+                            var seekStartPos = 0L
+                            isLeftHalfDrag = startPosition.x < size.width / 2f
 
-                        val isEdge = startPosition.x < size.width * 0.35f || startPosition.x > size.width * 0.65f
-                        longPressJob = launch {
-                            delay(500L)
-                            if (!dragStarted && isEdge && playbackSettingsState.value.longPressEnabled) {
-                                isLongPressSpeedActive = true
-                                speedBeforeLongPress = playbackSpeedState.value
-                                onSetPlaybackSpeedState.value(playbackSettingsState.value.tapAndHoldSpeed)
+                            longPressJob = launch {
+                                delay(500L)
+                                if (!dragStarted && playbackSettingsState.value.longPressEnabled) {
+                                    isLongPressSpeedActive = true
+                                    speedBeforeLongPress = playbackSpeedState.value
+                                    val startSpeed = playbackSettingsState.value.tapAndHoldSpeed
+                                    var closestIndex = speedSteps.indexOfFirst { it == startSpeed }
+                                    if (closestIndex == -1) {
+                                        closestIndex = speedSteps.mapIndexed { idx, v -> idx to Math.abs(v - startSpeed) }
+                                            .minByOrNull { it.second }?.first ?: 4
+                                    }
+                                    currentIndex = closestIndex
+                                    currentDynamicSpeed = speedSteps[currentIndex]
+                                    onSetPlaybackSpeedState.value(currentDynamicSpeed)
+                                    onSetDynamicSpeedActive(true)
+                                    dragAnchorX = latestPointerX
+                                }
                             }
-                        }
 
-                        // Track max pointer count for multi-finger detection
-                        var maxPointerCount = 1
+                            // Track max pointer count for multi-finger detection
+                            var maxPointerCount = 1
 
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val activePointers = event.changes.count { it.pressed }
-                            if (activePointers > maxPointerCount) maxPointerCount = activePointers
-                            val dragChange = event.changes.firstOrNull() ?: break
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val activePointers = event.changes.count { it.pressed }
+                                if (activePointers > maxPointerCount) maxPointerCount = activePointers
+                                val dragChange = event.changes.firstOrNull() ?: break
 
-                            if (dragChange.pressed) {
-                                val currentPos = dragChange.position
-                                val diffY = currentPos.y - startPosition.y
-                                val diffX = currentPos.x - startPosition.x
+                                if (dragChange.pressed) {
+                                    val currentPos = dragChange.position
+                                    latestPointerX = currentPos.x
+                                    val diffY = currentPos.y - startPosition.y
+                                    val diffX = currentPos.x - startPosition.x
 
-                                if (!dragStarted && !isLongPressSpeedActive && maxPointerCount == 1) {
-                                    val settings = playbackSettingsState.value
-                                    if (Math.abs(diffY) > viewConfiguration.touchSlop && Math.abs(diffY) > Math.abs(diffX)) {
-                                        longPressJob?.cancel()
-                                        dragStarted = true
-
-                                        if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
-                                            val lp = activity?.window?.attributes
-                                            currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
-                                            showBrightnessIndicator = true
-                                            brightnessHideJob?.cancel()
-                                        } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
-                                            val sysVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                            if (audioBoosterEnabledState.value && sysVol >= maxVolume) {
-                                                currentVolumeFloat = 1.0f + (audioBoostVolumeState.value - 100) / 100f
-                                            } else {
-                                                currentVolumeFloat = sysVol.toFloat() / maxVolume.coerceAtLeast(1)
+                                    if (isLongPressSpeedActive && maxPointerCount == 1) {
+                                        val deltaX = currentPos.x - dragAnchorX
+                                        val steps = (deltaX / stepThresholdPx).toInt()
+                                        if (steps != 0) {
+                                            val previousIndex = currentIndex
+                                            val targetIndex = (currentIndex + steps).coerceIn(0, speedSteps.lastIndex)
+                                            if (targetIndex != previousIndex) {
+                                                currentIndex = targetIndex
+                                                currentDynamicSpeed = speedSteps[currentIndex]
+                                                onSetPlaybackSpeedState.value(currentDynamicSpeed)
+                                                try {
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                        vibrator?.vibrate(android.os.VibrationEffect.createOneShot(30L, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                                    } else {
+                                                        @Suppress("DEPRECATION")
+                                                        vibrator?.vibrate(30L)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                }
                                             }
-                                            currentVolumePercent = (currentVolumeFloat * 100).toInt()
-                                            showVolumeIndicator = true
-                                            volumeHideJob?.cancel()
+                                            dragAnchorX += steps * stepThresholdPx
+                                        }
+                                        dragChange.consume()
+                                    } else if (!dragStarted && !isLongPressSpeedActive && maxPointerCount == 1) {
+                                        val settings = playbackSettingsState.value
+                                        if (Math.abs(diffY) > viewConfiguration.touchSlop && Math.abs(diffY) > Math.abs(diffX)) {
+                                            longPressJob?.cancel()
+                                            dragStarted = true
+
+                                            if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
+                                                val lp = activity?.window?.attributes
+                                                currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
+                                                showBrightnessIndicator = true
+                                                brightnessHideJob?.cancel()
+                                            } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
+                                                val sysVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                                if (audioBoosterEnabledState.value && sysVol >= maxVolume) {
+                                                    currentVolumeFloat = 1.0f + (audioBoostVolumeState.value - 100) / 100f
+                                                } else {
+                                                    currentVolumeFloat = sysVol.toFloat() / maxVolume.coerceAtLeast(1)
+                                                }
+                                                currentVolumePercent = (currentVolumeFloat * 100).toInt()
+                                                showVolumeIndicator = true
+                                                volumeHideJob?.cancel()
+                                            } else {
+                                                dragStarted = false // disable drag if gesture is off
+                                            }
+                                        } else if (Math.abs(diffX) > viewConfiguration.touchSlop && Math.abs(diffX) > Math.abs(diffY) && settings.seekGestureEnabled) {
+                                            longPressJob?.cancel()
+                                            dragStarted = true
+                                            isSeekDrag = true
+                                            seekStartPos = currentPositionState.value
+                                            currentSeekPos = seekStartPos
+                                            seekDeltaSeconds = 0
+                                            showSeekIndicator = true
+                                        }
+                                    }
+
+                                    if (dragStarted && maxPointerCount == 1) {
+                                        if (isSeekDrag) {
+                                            val settings = playbackSettingsState.value
+                                            val pixelsPerCm = density.density * 160f / 2.54f
+                                            val secondsDelta = (diffX / pixelsPerCm) * settings.seekSpeedSecPerCm
+                                            seekDeltaSeconds = secondsDelta.toInt()
+                                            currentSeekPos = (seekStartPos + (secondsDelta * 1000).toLong()).coerceIn(0L, durationState.value)
+                                            onSeekState.value(currentSeekPos, false)
                                         } else {
-                                            dragStarted = false // disable drag if gesture is off
-                                        }
-                                    } else if (Math.abs(diffX) > viewConfiguration.touchSlop && Math.abs(diffX) > Math.abs(diffY) && settings.seekGestureEnabled) {
-                                        longPressJob?.cancel()
-                                        dragStarted = true
-                                        isSeekDrag = true
-                                        seekStartPos = currentPositionState.value
-                                        currentSeekPos = seekStartPos
-                                        seekDeltaSeconds = 0
-                                        showSeekIndicator = true
-                                    }
-                                }
+                                            val deltaY = currentPos.y - lastDragY
+                                            lastDragY = currentPos.y
 
-                                if (dragStarted && maxPointerCount == 1) {
-                                    if (isSeekDrag) {
-                                        val settings = playbackSettingsState.value
-                                        val pixelsPerCm = density.density * 160f / 2.54f
-                                        val secondsDelta = (diffX / pixelsPerCm) * settings.seekSpeedSecPerCm
-                                        seekDeltaSeconds = secondsDelta.toInt()
-                                        currentSeekPos = (seekStartPos + (secondsDelta * 1000).toLong()).coerceIn(0L, durationState.value)
-                                        onSeekState.value(currentSeekPos, false)
-                                    } else {
-                                        val deltaY = currentPos.y - lastDragY
-                                        lastDragY = currentPos.y
+                                            val screenHeight = size.height.toFloat().coerceAtLeast(1f)
+                                            val settings = playbackSettingsState.value
+                                            val sensitivity = if (isLeftHalfDrag) settings.brightnessSensitivity else settings.volumeSensitivity
+                                            val deltaPercent = -deltaY / screenHeight * (0.5f + sensitivity * 1.5f)
 
-                                        val screenHeight = size.height.toFloat().coerceAtLeast(1f)
-                                        val settings = playbackSettingsState.value
-                                        val sensitivity = if (isLeftHalfDrag) settings.brightnessSensitivity else settings.volumeSensitivity
-                                        val deltaPercent = -deltaY / screenHeight * (0.5f + sensitivity * 1.5f)
-
-                                        if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
-                                            currentBrightnessFloat = (currentBrightnessFloat + deltaPercent).coerceIn(0.01f, 1.0f)
-                                            activity?.let { act ->
-                                                val lp = act.window.attributes
-                                                lp.screenBrightness = currentBrightnessFloat
-                                                act.window.attributes = lp
+                                            if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
+                                                currentBrightnessFloat = (currentBrightnessFloat + deltaPercent).coerceIn(0.01f, 1.0f)
+                                                activity?.let { act ->
+                                                    val lp = act.window.attributes
+                                                    lp.screenBrightness = currentBrightnessFloat
+                                                    act.window.attributes = lp
+                                                }
+                                                currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
+                                            } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
+                                                val volumeRangeMax = if (audioBoosterEnabledState.value) 2.0f else 1.0f
+                                                currentVolumeFloat = (currentVolumeFloat + deltaPercent * volumeRangeMax).coerceIn(0f, volumeRangeMax)
+                                                if (currentVolumeFloat <= 1.0f) {
+                                                    val newVol = (currentVolumeFloat * maxVolume).toInt().coerceIn(0, maxVolume)
+                                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                                    onSetAudioBoostVolumeState.value(100)
+                                                    currentVolumePercent = (currentVolumeFloat * 100).toInt()
+                                                } else {
+                                                    val newVol = maxVolume
+                                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                                    val boostVolPercent = (100 + (currentVolumeFloat - 1.0f) * 100).toInt().coerceIn(100, 200)
+                                                    onSetAudioBoostVolumeState.value(boostVolPercent)
+                                                    currentVolumePercent = (currentVolumeFloat * 100).toInt()
+                                                }
+                                                isMutedState = false
+                                                onShowMuteIcon(false)
                                             }
-                                            currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
-                                        } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
-                                            val volumeRangeMax = if (audioBoosterEnabledState.value) 2.0f else 1.0f
-                                            currentVolumeFloat = (currentVolumeFloat + deltaPercent * volumeRangeMax).coerceIn(0f, volumeRangeMax)
-                                            if (currentVolumeFloat <= 1.0f) {
-                                                val newVol = (currentVolumeFloat * maxVolume).toInt().coerceIn(0, maxVolume)
-                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                                onSetAudioBoostVolumeState.value(100)
-                                                currentVolumePercent = (currentVolumeFloat * 100).toInt()
-                                            } else {
-                                                val newVol = maxVolume
-                                                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                                val boostVolPercent = (100 + (currentVolumeFloat - 1.0f) * 100).toInt().coerceIn(100, 200)
-                                                onSetAudioBoostVolumeState.value(boostVolPercent)
-                                                currentVolumePercent = (currentVolumeFloat * 100).toInt()
-                                            }
-                                            isMutedState = false
-                                            onShowMuteIcon(false)
                                         }
-                                    }
-                                    dragChange.consume()
-                                }
-                            } else {
-                                longPressJob?.cancel()
-
-                                if (isLongPressSpeedActive) {
-                                    isLongPressSpeedActive = false
-                                    onSetPlaybackSpeedState.value(speedBeforeLongPress)
-                                } else if (maxPointerCount >= 2 && !dragStarted) {
-                                    // Multi-finger tap detected
-                                    val settings = playbackSettingsState.value
-                                    val action = if (maxPointerCount == 2) settings.twoFingerAction else settings.threeFingerAction
-                                    val currentFastPlay = isFastPlayActive
-                                    executeMultiFingerAction(
-                                        action = action,
-                                        onPlayPause = onPlayPauseToggleState.value,
-                                        onSetSpeed = onSetPlaybackSpeedState.value,
-                                        currentSpeed = playbackSpeedState.value,
-                                        customSpeed = settings.customPlaybackSpeed,
-                                        audioManager = audioManager,
-                                        maxVolume = maxVolume,
-                                        onShowToast = { msg ->
-                                            showMultiFingerToast = msg
-                                            multiFingerToastJob?.cancel()
-                                            multiFingerToastJob = launch {
-                                                delay(1500L)
-                                                showMultiFingerToast = null
-                                            }
-                                        },
-                                        onFastPlayChanged = { isFastPlayActive = it },
-                                        isFastPlay = currentFastPlay,
-                                        view = view,
-                                        activity = activity,
-                                        lastUnmutedVolume = lastUnmutedVolume,
-                                        onLastUnmutedVolumeChanged = { lastUnmutedVolume = it },
-                                        onShowMuteIcon = onShowMuteIcon,
-                                        onTakeVideoScreenshot = onTakeVideoScreenshot,
-                                        onTriggerMuteOverlay = { isMuted ->
-                                            isMutedState = isMuted
-                                            muteOverlayTick++
-                                        },
-                                        isMuted = isMutedState
-                                    )
-                                } else if (dragStarted) {
-                                    if (isSeekDrag) {
-                                        isSeekDrag = false
-                                        showSeekIndicator = false
-                                        onSeekState.value(currentSeekPos, true)
-                                    } else if (isLeftHalfDrag) {
-                                        onSaveBrightnessState.value(currentBrightnessFloat)
-                                        brightnessHideJob = launch {
-                                            delay(1000L)
-                                            showBrightnessIndicator = false
-                                        }
-                                    } else {
-                                        onSaveVolumeState.value(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
-                                        volumeHideJob = launch {
-                                            delay(1000L)
-                                            showVolumeIndicator = false
-                                        }
+                                        dragChange.consume()
                                     }
                                 } else {
-                                    val clickTime = System.currentTimeMillis()
-                                    val tapOffset = dragChange.position
+                                    longPressJob?.cancel()
 
-                                    if (clickTime - lastTapTime < 300L &&
-                                        (tapOffset - lastTapPosition).getDistance() < 100f) {
-
-                                        tapJob?.cancel()
-                                        lastTapTime = 0L
-
+                                    if (isLongPressSpeedActive) {
+                                        // Handled by finally block
+                                    } else if (maxPointerCount >= 2 && !dragStarted) {
+                                        // Multi-finger tap detected
                                         val settings = playbackSettingsState.value
-                                        val width = size.width
-                                        val x = tapOffset.x
-
-                                        if (!leftRippleActive && !rightRippleActive) {
-                                            targetSeekPos = currentPositionState.value
+                                        val action = if (maxPointerCount == 2) settings.twoFingerAction else settings.threeFingerAction
+                                        val currentFastPlay = isFastPlayActive
+                                        executeMultiFingerAction(
+                                            action = action,
+                                            onPlayPause = onPlayPauseToggleState.value,
+                                            onSetSpeed = onSetPlaybackSpeedState.value,
+                                            currentSpeed = playbackSpeedState.value,
+                                            customSpeed = settings.customPlaybackSpeed,
+                                            audioManager = audioManager,
+                                            maxVolume = maxVolume,
+                                            onShowToast = { msg ->
+                                                showMultiFingerToast = msg
+                                                multiFingerToastJob?.cancel()
+                                                multiFingerToastJob = launch {
+                                                    delay(1500L)
+                                                    showMultiFingerToast = null
+                                                }
+                                            },
+                                            onFastPlayChanged = { isFastPlayActive = it },
+                                            isFastPlay = currentFastPlay,
+                                            view = view,
+                                            activity = activity,
+                                            lastUnmutedVolume = lastUnmutedVolume,
+                                            onLastUnmutedVolumeChanged = { lastUnmutedVolume = it },
+                                            onShowMuteIcon = onShowMuteIcon,
+                                            onTakeVideoScreenshot = onTakeVideoScreenshot,
+                                            onTriggerMuteOverlay = { isMuted ->
+                                                isMutedState = isMuted
+                                                muteOverlayTick++
+                                            },
+                                            isMuted = isMutedState
+                                        )
+                                    } else if (dragStarted) {
+                                        if (isSeekDrag) {
+                                            isSeekDrag = false
+                                            showSeekIndicator = false
+                                            onSeekState.value(currentSeekPos, true)
+                                        } else if (isLeftHalfDrag) {
+                                            onSaveBrightnessState.value(currentBrightnessFloat)
+                                            brightnessHideJob = launch {
+                                                delay(1000L)
+                                                showBrightnessIndicator = false
+                                            }
+                                        } else {
+                                            onSaveVolumeState.value(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+                                            volumeHideJob = launch {
+                                                delay(1000L)
+                                                showVolumeIndicator = false
+                                            }
                                         }
+                                    } else {
+                                        val clickTime = System.currentTimeMillis()
+                                        val tapOffset = dragChange.position
 
-                                        when (settings.doubleTapAction) {
-                                            DoubleTapAction.BOTH -> {
-                                                if (x < width * 0.4f) {
-                                                    targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
-                                                    onSeekState.value(targetSeekPos, true)
-                                                    leftClearJob?.cancel()
-                                                    leftAccumulatedMs += settings.doubleTapSeekDuration
-                                                    leftRippleTick++
-                                                    leftRippleActive = true
-                                                    leftClearJob = launch {
-                                                        delay(650L)
-                                                        leftAccumulatedMs = 0L
-                                                        leftRippleActive = false
+                                        if (clickTime - lastTapTime < 300L &&
+                                            (tapOffset - lastTapPosition).getDistance() < 100f) {
+
+                                            tapJob?.cancel()
+                                            lastTapTime = 0L
+
+                                            val settings = playbackSettingsState.value
+                                            val width = size.width
+                                            val x = tapOffset.x
+
+                                            if (!leftRippleActive && !rightRippleActive) {
+                                                targetSeekPos = currentPositionState.value
+                                            }
+
+                                            when (settings.doubleTapAction) {
+                                                DoubleTapAction.BOTH -> {
+                                                    if (x < width * 0.4f) {
+                                                        targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
+                                                        onSeekState.value(targetSeekPos, true)
+                                                        leftClearJob?.cancel()
+                                                        leftAccumulatedMs += settings.doubleTapSeekDuration
+                                                        leftRippleTick++
+                                                        leftRippleActive = true
+                                                        leftClearJob = launch {
+                                                            delay(650L)
+                                                            leftAccumulatedMs = 0L
+                                                            leftRippleActive = false
+                                                        }
+                                                    } else if (x > width * 0.6f) {
+                                                        targetSeekPos = (targetSeekPos + settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
+                                                        onSeekState.value(targetSeekPos, true)
+                                                        rightClearJob?.cancel()
+                                                        rightAccumulatedMs += settings.doubleTapSeekDuration
+                                                        rightRippleTick++
+                                                        rightRippleActive = true
+                                                        rightClearJob = launch {
+                                                            delay(650L)
+                                                            rightAccumulatedMs = 0L
+                                                            rightRippleActive = false
+                                                        }
+                                                    } else {
+                                                        onPlayPauseToggleState.value()
                                                     }
-                                                } else if (x > width * 0.6f) {
+                                                }
+                                                DoubleTapAction.PLAY_PAUSE -> {
+                                                    onPlayPauseToggleState.value()
+                                                }
+                                                DoubleTapAction.FAST_FORWARD -> {
                                                     targetSeekPos = (targetSeekPos + settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
                                                     onSeekState.value(targetSeekPos, true)
                                                     rightClearJob?.cancel()
@@ -472,53 +549,43 @@ fun GestureOverlay(
                                                         rightAccumulatedMs = 0L
                                                         rightRippleActive = false
                                                     }
-                                                } else {
-                                                    onPlayPauseToggleState.value()
+                                                }
+                                                DoubleTapAction.REWIND -> {
+                                                    targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
+                                                    onSeekState.value(targetSeekPos, true)
+                                                    leftClearJob?.cancel()
+                                                    leftAccumulatedMs += settings.doubleTapSeekDuration
+                                                    leftRippleTick++
+                                                    leftRippleActive = true
+                                                    leftClearJob = launch {
+                                                        delay(650L)
+                                                        leftAccumulatedMs = 0L
+                                                        leftRippleActive = false
+                                                    }
+                                                }
+                                                DoubleTapAction.NONE -> {
+                                                    // Do nothing
                                                 }
                                             }
-                                            DoubleTapAction.PLAY_PAUSE -> {
-                                                onPlayPauseToggleState.value()
+                                        } else {
+                                            lastTapTime = clickTime
+                                            lastTapPosition = tapOffset
+                                            tapJob = launch {
+                                                delay(300L)
+                                                onControlsVisibleChangedState.value(!controlsVisibleState.value)
                                             }
-                                            DoubleTapAction.FAST_FORWARD -> {
-                                                targetSeekPos = (targetSeekPos + settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
-                                                onSeekState.value(targetSeekPos, true)
-                                                rightClearJob?.cancel()
-                                                rightAccumulatedMs += settings.doubleTapSeekDuration
-                                                rightRippleTick++
-                                                rightRippleActive = true
-                                                rightClearJob = launch {
-                                                    delay(650L)
-                                                    rightAccumulatedMs = 0L
-                                                    rightRippleActive = false
-                                                }
-                                            }
-                                            DoubleTapAction.REWIND -> {
-                                                targetSeekPos = (targetSeekPos - settings.doubleTapSeekDuration).coerceIn(0L, durationState.value)
-                                                onSeekState.value(targetSeekPos, true)
-                                                leftClearJob?.cancel()
-                                                leftAccumulatedMs += settings.doubleTapSeekDuration
-                                                leftRippleTick++
-                                                leftRippleActive = true
-                                                leftClearJob = launch {
-                                                    delay(650L)
-                                                    leftAccumulatedMs = 0L
-                                                    leftRippleActive = false
-                                                }
-                                            }
-                                            DoubleTapAction.NONE -> {
-                                                // Do nothing
-                                            }
-                                        }
-                                    } else {
-                                        lastTapTime = clickTime
-                                        lastTapPosition = tapOffset
-                                        tapJob = launch {
-                                            delay(300L)
-                                            onControlsVisibleChangedState.value(!controlsVisibleState.value)
                                         }
                                     }
+                                    break
                                 }
-                                break
+                            }
+                        } finally {
+                            longPressJob?.cancel()
+                            if (isLongPressSpeedActive) {
+                                isLongPressSpeedActive = false
+                                onSaveTapAndHoldSpeedState.value(currentDynamicSpeed)
+                                onSetPlaybackSpeedState.value(speedBeforeLongPress)
+                                onSetDynamicSpeedActive(false)
                             }
                         }
                     }
@@ -709,20 +776,7 @@ fun GestureOverlay(
             }
         }
 
-        AnimatedVisibility(
-            visible = isLongPressSpeedActive,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 50.dp)
-        ) {
-            FastForwardBadge(
-                speed = tapAndHoldSpeed,
-                isPlaying = isPlaying,
-                visible = isLongPressSpeedActive
-            )
-        }
+
 
         // Mute/Unmute Toggle
         AnimatedVisibility(

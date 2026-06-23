@@ -16,21 +16,24 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.viewinterop.AndroidView
 import com.devson.nvplayer.player.engine.MPVSurfaceView
 import com.devson.nvplayer.player.engine.PlayerState
@@ -171,6 +174,8 @@ fun PlayerScreen(
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
     bufferedPosition: Long = 0L,
+    isDynamicSpeedActive: Boolean = false,
+    onSetDynamicSpeedActive: (Boolean) -> Unit = {},
     viewModel: com.devson.nvplayer.viewmodel.PlayerViewModel? = null
 ) {
     val localContext = LocalContext.current
@@ -636,7 +641,10 @@ fun PlayerScreen(
                             onZoomChange = onZoomChange,
                             audioBoosterEnabled = audioBoosterEnabled,
                             audioBoostVolume = audioBoostVolume,
-                            onSetAudioBoostVolume = onSetAudioBoostVolume
+                            onSetAudioBoostVolume = onSetAudioBoostVolume,
+                            isDynamicSpeedActive = isDynamicSpeedActive,
+                            onSetDynamicSpeedActive = onSetDynamicSpeedActive,
+                            onSaveTapAndHoldSpeed = onUpdateTapAndHoldSpeed
                         )
                     }
                 }
@@ -657,22 +665,37 @@ fun PlayerScreen(
                 )
 
                 if (!isInPipMode) {
-                    // Persistent top bar overlay when controls are hidden
-                    AnimatedVisibility(
-                        visible = !controlsVisible && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
-                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
-                        modifier = Modifier.align(Alignment.TopCenter)
+                    // Top overlays: PersistentTopBar and/or SpeedSliderHUD
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        PersistentTopBar(
-                            duration = duration,
-                            currentPosition = currentPosition,
-                            showRemainingTime = playbackSettings.showRemainingTime,
-                            showBatteryClock = playbackSettings.showBatteryClockOverlay,
-                            modifier = Modifier
-                                .statusBarsPadding()
-                                .padding(top = 12.dp)
-                        )
+                        // Persistent top bar overlay when controls are hidden
+                        AnimatedVisibility(
+                            visible = !controlsVisible && (playbackSettings.showRemainingTime || playbackSettings.showBatteryClockOverlay),
+                            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+                        ) {
+                            PersistentTopBar(
+                                duration = duration,
+                                currentPosition = currentPosition,
+                                showRemainingTime = playbackSettings.showRemainingTime,
+                                showBatteryClock = playbackSettings.showBatteryClockOverlay
+                            )
+                        }
+
+                        // Dynamic Speed Overlay
+                        AnimatedVisibility(
+                            visible = isDynamicSpeedActive,
+                            enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
+                            exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150))
+                        ) {
+                            SpeedSliderHUD(playbackSpeed = playbackSpeed)
+                        }
                     }
 
                     // Unified Premium Controls Layer
@@ -1174,5 +1197,185 @@ private fun formatSpeed(bytesPerSec: Long): String {
         mb >= 1.0 -> String.format(Locale.US, "%.2f MB/s", mb)
         kb >= 1.0 -> String.format(Locale.US, "%.1f KB/s", kb)
         else -> "$bytesPerSec B/s"
+    }
+}
+
+@Composable
+private fun SpeedSliderHUD(
+    playbackSpeed: Float,
+    modifier: Modifier = Modifier
+) {
+    val speedSteps = remember { listOf(0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f) }
+    val activeIndex = remember(playbackSpeed) {
+        val exactIndex = speedSteps.indexOfFirst { it == playbackSpeed }
+        if (exactIndex != -1) exactIndex else {
+            speedSteps.mapIndexed { idx, v -> idx to Math.abs(v - playbackSpeed) }
+                .minByOrNull { it.second }?.first ?: 4
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "speedPulse")
+    val c1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 0, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "c1"
+    )
+    val c2 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 140, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "c2"
+    )
+    val c3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, delayMillis = 280, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "c3"
+    )
+
+    Box(
+        modifier = modifier
+            .width(380.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black.copy(alpha = 0.45f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+            ) {
+                val density = LocalDensity.current
+                val startPadding = 20.dp
+                val endPadding = 20.dp
+                val startPaddingPx = with(density) { startPadding.toPx() }
+                val endPaddingPx = with(density) { endPadding.toPx() }
+                val widthPx = constraints.maxWidth.toFloat()
+                val trackWidthPx = widthPx - startPaddingPx - endPaddingPx
+
+                // 1. Draw track line behind ticks
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                ) {
+                    val centerY = size.height / 2f
+                    // Draw inactive track (entire line)
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.15f),
+                        start = Offset(startPaddingPx, centerY),
+                        end = Offset(widthPx - endPaddingPx, centerY),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    
+                    // Draw active track (from left to active index)
+                    val activeThumbX = startPaddingPx + trackWidthPx * (activeIndex.toFloat() / 8f)
+                    drawLine(
+                        color = Color(0xFF3B82F6), // Premium vibrant blue accent
+                        start = Offset(startPaddingPx, centerY),
+                        end = Offset(activeThumbX, centerY),
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+
+                // 2. Draw labels and tick dots
+                speedSteps.forEachIndexed { index, step ->
+                    val fraction = index.toFloat() / 8f
+                    val stepXPx = startPaddingPx + trackWidthPx * fraction
+                    val stepXDp = with(density) { stepXPx.toDp() }
+                    val isActive = index == activeIndex
+
+                    // Label above the track
+                    Box(
+                        modifier = Modifier
+                            .absoluteOffset(x = stepXDp - 20.dp, y = 2.dp)
+                            .width(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = String.format(Locale.US, "%.2f", step).removeSuffix("0").removeSuffix(".0") + "x",
+                            color = if (isActive) Color(0xFF3B82F6) else Color.White.copy(alpha = 0.6f),
+                            fontSize = if (isActive) 11.sp else 9.sp,
+                            fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+
+                    // Tick dot or Active Thumb
+                    val dotColor = if (isActive) Color(0xFF3B82F6) else Color.White
+                    val dotRadius = if (isActive) 5.dp else 2.5.dp
+                    Box(
+                        modifier = Modifier
+                            .absoluteOffset(x = stepXDp - dotRadius, y = 22.dp - dotRadius)
+                            .size(dotRadius * 2)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                            .border(
+                                width = if (isActive) 1.5.dp else 0.dp,
+                                color = if (isActive) Color.White else Color.Transparent,
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Current Speed Playing Label
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy((-4).dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = c1),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = c2),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = c3),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = String.format(Locale.US, "%.2fx Speed Playing", playbackSpeed),
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.4.sp
+                )
+            }
+        }
     }
 }
