@@ -87,9 +87,9 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         
-                        // Section 1: Data Collection & Off-line Operation
+                        // Section 1: Data Collection & Playback Security
                         PolicySection(
-                            title = "DATA MINIMIZATION & OFFLINE SECURITY",
+                            title = "DATA MINIMIZATION & PLAYBACK SECURITY",
                             icon = Icons.Default.Shield
                         ) {
                             PolicyPointRow(
@@ -100,8 +100,8 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                             PolicyPointSeparator()
                             PolicyPointRow(
                                 icon = Icons.Default.Security,
-                                title = "100% Offline Processing",
-                                description = "The app does not access the internet. All playback operations, file indexing, and configurations run entirely on your device."
+                                title = "On-Demand Streaming Security",
+                                description = "Internet access is used solely to fetch and stream online videos at your explicit request. Local video file scanning and indexing remain 100% offline."
                             )
                             PolicyPointSeparator()
                             PolicyPointRow(
@@ -136,8 +136,8 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                         ) {
                             PolicyPointRow(
                                 icon = Icons.Default.Shield,
-                                title = "Zero Tracking & Ads",
-                                description = "We do not integrate Google Analytics, Firebase SDKs, crash report trackers, or advertising SDKs. The codebase relies solely on open-source, standard playback libraries."
+                                title = "Direct Streaming Connections",
+                                description = "When playing network streams (such as YouTube or custom links), the app connects directly to the media hosts. These connections are subject to the hosts' own privacy policies, without intermediate tracking by us."
                             )
                         }
 
@@ -225,7 +225,7 @@ private fun PrivacyHeroCard() {
             )
 
             Text(
-                text = "Nosved Player is built from the ground up to respect your privacy. Everything is processed entirely offline on your device, ensuring maximum security and autonomy.",
+                text = "Nosved Player is built from the ground up to respect your privacy. Local video operations run entirely offline, while optional online streaming connects directly to your requested media sources with zero tracking.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -237,7 +237,7 @@ private fun PrivacyHeroCard() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 4.dp)
             ) {
-                PrivacyBadge(text = "100% Offline")
+                PrivacyBadge(text = "Privacy Focused")
                 PrivacyBadge(text = "Zero Trackers")
                 PrivacyBadge(text = "Open Source")
             }

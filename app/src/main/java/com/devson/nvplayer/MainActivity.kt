@@ -246,7 +246,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color.Transparent
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.background
                 ) {
                     AppNavigation(
                         homeViewModel = homeViewModel,
