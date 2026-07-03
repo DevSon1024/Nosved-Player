@@ -45,6 +45,7 @@ class ViewSettingsRepository private constructor(context: Context) {
             scanFoldersList = prefs.getStringSet("scan_folders_list", emptySet()) ?: emptySet(),
             showHistoryCard = prefs.getBoolean("show_history_card", true),
             showStorageTracker = prefs.getBoolean("show_storage_tracker", true),
+            showLatestVideos = prefs.getBoolean("show_latest_videos", true),
             defaultScreen = try {
                 DefaultScreen.valueOf(
                     prefs.getString(
@@ -122,6 +123,7 @@ class ViewSettingsRepository private constructor(context: Context) {
             putStringSet("scan_folders_list", updated.scanFoldersList)
             putBoolean("show_history_card", updated.showHistoryCard)
             putBoolean("show_storage_tracker", updated.showStorageTracker)
+            putBoolean("show_latest_videos", updated.showLatestVideos)
             putString("default_screen", updated.defaultScreen.name)
 
             putString("layout_mode", updated.layoutMode.name)
@@ -167,6 +169,10 @@ class ViewSettingsRepository private constructor(context: Context) {
 
     suspend fun updateShowStorageTracker(show: Boolean) {
         updateSettings { it.copy(showStorageTracker = show) }
+    }
+
+    suspend fun updateShowLatestVideos(show: Boolean) {
+        updateSettings { it.copy(showLatestVideos = show) }
     }
 
     suspend fun updateDefaultScreen(screen: DefaultScreen) {

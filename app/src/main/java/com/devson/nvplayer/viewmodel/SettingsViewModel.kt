@@ -167,6 +167,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { viewSettingsRepo.updateShowStorageTracker(show) }
     }
 
+    fun updateShowLatestVideos(show: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateShowLatestVideos(show) }
+    }
+
     fun updateDefaultScreen(screen: DefaultScreen) {
         viewModelScope.launch { viewSettingsRepo.updateDefaultScreen(screen) }
     }

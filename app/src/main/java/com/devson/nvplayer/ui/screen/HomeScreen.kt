@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.content.ClipboardManager
 import android.content.Context
@@ -40,14 +41,21 @@ import com.devson.nvplayer.ui.screen.videolist.components.video.VideoThumbnail
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.util.formatDuration
+import com.devson.nvplayer.util.formatDate
+import com.devson.nvplayer.util.formatSize
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import com.devson.nvplayer.ui.screen.videolist.components.video.DurationBadge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     viewModel: VideoListViewModel,
@@ -80,6 +88,7 @@ fun HomeScreen(
     val historyMap = remember(history) { history.associateBy { it.uri } }
 
     var clickedVideoUri by remember { mutableStateOf<String?>(null) }
+    var selectedVideoForInfo by remember { mutableStateOf<Video?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -202,35 +211,58 @@ fun HomeScreen(
                 }
             }
 
-            // 2. Search Section
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search your videos...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear")
-                        }
-                    }
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    if (searchQuery.isNotEmpty()) {
-                        onSearch(searchQuery)
-                    }
-                }),
+            // Bento Main Library Card
+            QuickActionCardBento(
+                title = "Browse Video Library",
+                subtitle = "Explore all folders, files, and playlists",
+                icon = Icons.Default.VideoLibrary,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                onClick = onBrowseClick,
+                isProminent = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                )
+                    .padding(horizontal = 20.dp)
             )
+
+            // 2. Latest Videos Carousel
+            if (viewSettings.showLatestVideos && allVideosFlat.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Latest Videos",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    val latestVideos = remember(allVideosFlat) {
+                        allVideosFlat.sortedByDescending { it.dateAdded }.take(10)
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(
+                            items = latestVideos,
+                            key = { it.uri }
+                        ) { video ->
+                            LatestVideoItem(
+                                video = video,
+                                onClick = {
+                                    val playlist = latestVideos.map { Uri.parse(it.uri) }
+                                    onVideoClick(Uri.parse(video.uri), playlist)
+                                },
+                                onLongClick = {
+                                    selectedVideoForInfo = video
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             // 3. Continue Watching (Carousel Component)
             if (viewSettings.showHistoryCard && continueWatchingVideos.isNotEmpty()) {
@@ -277,7 +309,7 @@ fun HomeScreen(
                                     label = "cardScale"
                                 )
 
-                                ContinueWatchingCard(
+                                HistoryCardItem(
                                     video = video,
                                     lastPositionMs = lastPositionMs,
                                     onClick = {
@@ -287,6 +319,12 @@ fun HomeScreen(
                                             val playlist = continueWatchingVideos.map { Uri.parse(it.uri) }
                                             onVideoClick(Uri.parse(video.uri), playlist)
                                         }
+                                    },
+                                    onRemoveClick = {
+                                        homeViewModel.removeFromHistory(video.uri)
+                                    },
+                                    onShareClick = {
+                                        com.devson.nvplayer.ui.screens.videolist.utils.shareVideos(context, listOf(video))
                                     },
                                     modifier = Modifier
                                         .graphicsLayer {
@@ -358,18 +396,6 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                
-                // Bento Main Library Card
-                QuickActionCardBento(
-                    title = "Browse Video Library",
-                    subtitle = "Explore all folders, files, and playlists",
-                    icon = Icons.Default.VideoLibrary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    onClick = onBrowseClick,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -559,12 +585,19 @@ fun HomeScreen(
                     Text("Go to Settings")
                 }
             },
-            dismissButton = {
+                    dismissButton = {
                 TextButton(onClick = { showYtdlpMissingDialog = false }) {
                     Text("Cancel")
                 }
             },
             shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    selectedVideoForInfo?.let { video ->
+        VideoInfoDialog(
+            video = video,
+            onDismissRequest = { selectedVideoForInfo = null }
         )
     }
 }
@@ -617,17 +650,24 @@ fun QuickActionCardBento(
     containerColor: Color,
     iconColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isProminent: Boolean = false
 ) {
+    val finalBgColor = if (isProminent) containerColor else containerColor.copy(alpha = 0.12f)
+    val finalContentColor = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val finalSubtitleColor = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val finalIconBoxBg = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer else containerColor
+    val finalIconTint = if (isProminent) containerColor else iconColor
+
     Card(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor.copy(alpha = 0.12f)
+            containerColor = finalBgColor
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = if (isProminent) null else androidx.compose.foundation.BorderStroke(
             1.dp,
             containerColor.copy(alpha = 0.2f)
         )
@@ -641,13 +681,13 @@ fun QuickActionCardBento(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(containerColor),
+                    .background(finalIconBoxBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = iconColor,
+                    tint = finalIconTint,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -656,18 +696,18 @@ fun QuickActionCardBento(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = finalContentColor
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = finalSubtitleColor
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = finalContentColor,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1021,4 +1061,279 @@ fun NetworkStreamDialog(
         },
         shape = RoundedCornerShape(24.dp)
     )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun LatestVideoItem(
+    video: Video,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(160.dp)
+            .height(110.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Black
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            VideoThumbnail(
+                uri = video.thumbnailUri ?: video.uri,
+                modifier = Modifier.fillMaxSize(),
+                showPlayIcon = false
+            )
+            DurationBadge(duration = video.duration)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoInfoDialog(
+    video: Video,
+    onDismissRequest: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(
+                text = "Video Information",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                InfoRow(label = "Name", value = video.title)
+                InfoRow(label = "Duration", value = formatDuration(video.duration))
+                InfoRow(label = "File Size", value = formatSize(video.size))
+                InfoRow(label = "Time of Creation", value = formatDate(video.dateAdded))
+                InfoRow(label = "Location", value = video.path)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+        shape = RoundedCornerShape(24.dp)
+    )
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HistoryCardItem(
+    video: Video,
+    lastPositionMs: Long,
+    onClick: () -> Unit,
+    onRemoveClick: () -> Unit,
+    onShareClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val progress = if (video.duration > 0) lastPositionMs.toFloat() / video.duration else 0f
+    val formattedProgress = "${formatDuration(lastPositionMs)} / ${formatDuration(video.duration)}"
+
+    Card(
+        modifier = modifier
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuExpanded = true }
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Black
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            VideoThumbnail(
+                uri = video.thumbnailUri ?: video.uri,
+                modifier = Modifier.fillMaxSize(),
+                showPlayIcon = false
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+            ) {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = Color.White
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Open") },
+                        onClick = {
+                            menuExpanded = false
+                            onClick()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Remove from history") },
+                        onClick = {
+                            menuExpanded = false
+                            onRemoveClick()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Share") },
+                        onClick = {
+                            menuExpanded = false
+                            onShareClick()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Black.copy(alpha = 0.95f)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .padding(bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = video.folderName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = formattedProgress,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.White.copy(alpha = 0.25f)
+            )
+        }
+    }
 }

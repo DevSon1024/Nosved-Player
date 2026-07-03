@@ -117,6 +117,12 @@ class HomeViewModel(
         }
     }
 
+    fun removeFromHistory(uri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.deleteHistory(uri)
+        }
+    }
+
     fun loadFolders() {
         viewModelScope.launch {
             _isLoading.value = true

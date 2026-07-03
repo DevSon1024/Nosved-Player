@@ -104,6 +104,16 @@ fun CustomHomeSettingsScreen(
                 CustomHomeDivider()
 
                 CustomHomeToggleRow(
+                    icon = Icons.Default.VideoLibrary,
+                    title = "Show Latest Videos Card",
+                    subtitle = "Display a horizontal carousel of your newly added videos",
+                    checked = viewSettings.showLatestVideos,
+                    onCheckedChange = { settingsViewModel.updateShowLatestVideos(it) }
+                )
+
+                CustomHomeDivider()
+
+                CustomHomeToggleRow(
                     icon = Icons.Default.PieChart,
                     title = "Show Storage Tracking Card",
                     subtitle = "Display visual storage analyzer showing space statistics",
