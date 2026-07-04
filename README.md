@@ -53,3 +53,12 @@ git clone https://github.com/DevSon1024/Nosved-Player.git
 cd Nosved-Player
 ./gradlew assembleRelease
 ```
+## Star History
+
+<a href="https://www.star-history.com/?repos=Devson1024%2Fnosved-player&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Devson1024/nosved-player&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Devson1024/nosved-player&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Devson1024/nosved-player&type=date&legend=top-left" />
+ </picture>
+</a>
