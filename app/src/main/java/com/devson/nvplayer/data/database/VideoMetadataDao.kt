@@ -13,6 +13,9 @@ interface VideoMetadataDao {
     @Query("SELECT * FROM cached_video_metadata WHERE uri = :uri LIMIT 1")
     suspend fun getMetadataByUri(uri: String): CachedVideoMetadata?
 
+    @Query("SELECT * FROM cached_video_metadata")
+    suspend fun getAllMetadataSync(): List<CachedVideoMetadata>
+
     @Query("UPDATE cached_video_metadata SET externalSubtitleUri = :subUri WHERE uri = :videoUri")
     suspend fun updateExternalSubtitle(videoUri: String, subUri: String?): Int
 

@@ -1,5 +1,6 @@
 package com.devson.nvplayer.ui.screen
 
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,7 +55,25 @@ fun HistoryScreen(
     ) { padding ->
         val historyVideos = remember(history, allVideos) {
             history.mapNotNull { historyEntry ->
-                allVideos.find { it.uri == historyEntry.uri }
+                val found = allVideos.find { it.uri == historyEntry.uri }
+                if (found != null) {
+                    found
+                } else {
+                    val isNetwork = historyEntry.uri.startsWith("http") || historyEntry.uri.startsWith("ytdl")
+                    val fileName = historyEntry.videoTitle ?: (Uri.parse(historyEntry.uri).lastPathSegment?.substringBeforeLast('.') ?: "Video")
+                    Video(
+                        uri = historyEntry.uri,
+                        title = fileName,
+                        duration = historyEntry.durationMs,
+                        folderName = if (isNetwork) "Network" else "External",
+                        path = historyEntry.uri,
+                        size = historyEntry.fileSize,
+                        width = 0,
+                        height = 0,
+                        dateAdded = historyEntry.lastPlayedAt,
+                        dateModified = historyEntry.lastPlayedAt
+                    )
+                }
             }
         }
 

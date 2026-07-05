@@ -22,7 +22,10 @@ enum class SortDirection {
 data class WatchHistory(
     val uri: String,
     val lastPositionMs: Long,
-    val lastPlayedAt: Long = 0L
+    val lastPlayedAt: Long = 0L,
+    val videoTitle: String? = null,
+    val durationMs: Long = 0L,
+    val fileSize: Long = 0L
 )
 
 @Immutable

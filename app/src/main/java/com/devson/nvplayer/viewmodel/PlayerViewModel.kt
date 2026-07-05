@@ -650,6 +650,38 @@ class PlayerViewModel(
         }
     }
 
+    fun insertOrUpdateHistory(video: Video) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(getApplication())
+                val dao = db.watchHistoryDao()
+                val metadataDao = db.videoMetadataDao()
+
+                metadataDao.insertOrUpdate(
+                    com.devson.nvplayer.data.database.CachedVideoMetadata(
+                        uri = video.uri,
+                        size = video.size,
+                        dateModified = video.dateModified.takeIf { it > 0 } ?: System.currentTimeMillis(),
+                        duration = video.duration
+                    )
+                )
+
+                val existing = dao.getHistory(video.uri)
+                dao.insert(
+                    WatchHistoryEntity(
+                        uri = video.uri,
+                        lastPositionMs = existing?.lastPositionMs ?: 0L,
+                        lastPlayedAt = System.currentTimeMillis(),
+                        isNetworkStream = false,
+                        videoTitle = video.title
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("PlayerViewModel", "Failed to insert or update history", e)
+            }
+        }
+    }
+
     fun clearPlaybackProgress() {
         val uri = _currentUri.value ?: return
         viewModelScope.launch(Dispatchers.IO) {

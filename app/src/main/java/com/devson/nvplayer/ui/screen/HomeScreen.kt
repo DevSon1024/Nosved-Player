@@ -110,7 +110,25 @@ fun HomeScreen(
 
     val continueWatchingVideos = remember(history, allVideosFlat) {
         history.mapNotNull { historyEntry ->
-            allVideosFlat.find { it.uri == historyEntry.uri }
+            val found = allVideosFlat.find { it.uri == historyEntry.uri }
+            if (found != null) {
+                found
+            } else {
+                val isNetwork = historyEntry.uri.startsWith("http") || historyEntry.uri.startsWith("ytdl")
+                val fileName = historyEntry.videoTitle ?: (Uri.parse(historyEntry.uri).lastPathSegment?.substringBeforeLast('.') ?: "Video")
+                Video(
+                    uri = historyEntry.uri,
+                    title = fileName,
+                    duration = historyEntry.durationMs,
+                    folderName = if (isNetwork) "Network" else "External",
+                    path = historyEntry.uri,
+                    size = historyEntry.fileSize,
+                    width = 0,
+                    height = 0,
+                    dateAdded = historyEntry.lastPlayedAt,
+                    dateModified = historyEntry.lastPlayedAt
+                )
+            }
         }
     }
 

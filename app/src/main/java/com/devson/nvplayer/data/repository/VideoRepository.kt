@@ -6,6 +6,7 @@ import com.devson.nvplayer.data.model.VideoItem
 import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 
 class VideoRepository(
     private val mediaStoreHelper: MediaStoreHelper,
@@ -14,6 +15,47 @@ class VideoRepository(
     private val settingsRepo = PlaybackSettingsRepository(context)
     val videoMetadataDao = com.devson.nvplayer.data.database.AppDatabase.getDatabase(context).videoMetadataDao()
 
+    suspend fun scanCommonDirectories() = withContext(Dispatchers.IO) {
+        val pathsToScan = mutableListOf<String>()
+        val commonDirs = arrayOf(
+            android.os.Environment.DIRECTORY_DOWNLOADS,
+            android.os.Environment.DIRECTORY_MOVIES,
+            android.os.Environment.DIRECTORY_DCIM
+        )
+        val internalRoot = android.os.Environment.getExternalStorageDirectory()
+        for (dir in commonDirs) {
+            val file = java.io.File(internalRoot, dir)
+            if (file.exists() && file.isDirectory) {
+                file.walkTopDown().maxDepth(3).forEach { f ->
+                    if (f.isFile && isVideoFile(f.name)) {
+                        pathsToScan.add(f.absolutePath)
+                    }
+                }
+            }
+        }
+        if (pathsToScan.isNotEmpty()) {
+            kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                kotlinx.coroutines.suspendCancellableCoroutine<Unit> { continuation ->
+                    var completedCount = 0
+                    android.media.MediaScannerConnection.scanFile(
+                        context,
+                        pathsToScan.toTypedArray(),
+                        null
+                    ) { _, _ ->
+                        completedCount++
+                        if (completedCount >= pathsToScan.size && continuation.isActive) {
+                            continuation.resume(Unit)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun isVideoFile(fileName: String): Boolean {
+        val ext = fileName.substringAfterLast('.', "").lowercase()
+        return ext in setOf("mp4", "mkv", "webm", "avi", "3gp", "ts", "mov", "flv", "wmv", "m4v")
+    }
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
         mediaStoreHelper.getAllVideos(blacklisted)

@@ -187,6 +187,9 @@ class MainActivity : ComponentActivity() {
 
         val uri = handleIntent(intent)
         deepLinkUri.value = uri
+        if (uri != null) {
+            logExternalVideoHistory(uri)
+        }
 
         // Asynchronously copy yt-dlp assets
         lifecycleScope.launch(Dispatchers.IO) {
@@ -271,6 +274,7 @@ class MainActivity : ComponentActivity() {
         val uri = handleIntent(intent)
         if (uri != null) {
             deepLinkUri.value = uri
+            logExternalVideoHistory(uri)
         }
     }
 
@@ -371,5 +375,79 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {}
         val serviceIntent = Intent(this, MediaPlaybackService::class.java)
         stopService(serviceIntent)
+    }
+
+    private fun logExternalVideoHistory(uri: Uri) {
+        val vm = playerViewModel
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val fileName = getFileNameFromUri(this@MainActivity, uri)
+                val path = getPathFromUri(this@MainActivity, uri)
+                val metadataResult = com.devson.nvplayer.data.mediainfo.MediaInfoOps.extractBasicMetadata(
+                    this@MainActivity,
+                    uri,
+                    fileName
+                )
+                val metadata = metadataResult.getOrNull()
+                val duration = metadata?.durationMs ?: 0L
+                val size = metadata?.sizeBytes ?: 0L
+                val width = metadata?.width ?: 0
+                val height = metadata?.height ?: 0
+
+                val video = com.devson.nvplayer.domain.model.Video(
+                    uri = uri.toString(),
+                    title = fileName,
+                    duration = duration,
+                    folderName = "",
+                    path = path,
+                    size = size,
+                    width = width,
+                    height = height,
+                    dateAdded = System.currentTimeMillis(),
+                    dateModified = System.currentTimeMillis()
+                )
+
+                vm.insertOrUpdateHistory(video)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Failed to log external video history", e)
+            }
+        }
+    }
+
+    private fun getFileNameFromUri(context: Context, uri: Uri): String {
+        if (uri.scheme == "file") {
+            return java.io.File(uri.path ?: "").name
+        } else if (uri.scheme == "content") {
+            try {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        return cursor.getString(nameIndex)
+                    }
+                }
+            } catch (e: Exception) {
+                // fallback
+            }
+        }
+        return uri.lastPathSegment ?: "Unknown Video"
+    }
+
+    private fun getPathFromUri(context: Context, uri: Uri): String {
+        if (uri.scheme == "file") {
+            return uri.path ?: uri.toString()
+        } else if (uri.scheme == "content") {
+            try {
+                val projection = arrayOf(android.provider.MediaStore.Video.Media.DATA)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    val columnIndex = cursor.getColumnIndex(android.provider.MediaStore.Video.Media.DATA)
+                    if (columnIndex != -1 && cursor.moveToFirst()) {
+                        return cursor.getString(columnIndex)
+                    }
+                }
+            } catch (e: Exception) {
+                // fallback
+            }
+        }
+        return uri.toString()
     }
 }

@@ -200,6 +200,13 @@ class VideoListViewModel(
     }.flowOn(Dispatchers.Default)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private val contentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            super.onChange(selfChange, uri)
+            loadVideos(forceRefresh = false)
+        }
+    }
+
     init {
         // Initialize storages; root path will be set before first video load
         refreshStorages(repository.context)
@@ -210,6 +217,25 @@ class VideoListViewModel(
             }.collect { items ->
                 _explorerItems.value = items
             }
+        }
+
+        try {
+            repository.context.contentResolver.registerContentObserver(
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                true,
+                contentObserver
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("VideoListViewModel", "Failed to register ContentObserver", e)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            repository.context.contentResolver.unregisterContentObserver(contentObserver)
+        } catch (e: Exception) {
+            android.util.Log.e("VideoListViewModel", "Failed to unregister ContentObserver", e)
         }
     }
 
@@ -244,6 +270,11 @@ class VideoListViewModel(
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
+                try {
+                    repository.scanCommonDirectories()
+                } catch (e: Exception) {
+                    android.util.Log.e("VideoListViewModel", "Error scanning common directories", e)
+                }
             } else {
                 _isLoading.value = true
             }

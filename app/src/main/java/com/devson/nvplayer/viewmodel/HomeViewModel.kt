@@ -3,6 +3,8 @@ package com.devson.nvplayer.viewmodel
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
+import android.net.Uri
+import java.io.File
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.database.AppDatabase
@@ -79,18 +81,30 @@ class HomeViewModel(
     fun loadWatchHistory(forceVerify: Boolean = false) {
         watchHistoryJob?.cancel()
         watchHistoryJob = viewModelScope.launch(Dispatchers.IO) {
+            val metadataDao = AppDatabase.getDatabase(context).videoMetadataDao()
             dao.getAllHistoryFlow().collect { entities ->
+                val allCached = metadataDao.getAllMetadataSync().associateBy { it.uri }
                 val historyList = entities.map { entity ->
+                    val cached = allCached[entity.uri]
                     WatchHistory(
                         uri = entity.uri,
                         lastPositionMs = entity.lastPositionMs,
-                        lastPlayedAt = entity.lastPlayedAt
+                        lastPlayedAt = entity.lastPlayedAt,
+                        videoTitle = entity.videoTitle,
+                        durationMs = cached?.duration ?: 0L,
+                        fileSize = cached?.size ?: 0L
                     )
                 }
                 if (forceVerify) {
                     val visibleVideos = repository.getAllVideos()
                     val visibleUris = visibleVideos.map { it.uri.toString() }.toSet()
-                    _history.value = historyList.filter { visibleUris.contains(it.uri) }
+                    _history.value = historyList.filter { item ->
+                        visibleUris.contains(item.uri) || 
+                        item.uri.startsWith("http") || 
+                        item.uri.startsWith("ytdl") ||
+                        (item.uri.startsWith("file://") && File(Uri.parse(item.uri).path ?: "").exists()) ||
+                        (item.uri.startsWith("content://") && !item.uri.contains("media/external/video"))
+                    }
                 } else {
                     _history.value = historyList
                 }
