@@ -86,6 +86,7 @@ fun PlayerSettingsSideSheet(
     onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
     onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
     onUpdateShowControlGradients: (Boolean) -> Unit = {},
+    onUpdateShowUpNextQueue: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -328,6 +329,7 @@ fun PlayerSettingsSideSheet(
                                 onUpdateShowNextPrevButtons = onUpdateShowNextPrevButtons,
                                 onUpdateIsBottomLayoutEnabled = onUpdateIsBottomLayoutEnabled,
                                 onUpdateShowControlGradients = onUpdateShowControlGradients,
+                                onUpdateShowUpNextQueue = onUpdateShowUpNextQueue,
                                 onShowOrientationDialog = { showOrientationDialog = true },
                                 onShowScalingDialog = { showScalingDialog = true },
                                 onShowSoftButtonDialog = { showSoftButtonDialog = true },
@@ -988,6 +990,7 @@ private fun InterfaceTab(
     onUpdateShowNextPrevButtons: (Boolean) -> Unit,
     onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit,
     onUpdateShowControlGradients: (Boolean) -> Unit,
+    onUpdateShowUpNextQueue: (Boolean) -> Unit,
     onShowOrientationDialog: () -> Unit,
     onShowScalingDialog: () -> Unit,
     onShowSoftButtonDialog: () -> Unit,
@@ -1054,6 +1057,16 @@ private fun InterfaceTab(
                 subtitle = "Show top and bottom black fade behind player controls",
                 checked = playbackSettings.showControlGradients,
                 onCheckedChange = onUpdateShowControlGradients
+            )
+
+            SheetDivider()
+
+            SheetToggleRow(
+                icon = Icons.Rounded.QueuePlayNext,
+                title = "Enable Show Up Next",
+                subtitle = "Tap the video title during playback to show the queue",
+                checked = playbackSettings.showUpNextQueue,
+                onCheckedChange = onUpdateShowUpNextQueue
             )
         }
 

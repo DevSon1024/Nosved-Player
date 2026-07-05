@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import com.devson.nvplayer.domain.model.LayoutMode
 
 class PlaybackSettingsRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("playback_settings", Context.MODE_PRIVATE)
@@ -64,6 +65,7 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_subtitle_languages", "ytdl_custom_user_agent", "ytdl_referer", "ytdl_cookies_file", "ytdl_proxy", "ytdl_extractor_args",
             "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options",
             "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
+            "show_up_next_queue", "queue_layout_mode",
             "whitelisted_folders", "folder_filter_mode" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
@@ -364,7 +366,15 @@ class PlaybackSettingsRepository(context: Context) {
             customRawOptions = prefs.getString("ytdl_custom_raw_options", "") ?: "",
             isDataSaverEnabled = prefs.getBoolean("is_data_saver_enabled", false),
             isBottomLayoutEnabled = prefs.getBoolean("is_bottom_layout_enabled", false),
-            showControlGradients = prefs.getBoolean("show_control_gradients", true)
+            showControlGradients = prefs.getBoolean("show_control_gradients", true),
+            showUpNextQueue = prefs.getBoolean("show_up_next_queue", true),
+            queueLayoutMode = try {
+                LayoutMode.valueOf(
+                    prefs.getString("queue_layout_mode", LayoutMode.LIST.name) ?: LayoutMode.LIST.name
+                )
+            } catch (e: Exception) {
+                LayoutMode.LIST
+            }
         )
     }
 
@@ -467,6 +477,8 @@ class PlaybackSettingsRepository(context: Context) {
                 putBoolean("is_data_saver_enabled", updated.isDataSaverEnabled)
                 putBoolean("is_bottom_layout_enabled", updated.isBottomLayoutEnabled)
                 putBoolean("show_control_gradients", updated.showControlGradients)
+                putBoolean("show_up_next_queue", updated.showUpNextQueue)
+                putString("queue_layout_mode", updated.queueLayoutMode.name)
                 apply()
             }
         }
@@ -840,5 +852,13 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateShowControlGradients(show: Boolean) {
         updatePlaybackSettings { it.copy(showControlGradients = show) }
+    }
+
+    suspend fun updateShowUpNextQueue(show: Boolean) {
+        updatePlaybackSettings { it.copy(showUpNextQueue = show) }
+    }
+
+    suspend fun updateQueueLayoutMode(mode: LayoutMode) {
+        updatePlaybackSettings { it.copy(queueLayoutMode = mode) }
     }
 }

@@ -38,6 +38,9 @@ import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.SortField
+import com.devson.nvplayer.domain.model.SortDirection
+import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.data.repository.MultiFingerAction
@@ -87,7 +90,9 @@ fun AppNavigation(
     LaunchedEffect(initialUri) {
         if (initialUri != null) {
             val playerVm = playerViewModel()
-            val dummyVideo = Video(
+            val flatVideos = videoListViewModel.videosFlat.value
+            val foundVideo = flatVideos.find { it.uri == initialUri.toString() }
+            val dummyVideo = foundVideo ?: Video(
                 uri = initialUri.toString(),
                 title = initialUri.lastPathSegment?.substringBeforeLast('.') ?: "Video",
                 duration = 0L,
@@ -97,8 +102,16 @@ fun AppNavigation(
                 width = 0,
                 height = 0
             )
-            playerVm.setQueue(listOf(dummyVideo))
-            playerVm.prepareVideo(initialUri, listOf(initialUri))
+            val queueVideos = getLogicalQueue(
+                video = dummyVideo,
+                playlist = listOf(dummyVideo),
+                flatVideos = flatVideos,
+                currentViewMode = videoListViewModel.viewSettings.value.viewMode,
+                sortField = videoListViewModel.viewSettings.value.sortField,
+                sortDirection = videoListViewModel.viewSettings.value.sortDirection
+            )
+            playerVm.setQueue(queueVideos)
+            playerVm.prepareVideo(initialUri, queueVideos.map { Uri.parse(it.uri) })
             navController.navigate("player") {
                 launchSingleTop = true
             }
@@ -157,7 +170,17 @@ fun AppNavigation(
                 onVideoClick = { uri, playlist ->
                     val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
-                    val queueVideos = playlist.map { pUri ->
+                    val currentVideo = flatVideos.find { it.uri == uri.toString() } ?: Video(
+                        uri = uri.toString(),
+                        title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Video",
+                        duration = 0L,
+                        folderName = "",
+                        path = uri.path ?: "",
+                        size = 0L,
+                        width = 0,
+                        height = 0
+                    )
+                    val fallbackQueue = playlist.map { pUri ->
                         flatVideos.find { it.uri == pUri.toString() } ?: Video(
                             uri = pUri.toString(),
                             title = pUri.lastPathSegment?.substringBeforeLast('.') ?: "Video",
@@ -169,8 +192,16 @@ fun AppNavigation(
                             height = 0
                         )
                     }
+                    val queueVideos = getLogicalQueue(
+                        video = currentVideo,
+                        playlist = fallbackQueue,
+                        flatVideos = flatVideos,
+                        currentViewMode = videoListViewModel.viewSettings.value.viewMode,
+                        sortField = videoListViewModel.viewSettings.value.sortField,
+                        sortDirection = videoListViewModel.viewSettings.value.sortDirection
+                    )
                     playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(uri, playlist)
+                    playerVm.prepareVideo(uri, queueVideos.map { Uri.parse(it.uri) })
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -239,8 +270,17 @@ fun AppNavigation(
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     val playerVm = playerViewModel()
-                    playerVm.setQueue(playlist)
-                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val flatVideos = videoListViewModel.videosFlat.value
+                    val queueVideos = getLogicalQueue(
+                        video = video,
+                        playlist = playlist,
+                        flatVideos = flatVideos,
+                        currentViewMode = videoListViewModel.viewSettings.value.viewMode,
+                        sortField = videoListViewModel.viewSettings.value.sortField,
+                        sortDirection = videoListViewModel.viewSettings.value.sortDirection
+                    )
+                    playerVm.setQueue(queueVideos)
+                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -298,8 +338,17 @@ fun AppNavigation(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     val playerVm = playerViewModel()
-                    playerVm.setQueue(playlist)
-                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val flatVideos = videoListViewModel.videosFlat.value
+                    val queueVideos = getLogicalQueue(
+                        video = video,
+                        playlist = playlist,
+                        flatVideos = flatVideos,
+                        currentViewMode = videoListViewModel.viewSettings.value.viewMode,
+                        sortField = videoListViewModel.viewSettings.value.sortField,
+                        sortDirection = videoListViewModel.viewSettings.value.sortDirection
+                    )
+                    playerVm.setQueue(queueVideos)
+                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -481,8 +530,17 @@ fun AppNavigation(
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
                     val playerVm = playerViewModel()
-                    playerVm.setQueue(playlist)
-                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val flatVideos = videoListViewModel.videosFlat.value
+                    val queueVideos = getLogicalQueue(
+                        video = video,
+                        playlist = playlist,
+                        flatVideos = flatVideos,
+                        currentViewMode = videoListViewModel.viewSettings.value.viewMode,
+                        sortField = videoListViewModel.viewSettings.value.sortField,
+                        sortDirection = videoListViewModel.viewSettings.value.sortDirection
+                    )
+                    playerVm.setQueue(queueVideos)
+                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
                     navController.navigate("player") { launchSingleTop = true }
                 },
                 onBack = safePopBackStack
@@ -604,6 +662,7 @@ fun AppNavigation(
                 onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
                 onUpdateIsBottomLayoutEnabled = { settingsViewModel.updateIsBottomLayoutEnabled(it) },
                 onUpdateShowControlGradients = { settingsViewModel.updateShowControlGradients(it) },
+                onUpdateShowUpNextQueue = { settingsViewModel.updateShowUpNextQueue(it) },
                 onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
                 onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
                 onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },
@@ -624,7 +683,8 @@ fun AppNavigation(
                 currentVideoId = currentVideoId,
                 isQueueVisible = isQueueVisible,
                 onQueueVisibleChange = { playerVm.setQueueVisible(it) },
-                onQueueVideoClick = { playerVm.selectQueueVideo(it) }
+                onQueueVideoClick = { playerVm.selectQueueVideo(it) },
+                onUpdateQueueLayoutMode = { settingsViewModel.updateQueueLayoutMode(it) }
             )
         }
     }
@@ -641,3 +701,22 @@ fun NavController.safePopBackStack(): Boolean {
         false
     }
 }
+
+private fun getLogicalQueue(
+    video: Video,
+    playlist: List<Video>,
+    flatVideos: List<Video>,
+    currentViewMode: ViewMode,
+    sortField: SortField,
+    sortDirection: SortDirection
+): List<Video> {
+    return if (video.folderName.isNotEmpty()) {
+        if (currentViewMode == ViewMode.FILES) {
+            flatVideos.applySort(sortField, sortDirection)
+        } else {
+            flatVideos.filter { it.folderName == video.folderName }.applySort(sortField, sortDirection)
+        }
+    } else {
+        playlist
+    }
+}

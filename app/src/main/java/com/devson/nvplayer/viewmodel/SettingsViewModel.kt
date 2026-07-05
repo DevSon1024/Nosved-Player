@@ -20,6 +20,7 @@ import com.devson.nvplayer.domain.model.PlayerButton
 import com.devson.nvplayer.domain.model.ControlRegion
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.ThumbnailMode
 import com.devson.nvplayer.domain.thumbnail.ThumbnailRepository
 import com.devson.nvplayer.player.model.DecoderMode
@@ -214,7 +215,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 screenshotLocation = "Pictures/Nosved Player/Screenshot",
                 keepAwakeAlways = false,
                 isBottomLayoutEnabled = false,
-                showControlGradients = true
+                showControlGradients = true,
+                showUpNextQueue = true,
+                queueLayoutMode = LayoutMode.LIST
             )
         )
 
@@ -580,6 +583,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateShowControlGradients(show: Boolean) {
         viewModelScope.launch { settingsRepo.updateShowControlGradients(show) }
+    }
+
+    fun updateShowUpNextQueue(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowUpNextQueue(show) }
+    }
+
+    fun updateQueueLayoutMode(mode: LayoutMode) {
+        viewModelScope.launch { settingsRepo.updateQueueLayoutMode(mode) }
     }
 
     override fun onCleared() {

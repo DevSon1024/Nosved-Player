@@ -111,6 +111,7 @@ fun PlayerControls(
     onShowQuality: () -> Unit = {},
     isBottomLayoutEnabled: Boolean = false,
     showControlGradients: Boolean = true,
+    onTitleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -255,7 +256,8 @@ fun PlayerControls(
                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                 onBackgroundPlayClick = onBackgroundPlayClick,
                 ytdlQuality = ytdlQuality,
-                onShowQuality = onShowQuality
+                onShowQuality = onShowQuality,
+                onTitleClick = onTitleClick
             )
         }
 
@@ -534,7 +536,8 @@ fun PlayerControls(
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                         onBackgroundPlayClick = onBackgroundPlayClick,
                         ytdlQuality = ytdlQuality,
-                        onShowQuality = onShowQuality
+                        onShowQuality = onShowQuality,
+                        onTitleClick = onTitleClick
                     )
                 }
             }
@@ -571,7 +574,8 @@ fun PlayerControls(
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                         onBackgroundPlayClick = onBackgroundPlayClick,
                         ytdlQuality = ytdlQuality,
-                        onShowQuality = onShowQuality
+                        onShowQuality = onShowQuality,
+                        onTitleClick = onTitleClick
                     )
                 }
             }
@@ -922,7 +926,8 @@ fun PlayerControls(
                                         activity = activity,
                                         currentAspectMode = currentAspectMode,
                                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                        onBackgroundPlayClick = onBackgroundPlayClick
+                                        onBackgroundPlayClick = onBackgroundPlayClick,
+                                        onTitleClick = onTitleClick
                                     )
                                 }
                             }
@@ -955,7 +960,8 @@ fun PlayerControls(
                                 activity = activity,
                                 currentAspectMode = currentAspectMode,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                onBackgroundPlayClick = onBackgroundPlayClick
+                                onBackgroundPlayClick = onBackgroundPlayClick,
+                                onTitleClick = onTitleClick
                             )
                         }
                     }
@@ -1111,10 +1117,14 @@ fun RenderPlayerButton(
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
     ytdlQuality: Int = -1,
-    onShowQuality: () -> Unit = {}
+    onShowQuality: () -> Unit = {},
+    onTitleClick: () -> Unit = {}
 ) {
     if (button == PlayerButton.VIDEO_TITLE) {
-        Column(modifier = modifier) {
+        Column(
+            modifier = modifier
+                .clickable { onTitleClick() }
+        ) {
             Text(
                 text = title,
                 color = Color.White,

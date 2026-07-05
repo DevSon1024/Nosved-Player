@@ -6,6 +6,7 @@ import com.devson.nvplayer.player.ytdlp.YtdlCodecPreference
 import com.devson.nvplayer.player.ytdlp.YtdlContainerPreference
 import com.devson.nvplayer.player.ytdlp.YtdlHdrPreference
 import com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode
+import com.devson.nvplayer.domain.model.LayoutMode
 
 enum class OrientationMode {
     SYSTEM_DEFAULT, LANDSCAPE, PORTRAIT, AUTO
@@ -128,7 +129,9 @@ data class PlaybackSettings(
     val customRawOptions: String = "",
     val isDataSaverEnabled: Boolean = false,
     val isBottomLayoutEnabled: Boolean = false,
-    val showControlGradients: Boolean = true
+    val showControlGradients: Boolean = true,
+    val showUpNextQueue: Boolean = true,
+    val queueLayoutMode: LayoutMode = LayoutMode.LIST
 )
 
 

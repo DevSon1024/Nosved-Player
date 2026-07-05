@@ -12,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.QueuePlayNext
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -151,6 +153,16 @@ fun PlayerInterfaceSettingsScreen(
                     subtitle = "Show top and bottom black fade behind player controls",
                     checked = playbackSettings.showControlGradients,
                     onCheckedChange = { settingsViewModel.updateShowControlGradients(it) }
+                )
+
+                InterfaceDivider()
+
+                InterfaceToggleRow(
+                    icon = Icons.Rounded.QueuePlayNext,
+                    title = "Enable Show Up Next",
+                    subtitle = "Tap the video title during playback to show the queue",
+                    checked = playbackSettings.showUpNextQueue,
+                    onCheckedChange = { settingsViewModel.updateShowUpNextQueue(it) }
                 )
             }
 
