@@ -37,6 +37,7 @@ import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
 import com.devson.nvplayer.domain.model.ViewMode
+import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.data.repository.MultiFingerAction
@@ -85,7 +86,19 @@ fun AppNavigation(
 
     LaunchedEffect(initialUri) {
         if (initialUri != null) {
-            playerViewModel().prepareVideo(initialUri, listOf(initialUri))
+            val playerVm = playerViewModel()
+            val dummyVideo = Video(
+                uri = initialUri.toString(),
+                title = initialUri.lastPathSegment?.substringBeforeLast('.') ?: "Video",
+                duration = 0L,
+                folderName = "",
+                path = initialUri.path ?: "",
+                size = 0L,
+                width = 0,
+                height = 0
+            )
+            playerVm.setQueue(listOf(dummyVideo))
+            playerVm.prepareVideo(initialUri, listOf(initialUri))
             navController.navigate("player") {
                 launchSingleTop = true
             }
@@ -142,7 +155,22 @@ fun AppNavigation(
                     }
                 },
                 onVideoClick = { uri, playlist ->
-                    playerViewModel().prepareVideo(uri, playlist)
+                    val playerVm = playerViewModel()
+                    val flatVideos = videoListViewModel.videosFlat.value
+                    val queueVideos = playlist.map { pUri ->
+                        flatVideos.find { it.uri == pUri.toString() } ?: Video(
+                            uri = pUri.toString(),
+                            title = pUri.lastPathSegment?.substringBeforeLast('.') ?: "Video",
+                            duration = 0L,
+                            folderName = "",
+                            path = pUri.path ?: "",
+                            size = 0L,
+                            width = 0,
+                            height = 0
+                        )
+                    }
+                    playerVm.setQueue(queueVideos)
+                    playerVm.prepareVideo(uri, playlist)
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -187,7 +215,19 @@ fun AppNavigation(
                 homeViewModel = homeViewModel,
                 onBack = safePopBackStack,
                 onPlayStream = { uri ->
-                    playerViewModel().prepareVideo(uri, listOf(uri))
+                    val playerVm = playerViewModel()
+                    val dummyVideo = Video(
+                        uri = uri.toString(),
+                        title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
+                        duration = 0L,
+                        folderName = "",
+                        path = uri.path ?: "",
+                        size = 0L,
+                        width = 0,
+                        height = 0
+                    )
+                    playerVm.setQueue(listOf(dummyVideo))
+                    playerVm.prepareVideo(uri, listOf(uri))
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -198,7 +238,9 @@ fun AppNavigation(
         composable("video_list") {
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val playerVm = playerViewModel()
+                    playerVm.setQueue(playlist)
+                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -223,7 +265,19 @@ fun AppNavigation(
                     }
                 },
                 onPlayStream = { uri ->
-                    playerViewModel().prepareVideo(uri, listOf(uri))
+                    val playerVm = playerViewModel()
+                    val dummyVideo = Video(
+                        uri = uri.toString(),
+                        title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
+                        duration = 0L,
+                        folderName = "",
+                        path = uri.path ?: "",
+                        size = 0L,
+                        width = 0,
+                        height = 0
+                    )
+                    playerVm.setQueue(listOf(dummyVideo))
+                    playerVm.prepareVideo(uri, listOf(uri))
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -243,7 +297,9 @@ fun AppNavigation(
             HistoryScreen(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val playerVm = playerViewModel()
+                    playerVm.setQueue(playlist)
+                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
@@ -406,7 +462,9 @@ fun AppNavigation(
                 engine     = playerEngine(),
                 onBack     = safePopBackStack,
                 onPlayVideoInPlayer = { video, playlist ->
-                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val playerVm = playerViewModel()
+                    playerVm.setQueue(playlist)
+                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player") { launchSingleTop = true }
                 }
             )
@@ -422,7 +480,9 @@ fun AppNavigation(
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    playerViewModel().prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
+                    val playerVm = playerViewModel()
+                    playerVm.setQueue(playlist)
+                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
                     navController.navigate("player") { launchSingleTop = true }
                 },
                 onBack = safePopBackStack
@@ -460,6 +520,9 @@ fun AppNavigation(
             val bufferedPosition by playerVm.bufferedPosition.collectAsStateWithLifecycle()
 
             val isDynamicSpeedActive by playerVm.isDynamicSpeedActive.collectAsStateWithLifecycle()
+            val queueList by playerVm.queueList.collectAsStateWithLifecycle()
+            val currentVideoId by playerVm.currentVideoId.collectAsStateWithLifecycle()
+            val isQueueVisible by playerVm.isQueueVisible.collectAsStateWithLifecycle()
 
             PlayerScreen(
                 isDynamicSpeedActive = isDynamicSpeedActive,
@@ -556,7 +619,12 @@ fun AppNavigation(
                 onCycleAspectMode = { playerVm.cycleAspectMode() },
                 isInPipMode = isInPipMode,
                 onEnterPip = onEnterPip,
-                onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) }
+                onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) },
+                queueList = queueList,
+                currentVideoId = currentVideoId,
+                isQueueVisible = isQueueVisible,
+                onQueueVisibleChange = { playerVm.setQueueVisible(it) },
+                onQueueVideoClick = { playerVm.selectQueueVideo(it) }
             )
         }
     }

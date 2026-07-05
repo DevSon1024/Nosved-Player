@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
@@ -80,6 +82,16 @@ import com.devson.nvplayer.data.repository.FullScreenMode
 import com.devson.nvplayer.data.repository.OrientationMode
 import com.devson.nvplayer.data.repository.SoftButtonMode
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.ui.screen.videolist.components.common.PlayingIndicator
+import com.devson.nvplayer.ui.screen.videolist.components.video.VideoThumbnail
+import com.devson.nvplayer.ui.screen.videolist.components.video.DurationBadge
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.text.style.TextOverflow
+
 
 @Composable
 fun PlayerScreen(
@@ -176,7 +188,12 @@ fun PlayerScreen(
     bufferedPosition: Long = 0L,
     isDynamicSpeedActive: Boolean = false,
     onSetDynamicSpeedActive: (Boolean) -> Unit = {},
-    viewModel: com.devson.nvplayer.viewmodel.PlayerViewModel? = null
+    viewModel: com.devson.nvplayer.viewmodel.PlayerViewModel? = null,
+    queueList: List<Video> = emptyList(),
+    currentVideoId: String? = null,
+    isQueueVisible: Boolean = false,
+    onQueueVisibleChange: (Boolean) -> Unit = {},
+    onQueueVideoClick: (Video) -> Unit = {}
 ) {
     val localContext = LocalContext.current
     val owner = localContext.findActivity() as? androidx.lifecycle.ViewModelStoreOwner
@@ -1030,6 +1047,201 @@ fun PlayerScreen(
                 }
             }
         }
+
+        if (!isInPipMode && !isLocked && queueList.isNotEmpty()) {
+            val density = LocalDensity.current
+            val panelHeight = 260.dp
+            val panelHeightPx = with(density) { panelHeight.toPx() }
+            var dragOffsetY by remember { mutableStateOf(0f) }
+            val offsetY by animateFloatAsState(
+                targetValue = if (isQueueVisible) 0f else panelHeightPx,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                label = "QueuePanelOffset"
+            )
+            val totalOffsetY = (offsetY + dragOffsetY).coerceAtLeast(0f)
+
+            AnimatedVisibility(
+                visible = !isQueueVisible,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp)
+            ) {
+                Surface(
+                    onClick = { onQueueVisibleChange(true) },
+                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp).copy(alpha = 0.8f),
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    tonalElevation = 6.dp,
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(40.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragEnd = {
+                                    if (dragOffsetY < -50f) {
+                                        onQueueVisibleChange(true)
+                                    }
+                                    dragOffsetY = 0f
+                                },
+                                onDragCancel = { dragOffsetY = 0f },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffsetY += dragAmount
+                                }
+                            )
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowUp,
+                            contentDescription = "Show Queue",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Up Next",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(panelHeight)
+                    .graphicsLayer {
+                        translationY = totalOffsetY
+                    }
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    )
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures(
+                                    onDragEnd = {
+                                        if (dragOffsetY > 80f) {
+                                            onQueueVisibleChange(false)
+                                        }
+                                        dragOffsetY = 0f
+                                    },
+                                    onDragCancel = { dragOffsetY = 0f },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                                    }
+                                )
+                            }
+                            .padding(top = 10.dp, bottom = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 40.dp, height = 4.dp)
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
+                                .align(Alignment.CenterHorizontally)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.VideoLibrary,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Up Next Queue",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${queueList.size}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { onQueueVisibleChange(false) },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Transparent
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                                    contentDescription = "Hide Queue",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        thickness = 1.dp
+                    )
+                    val listState = rememberLazyListState()
+                    val activeIndex = remember(queueList, currentVideoId) {
+                        queueList.indexOfFirst { it.uri == currentVideoId }
+                    }
+                    LaunchedEffect(isQueueVisible) {
+                        if (isQueueVisible && activeIndex >= 0) {
+                            listState.animateScrollToItem(activeIndex)
+                        }
+                    }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        itemsIndexed(
+                            items = queueList,
+                            key = { _, video -> video.uri }
+                        ) { index, video ->
+                            val isPlaying = video.uri == currentVideoId
+                            QueueVideoItem(
+                                video = video,
+                                isPlaying = isPlaying,
+                                onClick = { onQueueVideoClick(video) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1379,3 +1591,85 @@ private fun SpeedSliderHUD(
         }
     }
 }
+
+@Composable
+private fun QueueVideoItem(
+    video: Video,
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor = if (isPlaying) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+    } else {
+        Color.Transparent
+    }
+    
+    val titleColor = if (isPlaying) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 100.dp, height = 56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            VideoThumbnail(
+                uri = video.uri,
+                showPlayIcon = false,
+                modifier = Modifier.fillMaxSize()
+            )
+            
+            DurationBadge(duration = video.duration)
+            
+            if (isPlaying) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlayingIndicator(
+                        isPlaying = true,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = video.title,
+                color = titleColor,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = video.folderName,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}

@@ -35,6 +35,11 @@ import com.devson.nvplayer.data.database.AppDatabase
 import com.devson.nvplayer.data.database.WatchHistoryEntity
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.domain.model.Video
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -93,6 +98,30 @@ class PlayerViewModel(
     fun setDynamicSpeedActive(active: Boolean) {
         _isDynamicSpeedActive.value = active
     }
+
+    private val _queueList = MutableStateFlow<List<Video>>(emptyList())
+    val queueList: StateFlow<List<Video>> = _queueList.asStateFlow()
+
+    private val _isQueueVisible = MutableStateFlow(false)
+    val isQueueVisible: StateFlow<Boolean> = _isQueueVisible.asStateFlow()
+
+    val currentVideoId: StateFlow<String?> = currentUri
+        .map { it?.toString() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setQueue(queue: List<Video>) {
+        _queueList.value = queue
+    }
+
+    fun setQueueVisible(visible: Boolean) {
+        _isQueueVisible.value = visible
+    }
+
+    fun selectQueueVideo(video: Video) {
+        changeVideo(Uri.parse(video.uri))
+        play()
+    }
+
 
     private val playerPrefs by lazy {
         getApplication<Application>().getSharedPreferences("player_settings_prefs", Context.MODE_PRIVATE)
@@ -395,6 +424,22 @@ class PlayerViewModel(
         _currentUri.value = uri
         _playlist.value = playlistUris
         updateNavigationStates()
+        val currentQueue = _queueList.value
+        if (currentQueue.isEmpty() || currentQueue.size != playlistUris.size || currentQueue.map { it.uri } != playlistUris.map { it.toString() }) {
+            _queueList.value = playlistUris.map { u ->
+                Video(
+                    uri = u.toString(),
+                    title = u.lastPathSegment?.substringBeforeLast('.') ?: "Video",
+                    duration = 0L,
+                    folderName = "",
+                    path = u.path ?: "",
+                    size = 0L,
+                    width = 0,
+                    height = 0
+                )
+            }
+        }
+
         isVideoLoaded = false
         isPositionRestored = false
         isExternalSubtitleLoaded = false
