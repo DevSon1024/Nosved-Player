@@ -5,12 +5,15 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -84,7 +88,9 @@ fun GestureSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -95,77 +101,64 @@ fun GestureSettingsScreen(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Swipe Gestures Section
-            GestureSectionHeader("Swipe Gestures")
-            GestureCard {
-                GestureToggleRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GestureSectionHeader("Swipe Gestures")
+
+                GestureToggleCardWithSlider(
                     icon = Icons.Default.SwipeLeft,
                     title = "Horizontal Swipe seeking",
                     subtitle = "Swipe left/right to seek through video",
                     checked = playbackSettings.seekGestureEnabled,
-                    onCheckedChange = { settingsViewModel.updateSeekGesture(it) }
+                    onCheckedChange = { settingsViewModel.updateSeekGesture(it) },
+                    sliderTitle = "Swipe Seek Speed",
+                    sliderValue = playbackSettings.seekSpeedSecPerCm.toFloat(),
+                    sliderDefaultValue = 10f,
+                    sliderValueRange = 2f..400f,
+                    sliderValueFormatter = { "${it.toInt()}s/cm" },
+                    onSliderValueChange = { settingsViewModel.updateSeekSpeedSecPerCm(it.toInt()) },
+                    onSliderReset = { settingsViewModel.updateSeekSpeedSecPerCm(10) }
                 )
-                if (playbackSettings.seekGestureEnabled) {
-                    GestureSliderRow(
-                        title = "Swipe Seek Speed",
-                        value = playbackSettings.seekSpeedSecPerCm.toFloat(),
-                        defaultValue = 10f,
-                        valueRange = 2f..400f,
-                        valueFormatter = { "${it.toInt()}s/cm" },
-                        onValueChange = { settingsViewModel.updateSeekSpeedSecPerCm(it.toInt()) },
-                        onReset = { settingsViewModel.updateSeekSpeedSecPerCm(10) }
-                    )
-                }
 
-                GestureDivider()
-
-                GestureToggleRow(
+                GestureToggleCardWithSlider(
                     icon = Icons.AutoMirrored.Filled.VolumeUp,
                     title = "Vertical Swipe Volume",
                     subtitle = "Swipe up/down on right side to adjust volume",
                     checked = playbackSettings.volumeGestureEnabled,
-                    onCheckedChange = { settingsViewModel.updateVolumeGesture(it) }
+                    onCheckedChange = { settingsViewModel.updateVolumeGesture(it) },
+                    sliderTitle = "Volume Sensitivity",
+                    sliderValue = playbackSettings.volumeSensitivity,
+                    sliderDefaultValue = 0.5f,
+                    sliderValueRange = 0.1f..1.0f,
+                    onSliderValueChange = { settingsViewModel.updateVolumeSensitivity(it) },
+                    onSliderReset = { settingsViewModel.updateVolumeSensitivity(0.5f) }
                 )
-                if (playbackSettings.volumeGestureEnabled) {
-                    GestureSliderRow(
-                        title = "Volume Sensitivity",
-                        value = playbackSettings.volumeSensitivity,
-                        defaultValue = 0.5f,
-                        onValueChange = { settingsViewModel.updateVolumeSensitivity(it) },
-                        onReset = { settingsViewModel.updateVolumeSensitivity(0.5f) }
-                    )
-                }
 
-                GestureDivider()
-
-                GestureToggleRow(
+                GestureToggleCardWithSlider(
                     icon = Icons.Default.LightMode,
                     title = "Vertical Swipe Brightness",
                     subtitle = "Swipe up/down on left side to adjust brightness",
                     checked = playbackSettings.brightnessGestureEnabled,
-                    onCheckedChange = { settingsViewModel.updateBrightnessGesture(it) }
+                    onCheckedChange = { settingsViewModel.updateBrightnessGesture(it) },
+                    sliderTitle = "Brightness Sensitivity",
+                    sliderValue = playbackSettings.brightnessSensitivity,
+                    sliderDefaultValue = 0.5f,
+                    sliderValueRange = 0.1f..1.0f,
+                    onSliderValueChange = { settingsViewModel.updateBrightnessSensitivity(it) },
+                    onSliderReset = { settingsViewModel.updateBrightnessSensitivity(0.5f) }
                 )
-                if (playbackSettings.brightnessGestureEnabled) {
-                    GestureSliderRow(
-                        title = "Brightness Sensitivity",
-                        value = playbackSettings.brightnessSensitivity,
-                        defaultValue = 0.5f,
-                        onValueChange = { settingsViewModel.updateBrightnessSensitivity(it) },
-                        onReset = { settingsViewModel.updateBrightnessSensitivity(0.5f) }
-                    )
-                }
             }
 
-            Spacer(Modifier.height(20.dp))
+            // Press & Tap Section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GestureSectionHeader("Press & Tap Controls")
 
-            // Tap & Hold Section
-            GestureSectionHeader("Press & Tap Controls")
-            GestureCard {
-                GestureRow(
+                SettingClickableCard(
                     icon = Icons.Default.TouchApp,
                     title = "Double Tap Action",
                     subtitle = when (playbackSettings.doubleTapAction) {
@@ -178,50 +171,116 @@ fun GestureSettingsScreen(
                     onClick = { showDoubleTapDialog = true }
                 )
 
-                GestureDivider()
-
-                GestureRow(
+                SettingClickableCard(
                     icon = Icons.Default.Timer,
                     title = "Double Tap Seek Duration",
                     subtitle = "${playbackSettings.doubleTapSeekDuration / 1000} seconds",
                     onClick = { showSeekDurationDialog = true }
                 )
 
-                GestureDivider()
-
-                GestureToggleRow(
-                    icon = Icons.Default.Speed,
-                    title = "Press & Hold Playback Acceleration",
-                    subtitle = "Tap and hold screen to temporarily accelerate video",
-                    checked = playbackSettings.longPressEnabled,
-                    onCheckedChange = { settingsViewModel.updateLongPressEnabled(it) }
-                )
-                if (playbackSettings.longPressEnabled) {
-                    GestureSliderRow(
-                        title = "Tap & Hold Speed Override",
-                        value = playbackSettings.tapAndHoldSpeed,
-                        defaultValue = 2.0f,
-                        valueRange = 1.5f..3.0f,
-                        steps = 2,
-                        valueFormatter = { "${String.format("%.1f", it)}x" },
-                        onValueChange = { settingsViewModel.updateTapAndHoldSpeed(it) },
-                        onReset = { settingsViewModel.updateTapAndHoldSpeed(2.0f) }
+                // Press & Hold Acceleration (Double slider card)
+                Card(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                if (playbackSettings.longPressEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            ),
+                            RoundedCornerShape(14.dp)
+                        ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (playbackSettings.longPressEnabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+                        else MaterialTheme.colorScheme.surface
                     )
-                    GestureSliderRow(
-                        title = "Long Press Default Speed",
-                        value = playbackSettings.longPressSpeed,
-                        defaultValue = 2.0f,
-                        valueRange = 1.5f..3.0f,
-                        steps = 2,
-                        valueFormatter = { "${String.format("%.1f", it)}x" },
-                        onValueChange = { settingsViewModel.updateLongPressSpeed(it) },
-                        onReset = { settingsViewModel.updateLongPressSpeed(2.0f) }
-                    )
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { settingsViewModel.updateLongPressEnabled(!playbackSettings.longPressEnabled) }.padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(
+                                        if (playbackSettings.longPressEnabled) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.secondaryContainer
+                                    ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Speed, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (playbackSettings.longPressEnabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer)
+                                }
+                                Column {
+                                    Text("Press & Hold Playback Acceleration", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text("Tap and hold screen to temporarily accelerate video", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Switch(checked = playbackSettings.longPressEnabled, onCheckedChange = { settingsViewModel.updateLongPressEnabled(it) })
+                        }
+                        if (playbackSettings.longPressEnabled) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Tap & Hold Speed Override", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text("${String.format("%.1f", playbackSettings.tapAndHoldSpeed)}x", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            val isAtDefault = abs(playbackSettings.tapAndHoldSpeed - 2.0f) < 0.001f
+                                            IconButton(onClick = { settingsViewModel.updateTapAndHoldSpeed(2.0f) }, enabled = !isAtDefault, modifier = Modifier.size(28.dp)) {
+                                                Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(16.dp), tint = if (isAtDefault) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    }
+                                    Slider(
+                                        value = playbackSettings.tapAndHoldSpeed,
+                                        onValueChange = { settingsViewModel.updateTapAndHoldSpeed(it) },
+                                        valueRange = 1.5f..3.0f,
+                                        steps = 2,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Long Press Default Speed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text("${String.format("%.1f", playbackSettings.longPressSpeed)}x", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            val isAtDefault = abs(playbackSettings.longPressSpeed - 2.0f) < 0.001f
+                                            IconButton(onClick = { settingsViewModel.updateLongPressSpeed(2.0f) }, enabled = !isAtDefault, modifier = Modifier.size(28.dp)) {
+                                                Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(16.dp), tint = if (isAtDefault) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    }
+                                    Slider(
+                                        value = playbackSettings.longPressSpeed,
+                                        onValueChange = { settingsViewModel.updateLongPressSpeed(it) },
+                                        valueRange = 1.5f..3.0f,
+                                        steps = 2,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
-                GestureDivider()
-
-                GestureToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.Forward10,
                     title = "Show 10s Seek Buttons",
                     subtitle = "Display quick rewind/forward buttons in controls overlay",
@@ -230,9 +289,7 @@ fun GestureSettingsScreen(
                 )
 
                 if (playbackSettings.showSeekButtons) {
-                    GestureDivider()
-
-                    GestureRow(
+                    SettingClickableCard(
                         icon = Icons.Default.Timer,
                         title = "Seek Button Duration",
                         subtitle = "${playbackSettings.seekDurationSeconds} seconds",
@@ -241,12 +298,11 @@ fun GestureSettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-
             // Multi-finger Actions
-            GestureSectionHeader("Multi-finger Gestures")
-            GestureCard {
-                GestureRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GestureSectionHeader("Multi-finger Gestures")
+
+                SettingClickableCard(
                     icon = Icons.Default.Gesture,
                     title = "Two-Finger Action",
                     subtitle = when (playbackSettings.twoFingerAction) {
@@ -260,9 +316,7 @@ fun GestureSettingsScreen(
                     onClick = { showTwoFingerActionDialog = true }
                 )
 
-                GestureDivider()
-
-                GestureRow(
+                SettingClickableCard(
                     icon = Icons.Default.SettingsAccessibility,
                     title = "Three-Finger Action",
                     subtitle = when (playbackSettings.threeFingerAction) {
@@ -278,8 +332,7 @@ fun GestureSettingsScreen(
 
                 if (playbackSettings.twoFingerAction == MultiFingerAction.SCREENSHOT ||
                     playbackSettings.threeFingerAction == MultiFingerAction.SCREENSHOT) {
-                    GestureDivider()
-                    GestureRow(
+                    SettingClickableCard(
                         icon = Icons.Default.Folder,
                         title = "Screenshot Save Location",
                         subtitle = getDisplayPath(playbackSettings.screenshotLocation),
@@ -288,7 +341,7 @@ fun GestureSettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -299,15 +352,21 @@ fun GestureSettingsScreen(
             title = { Text("Double Tap Action") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    DoubleTapAction.values().forEach { action ->
+                    listOf(
+                        DoubleTapAction.BOTH to "Seek left/right",
+                        DoubleTapAction.PLAY_PAUSE to "Play / Pause",
+                        DoubleTapAction.FAST_FORWARD to "Fast Forward Only",
+                        DoubleTapAction.REWIND to "Rewind Only",
+                        DoubleTapAction.NONE to "Disable double-tap"
+                    ).forEach { pair ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
-                                    selected = (playbackSettings.doubleTapAction == action),
+                                    selected = (playbackSettings.doubleTapAction == pair.first),
                                     onClick = {
-                                        settingsViewModel.updateDoubleTapAction(action)
+                                        settingsViewModel.updateDoubleTapAction(pair.first)
                                         showDoubleTapDialog = false
                                     },
                                     role = Role.RadioButton
@@ -316,18 +375,12 @@ fun GestureSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.doubleTapAction == action),
+                                selected = (playbackSettings.doubleTapAction == pair.first),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                text = when (action) {
-                                    DoubleTapAction.BOTH -> "Double Tap Left/Right to Seek"
-                                    DoubleTapAction.PLAY_PAUSE -> "Play / Pause"
-                                    DoubleTapAction.FAST_FORWARD -> "Fast Forward Only"
-                                    DoubleTapAction.REWIND -> "Rewind Only"
-                                    DoubleTapAction.NONE -> "Disable Double Tap"
-                                },
+                                text = pair.second,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -343,21 +396,20 @@ fun GestureSettingsScreen(
     }
 
     if (showSeekDurationDialog) {
-        val durations = listOf(5000L, 10000L, 15000L, 30000L, 60000L)
         AlertDialog(
             onDismissRequest = { showSeekDurationDialog = false },
-            title = { Text("Seek Duration") },
+            title = { Text("Double Tap Seek Duration") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    durations.forEach { duration ->
+                    listOf(5000L, 10000L, 15000L, 20000L, 30000L).forEach { durationMs ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
-                                    selected = (playbackSettings.doubleTapSeekDuration == duration),
+                                    selected = (playbackSettings.doubleTapSeekDuration == durationMs),
                                     onClick = {
-                                        settingsViewModel.updateDoubleTapSeekDuration(duration)
+                                        settingsViewModel.updateDoubleTapSeekDuration(durationMs)
                                         showSeekDurationDialog = false
                                     },
                                     role = Role.RadioButton
@@ -366,12 +418,12 @@ fun GestureSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.doubleTapSeekDuration == duration),
+                                selected = (playbackSettings.doubleTapSeekDuration == durationMs),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                text = "${duration / 1000} seconds",
+                                text = "${durationMs / 1000} seconds",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -386,21 +438,71 @@ fun GestureSettingsScreen(
         )
     }
 
-    if (showTwoFingerActionDialog) {
+    if (showSeekButtonDurationDialog) {
         AlertDialog(
-            onDismissRequest = { showTwoFingerActionDialog = false },
-            title = { Text("Two-Finger Action") },
+            onDismissRequest = { showSeekButtonDurationDialog = false },
+            title = { Text("Seek Button Duration") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    listOf(MultiFingerAction.NONE, MultiFingerAction.PLAY_PAUSE, MultiFingerAction.FAST_PLAY, MultiFingerAction.MUTE, MultiFingerAction.SCREENSHOT, MultiFingerAction.PINCH_ZOOM).forEach { action ->
+                    listOf(5, 10, 15, 30, 60, 80).forEach { sec ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
-                                    selected = (playbackSettings.twoFingerAction == action),
+                                    selected = (playbackSettings.seekDurationSeconds == sec),
                                     onClick = {
-                                        settingsViewModel.updateTwoFingerAction(action)
+                                        settingsViewModel.updateSeekDurationSeconds(sec)
+                                        showSeekButtonDurationDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (playbackSettings.seekDurationSeconds == sec),
+                                onClick = null
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = "$sec seconds",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSeekButtonDurationDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showTwoFingerActionDialog) {
+        AlertDialog(
+            onDismissRequest = { showTwoFingerActionDialog = false },
+            title = { Text("Two-Finger Tap Action") },
+            text = {
+                Column(Modifier.selectableGroup()) {
+                    listOf(
+                        MultiFingerAction.PLAY_PAUSE to "Play / Pause",
+                        MultiFingerAction.FAST_PLAY to "Fast Play (2x)",
+                        MultiFingerAction.MUTE to "Mute / Unmute",
+                        MultiFingerAction.SCREENSHOT to "Take Screenshot",
+                        MultiFingerAction.PINCH_ZOOM to "Pinch to Zoom",
+                        MultiFingerAction.NONE to "Disable gesture"
+                    ).forEach { pair ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .selectable(
+                                    selected = (playbackSettings.twoFingerAction == pair.first),
+                                    onClick = {
+                                        settingsViewModel.updateTwoFingerAction(pair.first)
                                         showTwoFingerActionDialog = false
                                     },
                                     role = Role.RadioButton
@@ -409,19 +511,12 @@ fun GestureSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.twoFingerAction == action),
+                                selected = (playbackSettings.twoFingerAction == pair.first),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                text = when (action) {
-                                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
-                                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
-                                    MultiFingerAction.MUTE -> "Mute Audio"
-                                    MultiFingerAction.NONE -> "No Action"
-                                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
-                                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom (two-finger)"
-                                },
+                                text = pair.second,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -439,18 +534,25 @@ fun GestureSettingsScreen(
     if (showThreeFingerActionDialog) {
         AlertDialog(
             onDismissRequest = { showThreeFingerActionDialog = false },
-            title = { Text("Three-Finger Action") },
+            title = { Text("Three-Finger Tap Action") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    listOf(MultiFingerAction.NONE, MultiFingerAction.PLAY_PAUSE, MultiFingerAction.FAST_PLAY, MultiFingerAction.MUTE, MultiFingerAction.SCREENSHOT, MultiFingerAction.PINCH_ZOOM).forEach { action ->
+                    listOf(
+                        MultiFingerAction.PLAY_PAUSE to "Play / Pause",
+                        MultiFingerAction.FAST_PLAY to "Fast Play (2x)",
+                        MultiFingerAction.MUTE to "Mute / Unmute",
+                        MultiFingerAction.SCREENSHOT to "Take Screenshot",
+                        MultiFingerAction.PINCH_ZOOM to "Pinch to Zoom",
+                        MultiFingerAction.NONE to "Disable gesture"
+                    ).forEach { pair ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
                                 .selectable(
-                                    selected = (playbackSettings.threeFingerAction == action),
+                                    selected = (playbackSettings.threeFingerAction == pair.first),
                                     onClick = {
-                                        settingsViewModel.updateThreeFingerAction(action)
+                                        settingsViewModel.updateThreeFingerAction(pair.first)
                                         showThreeFingerActionDialog = false
                                     },
                                     role = Role.RadioButton
@@ -459,19 +561,12 @@ fun GestureSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.threeFingerAction == action),
+                                selected = (playbackSettings.threeFingerAction == pair.first),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
                             Text(
-                                text = when (action) {
-                                    MultiFingerAction.PLAY_PAUSE -> "Play / Pause"
-                                    MultiFingerAction.FAST_PLAY -> "Fast Play (2x)"
-                                    MultiFingerAction.MUTE -> "Mute Audio"
-                                    MultiFingerAction.NONE -> "No Action"
-                                    MultiFingerAction.SCREENSHOT -> "Take Screenshot"
-                                    MultiFingerAction.PINCH_ZOOM -> "Pinch to Zoom"
-                                },
+                                text = pair.second,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -480,50 +575,6 @@ fun GestureSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThreeFingerActionDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showSeekButtonDurationDialog) {
-        val durations = listOf(5, 10, 15, 30, 60)
-        AlertDialog(
-            onDismissRequest = { showSeekButtonDurationDialog = false },
-            title = { Text("Seek Button Duration") },
-            text = {
-                Column(Modifier.selectableGroup()) {
-                    durations.forEach { duration ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = (playbackSettings.seekDurationSeconds == duration),
-                                    onClick = {
-                                        settingsViewModel.updateSeekDurationSeconds(duration)
-                                        showSeekButtonDurationDialog = false
-                                    },
-                                    role = Role.RadioButton
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (playbackSettings.seekDurationSeconds == duration),
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = "$duration seconds",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showSeekButtonDurationDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -543,186 +594,265 @@ private fun GestureSectionHeader(label: String) {
 }
 
 @Composable
-private fun GestureCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(content = content)
-    }
-}
-
-@Composable
-private fun GestureDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color = MaterialTheme.colorScheme.outlineVariant
-    )
-}
-
-@Composable
-private fun GestureRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun GestureToggleRow(
+private fun GestureToggleCardWithSlider(
     icon: ImageVector,
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    sliderTitle: String,
+    sliderValue: Float,
+    sliderDefaultValue: Float = 0.5f,
+    sliderValueRange: ClosedFloatingPointRange<Float> = 0.1f..1.0f,
+    sliderSteps: Int = 0,
+    sliderValueFormatter: (Float) -> String = { "${(it * 100).roundToInt()}%" },
+    onSliderValueChange: (Float) -> Unit,
+    onSliderReset: (() -> Unit)? = null
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.minimumInteractiveComponentSize()
+    Card(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
         )
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f).padding(end = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(
+                            if (checked) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    Column {
+                        Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Switch(checked = checked, onCheckedChange = onCheckedChange)
+            }
+            if (checked) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                      ) {
+                        Text(sliderTitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(sliderValueFormatter(sliderValue), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            if (onSliderReset != null) {
+                                val isAtDefault = abs(sliderValue - sliderDefaultValue) < 0.001f
+                                IconButton(onClick = onSliderReset, enabled = !isAtDefault, modifier = Modifier.size(28.dp)) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(16.dp), tint = if (isAtDefault) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = onSliderValueChange,
+                        valueRange = sliderValueRange,
+                        steps = sliderSteps,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun GestureSliderRow(
+private fun SettingToggleCard(
     title: String,
-    value: Float,
-    defaultValue: Float = 0.5f,
-    valueRange: ClosedFloatingPointRange<Float> = 0.1f..1.0f,
-    steps: Int = 0,
-    valueFormatter: (Float) -> String = { "${(it * 100).roundToInt()}%" },
-    onValueChange: (Float) -> Unit,
-    onReset: (() -> Unit)? = null
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(start = 56.dp, end = 16.dp, bottom = 12.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked && enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
             Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = valueFormatter(value),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                if (onReset != null) {
-                    val isAtDefault = abs(value - defaultValue) < 0.001f
-                    IconButton(
-                        onClick = onReset,
-                        enabled = !isAtDefault,
-                        modifier = Modifier.size(28.dp)
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked && enabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Reset to default",
-                            modifier = Modifier.size(16.dp),
-                            tint = if (isAtDefault)
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            else
-                                MaterialTheme.colorScheme.primary
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
+            )
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
-            modifier = Modifier.padding(top = 4.dp)
+    }
+}
+
+@Composable
+private fun SettingClickableCard(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
         )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

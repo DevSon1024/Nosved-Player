@@ -1,16 +1,17 @@
 package com.devson.nvplayer.ui.screen.settings
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,15 +46,8 @@ import com.devson.nvplayer.ui.theme.AppThemePalette
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.domain.model.ThumbnailMode
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.ButtonShapes
-import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.ShapeDefaults
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSettingsScreen(
     onNavigateBack: () -> Unit,
@@ -64,12 +59,10 @@ fun AppearanceSettingsScreen(
     val navBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
     val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsState()
     val isEffectivelyDark = isDark ?: isSystemInDarkTheme()
-    val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
-    val seekBarStyle = playbackSettings.seekBarStyle
 
     var showLanguageDialog by remember { mutableStateOf(false) }
 
-    //  Language picker dialog
+    // Language picker dialog
     if (showLanguageDialog) {
         val currentLocales = AppCompatDelegate.getApplicationLocales()
         val isMarathi = currentLocales.toLanguageTags().contains("mr")
@@ -119,7 +112,7 @@ fun AppearanceSettingsScreen(
         )
     }
 
-    //  Main scaffold
+    // Main scaffold
     Scaffold(
         topBar = {
             TopAppBar(
@@ -136,7 +129,9 @@ fun AppearanceSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -150,112 +145,88 @@ fun AppearanceSettingsScreen(
                     top = paddingValues.calculateTopPadding(),
                     bottom = paddingValues.calculateBottomPadding() + 16.dp
                 )
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(Modifier.height(4.dp))
 
-            //  Colour preview strip 
+            // Colour Preview strip
             ColorPreviewStrip()
 
-            Spacer(Modifier.height(20.dp))
+            // COLOUR PALETTE section
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppearanceSectionLabel(stringResource(R.string.appearance_colour_palette))
+                PalettePickerGrid(
+                    selected    = selectedPalette,
+                    isDark      = isDark ?: false,
+                    onSelect    = { settingsViewModel.setSelectedPalette(it) }
+                )
+            }
 
-            //  COLOUR PALETTE section
-            AppearanceSectionLabel(stringResource(R.string.appearance_colour_palette))
-            PalettePickerGrid(
-                selected    = selectedPalette,
-                isDark      = isDark ?: false,
-                onSelect    = { settingsViewModel.setSelectedPalette(it) }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            //  THEME section 
-            AppearanceSectionLabel(stringResource(R.string.appearance_theme))
-            AppearanceCard {
-                Column(
+            // THEME section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppearanceSectionLabel(stringResource(R.string.appearance_theme))
+                
+                // Theme Selection Card
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .border(
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            RoundedCornerShape(12.dp)
+                        ),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 ) {
-                    Text(
-                        text = stringResource(R.string.appearance_dark_theme),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    val startButtonShapes = ButtonShapes(
-                        shape = ButtonGroupDefaults.connectedLeadingButtonShape,
-                        pressedShape = ButtonGroupDefaults.connectedLeadingButtonPressShape,
-                        checkedShape = ToggleButtonDefaults.checkedShape
-                    )
-                    val middleButtonShapes = ToggleButtonDefaults.shapes(
-                        ShapeDefaults.Small,
-                        ToggleButtonDefaults.pressedShape,
-                        ToggleButtonDefaults.checkedShape
-                    )
-                    val endButtonShapes = ButtonShapes(
-                        shape = ButtonGroupDefaults.connectedTrailingButtonShape,
-                        pressedShape = ButtonGroupDefaults.connectedTrailingButtonPressShape,
-                        checkedShape = ToggleButtonDefaults.checkedShape
-                    )
-                    val shapes = listOf(startButtonShapes, middleButtonShapes, endButtonShapes)
-                    
-                    ButtonGroup(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.connectedSpaceBetween),
-                        animateFraction = 0f
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val groupScope = this
-                        val options = listOf(
-                            stringResource(R.string.appearance_light),
-                            stringResource(R.string.appearance_dark),
-                            stringResource(R.string.appearance_system_default)
+                        Text(
+                            text = stringResource(R.string.appearance_dark_theme),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
                         
-                        options.forEachIndexed { index, label ->
-                            val isSelected = when (index) {
-                                0 -> isDark == false
-                                1 -> isDark == true
-                                else -> isDark == null
-                            }
-                            ToggleButton(
-                                checked = isSelected,
-                                onCheckedChange = { checked ->
-                                    if (checked) {
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val options = listOf(
+                                stringResource(R.string.appearance_light),
+                                stringResource(R.string.appearance_dark),
+                                stringResource(R.string.appearance_system_default)
+                            )
+                            
+                            options.forEachIndexed { index, label ->
+                                val isSelected = when (index) {
+                                    0 -> isDark == false
+                                    1 -> isDark == true
+                                    else -> isDark == null
+                                }
+                                SegmentedButton(
+                                    selected = isSelected,
+                                    onClick = {
                                         when (index) {
                                             0 -> settingsViewModel.setDarkTheme(false)
                                             1 -> settingsViewModel.setDarkTheme(true)
                                             2 -> settingsViewModel.resetDarkTheme()
                                         }
-                                    }
-                                },
-                                shapes = shapes[index],
-                                modifier = with(groupScope) { Modifier.weight(1f) }
-                            ) {
-                                AnimatedVisibility(
-                                    visible = isSelected,
-                                    enter = fadeIn() + expandHorizontally(),
-                                    exit = fadeOut() + shrinkHorizontally()
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                    }
+                                    Text(label)
                                 }
-                                Text(label)
                             }
                         }
                     }
                 }
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    AppearanceDivider()
-                    AppearanceToggleRow(
+                    SettingToggleCard(
                         icon      = Icons.Default.Palette,
                         title     = stringResource(R.string.appearance_dynamic_colour),
                         subtitle  = stringResource(R.string.appearance_dynamic_colour_desc),
@@ -264,36 +235,31 @@ fun AppearanceSettingsScreen(
                     )
                 }
 
-                AppearanceDivider()
                 if (isEffectivelyDark) {
-                    AppearanceToggleRow(
+                    SettingToggleCard(
                         icon      = Icons.Default.Brightness1,
                         title     = "AMOLED Theme",
                         subtitle  = "Pure black background for dark mode",
                         checked   = isAmoledTheme,
                         onCheckedChange = { settingsViewModel.setAmoledTheme(it) }
                     )
-                    AppearanceDivider()
                 }
 
-                AppearanceToggleRow(
+                SettingToggleCard(
                     icon      = Icons.Default.WebAsset,
                     title     = "Transparent Navigation Buttons",
                     subtitle  = "Content scrolls behind the system navigation buttons",
                     checked   = navBarTransparent,
                     onCheckedChange = { settingsViewModel.setNavBarTransparent(it) }
                 )
-
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            //  LANGUAGE section 
-            AppearanceSectionLabel(stringResource(R.string.appearance_language))
-            AppearanceCard {
+            // LANGUAGE section
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppearanceSectionLabel(stringResource(R.string.appearance_language))
                 val currentLocales = AppCompatDelegate.getApplicationLocales()
                 val isMarathi = currentLocales.toLanguageTags().contains("mr")
-                AppearanceNavRow(
+                SettingClickableCard(
                     icon     = Icons.Default.Language,
                     title    = stringResource(R.string.appearance_display_language),
                     subtitle = if (isMarathi) stringResource(R.string.appearance_marathi) else stringResource(R.string.appearance_english),
@@ -301,16 +267,14 @@ fun AppearanceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            //  THUMBNAILS section
-            AppearanceSectionLabel("Thumbnails")
-            AppearanceCard {
+            // THUMBNAILS section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppearanceSectionLabel("Thumbnails")
                 var showModeDialog by remember { mutableStateOf(false) }
                 var showClearConfirmDialog by remember { mutableStateOf(false) }
                 val viewSettingsVal by settingsViewModel.viewSettings.collectAsState()
 
-                AppearanceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.Photo,
                     title = "Show Video Thumbnails",
                     subtitle = "Display generated thumbnails in video lists and folders",
@@ -319,8 +283,7 @@ fun AppearanceSettingsScreen(
                 )
 
                 if (viewSettingsVal.showThumbnail) {
-                    AppearanceDivider()
-                    AppearanceNavRow(
+                    SettingClickableCard(
                         icon = Icons.Default.Tune,
                         title = "Thumbnail Strategy",
                         subtitle = viewSettingsVal.thumbnailMode.displayName,
@@ -328,42 +291,54 @@ fun AppearanceSettingsScreen(
                     )
 
                     if (viewSettingsVal.thumbnailMode == ThumbnailMode.FRAME_AT_POSITION) {
-                        AppearanceDivider()
-                        Column(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                .border(
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                    RoundedCornerShape(12.dp)
+                                ),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text(
-                                    text = "Frame Position",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    text = "${viewSettingsVal.thumbnailFramePosition.toInt()}%",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Frame Position",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "${viewSettingsVal.thumbnailFramePosition.toInt()}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Slider(
+                                    value = viewSettingsVal.thumbnailFramePosition,
+                                    onValueChange = { settingsViewModel.updateThumbnailFramePosition(it) },
+                                    valueRange = 1f..90f,
+                                    steps = 88,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                            Slider(
-                                value = viewSettingsVal.thumbnailFramePosition,
-                                onValueChange = { settingsViewModel.updateThumbnailFramePosition(it) },
-                                valueRange = 1f..90f,
-                                steps = 88,
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         }
                     }
                 }
 
-                AppearanceDivider()
-                AppearanceNavRow(
+                SettingClickableCard(
                     icon = Icons.Default.DeleteSweep,
                     title = "Clear Thumbnail Cache",
                     subtitle = "Delete all cached video thumbnails from storage",
@@ -434,9 +409,7 @@ fun AppearanceSettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            //  INFO chip
+            // INFO chip
             Surface(
                 modifier       = Modifier.fillMaxWidth(),
                 shape          = RoundedCornerShape(12.dp),
@@ -465,15 +438,13 @@ fun AppearanceSettingsScreen(
     }
 }
 
-//  Palette Picker Grid
-
+// Palette Picker Grid
 @Composable
 private fun PalettePickerGrid(
     selected: AppThemePalette,
     isDark: Boolean,
     onSelect: (AppThemePalette) -> Unit
 ) {
-    // Lay out in rows of 2
     val palettes = AppThemePalette.entries
     val rows = palettes.chunked(2)
 
@@ -492,7 +463,6 @@ private fun PalettePickerGrid(
                         onClick    = { onSelect(palette) }
                     )
                 }
-                // Fill blank slot in last row if odd count
                 if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -534,7 +504,6 @@ private fun PaletteCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Swatch row: gradient bar of primary + secondary
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -557,7 +526,6 @@ private fun PaletteCard(
                 }
             }
 
-            // Palette name row (emoji removed, dot accent used instead)
             Row(
                 verticalAlignment      = Alignment.CenterVertically,
                 horizontalArrangement  = Arrangement.spacedBy(6.dp)
@@ -577,7 +545,6 @@ private fun PaletteCard(
                 )
             }
 
-            // Dot accents row
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(
                     modifier = Modifier
@@ -601,8 +568,6 @@ private fun PaletteCard(
         }
     }
 }
-
-//  Shared private composables
 
 @Composable
 private fun ColorPreviewStrip() {
@@ -666,118 +631,6 @@ private fun AppearanceSectionLabel(label: String) {
 }
 
 @Composable
-private fun AppearanceCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier       = Modifier.fillMaxWidth(),
-        shape          = RoundedCornerShape(16.dp),
-        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp
-    ) {
-        Column(content = content)
-    }
-}
-
-@Composable
-private fun AppearanceDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color    = MaterialTheme.colorScheme.outlineVariant
-    )
-}
-
-@Composable
-private fun AppearanceNavRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier              = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment     = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier         = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector        = icon,
-                contentDescription = null,
-                modifier           = Modifier.size(20.dp),
-                tint               = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text  = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Icon(
-            imageVector        = Icons.Default.ChevronRight,
-            contentDescription = null,
-            modifier           = Modifier.size(18.dp),
-            tint               = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun AppearanceToggleRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier              = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment     = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier         = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector        = icon,
-                contentDescription = null,
-                modifier           = Modifier.size(20.dp),
-                tint               = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text  = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
 private fun ThemeOption(
     text: String,
     selected: Boolean,
@@ -808,3 +661,168 @@ private fun ThemeOption(
     }
 }
 
+@Composable
+private fun SettingToggleCard(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked && enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked && enabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingClickableCard(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}

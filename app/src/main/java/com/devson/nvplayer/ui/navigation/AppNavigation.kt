@@ -55,6 +55,8 @@ import com.devson.nvplayer.ui.screen.NetworkHistoryScreen
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.EaseInCubic
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import com.devson.nvplayer.ui.screen.settings.ControlLayoutEditorScreen
@@ -125,26 +127,26 @@ fun AppNavigation(
         enterTransition = {
             slideIntoContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec = tween(350, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(350))
+                animationSpec = tween(400, easing = EaseOutCubic)
+            ) + fadeIn(animationSpec = tween(300))
         },
         exitTransition = {
             slideOutOfContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec = tween(350, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(350))
+                animationSpec = tween(400, easing = EaseInCubic)
+            ) + fadeOut(animationSpec = tween(300))
         },
         popEnterTransition = {
             slideIntoContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec = tween(350, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(350))
+                animationSpec = tween(400, easing = EaseOutCubic)
+            ) + fadeIn(animationSpec = tween(300))
         },
         popExitTransition = {
             slideOutOfContainer(
                 towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec = tween(350, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(350))
+                animationSpec = tween(400, easing = EaseInCubic)
+            ) + fadeOut(animationSpec = tween(300))
         }
     ) {
         composable("home") {

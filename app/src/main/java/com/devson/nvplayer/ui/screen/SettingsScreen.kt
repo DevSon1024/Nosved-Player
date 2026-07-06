@@ -1,16 +1,15 @@
 package com.devson.nvplayer.ui.screen
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,9 +46,12 @@ fun SettingsScreen(
     onNavigateToMpvConfig: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
-    val isDark           by settingsViewModel.isDarkTheme.collectAsState()
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
-    val viewSettings     by settingsViewModel.viewSettings.collectAsState()
+
+    val settingsAppearance = stringResource(R.string.settings_appearance)
+    val settingsPlayer = stringResource(R.string.settings_player)
+    val settingsApp = stringResource(R.string.settings_app)
+    val settingsDeveloper = stringResource(R.string.settings_developer)
 
     // Version tap easter-egg for developer mode
     var tapCount      by remember { mutableIntStateOf(0) }
@@ -81,164 +83,295 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Column(
+    ) { paddingValues ->
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    bottom = padding.calculateBottomPadding() + 16.dp
-                )
-                .padding(horizontal = 16.dp)
+                .padding(top = paddingValues.calculateTopPadding()),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                top = 0.dp,
+                end = 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 16.dp
+            )
         ) {
-            Spacer(Modifier.height(4.dp))
-
-            //  App identity card 
-            AppIdentityCard(
-                versionName = versionName,
-                onVersionTap = {
-                    if (!isDeveloperMode) {
-                        val now = System.currentTimeMillis()
-                        if (now - lastTapTime > 600) tapCount = 1 else tapCount++
-                        lastTapTime = now
-                        if (tapCount >= 8) {
-                            settingsViewModel.enableDeveloperMode()
-                            tapCount = 0
+            item {
+                Spacer(Modifier.height(4.dp))
+                // App identity card
+                AppIdentityCard(
+                    versionName = versionName,
+                    onVersionTap = {
+                        if (!isDeveloperMode) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastTapTime > 600) tapCount = 1 else tapCount++
+                            lastTapTime = now
+                            if (tapCount >= 8) {
+                                settingsViewModel.enableDeveloperMode()
+                                tapCount = 0
+                            }
                         }
                     }
+                )
+            }
+
+            // APPEARANCE
+            settingsSection(settingsAppearance) {
+                item {
+                    SettingsGroupCard {
+                        SettingsItemRow(
+                            icon = Icons.Default.Palette,
+                            title = stringResource(R.string.settings_display),
+                            subtitle = stringResource(R.string.settings_display_desc),
+                            onClick = onNavigateToAppearance
+                        )
+                    }
                 }
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            //  APPEARANCE 
-            SettingsSectionLabel(stringResource(R.string.settings_appearance))
-            SettingsCard {
-                SettingsRow(
-                    icon     = Icons.Default.Palette,
-                    title    = stringResource(R.string.settings_display),
-                    subtitle = stringResource(R.string.settings_display_desc),
-                    onClick  = onNavigateToAppearance
-                )
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // Player 
-            SettingsSectionLabel(stringResource(R.string.settings_player))
-            SettingsCard {
-                SettingsRow(
-                    icon     = Icons.Default.Swipe,
-                    title    = "Gestures & Taps",
-                    subtitle = "Customize swipe and tap behaviors",
-                    onClick  = onNavigateToGestures
-                )
-                SettingsRow(
-                    icon     = Icons.Default.Folder,
-                    title    = "Folders",
-                    subtitle = stringResource(R.string.settings_about_folders),
-                    onClick  = onNavigateToScanFolders
-                )
-                SettingsRow(
-                    icon     = Icons.Default.Tune,
-                    title    = "Player Interface",
-                    subtitle = "Manage player layout and visibility",
-                    onClick  = onNavigateToPlayerInterface
-                )
-                SettingsRow(
-                    icon     = Icons.Default.Home,
-                    title    = "Custom Home",
-                    subtitle = "Customize Home Screen Layout",
-                    onClick  = onNavigateToCustomHome
-                )
-                SettingsRow(
-                    icon     = Icons.Default.Cloud,
-                    title    = "yt-dlp Streaming",
-                    subtitle = "Configure format preferences and environment",
-                    onClick  = onNavigateToYtdlpSettings
-                )
-                SettingsRow(
-                    icon     = Icons.Default.Settings,
-                    title    = "mpv.conf Configuration",
-                    subtitle = "Customize raw options (vo, ao, hwdec, etc.)",
-                    onClick  = onNavigateToMpvConfig
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            //  TOOL
-            SettingsSectionLabel("Tools")
-            SettingsCard {
-                SettingsRow(
-                    icon     = Icons.Default.Build,
-                    title    = "Media Tools",
-                    subtitle = "Timestamp converter, video editor and more",
-                    onClick  = onNavigateToTool
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon     = Icons.Default.Delete,
-                    title    = "Recycle Bin",
-                    subtitle = "Manage deleted videos",
-                    onClick  = onNavigateToRecycleBin
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            //  APP 
-            SettingsSectionLabel(stringResource(R.string.settings_app))
-            SettingsCard {
-                SettingsRow(
-                    icon     = Icons.Default.Info,
-                    title    = stringResource(R.string.settings_about),
-                    subtitle = stringResource(R.string.settings_about_desc),
-                    onClick  = onNavigateToAbout
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon     = Icons.Default.Policy,
-                    title    = stringResource(R.string.settings_privacy),
-                    subtitle = stringResource(R.string.settings_privacy_desc),
-                    onClick  = onNavigateToPrivacyPolicy
-                )
+            // Player Section
+            settingsSection(settingsPlayer) {
+                item {
+                    SettingsGroupCard {
+                        SettingsItemRow(
+                            icon = Icons.Default.Swipe,
+                            title = "Gestures & Taps",
+                            subtitle = "Customize swipe and tap behaviors",
+                            onClick = onNavigateToGestures
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Folder,
+                            title = "Folders",
+                            subtitle = stringResource(R.string.settings_about_folders),
+                            onClick = onNavigateToScanFolders
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Tune,
+                            title = "Player Interface",
+                            subtitle = "Manage player layout and visibility",
+                            onClick = onNavigateToPlayerInterface
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Home,
+                            title = "Custom Home",
+                            subtitle = "Customize Home Screen Layout",
+                            onClick = onNavigateToCustomHome
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Cloud,
+                            title = "yt-dlp Streaming",
+                            subtitle = "Configure format preferences and environment",
+                            onClick = onNavigateToYtdlpSettings
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Settings,
+                            title = "mpv.conf Configuration",
+                            subtitle = "Customize raw options (vo, ao, hwdec, etc.)",
+                            onClick = onNavigateToMpvConfig
+                        )
+                    }
+                }
             }
 
-            //  DEVELOPER (hidden until unlocked) 
+            // Tools Section
+            settingsSection("Tools") {
+                item {
+                    SettingsGroupCard {
+                        SettingsItemRow(
+                            icon = Icons.Default.Build,
+                            title = "Media Tools",
+                            subtitle = "Timestamp converter, video editor and more",
+                            onClick = onNavigateToTool
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Delete,
+                            title = "Recycle Bin",
+                            subtitle = "Manage deleted videos",
+                            onClick = onNavigateToRecycleBin
+                        )
+                    }
+                }
+            }
+
+            // App Section
+            settingsSection(settingsApp) {
+                item {
+                    SettingsGroupCard {
+                        SettingsItemRow(
+                            icon = Icons.Default.Info,
+                            title = stringResource(R.string.settings_about),
+                            subtitle = stringResource(R.string.settings_about_desc),
+                            onClick = onNavigateToAbout
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Policy,
+                            title = stringResource(R.string.settings_privacy),
+                            subtitle = stringResource(R.string.settings_privacy_desc),
+                            onClick = onNavigateToPrivacyPolicy
+                        )
+                    }
+                }
+            }
+
+            // Developer Section
             if (isDeveloperMode) {
-                Spacer(Modifier.height(16.dp))
-                SettingsSectionLabel(stringResource(R.string.settings_developer))
-                SettingsCard {
-                    SettingsRow(
-                        icon     = Icons.Default.Code,
-                        title    = stringResource(R.string.settings_error_logs),
-                        subtitle = stringResource(R.string.settings_error_logs_desc),
-                        onClick  = onNavigateToLogs
-                    )
+                settingsSection(settingsDeveloper) {
+                    item {
+                        SettingsGroupCard {
+                            SettingsItemRow(
+                                icon = Icons.Default.Code,
+                                title = stringResource(R.string.settings_error_logs),
+                                subtitle = stringResource(R.string.settings_error_logs_desc),
+                                onClick = onNavigateToLogs
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-//  App identity header card 
+fun LazyListScope.settingsSection(
+    title: String,
+    content: LazyListScope.() -> Unit
+) {
+    item {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
+        )
+    }
+    content()
+    item {
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+fun SettingsGroupCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp)),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun SettingsItemRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
 
 @Composable
 private fun AppIdentityCard(
     versionName: String,
     onVersionTap: () -> Unit = {}
 ) {
-    Surface(
+    Card(
         modifier       = Modifier.fillMaxWidth(),
         shape          = RoundedCornerShape(20.dp),
-        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp
+        colors          = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier            = Modifier
@@ -301,142 +434,5 @@ private fun AppIdentityCard(
                 )
             }
         }
-    }
-}
-
-// Section label 
-
-@Composable
-private fun SettingsSectionLabel(label: String) {
-    Text(
-        text       = label,
-        style      = MaterialTheme.typography.labelLarge,
-        color      = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold,
-        modifier   = Modifier.padding(start = 4.dp, bottom = 6.dp)
-    )
-}
-
-// Rounded card wrapper 
-
-@Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier       = Modifier.fillMaxWidth(),
-        shape          = RoundedCornerShape(16.dp),
-        color          = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp
-    ) {
-        Column(content = content)
-    }
-}
-
-//  Thin in-card divider 
-
-@Composable
-private fun SettingsDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color    = MaterialTheme.colorScheme.outlineVariant
-    )
-}
-
-// Clickable row with chevron 
-
-@Composable
-private fun SettingsRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier            = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Icon in tinted circle
-        Box(
-            modifier          = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment  = Alignment.Center
-        ) {
-            Icon(
-                imageVector     = icon,
-                contentDescription = null,
-                modifier        = Modifier.size(20.dp),
-                tint            = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text  = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Icon(
-            imageVector     = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = null,
-            modifier        = Modifier.size(16.dp),
-            tint            = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-//  Toggle row 
-
-@Composable
-private fun SettingsToggleRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier            = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment   = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier          = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment  = Alignment.Center
-        ) {
-            Icon(
-                imageVector     = icon,
-                contentDescription = null,
-                modifier        = Modifier.size(20.dp),
-                tint            = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text  = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Switch(
-            checked         = checked,
-            onCheckedChange = onCheckedChange
-        )
     }
 }

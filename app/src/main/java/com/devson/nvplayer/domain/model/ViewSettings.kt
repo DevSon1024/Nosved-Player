@@ -30,6 +30,6 @@ data class ViewSettings(
     val sortField: SortField = SortField.TITLE,
     val sortDirection: SortDirection = SortDirection.ASCENDING,
     val viewMode: ViewMode = ViewMode.ALL_FOLDERS,
-    val thumbnailMode: ThumbnailMode = ThumbnailMode.SMART,
+    val thumbnailMode: ThumbnailMode = ThumbnailMode.FIRST_FRAME,
     val thumbnailFramePosition: Float = 33f
 )

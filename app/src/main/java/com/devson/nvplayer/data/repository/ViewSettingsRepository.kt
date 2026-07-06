@@ -101,11 +101,11 @@ class ViewSettingsRepository private constructor(context: Context) {
             },
             thumbnailMode = try {
                 ThumbnailMode.valueOf(
-                    prefs.getString("thumbnail_mode", ThumbnailMode.SMART.name)
-                        ?: ThumbnailMode.SMART.name
+                    prefs.getString("thumbnail_mode", ThumbnailMode.FIRST_FRAME.name)
+                        ?: ThumbnailMode.FIRST_FRAME.name
                 )
             } catch (e: Exception) {
-                ThumbnailMode.SMART
+                ThumbnailMode.FIRST_FRAME
             },
             thumbnailFramePosition = prefs.getFloat("thumbnail_frame_position", 33f)
         )

@@ -6,10 +6,13 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -79,7 +83,7 @@ fun MpvConfigSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (showRawEditor) "Edit mpv.conf" else "mpv Engine Dashboard",
+                        text = if (showRawEditor) "Edit mpv.conf" else "mpv Engine Config",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -107,7 +111,9 @@ fun MpvConfigSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -118,14 +124,18 @@ fun MpvConfigSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Spacer(Modifier.height(4.dp))
+
             if (!showRawEditor) {
                 // Section: Decoding & Engine
-                SectionCard(title = "Decoding & Engine") {
-                    // 1. Hardware Decoding Dropdown
-                    DropdownSettingRow(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MpvSectionHeader("Decoding & Engine Drivers")
+
+                    SettingDropdownCard(
+                        icon = Icons.Default.Hardware,
                         title = "Hardware Decoding",
                         subtitle = "Decoder mode used by the engine (hwdec)",
                         currentValue = currentVisualConfig.hwdec.displayName,
@@ -154,10 +164,8 @@ fun MpvConfigSettingsScreen(
                         }
                     }
 
-                    SettingsDivider()
-
-                    // 2. Video Output Dropdown
-                    DropdownSettingRow(
+                    SettingDropdownCard(
+                        icon = Icons.Default.Tv,
                         title = "Video Output Driver",
                         subtitle = "Rendering engine driver (vo)",
                         currentValue = currentVisualConfig.videoOutput.uppercase(),
@@ -185,10 +193,8 @@ fun MpvConfigSettingsScreen(
                         }
                     }
 
-                    SettingsDivider()
-
-                    // 3. Audio Output Driver
-                    DropdownSettingRow(
+                    SettingDropdownCard(
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
                         title = "Audio Output Driver",
                         subtitle = "Native audio output driver (ao)",
                         currentValue = currentVisualConfig.audioOutput.uppercase(),
@@ -218,9 +224,11 @@ fun MpvConfigSettingsScreen(
                 }
 
                 // Section: Video Processing Quality
-                SectionCard(title = "Video Processing") {
-                    // 1. High Quality Profile Toggle
-                    SwitchSettingRow(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MpvSectionHeader("Video Processing Shaders")
+
+                    SettingToggleCard(
+                        icon = Icons.Default.HighQuality,
                         title = "High Quality Profile",
                         subtitle = "Enable high-quality scaling and rendering presets (profile)",
                         checked = currentVisualConfig.isHighQualityProfile,
@@ -229,10 +237,8 @@ fun MpvConfigSettingsScreen(
                         }
                     )
 
-                    SettingsDivider()
-
-                    // 2. Interpolation Toggle
-                    SwitchSettingRow(
+                    SettingToggleCard(
+                        icon = Icons.Default.MotionPhotosOn,
                         title = "Smooth Motion (Interpolation)",
                         subtitle = "Reduce jitter via frame oversampling (requires vo=gpu/gpu-next)",
                         checked = currentVisualConfig.isInterpolationEnabled,
@@ -241,10 +247,8 @@ fun MpvConfigSettingsScreen(
                         }
                     )
 
-                    SettingsDivider()
-
-                    // 3. Debanding Toggle
-                    SwitchSettingRow(
+                    SettingToggleCard(
+                        icon = Icons.Default.BlurOn,
                         title = "Video Debanding",
                         subtitle = "Reduce color banding artifacts in dark/gradient scenes",
                         checked = currentVisualConfig.isDebandingEnabled,
@@ -253,10 +257,8 @@ fun MpvConfigSettingsScreen(
                         }
                     )
 
-                    SettingsDivider()
-
-                    // 4. Deinterlacing Toggle
-                    SwitchSettingRow(
+                    SettingToggleCard(
+                        icon = Icons.Default.GridOn,
                         title = "Deinterlacing Filter",
                         subtitle = "Removes interlaced comb line artifacts from video feed",
                         checked = currentVisualConfig.deinterlace,
@@ -267,9 +269,11 @@ fun MpvConfigSettingsScreen(
                 }
 
                 // Section: Diagnostics & Overlays
-                SectionCard(title = "Diagnostics & Overlays") {
-                    // 1. Performance Overlay Toggle
-                    SwitchSettingRow(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MpvSectionHeader("Diagnostics")
+
+                    SettingToggleCard(
+                        icon = Icons.Default.QueryStats,
                         title = "Show Performance Overlay",
                         subtitle = "Displays live FPS, frame drops, and CPU/GPU load overlay",
                         checked = currentVisualConfig.showPerformanceOverlay,
@@ -318,7 +322,7 @@ fun MpvConfigSettingsScreen(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         ),
-                        border = borderStroke(MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -329,11 +333,11 @@ fun MpvConfigSettingsScreen(
                 // Warning Banner
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
                     ),
-                    border = borderStroke(MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -367,7 +371,8 @@ fun MpvConfigSettingsScreen(
                     text = "Edit mpv.conf Text",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
 
                 // Text Editor Container
@@ -377,7 +382,7 @@ fun MpvConfigSettingsScreen(
                         .height(360.dp),
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = borderStroke(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     tonalElevation = 1.dp
                 ) {
                     Box(
@@ -445,7 +450,7 @@ fun MpvConfigSettingsScreen(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         ),
-                        border = borderStroke(MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                     ) {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -460,13 +465,15 @@ fun MpvConfigSettingsScreen(
                     text = "Quick Presets",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
 
                 Text(
                     text = "Tap a preset to insert it into your configuration editor.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
 
                 // Presets Cards
@@ -478,7 +485,7 @@ fun MpvConfigSettingsScreen(
                         MpvPreset("vo=gpu-next", "GPU Next Video Output", "Recommended for next-generation rendering shaders", Icons.Default.Tv),
                         MpvPreset("ao=aaudio", "AAudio Driver", "Modern high-performance Android native audio API", Icons.AutoMirrored.Filled.VolumeUp),
                         MpvPreset("ao=opensles", "OpenSL ES Driver", "Standard legacy audio API fallback", Icons.Default.Audiotrack),
-                        MpvPreset("hwdec=mediacodec-copy", "MediaCodec Copy-Back", "Decodes in hardware, copies back to RAM (slower, but allows filters)", Icons.Default.Hardware),
+                        MpvPreset("hwdec=mediacodec-copy", "MediaCodec Copy-Back", "Decodes in hardware, copies back to RAM (allows filters)", Icons.Default.Hardware),
                         MpvPreset("profile=fast", "Fast Performance Profile", "Disables heavy parameters to save battery and reduce CPU/GPU load", Icons.Default.Bolt),
                         MpvPreset("cache=yes", "Stream Caching Enabled", "Pre-buffers online videos to prevent buffering pauses", Icons.Default.Cached),
                         MpvPreset("deinterlace=yes", "Deinterlacing Active", "Removes scan lines/artifacts from interlaced video sources", Icons.Default.GridOn)
@@ -500,151 +507,203 @@ fun MpvConfigSettingsScreen(
 }
 
 @Composable
-private fun SectionCard(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            )
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                content = content
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsDivider() {
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        modifier = Modifier.padding(horizontal = 16.dp)
+private fun MpvSectionHeader(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
     )
 }
 
 @Composable
-private fun SwitchSettingRow(
+private fun SettingToggleCard(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked && enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked && enabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
     }
 }
 
 @Composable
-private fun DropdownSettingRow(
+private fun SettingDropdownCard(
     title: String,
     subtitle: String,
     currentValue: String,
     isExpanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     dropdownContent: @Composable ColumnScope.() -> Unit
 ) {
-    Row(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .clickable { onExpandChange(!isExpanded) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onExpandChange(!isExpanded) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Box {
             Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = currentValue,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = currentValue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                DropdownMenu(
+                    expanded = isExpanded,
+                    onDismissRequest = { onExpandChange(false) },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    content = dropdownContent
                 )
             }
-            DropdownMenu(
-                expanded = isExpanded,
-                onDismissRequest = { onExpandChange(false) },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                content = dropdownContent
-            )
         }
     }
 }
-
-@Composable
-private fun borderStroke(color: Color) = androidx.compose.foundation.BorderStroke(1.dp, color)
 
 private data class MpvPreset(
     val code: String,
@@ -661,10 +720,18 @@ private fun PresetItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -675,7 +742,7 @@ private fun PresetItemCard(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
             ) {

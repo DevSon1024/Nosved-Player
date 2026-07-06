@@ -1,11 +1,14 @@
 package com.devson.nvplayer.ui.screen.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -13,11 +16,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.QueuePlayNext
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -65,25 +68,28 @@ fun PlayerInterfaceSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // Control Region Layout Customization
-            InterfaceSectionHeader("Control Regions Layout Customization")
-            InterfaceCard {
-                InterfaceRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                InterfaceSectionHeader("Control Regions Layout Customization")
+                SettingClickableCard(
                     icon = Icons.Default.Dashboard,
                     title = "Custom Controls Layout",
                     subtitle = "Customize and reorder control buttons using an interactive player preview",
@@ -91,12 +97,10 @@ fun PlayerInterfaceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-
             // Display & Orientation Section
-            InterfaceSectionHeader("Layout & Orientation")
-            InterfaceCard {
-                InterfaceRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                InterfaceSectionHeader("Layout & Orientation")
+                SettingClickableCard(
                     icon = Icons.Default.ScreenRotation,
                     title = "Screen Orientation",
                     subtitle = when (playbackSettings.orientationMode) {
@@ -108,9 +112,7 @@ fun PlayerInterfaceSettingsScreen(
                     onClick = { showOrientationDialog = true }
                 )
 
-                InterfaceDivider()
-
-                InterfaceRow(
+                SettingClickableCard(
                     icon = Icons.Default.AspectRatio,
                     title = "Fullscreen Scale Mode",
                     subtitle = when (playbackSettings.aspectMode) {
@@ -122,9 +124,7 @@ fun PlayerInterfaceSettingsScreen(
                     onClick = { showScalingDialog = true }
                 )
 
-                InterfaceDivider()
-
-                InterfaceRow(
+                SettingClickableCard(
                     icon = Icons.Default.Fullscreen,
                     title = "System Navigation Buttons",
                     subtitle = when (playbackSettings.softButtonMode) {
@@ -135,9 +135,7 @@ fun PlayerInterfaceSettingsScreen(
                     onClick = { showSoftButtonDialog = true }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.PlayCircle,
                     title = "Play/Pause Button Position",
                     subtitle = "Move play/pause button to below Seekbar",
@@ -145,9 +143,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateIsBottomLayoutEnabled(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.Gradient,
                     title = "Show Control Gradients",
                     subtitle = "Show top and bottom black fade behind player controls",
@@ -155,9 +151,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateShowControlGradients(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Rounded.QueuePlayNext,
                     title = "Enable Show Up Next",
                     subtitle = "Tap the video title during playback to show the queue",
@@ -166,21 +160,17 @@ fun PlayerInterfaceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-
             // Playback Controls customization
-            InterfaceSectionHeader("Player Controls Customization")
-            InterfaceCard {
-                InterfaceRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                InterfaceSectionHeader("Player Controls Customization")
+                SettingClickableCard(
                     icon = Icons.Default.PhotoSizeSelectLarge,
                     title = "Controls Icon Size",
                     subtitle = playbackSettings.controlIconSize.replaceFirstChar { it.uppercase() },
                     onClick = { showIconSizeDialog = true }
                 )
 
-                InterfaceDivider()
-
-                InterfaceRow(
+                SettingClickableCard(
                     icon = Icons.Default.Waves,
                     title = "Seekbar Style",
                     subtitle = when (playbackSettings.seekBarStyle) {
@@ -191,9 +181,7 @@ fun PlayerInterfaceSettingsScreen(
                     onClick = { showSeekBarStyleDialog = true }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.SkipNext,
                     title = "Auto-play Next Video",
                     subtitle = "Automatically load and play next video in folder",
@@ -201,9 +189,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateAutoPlayEnabled(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.FastForward,
                     title = "Show Seek Buttons",
                     subtitle = "Show fast forward and rewind seek buttons in player controls",
@@ -211,9 +197,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateShowSeekButtons(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.SkipNext,
                     title = "Show Skip Prev/Next Buttons",
                     subtitle = "Show previous/next chapter skip buttons in player controls",
@@ -222,12 +206,10 @@ fun PlayerInterfaceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-
             // Info Overlays Section
-            InterfaceSectionHeader("Info Overlays")
-            InterfaceCard {
-                InterfaceToggleRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                InterfaceSectionHeader("Info Overlays")
+                SettingToggleCard(
                     icon = Icons.Default.HourglassBottom,
                     title = "Show Remaining Time",
                     subtitle = "Display remaining time instead of total duration",
@@ -235,9 +217,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateShowRemainingTime(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.BatteryChargingFull,
                     title = "Show Battery & Clock Overlay",
                     subtitle = "Display battery status and device clock on control bar",
@@ -246,12 +226,10 @@ fun PlayerInterfaceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-
             // Safety & Automation Section
-            InterfaceSectionHeader("Automation Behavior")
-            InterfaceCard {
-                InterfaceToggleRow(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                InterfaceSectionHeader("Automation Behavior")
+                SettingToggleCard(
                     icon = Icons.Default.PauseCircle,
                     title = "Pause on Obstruction",
                     subtitle = "Pause video playback automatically if screen is covered",
@@ -259,9 +237,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updatePauseWhenObstructed(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.WbSunny,
                     title = "Keep Screen Awake Always",
                     subtitle = "Prevent screen from turning off when playback is paused or active",
@@ -269,9 +245,7 @@ fun PlayerInterfaceSettingsScreen(
                     onCheckedChange = { settingsViewModel.updateKeepAwakeAlways(it) }
                 )
 
-                InterfaceDivider()
-
-                InterfaceToggleRow(
+                SettingToggleCard(
                     icon = Icons.Default.PlayArrow,
                     title = "Background Playback",
                     subtitle = "Continue playing audio in background when exiting the player",
@@ -280,7 +254,7 @@ fun PlayerInterfaceSettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -291,7 +265,7 @@ fun PlayerInterfaceSettingsScreen(
             title = { Text("Screen Orientation") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    OrientationMode.values().forEach { mode ->
+                    OrientationMode.entries.forEach { mode ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -339,7 +313,7 @@ fun PlayerInterfaceSettingsScreen(
             title = { Text("Fullscreen Scaling") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    AspectMode.values().forEach { mode ->
+                    AspectMode.entries.forEach { mode ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -387,7 +361,7 @@ fun PlayerInterfaceSettingsScreen(
             title = { Text("System Buttons Mode") },
             text = {
                 Column(Modifier.selectableGroup()) {
-                    SoftButtonMode.values().forEach { mode ->
+                    SoftButtonMode.entries.forEach { mode ->
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -519,7 +493,6 @@ fun PlayerInterfaceSettingsScreen(
             }
         )
     }
-
 }
 
 @Composable
@@ -534,118 +507,167 @@ private fun InterfaceSectionHeader(label: String) {
 }
 
 @Composable
-private fun InterfaceCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
-    ) {
-        Column(content = content)
-    }
-}
-
-@Composable
-private fun InterfaceDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color = MaterialTheme.colorScheme.outlineVariant
-    )
-}
-
-@Composable
-private fun InterfaceRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun InterfaceToggleRow(
-    icon: ImageVector,
+private fun SettingToggleCard(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.minimumInteractiveComponentSize()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked && enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
         )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked && enabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingClickableCard(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }

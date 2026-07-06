@@ -6,11 +6,13 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -103,7 +106,9 @@ fun YtdlpSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -114,17 +119,21 @@ fun YtdlpSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Spacer(Modifier.height(4.dp))
+
             // Section 1: Python & yt-dlp Compiler Environment
             YtdlpSectionHeader(title = "Environment & Compilation", icon = Icons.Default.Terminal)
-            ElevatedCard(
+            
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.elevatedCardColors(
+                colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -247,7 +256,6 @@ fun YtdlpSettingsScreen(
                             .padding(8.dp)
                     ) {
                         val consoleScrollState = rememberScrollState()
-                        // Auto-scroll to bottom of console logs
                         LaunchedEffect(consoleText) {
                             consoleScrollState.animateScrollTo(consoleScrollState.maxValue)
                         }
@@ -331,321 +339,285 @@ fun YtdlpSettingsScreen(
 
             // Section 2: Video & Audio Quality Format Options
             YtdlpSectionHeader(title = "Format & Quality", icon = Icons.Default.Tune)
-            SettingsCard {
-                // 1. Resolution / Quality Limit
-                val qualityLabel = when (playbackSettings.ytdlQuality) {
-                    -1 -> "Auto / Maximum Quality"
-                    4320 -> "4320p (8K)"
-                    2160 -> "2160p (4K)"
-                    1440 -> "1440p (2K)"
-                    1080 -> "1080p (Full HD)"
-                    720 -> "720p (HD)"
-                    480 -> "480p"
-                    360 -> "360p"
-                    240 -> "240p"
-                    144 -> "144p"
-                    else -> "${playbackSettings.ytdlQuality}p"
-                }
-                DropdownSettingRow(
-                    title = "Max Quality Limit",
-                    subtitle = "Upper limit for video height format selection",
-                    currentValue = qualityLabel,
-                    isExpanded = expandedDropdown == "quality",
-                    onExpandChange = { expandedDropdown = if (it) "quality" else null }
-                ) {
-                    val qualities = listOf(-1, 4320, 2160, 1440, 1080, 720, 480, 360, 240, 144)
-                    qualities.forEach { q ->
-                        val text = when (q) {
-                            -1 -> "Auto / Maximum"
-                            4320 -> "4320p (8K)"
-                            2160 -> "2160p (4K)"
-                            1440 -> "1440p (2K)"
-                            1080 -> "1080p (Full HD)"
-                            720 -> "720p (HD)"
-                            else -> "${q}p"
-                        }
-                        DropdownMenuItem(
-                            text = { Text(text) },
-                            onClick = {
-                                settingsViewModel.updateYtdlQuality(q)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
 
-                SettingsDivider()
-
-                // 2. Codec Preference
-                DropdownSettingRow(
-                    title = "Preferred Video Codec",
-                    subtitle = "Filter and prioritize specific stream codecs",
-                    currentValue = playbackSettings.codecPreference.title,
-                    isExpanded = expandedDropdown == "codec",
-                    onExpandChange = { expandedDropdown = if (it) "codec" else null }
-                ) {
-                    YtdlCodecPreference.values().forEach { codec ->
-                        DropdownMenuItem(
-                            text = { Text(codec.title) },
-                            onClick = {
-                                settingsViewModel.updateYtdlCodecPreference(codec)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
-
-                SettingsDivider()
-
-                // 3. Max FPS
-                val fpsLabel = if (playbackSettings.maxFps <= 0) "Auto / Unlimited" else "${playbackSettings.maxFps} fps"
-                DropdownSettingRow(
-                    title = "Max Frame Rate",
-                    subtitle = "Limit video stream frames per second",
-                    currentValue = fpsLabel,
-                    isExpanded = expandedDropdown == "fps",
-                    onExpandChange = { expandedDropdown = if (it) "fps" else null }
-                ) {
-                    listOf(0, 60, 50, 30, 24).forEach { fps ->
-                        DropdownMenuItem(
-                            text = { Text(if (fps <= 0) "Auto / Unlimited" else "$fps fps") },
-                            onClick = {
-                                settingsViewModel.updateYtdlMaxFps(fps)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
-
-                SettingsDivider()
-
-                // 4. Container Preference
-                DropdownSettingRow(
-                    title = "Preferred Container Format",
-                    subtitle = "Request specific video container extensions",
-                    currentValue = playbackSettings.containerPreference.title,
-                    isExpanded = expandedDropdown == "container",
-                    onExpandChange = { expandedDropdown = if (it) "container" else null }
-                ) {
-                    YtdlContainerPreference.values().forEach { container ->
-                        DropdownMenuItem(
-                            text = { Text(container.title) },
-                            onClick = {
-                                settingsViewModel.updateYtdlContainerPreference(container)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
-
-                SettingsDivider()
-
-                // 5. HDR Preference
-                DropdownSettingRow(
-                    title = "HDR Preference",
-                    subtitle = "Choose between dynamic range standards",
-                    currentValue = playbackSettings.hdrPreference.title,
-                    isExpanded = expandedDropdown == "hdr",
-                    onExpandChange = { expandedDropdown = if (it) "hdr" else null }
-                ) {
-                    YtdlHdrPreference.values().forEach { hdr ->
-                        DropdownMenuItem(
-                            text = { Text(hdr.title) },
-                            onClick = {
-                                settingsViewModel.updateYtdlHdrPreference(hdr)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
-
-                SettingsDivider()
-
-                // 6. Playlist Mode
-                DropdownSettingRow(
-                    title = "Playlist Load Mode",
-                    subtitle = "Behavior when loading media playlist URLs",
-                    currentValue = playbackSettings.playlistMode.title,
-                    isExpanded = expandedDropdown == "playlist",
-                    onExpandChange = { expandedDropdown = if (it) "playlist" else null }
-                ) {
-                    YtdlPlaylistMode.values().forEach { mode ->
-                        DropdownMenuItem(
-                            text = { Text(mode.title) },
-                            onClick = {
-                                settingsViewModel.updateYtdlPlaylistMode(mode)
-                                expandedDropdown = null
-                            }
-                        )
-                    }
-                }
-
-                SettingsDivider()
-
-                // 7. Live stream from start
-                SwitchSettingRow(
-                    title = "Live Stream from Start",
-                    subtitle = "Force player to buffer dynamic live streams from the beginning",
-                    checked = playbackSettings.liveFromStart,
-                    onCheckedChange = { settingsViewModel.updateYtdlLiveFromStart(it) }
-                )
+            val qualityLabel = when (playbackSettings.ytdlQuality) {
+                -1 -> "Auto / Maximum Quality"
+                4320 -> "4320p (8K)"
+                2160 -> "2160p (4K)"
+                1440 -> "1440p (2K)"
+                1080 -> "1080p (Full HD)"
+                720 -> "720p (HD)"
+                480 -> "480p"
+                360 -> "360p"
+                240 -> "240p"
+                144 -> "144p"
+                else -> "${playbackSettings.ytdlQuality}p"
             }
+
+            SettingDropdownCard(
+                icon = Icons.Default.HighQuality,
+                title = "Max Quality Limit",
+                subtitle = "Upper limit for video height format selection",
+                currentValue = qualityLabel,
+                isExpanded = expandedDropdown == "quality",
+                onExpandChange = { expandedDropdown = if (it) "quality" else null }
+            ) {
+                val qualities = listOf(-1, 4320, 2160, 1440, 1080, 720, 480, 360, 240, 144)
+                qualities.forEach { q ->
+                    val text = when (q) {
+                        -1 -> "Auto / Maximum"
+                        4320 -> "4320p (8K)"
+                        2160 -> "2160p (4K)"
+                        1440 -> "1440p (2K)"
+                        1080 -> "1080p (Full HD)"
+                        720 -> "720p (HD)"
+                        else -> "${q}p"
+                    }
+                    DropdownMenuItem(
+                        text = { Text(text) },
+                        onClick = {
+                            settingsViewModel.updateYtdlQuality(q)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            SettingDropdownCard(
+                icon = Icons.Default.SettingsSuggest,
+                title = "Preferred Video Codec",
+                subtitle = "Filter and prioritize specific stream codecs",
+                currentValue = playbackSettings.codecPreference.title,
+                isExpanded = expandedDropdown == "codec",
+                onExpandChange = { expandedDropdown = if (it) "codec" else null }
+            ) {
+                YtdlCodecPreference.entries.forEach { codec ->
+                    DropdownMenuItem(
+                        text = { Text(codec.title) },
+                        onClick = {
+                            settingsViewModel.updateYtdlCodecPreference(codec)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            val fpsLabel = if (playbackSettings.maxFps <= 0) "Auto / Unlimited" else "${playbackSettings.maxFps} fps"
+            SettingDropdownCard(
+                icon = Icons.Default.Speed,
+                title = "Max Frame Rate",
+                subtitle = "Limit video stream frames per second",
+                currentValue = fpsLabel,
+                isExpanded = expandedDropdown == "fps",
+                onExpandChange = { expandedDropdown = if (it) "fps" else null }
+            ) {
+                listOf(0, 60, 50, 30, 24).forEach { fps ->
+                    DropdownMenuItem(
+                        text = { Text(if (fps <= 0) "Auto / Unlimited" else "$fps fps") },
+                        onClick = {
+                            settingsViewModel.updateYtdlMaxFps(fps)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            SettingDropdownCard(
+                icon = Icons.Default.FolderZip,
+                title = "Preferred Container Format",
+                subtitle = "Request specific video container extensions",
+                currentValue = playbackSettings.containerPreference.title,
+                isExpanded = expandedDropdown == "container",
+                onExpandChange = { expandedDropdown = if (it) "container" else null }
+            ) {
+                YtdlContainerPreference.entries.forEach { container ->
+                    DropdownMenuItem(
+                        text = { Text(container.title) },
+                        onClick = {
+                            settingsViewModel.updateYtdlContainerPreference(container)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            SettingDropdownCard(
+                icon = Icons.Default.HdrOn,
+                title = "HDR Preference",
+                subtitle = "Choose between dynamic range standards",
+                currentValue = playbackSettings.hdrPreference.title,
+                isExpanded = expandedDropdown == "hdr",
+                onExpandChange = { expandedDropdown = if (it) "hdr" else null }
+            ) {
+                YtdlHdrPreference.entries.forEach { hdr ->
+                    DropdownMenuItem(
+                        text = { Text(hdr.title) },
+                        onClick = {
+                            settingsViewModel.updateYtdlHdrPreference(hdr)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            SettingDropdownCard(
+                icon = Icons.Default.Queue,
+                title = "Playlist Load Mode",
+                subtitle = "Behavior when loading media playlist URLs",
+                currentValue = playbackSettings.playlistMode.title,
+                isExpanded = expandedDropdown == "playlist",
+                onExpandChange = { expandedDropdown = if (it) "playlist" else null }
+            ) {
+                YtdlPlaylistMode.entries.forEach { mode ->
+                    DropdownMenuItem(
+                        text = { Text(mode.title) },
+                        onClick = {
+                            settingsViewModel.updateYtdlPlaylistMode(mode)
+                            expandedDropdown = null
+                        }
+                    )
+                }
+            }
+
+            SettingToggleCard(
+                icon = Icons.Default.PlayArrow,
+                title = "Live Stream from Start",
+                subtitle = "Force player to buffer dynamic live streams from the beginning",
+                checked = playbackSettings.liveFromStart,
+                onCheckedChange = { settingsViewModel.updateYtdlLiveFromStart(it) }
+            )
 
             // Section 3: Subtitles & Localization
             YtdlpSectionHeader(title = "Subtitles & Localization", icon = Icons.Default.Subtitles)
-            SettingsCard {
-                SwitchSettingRow(
-                    title = "Download Subtitles",
-                    subtitle = "Search and inject embedded or external text tracks",
-                    checked = playbackSettings.writeSubs,
-                    onCheckedChange = { settingsViewModel.updateYtdlWriteSubs(it) }
-                )
 
-                SettingsDivider()
+            SettingToggleCard(
+                icon = Icons.Default.Subtitles,
+                title = "Download Subtitles",
+                subtitle = "Search and inject embedded or external text tracks",
+                checked = playbackSettings.writeSubs,
+                onCheckedChange = { settingsViewModel.updateYtdlWriteSubs(it) }
+            )
 
-                SwitchSettingRow(
-                    title = "Download Auto-Generated Subtitles",
-                    subtitle = "Include machine translations or auto-transcripts",
-                    checked = playbackSettings.writeAutoSubs,
-                    onCheckedChange = { settingsViewModel.updateYtdlWriteAutoSubs(it) }
-                )
+            SettingToggleCard(
+                icon = Icons.Default.Translate,
+                title = "Download Auto-Generated Subtitles",
+                subtitle = "Include machine translations or auto-transcripts",
+                checked = playbackSettings.writeAutoSubs,
+                onCheckedChange = { settingsViewModel.updateYtdlWriteAutoSubs(it) }
+            )
 
-                SettingsDivider()
-
-                // Subtitle Languages list
-                EditableTextSettingRow(
-                    title = "Subtitle Languages",
-                    subtitle = "Comma-separated language codes (e.g. en,mr,hi). Empty fetches all.",
-                    value = playbackSettings.subtitleLanguages,
-                    placeholder = "all",
-                    onValueChange = { settingsViewModel.updateYtdlSubtitleLanguages(it) }
-                )
-            }
+            SettingEditableTextCard(
+                title = "Subtitle Languages",
+                subtitle = "Comma-separated language codes (e.g. en,mr,hi). Empty fetches all.",
+                value = playbackSettings.subtitleLanguages,
+                placeholder = "all",
+                onValueChange = { settingsViewModel.updateYtdlSubtitleLanguages(it) }
+            )
 
             // Section 4: Network, Security & Proxies
             YtdlpSectionHeader(title = "Network & Proxy Settings", icon = Icons.Default.Security)
-            SettingsCard {
-                SwitchSettingRow(
-                    title = "Geographic Bypass",
-                    subtitle = "Bypass location restrictions using extractor IP spoofing",
-                    checked = playbackSettings.geoBypass,
-                    onCheckedChange = { settingsViewModel.updateYtdlGeoBypass(it) }
-                )
 
-                SettingsDivider()
+            SettingToggleCard(
+                icon = Icons.Default.Public,
+                title = "Geographic Bypass",
+                subtitle = "Bypass location restrictions using extractor IP spoofing",
+                checked = playbackSettings.geoBypass,
+                onCheckedChange = { settingsViewModel.updateYtdlGeoBypass(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "User-Agent Header",
-                    subtitle = "Custom client identification to prevent platform blocks",
-                    value = playbackSettings.customUserAgent,
-                    placeholder = "Default User-Agent string",
-                    onValueChange = { settingsViewModel.updateYtdlCustomUserAgent(it) }
-                )
+            SettingEditableTextCard(
+                title = "User-Agent Header",
+                subtitle = "Custom client identification to prevent platform blocks",
+                value = playbackSettings.customUserAgent,
+                placeholder = "Default User-Agent string",
+                onValueChange = { settingsViewModel.updateYtdlCustomUserAgent(it) }
+            )
 
-                SettingsDivider()
+            SettingEditableTextCard(
+                title = "Http Referer",
+                subtitle = "Specify origin referrer request header",
+                value = playbackSettings.referer,
+                placeholder = "https://example.com",
+                onValueChange = { settingsViewModel.updateYtdlReferer(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "Http Referer",
-                    subtitle = "Specify origin referrer request header",
-                    value = playbackSettings.referer,
-                    placeholder = "https://example.com",
-                    onValueChange = { settingsViewModel.updateYtdlReferer(it) }
-                )
+            SettingEditableTextCard(
+                title = "Cookies File Path",
+                subtitle = "Absolute path to netscape format cookie text file",
+                value = playbackSettings.cookiesFile,
+                placeholder = "/storage/emulated/0/cookies.txt",
+                onValueChange = { settingsViewModel.updateYtdlCookiesFile(it) }
+            )
 
-                SettingsDivider()
+            SettingEditableTextCard(
+                title = "Proxy Address",
+                subtitle = "Proxy connection URL (e.g. socks5://127.0.0.1:1080)",
+                value = playbackSettings.proxy,
+                placeholder = "socks5://ip:port",
+                onValueChange = { settingsViewModel.updateYtdlProxy(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "Cookies File Path",
-                    subtitle = "Absolute path to netscape format cookie text file",
-                    value = playbackSettings.cookiesFile,
-                    placeholder = "/storage/emulated/0/cookies.txt",
-                    onValueChange = { settingsViewModel.updateYtdlCookiesFile(it) }
-                )
-
-                SettingsDivider()
-
-                EditableTextSettingRow(
-                    title = "Proxy Address",
-                    subtitle = "Proxy connection URL (e.g. socks5://127.0.0.1:1080)",
-                    value = playbackSettings.proxy,
-                    placeholder = "socks5://ip:port",
-                    onValueChange = { settingsViewModel.updateYtdlProxy(it) }
-                )
-
-                SettingsDivider()
-
-                EditableTextSettingRow(
-                    title = "Extractor Arguments",
-                    subtitle = "Format: 'key:val' or multiple separated by commas",
-                    value = playbackSettings.extractorArgs,
-                    placeholder = "youtube:player_client=android",
-                    onValueChange = { settingsViewModel.updateYtdlExtractorArgs(it) }
-                )
-            }
+            SettingEditableTextCard(
+                title = "Extractor Arguments",
+                subtitle = "Format: 'key:val' or multiple separated by commas",
+                value = playbackSettings.extractorArgs,
+                placeholder = "youtube:player_client=android",
+                onValueChange = { settingsViewModel.updateYtdlExtractorArgs(it) }
+            )
 
             // Section 5: SponsorBlock Integration
             YtdlpSectionHeader(title = "SponsorBlock Integration", icon = Icons.Default.Block)
-            SettingsCard {
-                EditableTextSettingRow(
-                    title = "Mark Categories",
-                    subtitle = "Insert chapters for specific segments (comma-separated, e.g. sponsor,intro)",
-                    value = playbackSettings.sponsorBlockMark,
-                    placeholder = "sponsor,selfpromo",
-                    onValueChange = { settingsViewModel.updateYtdlSponsorBlockMark(it) }
-                )
 
-                SettingsDivider()
+            SettingEditableTextCard(
+                title = "Mark Categories",
+                subtitle = "Insert chapters for specific segments (comma-separated, e.g. sponsor,intro)",
+                value = playbackSettings.sponsorBlockMark,
+                placeholder = "sponsor,selfpromo",
+                onValueChange = { settingsViewModel.updateYtdlSponsorBlockMark(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "Remove Categories",
-                    subtitle = "Automatically skip specific video categories during playback",
-                    value = playbackSettings.sponsorBlockRemove,
-                    placeholder = "sponsor",
-                    onValueChange = { settingsViewModel.updateYtdlSponsorBlockRemove(it) }
-                )
-            }
+            SettingEditableTextCard(
+                title = "Remove Categories",
+                subtitle = "Automatically skip specific video categories during playback",
+                value = playbackSettings.sponsorBlockRemove,
+                placeholder = "sponsor",
+                onValueChange = { settingsViewModel.updateYtdlSponsorBlockRemove(it) }
+            )
 
             // Section 6: Advanced & Raw Options
             YtdlpSectionHeader(title = "Advanced Options", icon = Icons.Default.Build)
-            SettingsCard {
-                EditableTextSettingRow(
-                    title = "Custom Format Selector String",
-                    subtitle = "Overrides all quality, container and codec selectors (advanced)",
-                    value = playbackSettings.ytdlFormat,
-                    placeholder = "bestvideo+bestaudio/best",
-                    onValueChange = { settingsViewModel.updateYtdlFormat(it) }
-                )
 
-                SettingsDivider()
+            SettingEditableTextCard(
+                title = "Custom Format Selector String",
+                subtitle = "Overrides all quality, container and codec selectors (advanced)",
+                value = playbackSettings.ytdlFormat,
+                placeholder = "bestvideo+bestaudio/best",
+                onValueChange = { settingsViewModel.updateYtdlFormat(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "Merge Output Format",
-                    subtitle = "Force container file format when muxing (e.g. mkv, mp4)",
-                    value = playbackSettings.mergeOutputFormat,
-                    placeholder = "mkv",
-                    onValueChange = { settingsViewModel.updateYtdlMergeOutputFormat(it) }
-                )
+            SettingEditableTextCard(
+                title = "Merge Output Format",
+                subtitle = "Force container file format when muxing (e.g. mkv, mp4)",
+                value = playbackSettings.mergeOutputFormat,
+                placeholder = "mkv",
+                onValueChange = { settingsViewModel.updateYtdlMergeOutputFormat(it) }
+            )
 
-                SettingsDivider()
+            SettingEditableTextCard(
+                title = "Format Sort Order",
+                subtitle = "Rules for prioritizing stream formats (e.g. res,fps,codec)",
+                value = playbackSettings.formatSort,
+                placeholder = "res,fps,codec",
+                onValueChange = { settingsViewModel.updateYtdlFormatSort(it) }
+            )
 
-                EditableTextSettingRow(
-                    title = "Format Sort Order",
-                    subtitle = "Rules for prioritizing stream formats (e.g. res,fps,codec)",
-                    value = playbackSettings.formatSort,
-                    placeholder = "res,fps,codec",
-                    onValueChange = { settingsViewModel.updateYtdlFormatSort(it) }
-                )
-
-                SettingsDivider()
-
-                EditableTextSettingRow(
-                    title = "Custom Raw Option Flags",
-                    subtitle = "Additional command-line parameters (e.g. --no-check-certificates)",
-                    value = playbackSettings.customRawOptions,
-                    placeholder = "--no-check-certificates",
-                    onValueChange = { settingsViewModel.updateYtdlCustomRawOptions(it) }
-                )
-            }
+            SettingEditableTextCard(
+                title = "Custom Raw Option Flags",
+                subtitle = "Additional command-line parameters (e.g. --no-check-certificates)",
+                value = playbackSettings.customRawOptions,
+                placeholder = "--no-check-certificates",
+                onValueChange = { settingsViewModel.updateYtdlCustomRawOptions(it) }
+            )
 
             Spacer(Modifier.height(32.dp))
         }
@@ -724,215 +696,296 @@ private fun YtdlpSectionHeader(
 }
 
 @Composable
-private fun SettingsCard(
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        content = content
-    )
-}
-
-@Composable
-private fun SettingsDivider() {
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        modifier = Modifier.padding(horizontal = 16.dp)
-    )
-}
-
-@Composable
-private fun SwitchSettingRow(
+private fun SettingToggleCard(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onCheckedChange(!checked) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (checked && enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (checked && enabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (checked && enabled) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (checked && enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        )
     }
 }
 
 @Composable
-private fun DropdownSettingRow(
+private fun SettingDropdownCard(
     title: String,
     subtitle: String,
     currentValue: String,
     isExpanded: Boolean,
     onExpandChange: (Boolean) -> Unit,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
     dropdownContent: @Composable ColumnScope.() -> Unit
 ) {
-    Row(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .clickable { onExpandChange(!isExpanded) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(14.dp))
+            .then(if (enabled) Modifier.clickable { onExpandChange(!isExpanded) } else Modifier)
+            .alpha(if (enabled) 1f else 0.38f)
+            .border(
+                BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Box {
             Row(
+                modifier = Modifier.weight(1f).padding(end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = currentValue,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = currentValue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                DropdownMenu(
+                    expanded = isExpanded,
+                    onDismissRequest = { onExpandChange(false) },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    content = dropdownContent
                 )
             }
-            DropdownMenu(
-                expanded = isExpanded,
-                onDismissRequest = { onExpandChange(false) },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                content = dropdownContent
-            )
         }
     }
 }
 
 @Composable
-private fun EditableTextSettingRow(
+private fun SettingEditableTextCard(
     title: String,
     subtitle: String,
     value: String,
     placeholder: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var textValue by remember(value) { mutableStateOf(value) }
     var isEditing by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
+    Card(
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            IconButton(
-                onClick = { isEditing = !isEditing }
-            ) {
-                Icon(
-                    imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
-                    contentDescription = if (isEditing) "Confirm" else "Edit",
-                    tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = isEditing,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            OutlinedTextField(
-                value = textValue,
-                onValueChange = {
-                    textValue = it
-                    onValueChange(it)
-                },
-                placeholder = { Text(placeholder) },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Done
+            .clip(RoundedCornerShape(14.dp))
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isEditing) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 ),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+                RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isEditing) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f)
+            else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-        if (!isEditing && value.isNotBlank()) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            )
+                IconButton(
+                    onClick = { isEditing = !isEditing }
+                ) {
+                    Icon(
+                        imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                        contentDescription = if (isEditing) "Confirm" else "Edit",
+                        tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isEditing,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = {
+                        textValue = it
+                        onValueChange(it)
+                    },
+                    placeholder = { Text(placeholder) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (!isEditing && value.isNotBlank()) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }
