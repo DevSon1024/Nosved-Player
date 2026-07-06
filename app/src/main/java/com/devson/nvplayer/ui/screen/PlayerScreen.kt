@@ -70,6 +70,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import android.os.BatteryManager
 import android.os.Build
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import com.devson.nvplayer.player.service.MediaPlaybackService
 import java.text.SimpleDateFormat
@@ -95,8 +96,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyRow
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.ui.platform.LocalConfiguration
-
-
+import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 
 @Composable
 fun PlayerScreen(
@@ -105,6 +105,7 @@ fun PlayerScreen(
     currentPosition: Long,
     duration: Long,
     currentUri: Uri?,
+    preFetchedMetadata: PreFetchedVideoMetadata? = null,
     videoWidth: Long,
     videoHeight: Long,
     videoRotation: Long,
@@ -414,7 +415,7 @@ fun PlayerScreen(
     }
 
     // Dynamically adjust screen orientation based on user setting or video dimensions
-    LaunchedEffect(videoWidth, videoHeight, videoRotation, playbackSettings.orientationMode) {
+    LaunchedEffect(videoWidth, videoHeight, videoRotation, preFetchedMetadata, playbackSettings.orientationMode) {
         var currentContext = context
         while (currentContext is ContextWrapper) {
             if (currentContext is Activity) {
@@ -422,22 +423,44 @@ fun PlayerScreen(
                 when (orientationMode) {
                     OrientationMode.LANDSCAPE,
                     OrientationMode.AUTO -> {
-                        // Force landscape regardless of video dimensions
-                        currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        val target = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        if (currentContext.requestedOrientation != target) {
+                            currentContext.requestedOrientation = target
+                        }
                     }
                     OrientationMode.PORTRAIT -> {
-                        currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        val target = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        if (currentContext.requestedOrientation != target) {
+                            currentContext.requestedOrientation = target
+                        }
                     }
                     OrientationMode.SYSTEM_DEFAULT -> {
-                        // Auto-detect from video dimensions (original behaviour)
-                        if (videoWidth > 0 && videoHeight > 0) {
+                        val meta = preFetchedMetadata
+                        if (meta != null && meta.width > 0 && meta.height > 0) {
+                            val isRotated = meta.rotation == 90 || meta.rotation == 270
+                            val displayWidth = if (isRotated) meta.height else meta.width
+                            val displayHeight = if (isRotated) meta.width else meta.height
+                            val target = if (displayWidth > displayHeight) {
+                                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            } else {
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                            if (currentContext.requestedOrientation != target) {
+                                Log.d("PlayerScreen", "Setting orientation from pre-fetched metadata: target=$target")
+                                currentContext.requestedOrientation = target
+                            }
+                        } else if (videoWidth > 0 && videoHeight > 0) {
                             val isRotated = videoRotation == 90L || videoRotation == 270L
                             val displayWidth = if (isRotated) videoHeight else videoWidth
                             val displayHeight = if (isRotated) videoWidth else videoHeight
-                            if (displayWidth > displayHeight) {
-                                currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            val target = if (displayWidth > displayHeight) {
+                                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                             } else {
-                                currentContext.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                            if (currentContext.requestedOrientation != target) {
+                                Log.d("PlayerScreen", "Setting orientation from video dimensions: target=$target")
+                                currentContext.requestedOrientation = target
                             }
                         }
                     }

@@ -50,11 +50,11 @@ class ViewSettingsRepository private constructor(context: Context) {
                 DefaultScreen.valueOf(
                     prefs.getString(
                         "default_screen",
-                        DefaultScreen.VIDEO_LIST.name
-                    ) ?: DefaultScreen.VIDEO_LIST.name
+                        DefaultScreen.HOME.name
+                    ) ?: DefaultScreen.HOME.name
                 )
             } catch (e: Exception) {
-                DefaultScreen.VIDEO_LIST
+                DefaultScreen.HOME
             },
             layoutMode = try {
                 LayoutMode.valueOf(

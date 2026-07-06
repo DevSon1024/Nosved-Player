@@ -12,7 +12,7 @@ data class ViewSettings(
     val showHistoryCard: Boolean = true,
     val showStorageTracker: Boolean = true,
     val showLatestVideos: Boolean = true,
-    val defaultScreen: DefaultScreen = DefaultScreen.VIDEO_LIST,
+    val defaultScreen: DefaultScreen = DefaultScreen.HOME,
     
     // New fields for VideoList UI
     val layoutMode: LayoutMode = LayoutMode.LIST,

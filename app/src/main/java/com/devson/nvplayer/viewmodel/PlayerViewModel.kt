@@ -39,7 +39,13 @@ import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import android.media.MediaMetadataRetriever
 
+data class PreFetchedVideoMetadata(
+    val width: Int,
+    val height: Int,
+    val rotation: Int
+)
 
 /**
  * ViewModel managing the media playback state and bridging it to Compose UI.
@@ -79,6 +85,9 @@ class PlayerViewModel(
 
     private val _currentUri = MutableStateFlow<Uri?>(null)
     val currentUri: StateFlow<Uri?> = _currentUri.asStateFlow()
+
+    private val _preFetchedMetadata = MutableStateFlow<PreFetchedVideoMetadata?>(null)
+    val preFetchedMetadata: StateFlow<PreFetchedVideoMetadata?> = _preFetchedMetadata.asStateFlow()
 
     private val _playlist = MutableStateFlow<List<Uri>>(emptyList())
     val playlist: StateFlow<List<Uri>> = _playlist.asStateFlow()
@@ -423,6 +432,14 @@ class PlayerViewModel(
         Log.d("PlayerViewModel", "Preparing video URI: $uri, playlist size: ${playlistUris.size}")
         _currentUri.value = uri
         _playlist.value = playlistUris
+        
+        _preFetchedMetadata.value = null
+        viewModelScope.launch {
+            val meta = preFetchVideoMetadata(getApplication(), uri)
+            _preFetchedMetadata.value = meta
+            Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
+        }
+
         updateNavigationStates()
         val currentQueue = _queueList.value
         if (currentQueue.isEmpty() || currentQueue.size != playlistUris.size || currentQueue.map { it.uri } != playlistUris.map { it.toString() }) {
@@ -556,6 +573,14 @@ class PlayerViewModel(
         savePlaybackProgress()
         Log.d("PlayerViewModel", "Changing video to: $uri")
         _currentUri.value = uri
+        
+        _preFetchedMetadata.value = null
+        viewModelScope.launch {
+            val meta = preFetchVideoMetadata(getApplication(), uri)
+            _preFetchedMetadata.value = meta
+            Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
+        }
+
         isVideoLoaded = false
         isPositionRestored = false
         isExternalSubtitleLoaded = false
@@ -1126,6 +1151,24 @@ class PlayerViewModel(
             `is`.xyz.mpv.MPVLib.setPropertyInt("hue", hue)
         } catch (e: Exception) {
             Log.e("PlayerViewModel", "Failed to apply enhance settings", e)
+        }
+    }
+
+    private suspend fun preFetchVideoMetadata(context: Context, uri: Uri): PreFetchedVideoMetadata = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            PreFetchedVideoMetadata(width, height, rotation)
+        } catch (e: Exception) {
+            Log.e("PlayerViewModel", "Error pre-fetching video metadata: ${e.localizedMessage}")
+            PreFetchedVideoMetadata(0, 0, 0)
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {}
         }
     }
 

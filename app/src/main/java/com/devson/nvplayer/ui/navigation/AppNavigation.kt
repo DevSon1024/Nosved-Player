@@ -33,6 +33,7 @@ import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.MpvConfigSettingsScreen
 import com.devson.nvplayer.viewmodel.HomeViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
+import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 import com.devson.nvplayer.viewmodel.FileOperationsViewModel
@@ -559,6 +560,7 @@ fun AppNavigation(
             val videoWidth by playerVm.videoWidth.collectAsStateWithLifecycle()
             val videoHeight by playerVm.videoHeight.collectAsStateWithLifecycle()
             val videoRotation by playerVm.videoRotation.collectAsStateWithLifecycle()
+            val preFetchedMetadata by playerVm.preFetchedMetadata.collectAsStateWithLifecycle()
             val playbackSpeed by playerVm.playbackSpeed.collectAsStateWithLifecycle()
             val savedBrightness by playerVm.savedBrightness.collectAsStateWithLifecycle()
             val savedVolume by playerVm.savedVolume.collectAsStateWithLifecycle()
@@ -601,6 +603,7 @@ fun AppNavigation(
                 videoWidth = videoWidth,
                 videoHeight = videoHeight,
                 videoRotation = videoRotation,
+                preFetchedMetadata = preFetchedMetadata,
                 playbackSpeed = playbackSpeed,
                 savedBrightness = savedBrightness,
                 savedVolume = savedVolume,

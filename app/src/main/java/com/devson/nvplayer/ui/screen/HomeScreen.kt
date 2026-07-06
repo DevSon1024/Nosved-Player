@@ -2,6 +2,7 @@ package com.devson.nvplayer.ui.screen
 
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -191,6 +192,19 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    val greeting = remember {
+                        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                        when (hour) {
+                            in 0..11 -> "Good morning"
+                            in 12..16 -> "Good afternoon"
+                            else -> "Good evening"
+                        }
+                    }
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
                         text = "Nosved Player",
                         style = MaterialTheme.typography.headlineLarge,
@@ -205,7 +219,12 @@ fun HomeScreen(
                     IconButton(
                         onClick = { showNetworkDialog = true },
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            CircleShape
                         )
                     ) {
                         Icon(
@@ -217,7 +236,12 @@ fun HomeScreen(
                     IconButton(
                         onClick = onSettingsClick,
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier.border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            CircleShape
                         )
                     ) {
                         Icon(
@@ -429,13 +453,13 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Bento Tertiary Recycle Bin Card
+                    // Bento Tertiary Recycle Bin Card (using error color scheme for deletion theme)
                     QuickActionCardBentoSmall(
                         title = "Recycle Bin",
                         subtitle = "Restore deleted media",
                         icon = Icons.Default.Delete,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        iconColor = MaterialTheme.colorScheme.onErrorContainer,
                         onClick = onRecycleBinClick,
                         modifier = Modifier.weight(1f)
                     )
@@ -464,7 +488,7 @@ fun HomeScreen(
                 StatsCard(
                     title = "Played",
                     value = history.size.toString(),
-                    icon = { Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.tertiary) },
+                    icon = { Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.primary) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -631,7 +655,11 @@ fun StatsCard(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
     ) {
         Column(
@@ -671,11 +699,23 @@ fun QuickActionCardBento(
     modifier: Modifier = Modifier,
     isProminent: Boolean = false
 ) {
-    val finalBgColor = if (isProminent) containerColor else containerColor.copy(alpha = 0.12f)
-    val finalContentColor = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    val finalSubtitleColor = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val finalIconBoxBg = if (isProminent) MaterialTheme.colorScheme.onPrimaryContainer else containerColor
-    val finalIconTint = if (isProminent) containerColor else iconColor
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val gradientBrush = remember(primaryColor, secondaryColor) {
+        Brush.linearGradient(
+            colors = listOf(
+                primaryColor,
+                primaryColor.copy(alpha = 0.9f),
+                secondaryColor
+            )
+        )
+    }
+
+    val finalBgColor = if (isProminent) Color.Transparent else containerColor.copy(alpha = 0.12f)
+    val finalContentColor = if (isProminent) Color.White else MaterialTheme.colorScheme.onSurface
+    val finalSubtitleColor = if (isProminent) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val finalIconBoxBg = if (isProminent) Color.White.copy(alpha = 0.2f) else containerColor
+    val finalIconTint = if (isProminent) Color.White else iconColor
 
     Card(
         modifier = modifier
@@ -687,11 +727,16 @@ fun QuickActionCardBento(
         ),
         border = if (isProminent) null else androidx.compose.foundation.BorderStroke(
             1.dp,
-            containerColor.copy(alpha = 0.2f)
+            containerColor.copy(alpha = 0.25f)
         )
     ) {
+        val contentModifier = if (isProminent) {
+            Modifier.background(gradientBrush).padding(20.dp)
+        } else {
+            Modifier.padding(20.dp)
+        }
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = contentModifier,
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -748,11 +793,11 @@ fun QuickActionCardBentoSmall(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = containerColor.copy(alpha = 0.12f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            containerColor.copy(alpha = 0.2f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
     ) {
         Column(
@@ -1094,6 +1139,11 @@ fun LatestVideoItem(
             .width(160.dp)
             .height(110.dp)
             .clip(RoundedCornerShape(16.dp))
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                RoundedCornerShape(16.dp)
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -1210,6 +1260,12 @@ fun HistoryCardItem(
 
     Card(
         modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                RoundedCornerShape(24.dp)
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = { menuExpanded = true }

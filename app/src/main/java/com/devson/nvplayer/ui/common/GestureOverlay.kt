@@ -130,7 +130,6 @@ fun GestureOverlay(
 
     // Double tap play/pause ripple states
     var playPauseRippleTick by remember { mutableStateOf(0) }
-    var lastIsPlaying by remember { mutableStateOf(isPlaying) }
 
     // Left/Right double tap seek ripple states
     var leftAccumulatedMs by remember { mutableStateOf(0L) }
@@ -160,12 +159,7 @@ fun GestureOverlay(
         })
     }
 
-    LaunchedEffect(isPlaying) {
-        if (lastIsPlaying != isPlaying) {
-            playPauseRippleTick++
-            lastIsPlaying = isPlaying
-        }
-    }
+
 
     val currentPositionState = rememberUpdatedState(currentPosition)
     val durationState = rememberUpdatedState(duration)
@@ -204,6 +198,7 @@ fun GestureOverlay(
     ) {
         when (action) {
             MultiFingerAction.PLAY_PAUSE -> {
+                playPauseRippleTick++
                 onPlayPause()
             }
             MultiFingerAction.FAST_PLAY -> {
@@ -531,10 +526,12 @@ fun GestureOverlay(
                                                             rightRippleActive = false
                                                         }
                                                     } else {
+                                                        playPauseRippleTick++
                                                         onPlayPauseToggleState.value()
                                                     }
                                                 }
                                                 DoubleTapAction.PLAY_PAUSE -> {
+                                                    playPauseRippleTick++
                                                     onPlayPauseToggleState.value()
                                                 }
                                                 DoubleTapAction.FAST_FORWARD -> {
