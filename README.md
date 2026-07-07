@@ -56,7 +56,7 @@ cd Nosved-Player
 
 ## Acknowledgements
 
-Special thanks to [**Ritesh Pandey (@Riteshp2001)**](https://github.com/Riteshp2001) and the [**mpvRxin**](https://github.com/Riteshp2001/mpvRxin) project for the inspiration and foundational work on:
+Special thanks to [**Ritesh Pandey (@Riteshp2001)**](https://github.com/Riteshp2001) and the [**mpvRx**](https://github.com/Riteshp2001/mpvRx) project for the inspiration and foundational work on:
 
 - **yt-dlp Online Streaming Integration** - enabling seamless online video playback via yt-dlp within an MPV-based Android player.
 - **MPV Config Editor** - the in-app mpv.conf editor concept that allows users to tweak the MPV engine directly from the UI.
