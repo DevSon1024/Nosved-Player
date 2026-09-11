@@ -33,3 +33,12 @@ class VaultCorruptedFileException(
     message: String = "Vault file is corrupted or truncated.",
     cause: Throwable? = null
 ) : IOException(message, cause)
+
+/**
+ * Thrown when there is insufficient free disk space to safely perform migration.
+ */
+class VaultInsufficientStorageException(
+    message: String = "Insufficient storage space available to safely complete vault migration.",
+    cause: Throwable? = null
+) : IOException(message, cause)
+

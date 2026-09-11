@@ -223,8 +223,8 @@ class DefaultVaultContainer : VaultContainer {
                     }
 
                     VaultStorageMode.ENCRYPTED -> {
-                        if (header.formatVersion == VaultFileFormat.FORMAT_VERSION_LEGACY_V1) {
-                            decryptLegacyV1(fis, partFile, header.nonce)
+                        if (header.formatVersion == VaultFileFormat.FORMAT_VERSION_LEGACY_V1 || header.formatVersion == 0) {
+                            LegacyVaultManager.decryptLegacyFile(vaultFile, partFile)
                         } else {
                             if (passwordOrPin.isEmpty()) {
                                 throw VaultAuthenticationException("Password or PIN required to decrypt this vault file")
@@ -348,31 +348,6 @@ class DefaultVaultContainer : VaultContainer {
         }
     }
 
-    private fun decryptLegacyV1(fis: InputStream, destinationPartFile: File, iv: ByteArray) {
-        val seed = ("com.devson.nvplayer_VaultMasterAES256Key_NosvedPlayer_SecureStorage").toByteArray(Charsets.UTF_8)
-        val sha = java.security.MessageDigest.getInstance("SHA-256")
-        val keyBytes = sha.digest(seed)
-        val legacyKey = SecretKeySpec(keyBytes, "AES")
-
-        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, legacyKey, IvParameterSpec(iv))
-
-        FileOutputStream(destinationPartFile).buffered(BUFFER_SIZE).use { fos ->
-            val buffer = ByteArray(BUFFER_SIZE)
-            var bytesRead: Int
-            while (fis.read(buffer).also { bytesRead = it } != -1) {
-                val decrypted = cipher.update(buffer, 0, bytesRead)
-                if (decrypted != null && decrypted.isNotEmpty()) {
-                    fos.write(decrypted)
-                }
-            }
-            val finalBytes = cipher.doFinal()
-            if (finalBytes != null && finalBytes.isNotEmpty()) {
-                fos.write(finalBytes)
-            }
-            fos.flush()
-        }
-    }
 
     companion object {
         private const val BUFFER_SIZE = 64 * 1024

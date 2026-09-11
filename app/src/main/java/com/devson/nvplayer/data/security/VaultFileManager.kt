@@ -32,6 +32,15 @@ class VaultFileManager(
     val vaultContainer: VaultContainer = DefaultVaultContainer()
 ) {
 
+    val migrationManager: VaultMigrationManager by lazy {
+        VaultMigrationManager(
+            context = context,
+            vaultDao = vaultDao,
+            vaultContainer = vaultContainer,
+            vaultDirectory = vaultDirectory
+        )
+    }
+
     val vaultDirectory: File by lazy {
         val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
         val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
