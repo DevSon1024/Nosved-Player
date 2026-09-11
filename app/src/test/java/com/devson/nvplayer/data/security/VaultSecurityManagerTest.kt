@@ -40,6 +40,9 @@ class VaultSecurityManagerTest {
         assertFalse("Config must not contain plaintext PIN", configFileText.contains("1234"))
         assertFalse("Config must not contain plaintext answer", configFileText.contains("Interstellar"))
         assertTrue("Config must contain KDF algorithm", configFileText.contains("PBKDF2WithHmacSHA256"))
+        assertTrue("Config must contain wrappedMasterKey", configFileText.contains("wrappedMasterKey"))
+        assertTrue("Metadata must contain wrapped master key bytes", metadata.wrappedMasterKey.isNotEmpty())
+        assertTrue("Metadata must contain wrapped key IV", metadata.wrappedKeyIv.isNotEmpty())
     }
 
     @Test
@@ -216,5 +219,56 @@ class VaultSecurityManagerTest {
         assertArrayEquals("Same credential must derive identical key", key1.encoded, key2.encoded)
         assertEquals("AES", key1.algorithm)
         assertEquals(32, key1.encoded.size) // 256 bits
+    }
+
+    @Test
+    fun pinChangePreservesMasterEncryptionKey() {
+        val vaultDir = tempFolder.newFolder("vault_pin_change")
+        val manager = VaultSecurityManager(customVaultDirectory = vaultDir)
+        manager.createVaultCredential("1234")
+
+        val masterKeyBefore = manager.deriveEncryptionKey("1234")
+
+        // User changes PIN 1234 -> 5678
+        assertTrue(manager.updatePin("1234", "5678"))
+
+        // Old PIN must no longer work
+        assertFalse(manager.verifyVaultCredential("1234"))
+        assertTrue(manager.verifyVaultCredential("5678"))
+
+        // New PIN must derive the EXACT SAME master key (Architecture A)
+        val masterKeyAfter = manager.deriveEncryptionKey("5678")
+        assertArrayEquals(
+            "Changing PIN must re-wrap and preserve the identical master encryption key",
+            masterKeyBefore.encoded,
+            masterKeyAfter.encoded
+        )
+    }
+
+    @Test
+    fun securityQuestionDistinguishesPinRecoveryFromKeyRecovery() {
+        val vaultDir = tempFolder.newFolder("vault_sec_question")
+        val manager = VaultSecurityManager(customVaultDirectory = vaultDir)
+        manager.createVaultCredential(
+            credential = "2222",
+            question = "Birthplace?",
+            answer = "Springfield"
+        )
+
+        val masterKeyBefore = manager.deriveEncryptionKey("2222")
+
+        // Reset PIN using security answer
+        assertTrue(manager.resetPinWithSecurityAnswer("Springfield", "3333"))
+
+        // Old PIN no longer authenticates
+        assertFalse(manager.verifyVaultCredential("2222"))
+        assertTrue(manager.verifyVaultCredential("3333"))
+
+        // Security answer recovery creates a new master key for future media
+        val masterKeyAfter = manager.deriveEncryptionKey("3333")
+        assertFalse(
+            "Security question reset generates a fresh master key for future files",
+            masterKeyBefore.encoded.contentEquals(masterKeyAfter.encoded)
+        )
     }
 }

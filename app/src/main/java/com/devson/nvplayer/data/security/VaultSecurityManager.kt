@@ -8,6 +8,7 @@ import androidx.security.crypto.MasterKey
 import com.devson.nvplayer.domain.model.VaultStorageMode
 import java.io.File
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
@@ -107,7 +108,12 @@ class VaultSecurityManager(
         }
         return try {
             val metadata = loadVaultMetadata()
-            if (metadata != null && metadata.salt.isNotEmpty() && metadata.authCiphertext.isNotEmpty() && metadata.authIv.isNotEmpty()) {
+            if (metadata != null &&
+                metadata.salt.isNotEmpty() &&
+                metadata.authCiphertext.isNotEmpty() &&
+                metadata.authIv.isNotEmpty() &&
+                (metadata.wrappedMasterKey.isEmpty() || metadata.wrappedKeyIv.isNotEmpty())
+            ) {
                 VaultMetadataStatus.VALID
             } else {
                 VaultMetadataStatus.CORRUPTED
@@ -150,12 +156,16 @@ class VaultSecurityManager(
     ): VaultMetadata {
         require(credential.isNotEmpty()) { "Vault credential cannot be empty" }
 
+        val masterKeyBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
         val salt = VaultKeyDerivation.generateSalt()
         val authIv = VaultKeyDerivation.generateGcmNonce()
-        val derivedKey = VaultKeyDerivation.deriveKey(credential, salt, iterations)
+        val wrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
+        val kek = VaultKeyDerivation.deriveKey(credential, salt, iterations)
+
+        val wrappedMasterKey = wrapMasterKey(masterKeyBytes, kek, wrappedKeyIv)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, derivedKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, authIv))
+        cipher.init(Cipher.ENCRYPT_MODE, kek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, authIv))
         val authCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
 
         var secAnswerSalt = ByteArray(0)
@@ -173,9 +183,12 @@ class VaultSecurityManager(
             salt = salt,
             authCiphertext = authCiphertext,
             authIv = authIv,
+            wrappedMasterKey = wrappedMasterKey,
+            wrappedKeyIv = wrappedKeyIv,
             securityQuestion = question,
             securityAnswerSalt = secAnswerSalt,
             securityAnswerHash = secAnswerHash,
+            defaultStorageMode = VaultStorageMode.NONE,
             timestamp = System.currentTimeMillis()
         )
 
@@ -186,8 +199,8 @@ class VaultSecurityManager(
     }
 
     /**
-     * Verifies the user's PIN/credential against the persisted canary tag.
-     * Returns true if credential correctly derives the key that decrypts the canary.
+     * Verifies the user's PIN/credential against the persisted canary tag and wrapped master key.
+     * Returns true if credential correctly derives the key that decrypts the canary and unwraps the master key.
      * Never alters, regenerates, or deletes any files or salt on wrong credentials.
      */
     fun verifyVaultCredential(credential: String): Boolean {
@@ -210,7 +223,16 @@ class VaultSecurityManager(
             )
 
             val decryptedCanary = cipher.doFinal(metadata.authCiphertext)
-            decryptedCanary.contentEquals(AUTH_CANARY_PAYLOAD)
+            if (!decryptedCanary.contentEquals(AUTH_CANARY_PAYLOAD)) {
+                return false
+            }
+
+            if (metadata.wrappedMasterKey.isNotEmpty() && metadata.wrappedKeyIv.isNotEmpty()) {
+                val unwrapped = unwrapMasterKey(metadata.wrappedMasterKey, candidateKey, metadata.wrappedKeyIv)
+                if (unwrapped.size != 32) return false
+            }
+
+            true
         } catch (_: AEADBadTagException) {
             false
         } catch (_: Exception) {
@@ -220,7 +242,8 @@ class VaultSecurityManager(
 
     /**
      * Derives the in-memory AES-256 SecretKeySpec for file operations after verifying the credential.
-     * The raw key is NEVER stored on disk.
+     * Unwraps the persisted Vault Master Key using the PIN-derived KEK.
+     * The raw master key is NEVER stored on disk in plaintext.
      */
     fun deriveEncryptionKey(credential: String): SecretKeySpec {
         val metadata = loadVaultMetadata()
@@ -230,11 +253,18 @@ class VaultSecurityManager(
             throw VaultAuthenticationException("Incorrect vault credential")
         }
 
-        return VaultKeyDerivation.deriveKey(
+        val kek = VaultKeyDerivation.deriveKey(
             credential = credential,
             salt = metadata.salt,
             iterations = metadata.kdfIterations
         )
+
+        return if (metadata.wrappedMasterKey.isNotEmpty() && metadata.wrappedKeyIv.isNotEmpty()) {
+            val masterKeyBytes = unwrapMasterKey(metadata.wrappedMasterKey, kek, metadata.wrappedKeyIv)
+            SecretKeySpec(masterKeyBytes, "AES")
+        } else {
+            kek
+        }
     }
 
     /**
@@ -288,25 +318,40 @@ class VaultSecurityManager(
 
     fun updatePin(oldPin: String, newPin: String): Boolean {
         if (!verifyVaultCredential(oldPin)) return false
+        if (newPin.isEmpty()) return false
 
         val oldMetadata = loadVaultMetadata() ?: return false
         val question = oldMetadata.securityQuestion
         val answerSalt = oldMetadata.securityAnswerSalt
         val answerHash = oldMetadata.securityAnswerHash
 
-        // Generate new salt and canary under the new PIN
+        val oldKek = VaultKeyDerivation.deriveKey(oldPin, oldMetadata.salt, oldMetadata.kdfIterations)
+        val masterKeyBytes = if (oldMetadata.wrappedMasterKey.isNotEmpty() && oldMetadata.wrappedKeyIv.isNotEmpty()) {
+            unwrapMasterKey(oldMetadata.wrappedMasterKey, oldKek, oldMetadata.wrappedKeyIv)
+        } else {
+            // Upgrade legacy V2: previously the derived key was used directly as media encryption key
+            oldKek.encoded
+        }
+
+        // Generate new salt and nonces under the new PIN
         val newSalt = VaultKeyDerivation.generateSalt()
         val newAuthIv = VaultKeyDerivation.generateGcmNonce()
-        val newKey = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+        val newWrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
+        val newKek = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+
+        // Architecture A: Re-wrap the SAME Vault Master Key with the new KEK
+        val newWrappedMasterKey = wrapMasterKey(masterKeyBytes, newKek, newWrappedKeyIv)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, newKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
+        cipher.init(Cipher.ENCRYPT_MODE, newKek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
         val newAuthCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
 
         val updatedMetadata = oldMetadata.copy(
             salt = newSalt,
             authCiphertext = newAuthCiphertext,
             authIv = newAuthIv,
+            wrappedMasterKey = newWrappedMasterKey,
+            wrappedKeyIv = newWrappedKeyIv,
             securityQuestion = question,
             securityAnswerSalt = answerSalt,
             securityAnswerHash = answerHash,
@@ -331,22 +376,31 @@ class VaultSecurityManager(
 
     fun resetPinWithSecurityAnswer(answer: String, newPin: String): Boolean {
         if (!verifySecurityAnswer(answer)) return false
+        if (newPin.isEmpty()) return false
         val oldMetadata = loadVaultMetadata() ?: return false
 
-        // Security question allows resetting access to unencrypted hidden files.
-        // Re-creates metadata canary with new PIN.
+        // Security question allows resetting authentication access for the vault.
+        // NOTE: Because the Vault Master Key was protected by the user's previous PIN-derived KEK,
+        // answering the security question cannot decrypt existing encrypted videos without the original PIN.
+        // A new Vault Master Key is generated for future files.
+        val newMasterKeyBytes = ByteArray(32).also { secureRandom.nextBytes(it) }
         val newSalt = VaultKeyDerivation.generateSalt()
         val newAuthIv = VaultKeyDerivation.generateGcmNonce()
-        val newKey = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+        val newWrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
+        val newKek = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+
+        val newWrappedMasterKey = wrapMasterKey(newMasterKeyBytes, newKek, newWrappedKeyIv)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, newKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
+        cipher.init(Cipher.ENCRYPT_MODE, newKek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
         val newAuthCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
 
         val updatedMetadata = oldMetadata.copy(
             salt = newSalt,
             authCiphertext = newAuthCiphertext,
             authIv = newAuthIv,
+            wrappedMasterKey = newWrappedMasterKey,
+            wrappedKeyIv = newWrappedKeyIv,
             timestamp = System.currentTimeMillis()
         )
 
@@ -444,11 +498,27 @@ class VaultSecurityManager(
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
+    private fun wrapMasterKey(masterKey: ByteArray, kek: SecretKeySpec, iv: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, kek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, iv))
+        cipher.updateAAD(VMK_AAD)
+        return cipher.doFinal(masterKey)
+    }
+
+    private fun unwrapMasterKey(wrappedMasterKey: ByteArray, kek: SecretKeySpec, iv: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, kek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, iv))
+        cipher.updateAAD(VMK_AAD)
+        return cipher.doFinal(wrappedMasterKey)
+    }
+
     companion object {
         private const val PREFS_FILE_NAME = "secure_vault_prefs"
         private const val KEY_BIOMETRIC_ENABLED = "vault_biometric_enabled"
         private const val KEY_VAULT_INITIALIZED_LOCALLY = "vault_initialized_locally"
         private val AUTH_CANARY_PAYLOAD = "NOSVED_VAULT_AUTH_CANARY_V2".toByteArray(Charsets.UTF_8)
+        private val VMK_AAD = "NOSVED_VAULT_VMK_V2".toByteArray(Charsets.UTF_8)
+        private val secureRandom = SecureRandom()
 
         val DEFAULT_SECURITY_QUESTIONS = listOf(
             "What is your birthplace?",
