@@ -13,6 +13,7 @@ import android.webkit.MimeTypeMap
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
 import com.devson.nvplayer.domain.model.VaultStorageMode
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -34,13 +35,21 @@ data class RebuildDatabaseResult(
     val invalidSkippedCount: Int
 )
 
+data class VaultDeletionResult(
+    val success: Boolean,
+    val deletedMediaCount: Int,
+    val failedMediaCount: Int,
+    val remainingFiles: List<String>
+)
+
 class VaultFileManager(
     private val context: Context? = null,
     private val vaultDao: VaultDao,
     val vaultContainer: VaultContainer = DefaultVaultContainer(),
     customVaultDirectory: File? = null,
     customThumbsDirectory: File? = null,
-    customTempPlaybackDirectory: File? = null
+    customTempPlaybackDirectory: File? = null,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
 
     val vaultDirectory: File by lazy {
@@ -123,7 +132,7 @@ class VaultFileManager(
         durationMs: Long = 0L,
         storageMode: VaultStorageMode = VaultStorageMode.NONE,
         vaultCredential: String = ""
-    ): Result<VaultEntity> = withContext(Dispatchers.IO) {
+    ): Result<VaultEntity> = withContext(ioDispatcher) {
         val fileId = UUID.randomUUID().toString()
         val destFile = File(vaultDirectory, "$fileId.vlt")
         val cleanTitle = title.ifBlank { "Protected Video" }
@@ -200,7 +209,7 @@ class VaultFileManager(
         durationMs: Long = 0L,
         storageMode: VaultStorageMode = VaultStorageMode.NONE,
         vaultCredential: String = ""
-    ): Result<VaultEntity> = withContext(Dispatchers.IO) {
+    ): Result<VaultEntity> = withContext(ioDispatcher) {
         if (!sourceFile.exists()) {
             return@withContext Result.failure(FileNotFoundException("Source file not found: ${sourceFile.absolutePath}"))
         }
@@ -264,7 +273,7 @@ class VaultFileManager(
         }
     }
 
-    suspend fun rebuildDatabaseFromStorage(credential: String = ""): RebuildDatabaseResult = withContext(Dispatchers.IO) {
+    suspend fun rebuildDatabaseFromStorage(credential: String = ""): RebuildDatabaseResult = withContext(ioDispatcher) {
         var restoredCount = 0
         var invalidCount = 0
         val vltFiles = vaultDirectory.listFiles { file -> file.isFile && file.extension == "vlt" }
@@ -461,7 +470,7 @@ class VaultFileManager(
         return null
     }
 
-    fun getPlaybackFile(vaultEntity: VaultEntity, credential: String = ""): File = runBlocking(Dispatchers.IO) {
+    fun getPlaybackFile(vaultEntity: VaultEntity, credential: String = ""): File = runBlocking(ioDispatcher) {
         val vaultFile = File(vaultEntity.vaultPath)
         if (!vaultFile.exists()) {
             throw FileNotFoundException("Vault file not found: ${vaultEntity.vaultPath}")
@@ -501,7 +510,7 @@ class VaultFileManager(
         vaultEntity: VaultEntity,
         destinationDirectory: File,
         credential: String = ""
-    ): Result<File> = withContext(Dispatchers.IO) {
+    ): Result<File> = withContext(ioDispatcher) {
         try {
             val vaultFile = File(vaultEntity.vaultPath)
             if (!vaultFile.exists()) {
@@ -589,7 +598,7 @@ class VaultFileManager(
         }
     }
 
-    suspend fun deletePermanently(vaultEntity: VaultEntity): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun deletePermanently(vaultEntity: VaultEntity): Result<Unit> = withContext(ioDispatcher) {
         try {
             val vaultFile = File(vaultEntity.vaultPath)
             if (vaultFile.exists()) {
@@ -613,6 +622,80 @@ class VaultFileManager(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun hasDatabaseRecords(): Boolean = withContext(ioDispatcher) {
+        try {
+            vaultDao.getAllVaultMedia().isNotEmpty()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun removeAllVaultData(securityManager: VaultSecurityManager? = null): VaultDeletionResult = withContext(ioDispatcher) {
+        var deletedCount = 0
+        var failedCount = 0
+        val remaining = mutableListOf<String>()
+
+        val files = vaultDirectory.listFiles()
+        if (files != null) {
+            for (file in files) {
+                if (file.name == ".nomedia") continue
+                if (file.isDirectory) {
+                    if (file.name == ".thumbs" || file.name == ".playback_temp") {
+                        file.listFiles()?.forEach { sub ->
+                            if (sub.name != ".nomedia") {
+                                if (!sub.delete() && sub.exists()) {
+                                    remaining.add("${file.name}/${sub.name}")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val isVlt = file.extension == "vlt"
+                    if (file.delete()) {
+                        if (isVlt) deletedCount++
+                    } else if (file.exists()) {
+                        if (isVlt) failedCount++
+                        remaining.add(file.name)
+                    }
+                }
+            }
+        }
+
+        thumbsDirectory.listFiles()?.forEach { file ->
+            if (file.name != ".nomedia") {
+                if (!file.delete() && file.exists()) {
+                    remaining.add("thumbs/${file.name}")
+                }
+            }
+        }
+
+        tempPlaybackDirectory.listFiles()?.forEach { file ->
+            if (file.name != ".nomedia") {
+                if (!file.delete() && file.exists()) {
+                    remaining.add("playback_temp/${file.name}")
+                }
+            }
+        }
+
+        try {
+            vaultDao.deleteAll()
+        } catch (_: Exception) {
+            try {
+                vaultDao.getAllVaultMedia().forEach { vaultDao.delete(it) }
+            } catch (_: Exception) {}
+        }
+
+        securityManager?.deleteVaultMetadata()
+
+        val overallSuccess = failedCount == 0 && remaining.isEmpty()
+        VaultDeletionResult(
+            success = overallSuccess,
+            deletedMediaCount = deletedCount,
+            failedMediaCount = failedCount,
+            remainingFiles = remaining
+        )
     }
 
     fun cleanPlaybackTemp() {

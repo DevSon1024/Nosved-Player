@@ -32,4 +32,7 @@ interface VaultDao {
 
     @Query("DELETE FROM vault_media WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM vault_media")
+    suspend fun deleteAll()
 }

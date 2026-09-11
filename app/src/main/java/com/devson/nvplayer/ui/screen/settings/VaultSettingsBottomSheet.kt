@@ -106,7 +106,7 @@ fun VaultSettingsBottomSheet(
             onDismissRequest = { showResetConfirmDialog = false },
             icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Reset Privacy Vault?") },
-            text = { Text("This will remove your current PIN and security question. Encrypted videos will remain on storage unless deleted.") },
+            text = { Text("This will remove your current PIN and security question. Note: any existing encrypted videos on device storage cannot be recovered without your previous PIN.") },
             confirmButton = {
                 TextButton(
                     onClick = {

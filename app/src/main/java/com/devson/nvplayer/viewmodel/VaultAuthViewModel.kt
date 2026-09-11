@@ -2,13 +2,15 @@ package com.devson.nvplayer.viewmodel
 
 import android.app.Application
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.security.VaultBiometricHelper
 import com.devson.nvplayer.data.security.VaultFileManager
+import com.devson.nvplayer.data.security.VaultMetadataStatus
 import com.devson.nvplayer.data.security.VaultSecurityManager
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,16 @@ sealed interface VaultAuthState {
     data object ConfirmPin : VaultAuthState
     data class SetupSecurityQuestion(val pin: String) : VaultAuthState
     data object EnterPin : VaultAuthState
+    data class ExistingVaultFound(val fileCount: Int, val isMetadataValid: Boolean) : VaultAuthState
+    data class RestorePinEntry(val fileCount: Int) : VaultAuthState
+    data class IncorrectPin(
+        val message: String,
+        val isFromRestore: Boolean = false,
+        val remainingFiles: Int = 0
+    ) : VaultAuthState
+    data class ConfirmRemoveVault(val step: Int, val fileCount: Int) : VaultAuthState
+    data class Restoring(val fileCount: Int) : VaultAuthState
+    data class RestoreSuccess(val restoredCount: Int) : VaultAuthState
     data class RestoreExistingVault(val fileCount: Int) : VaultAuthState
     data class AnswerSecurityQuestion(val isFromRestore: Boolean = false) : VaultAuthState
     data object ResetPin : VaultAuthState
@@ -30,10 +42,15 @@ sealed interface VaultAuthState {
 }
 
 class VaultAuthViewModel(
-    application: Application,
+    application: Application? = null,
     val securityManager: VaultSecurityManager,
-    private val vaultFileManager: VaultFileManager? = null
-) : AndroidViewModel(application) {
+    val vaultFileManager: VaultFileManager? = null,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+    coroutineScope: CoroutineScope? = null
+) : ViewModel() {
+
+    private val scope: CoroutineScope = coroutineScope ?: viewModelScope
 
     private val _authState = MutableStateFlow<VaultAuthState>(VaultAuthState.EnterPin)
     val authState: StateFlow<VaultAuthState> = _authState.asStateFlow()
@@ -52,13 +69,89 @@ class VaultAuthViewModel(
         _pinDigits.value = ""
         setupPinTemp = ""
         resetPinTemp = ""
-        if (securityManager.isPinSet()) {
+
+        val hasFilesOnDisk = securityManager.hasExistingVaultOnDisk()
+        val fileCount = securityManager.getExistingVaultFileCount()
+        val isMetadataValid = securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
+        val isLocallyInitialized = securityManager.isVaultInitializedLocally()
+
+        if (hasFilesOnDisk && !isLocallyInitialized) {
+            _authState.value = VaultAuthState.ExistingVaultFound(
+                fileCount = fileCount,
+                isMetadataValid = isMetadataValid
+            )
+        } else if (securityManager.isPinSet()) {
             _authState.value = VaultAuthState.EnterPin
-        } else if (securityManager.hasExistingVaultOnDisk()) {
-            _authState.value = VaultAuthState.RestoreExistingVault(securityManager.getExistingVaultFileCount())
+        } else if (hasFilesOnDisk) {
+            _authState.value = VaultAuthState.ExistingVaultFound(
+                fileCount = fileCount,
+                isMetadataValid = isMetadataValid
+            )
         } else {
             _authState.value = VaultAuthState.SetupPin
         }
+    }
+
+    fun onRestoreExistingVaultClicked() {
+        _pinDigits.value = ""
+        _authState.value = VaultAuthState.RestorePinEntry(securityManager.getExistingVaultFileCount())
+    }
+
+    fun onRemoveOldVaultClicked() {
+        _authState.value = VaultAuthState.ConfirmRemoveVault(
+            step = 1,
+            fileCount = securityManager.getExistingVaultFileCount()
+        )
+    }
+
+    fun onConfirmRemoveStep1() {
+        _authState.value = VaultAuthState.ConfirmRemoveVault(
+            step = 2,
+            fileCount = securityManager.getExistingVaultFileCount()
+        )
+    }
+
+    fun onConfirmRemoveFinal() {
+        scope.launch(mainDispatcher) {
+            val result = withContext(ioDispatcher) {
+                vaultFileManager?.removeAllVaultData(securityManager)
+                    ?: run {
+                        securityManager.resetVault(deleteFiles = true)
+                        com.devson.nvplayer.data.security.VaultDeletionResult(
+                            success = true,
+                            deletedMediaCount = 0,
+                            failedMediaCount = 0,
+                            remainingFiles = emptyList()
+                        )
+                    }
+            }
+            if (result.success) {
+                securityManager.setVaultInitializedLocally(false)
+                _pinDigits.value = ""
+                setupPinTemp = ""
+                resetPinTemp = ""
+                _authState.value = VaultAuthState.SetupPin
+            } else {
+                _authState.value = VaultAuthState.Error(
+                    "Partial deletion failure: ${result.remainingFiles.joinToString(", ")}"
+                )
+            }
+        }
+    }
+
+    fun onCancelRemoveVault() {
+        val fileCount = securityManager.getExistingVaultFileCount()
+        val isMetadataValid = securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
+        if (fileCount > 0) {
+            _authState.value = VaultAuthState.ExistingVaultFound(fileCount, isMetadataValid)
+        } else {
+            _authState.value = VaultAuthState.SetupPin
+        }
+    }
+
+    fun onRetryPin() {
+        _pinDigits.value = ""
+        _authState.value = VaultAuthState.RestorePinEntry(securityManager.getExistingVaultFileCount())
     }
 
     fun onDigit(digit: String) {
@@ -81,7 +174,7 @@ class VaultAuthViewModel(
     }
 
     private fun processCompletedPin(pin: String) {
-        viewModelScope.launch {
+        scope.launch(mainDispatcher) {
             when (val state = _authState.value) {
                 is VaultAuthState.SetupPin -> {
                     setupPinTemp = pin
@@ -97,11 +190,12 @@ class VaultAuthViewModel(
                         _authState.value = VaultAuthState.Error("PINs do not match. Try again.")
                     }
                 }
-                is VaultAuthState.EnterPin, is VaultAuthState.Error -> {
+                is VaultAuthState.EnterPin -> {
                     if (securityManager.verifyPin(pin)) {
                         _pinDigits.value = ""
-                        withContext(Dispatchers.IO) {
-                            vaultFileManager?.rebuildDatabaseFromStorage()
+                        securityManager.setVaultInitializedLocally(true)
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
                         }
                         _authState.value = VaultAuthState.Authenticated
                     } else {
@@ -109,16 +203,48 @@ class VaultAuthViewModel(
                         _authState.value = VaultAuthState.Error("Incorrect PIN")
                     }
                 }
-                is VaultAuthState.RestoreExistingVault -> {
+                is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> {
+                    val fileCount = (state as? VaultAuthState.RestorePinEntry)?.fileCount
+                        ?: (state as? VaultAuthState.RestoreExistingVault)?.fileCount
+                        ?: securityManager.getExistingVaultFileCount()
+
                     if (securityManager.verifyPin(pin)) {
                         _pinDigits.value = ""
-                        withContext(Dispatchers.IO) {
-                            vaultFileManager?.rebuildDatabaseFromStorage()
+                        _authState.value = VaultAuthState.Restoring(fileCount)
+                        securityManager.setVaultInitializedLocally(true)
+                        try {
+                            withContext(ioDispatcher) {
+                                vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
                         _authState.value = VaultAuthState.Authenticated
                     } else {
                         _pinDigits.value = ""
-                        _authState.value = VaultAuthState.Error("Incorrect PIN for existing vault.")
+                        _authState.value = VaultAuthState.IncorrectPin(
+                            message = "Incorrect Vault PIN. Your existing vault data has not been changed.",
+                            isFromRestore = true,
+                            remainingFiles = fileCount
+                        )
+                    }
+                }
+                is VaultAuthState.IncorrectPin -> {
+                    if (securityManager.verifyPin(pin)) {
+                        _pinDigits.value = ""
+                        _authState.value = VaultAuthState.Restoring(state.remainingFiles)
+                        securityManager.setVaultInitializedLocally(true)
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
+                        }
+                        _authState.value = VaultAuthState.Authenticated
+                    } else {
+                        _pinDigits.value = ""
+                        _authState.value = VaultAuthState.IncorrectPin(
+                            message = "Incorrect Vault PIN. Your existing vault data has not been changed.",
+                            isFromRestore = true,
+                            remainingFiles = state.remainingFiles
+                        )
                     }
                 }
                 is VaultAuthState.ResetPin -> {
@@ -129,14 +255,28 @@ class VaultAuthViewModel(
                 is VaultAuthState.ConfirmResetPin -> {
                     if (pin == resetPinTemp) {
                         securityManager.setPin(pin)
+                        securityManager.setVaultInitializedLocally(true)
                         _pinDigits.value = ""
-                        withContext(Dispatchers.IO) {
-                            vaultFileManager?.rebuildDatabaseFromStorage()
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
                         }
                         _authState.value = VaultAuthState.Authenticated
                     } else {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.Error("New PINs do not match. Try again.")
+                    }
+                }
+                is VaultAuthState.Error -> {
+                    if (securityManager.verifyPin(pin)) {
+                        _pinDigits.value = ""
+                        securityManager.setVaultInitializedLocally(true)
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
+                        }
+                        _authState.value = VaultAuthState.Authenticated
+                    } else {
+                        _pinDigits.value = ""
+                        _authState.value = VaultAuthState.Error("Incorrect PIN")
                     }
                 }
                 else -> {}
@@ -148,8 +288,9 @@ class VaultAuthViewModel(
         val current = _authState.value
         if (current is VaultAuthState.SetupSecurityQuestion) {
             securityManager.setPin(current.pin, question, answer)
-            viewModelScope.launch(Dispatchers.IO) {
-                vaultFileManager?.rebuildDatabaseFromStorage()
+            securityManager.setVaultInitializedLocally(true)
+            scope.launch(ioDispatcher) {
+                vaultFileManager?.rebuildDatabaseFromStorage(credential = current.pin)
             }
             _pinDigits.value = ""
             _authState.value = VaultAuthState.Authenticated
@@ -157,13 +298,16 @@ class VaultAuthViewModel(
     }
 
     fun onForgotPinClicked() {
-        val isRestore = _authState.value is VaultAuthState.RestoreExistingVault
+        val isRestore = _authState.value is VaultAuthState.RestoreExistingVault ||
+                _authState.value is VaultAuthState.RestorePinEntry ||
+                _authState.value is VaultAuthState.ExistingVaultFound ||
+                (_authState.value as? VaultAuthState.IncorrectPin)?.isFromRestore == true
         val question = securityManager.getSecurityQuestion()
         if (!question.isNullOrBlank()) {
             _pinDigits.value = ""
             _authState.value = VaultAuthState.AnswerSecurityQuestion(isFromRestore = isRestore)
         } else {
-            _authState.value = VaultAuthState.Error("No security question set. Please enter PIN or start a fresh vault.")
+            _authState.value = VaultAuthState.Error("No security question set. Please enter PIN or remove old vault data.")
         }
     }
 
@@ -178,11 +322,25 @@ class VaultAuthViewModel(
     }
 
     fun startFreshVault(deleteExistingFiles: Boolean) {
-        securityManager.resetVault(deleteFiles = deleteExistingFiles)
-        _pinDigits.value = ""
-        setupPinTemp = ""
-        resetPinTemp = ""
-        _authState.value = VaultAuthState.SetupPin
+        securityManager.setVaultInitializedLocally(false)
+        if (deleteExistingFiles) {
+            scope.launch(mainDispatcher) {
+                withContext(ioDispatcher) {
+                    vaultFileManager?.removeAllVaultData(securityManager)
+                        ?: securityManager.resetVault(deleteFiles = true)
+                }
+                _pinDigits.value = ""
+                setupPinTemp = ""
+                resetPinTemp = ""
+                _authState.value = VaultAuthState.SetupPin
+            }
+        } else {
+            securityManager.resetVault(deleteFiles = false)
+            _pinDigits.value = ""
+            setupPinTemp = ""
+            resetPinTemp = ""
+            _authState.value = VaultAuthState.SetupPin
+        }
     }
 
     fun authenticateWithBiometrics(activity: FragmentActivity) {
@@ -194,7 +352,7 @@ class VaultAuthViewModel(
             activity = activity,
             onSuccess = {
                 _pinDigits.value = ""
-                viewModelScope.launch(Dispatchers.IO) {
+                scope.launch(ioDispatcher) {
                     vaultFileManager?.rebuildDatabaseFromStorage()
                 }
                 _authState.value = VaultAuthState.Authenticated
@@ -208,7 +366,7 @@ class VaultAuthViewModel(
     }
 
     class Factory(
-        private val application: Application,
+        private val application: Application? = null,
         private val securityManager: VaultSecurityManager,
         private val vaultFileManager: VaultFileManager? = null
     ) : ViewModelProvider.Factory {

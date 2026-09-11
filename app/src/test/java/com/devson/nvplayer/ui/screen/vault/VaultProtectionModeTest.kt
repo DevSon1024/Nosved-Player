@@ -47,6 +47,7 @@ class VaultProtectionModeTest {
         }
         override suspend fun delete(vaultMedia: VaultEntity) { entities.remove(vaultMedia.id) }
         override suspend fun deleteById(id: Long) { entities.remove(id) }
+        override suspend fun deleteAll() { entities.clear() }
     }
 
     @Test

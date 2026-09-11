@@ -85,6 +85,7 @@ class VaultSecurityManager(
     private var cachedMetadata: VaultMetadata? = null
 
     private var inMemoryBiometricEnabled: Boolean = true
+    private var inMemoryVaultInitializedLocally: Boolean = false
 
     // ==========================================
     // Core Cryptographic Credential & Metadata APIs
@@ -180,6 +181,7 @@ class VaultSecurityManager(
 
         saveMetadataToDisk(metadata)
         cachedMetadata = metadata
+        setVaultInitializedLocally(true)
         return metadata
     }
 
@@ -240,6 +242,7 @@ class VaultSecurityManager(
      */
     fun deleteVaultMetadata(): Boolean {
         cachedMetadata = null
+        setVaultInitializedLocally(false)
         securePrefs?.edit()?.clear()?.apply()
         return if (vaultConfigFile.exists()) {
             vaultConfigFile.delete()
@@ -370,6 +373,15 @@ class VaultSecurityManager(
         securePrefs?.edit()?.putBoolean(KEY_BIOMETRIC_ENABLED, enabled)?.apply()
     }
 
+    fun isVaultInitializedLocally(): Boolean {
+        return securePrefs?.getBoolean(KEY_VAULT_INITIALIZED_LOCALLY, false) ?: inMemoryVaultInitializedLocally
+    }
+
+    fun setVaultInitializedLocally(initialized: Boolean) {
+        inMemoryVaultInitializedLocally = initialized
+        securePrefs?.edit()?.putBoolean(KEY_VAULT_INITIALIZED_LOCALLY, initialized)?.apply()
+    }
+
     /**
      * Returns the configured default storage mode for future imports.
      * Defaults to VaultStorageMode.NONE (Hidden / No Encryption) for new installations.
@@ -435,6 +447,7 @@ class VaultSecurityManager(
     companion object {
         private const val PREFS_FILE_NAME = "secure_vault_prefs"
         private const val KEY_BIOMETRIC_ENABLED = "vault_biometric_enabled"
+        private const val KEY_VAULT_INITIALIZED_LOCALLY = "vault_initialized_locally"
         private val AUTH_CANARY_PAYLOAD = "NOSVED_VAULT_AUTH_CANARY_V2".toByteArray(Charsets.UTF_8)
 
         val DEFAULT_SECURITY_QUESTIONS = listOf(
