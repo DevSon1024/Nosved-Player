@@ -87,10 +87,11 @@ class VaultSecurityManager(
 
     private var inMemoryBiometricEnabled: Boolean = true
     private var inMemoryVaultInitializedLocally: Boolean = false
+    @Volatile
+    private var inMemoryActiveCredential: String? = null
 
-    // ==========================================
+    
     // Core Cryptographic Credential & Metadata APIs
-    // ==========================================
 
     /**
      * Checks if persistent vault metadata exists on external/persistent storage.
@@ -107,7 +108,7 @@ class VaultSecurityManager(
             return VaultMetadataStatus.MISSING
         }
         return try {
-            val metadata = loadVaultMetadata()
+            val metadata = loadVaultMetadata(forceReload = true)
             if (metadata != null &&
                 metadata.salt.isNotEmpty() &&
                 metadata.authCiphertext.isNotEmpty() &&
@@ -126,8 +127,10 @@ class VaultSecurityManager(
     /**
      * Loads and parses the persistent vault metadata. Returns null if missing or malformed.
      */
-    fun loadVaultMetadata(): VaultMetadata? {
-        cachedMetadata?.let { return it }
+    fun loadVaultMetadata(forceReload: Boolean = false): VaultMetadata? {
+        if (!forceReload) {
+            cachedMetadata?.let { return it }
+        }
 
         if (!vaultConfigFile.exists() || vaultConfigFile.length() == 0L) {
             return null
@@ -194,6 +197,7 @@ class VaultSecurityManager(
 
         saveMetadataToDisk(metadata)
         cachedMetadata = metadata
+        inMemoryActiveCredential = credential
         setVaultInitializedLocally(true)
         return metadata
     }
@@ -232,6 +236,7 @@ class VaultSecurityManager(
                 if (unwrapped.size != 32) return false
             }
 
+            inMemoryActiveCredential = credential
             true
         } catch (_: AEADBadTagException) {
             false
@@ -272,6 +277,7 @@ class VaultSecurityManager(
      */
     fun deleteVaultMetadata(): Boolean {
         cachedMetadata = null
+        inMemoryActiveCredential = null
         setVaultInitializedLocally(false)
         securePrefs?.edit()?.clear()?.apply()
         return if (vaultConfigFile.exists()) {
@@ -279,6 +285,19 @@ class VaultSecurityManager(
         } else {
             true
         }
+    }
+
+    /**
+     * Returns the active in-memory credential for the current unlocked vault session.
+     * Null when the vault is locked.
+     */
+    fun getActiveCredential(): String? = inMemoryActiveCredential
+
+    /**
+     * Explicitly clears the active in-memory session credential upon locking the vault.
+     */
+    fun clearSession() {
+        inMemoryActiveCredential = null
     }
 
     /**
@@ -290,9 +309,9 @@ class VaultSecurityManager(
         return hasFiles && !isMetadataValid
     }
 
-    // ==========================================
+    
     // Backward-Compatible Facades for Existing UI
-    // ==========================================
+    
 
     fun isPinSet(): Boolean {
         return hasPersistentVaultMetadata() && validateVaultMetadata() == VaultMetadataStatus.VALID
@@ -360,6 +379,7 @@ class VaultSecurityManager(
 
         saveMetadataToDisk(updatedMetadata)
         cachedMetadata = updatedMetadata
+        inMemoryActiveCredential = newPin
         return true
     }
 
@@ -470,9 +490,9 @@ class VaultSecurityManager(
         return setDefaultStorageMode(mode)
     }
 
-    // ==========================================
+    
     // Internal Helper Methods
-    // ==========================================
+    
 
     private fun saveMetadataToDisk(metadata: VaultMetadata) {
         val jsonString = VaultMetadataJson.toJson(metadata)

@@ -179,7 +179,8 @@ class VaultGalleryViewModel(
             _isProcessing.value = true
             val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                 ?: File(getApplication<Application>().filesDir, "Restored")
-            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, moviesDir)
+            val credential = vaultSecurityManager.getActiveCredential() ?: ""
+            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, moviesDir, credential)
             _isProcessing.value = false
             if (result.isSuccess) {
                 _statusMessage.value = "Restored ${vaultEntity.title} to Movies."
@@ -203,7 +204,8 @@ class VaultGalleryViewModel(
     }
 
     suspend fun preparePlaybackVideo(vaultEntity: VaultEntity): Pair<File, Video> = kotlinx.coroutines.withContext(Dispatchers.IO) {
-        val playbackFile = vaultFileManager.getPlaybackFile(vaultEntity)
+        val credential = vaultSecurityManager.getActiveCredential() ?: ""
+        val playbackFile = vaultFileManager.getPlaybackFile(vaultEntity, credential)
         val uri = Uri.fromFile(playbackFile)
         val video = Video(
             uri = uri.toString(),
@@ -219,7 +221,8 @@ class VaultGalleryViewModel(
     }
 
     fun getPlaybackFile(vaultEntity: VaultEntity): File {
-        return vaultFileManager.getPlaybackFile(vaultEntity)
+        val credential = vaultSecurityManager.getActiveCredential() ?: ""
+        return vaultFileManager.getPlaybackFile(vaultEntity, credential)
     }
 
     class Factory(

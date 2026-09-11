@@ -455,6 +455,10 @@ class VaultAuthViewModel(
     }
 
     fun lockVault() {
+        securityManager.clearSession()
+        scope.launch(ioDispatcher) {
+            vaultFileManager?.cleanPlaybackTemp()
+        }
         checkPinStatus()
     }
 
