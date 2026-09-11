@@ -17,7 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.util.UUID
 
@@ -26,22 +29,30 @@ data class VaultImportResult(
     val pendingDeleteUri: Uri? = null
 )
 
+data class RebuildDatabaseResult(
+    val restoredCount: Int,
+    val invalidSkippedCount: Int
+)
+
 class VaultFileManager(
-    private val context: Context,
+    private val context: Context? = null,
     private val vaultDao: VaultDao,
-    val vaultContainer: VaultContainer = DefaultVaultContainer()
+    val vaultContainer: VaultContainer = DefaultVaultContainer(),
+    customVaultDirectory: File? = null,
+    customThumbsDirectory: File? = null,
+    customTempPlaybackDirectory: File? = null
 ) {
 
-    val migrationManager: VaultMigrationManager by lazy {
-        VaultMigrationManager(
-            context = context,
-            vaultDao = vaultDao,
-            vaultContainer = vaultContainer,
-            vaultDirectory = vaultDirectory
-        )
-    }
-
     val vaultDirectory: File by lazy {
+        if (customVaultDirectory != null) {
+            if (!customVaultDirectory.exists()) customVaultDirectory.mkdirs()
+            val nomedia = File(customVaultDirectory, ".nomedia")
+            if (!nomedia.exists()) {
+                try { nomedia.createNewFile() } catch (_: Exception) {}
+            }
+            return@lazy customVaultDirectory
+        }
+
         val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
         val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
         if (!vaultDir.exists()) {
@@ -51,8 +62,8 @@ class VaultFileManager(
         if (!nomedia.exists()) {
             try { nomedia.createNewFile() } catch (_: Exception) {}
         }
-        val legacyInternal = File(context.filesDir, "vault_secure_media")
-        if (legacyInternal.exists() && legacyInternal.isDirectory) {
+        val legacyInternal = context?.filesDir?.let { File(it, "vault_secure_media") }
+        if (legacyInternal != null && legacyInternal.exists() && legacyInternal.isDirectory) {
             legacyInternal.listFiles()?.forEach { file ->
                 if (file.isFile && file.extension == "vlt") {
                     val dest = File(vaultDir, file.name)
@@ -67,7 +78,7 @@ class VaultFileManager(
     }
 
     val thumbsDirectory: File by lazy {
-        val dir = File(vaultDirectory, ".thumbs")
+        val dir = customThumbsDirectory ?: File(vaultDirectory, ".thumbs")
         if (!dir.exists()) dir.mkdirs()
         val nomedia = File(dir, ".nomedia")
         if (!nomedia.exists()) {
@@ -77,7 +88,9 @@ class VaultFileManager(
     }
 
     val tempPlaybackDirectory: File by lazy {
-        val dir = File(context.cacheDir, "vault_playback_temp")
+        val dir = customTempPlaybackDirectory
+            ?: (context?.cacheDir?.let { File(it, "vault_playback_temp") }
+                ?: File(vaultDirectory, ".playback_temp"))
         if (!dir.exists()) dir.mkdirs()
         val nomedia = File(dir, ".nomedia")
         if (!nomedia.exists()) {
@@ -86,57 +99,74 @@ class VaultFileManager(
         dir
     }
 
-    suspend fun importVideoToVault(
-        sourceUri: Uri,
+    val migrationManager: VaultMigrationManager by lazy {
+        VaultMigrationManager(
+            cacheDir = tempPlaybackDirectory.parentFile ?: File(vaultDirectory, ".cache"),
+            vaultDao = vaultDao,
+            vaultContainer = vaultContainer,
+            vaultDirectory = vaultDirectory
+        )
+    }
+
+    init {
+        cleanPlaybackTemp()
+        cleanOrphanedPartFiles()
+    }
+
+    /**
+     * Imports media directly from an InputStream into the vault using buffered streaming.
+     */
+    suspend fun importStreamToVault(
+        sourceInputStream: InputStream,
         title: String,
+        originalExtension: String = "mp4",
         durationMs: Long = 0L,
         storageMode: VaultStorageMode = VaultStorageMode.NONE,
         vaultCredential: String = ""
-    ): Result<VaultImportResult> = withContext(Dispatchers.IO) {
+    ): Result<VaultEntity> = withContext(Dispatchers.IO) {
+        val fileId = UUID.randomUUID().toString()
+        val destFile = File(vaultDirectory, "$fileId.vlt")
+        val cleanTitle = title.ifBlank { "Protected Video" }
+        val dateAdded = System.currentTimeMillis()
+        val originalExt = originalExtension.trimStart('.').lowercase().ifBlank { "mp4" }
+
         try {
-            val fileId = UUID.randomUUID().toString()
-            val destFile = File(vaultDirectory, "$fileId.vlt")
-
-            val inputStream: InputStream = context.contentResolver.openInputStream(sourceUri)
-                ?: return@withContext Result.failure(Exception("Cannot open stream for URI: $sourceUri"))
-
-            val cleanTitle = title.ifBlank { "Protected Video" }
-            val originalExt = resolveExtension(sourceUri, cleanTitle)
-            val dateAdded = System.currentTimeMillis()
-
-            val header = inputStream.use { input ->
-                if (storageMode == VaultStorageMode.ENCRYPTED) {
-                    vaultContainer.createEncryptedVaultFile(
-                        sourceInputStream = input,
-                        destinationVaultFile = destFile,
-                        passwordOrPin = vaultCredential,
-                        title = cleanTitle,
-                        originalExtension = originalExt,
-                        durationMs = durationMs
-                    )
-                } else {
-                    vaultContainer.createUnencryptedVaultFile(
-                        sourceInputStream = input,
-                        destinationVaultFile = destFile,
-                        title = cleanTitle,
-                        originalExtension = originalExt,
-                        durationMs = durationMs
-                    )
+            val header = if (storageMode == VaultStorageMode.ENCRYPTED) {
+                if (vaultCredential.isBlank()) {
+                    return@withContext Result.failure(IllegalArgumentException("Vault credential is required for encrypted import"))
                 }
+                vaultContainer.createEncryptedVaultFile(
+                    sourceInputStream = sourceInputStream,
+                    destinationVaultFile = destFile,
+                    passwordOrPin = vaultCredential,
+                    title = cleanTitle,
+                    originalExtension = originalExt,
+                    durationMs = durationMs
+                )
+            } else {
+                vaultContainer.createUnencryptedVaultFile(
+                    sourceInputStream = sourceInputStream,
+                    destinationVaultFile = destFile,
+                    title = cleanTitle,
+                    originalExtension = originalExt,
+                    durationMs = durationMs
+                )
             }
 
-            val tempPlayback = getPlaybackFileInternal(destFile, fileId, vaultCredential)
-            val thumbPath = generateAndSaveThumbnail(tempPlayback, fileId)
-            val finalDuration = if (durationMs > 0) {
-                durationMs
-            } else {
-                extractDuration(tempPlayback)
-            }
-            tempPlayback.delete()
+            var thumbPath: String? = null
+            var finalDuration = durationMs
+            try {
+                val tempPlayback = getPlaybackFileInternal(destFile, fileId, vaultCredential)
+                thumbPath = generateAndSaveThumbnail(tempPlayback, fileId)
+                if (finalDuration <= 0L) {
+                    finalDuration = extractDuration(tempPlayback)
+                }
+                releasePlaybackFile(tempPlayback)
+            } catch (_: Exception) {}
 
             val entity = VaultEntity(
                 title = cleanTitle,
-                originalUri = sourceUri.toString(),
+                originalUri = "",
                 vaultPath = destFile.absolutePath,
                 thumbnailPath = thumbPath,
                 fileSize = destFile.length(),
@@ -148,25 +178,115 @@ class VaultFileManager(
             )
 
             val insertedId = vaultDao.insert(entity)
-            val pendingDeleteUri = removeOriginalSourceFile(sourceUri)
+            Result.success(entity.copy(id = insertedId))
+        } catch (e: Exception) {
+            if (destFile.exists()) {
+                try { destFile.delete() } catch (_: Exception) {}
+            }
+            val partFile = File(vaultDirectory, "$fileId.vlt.part")
+            if (partFile.exists()) {
+                try { partFile.delete() } catch (_: Exception) {}
+            }
+            Result.failure(e)
+        }
+    }
 
-            Result.success(VaultImportResult(entity.copy(id = insertedId), pendingDeleteUri))
+    /**
+     * Imports a source File into the vault.
+     */
+    suspend fun importFileToVault(
+        sourceFile: File,
+        title: String = "",
+        durationMs: Long = 0L,
+        storageMode: VaultStorageMode = VaultStorageMode.NONE,
+        vaultCredential: String = ""
+    ): Result<VaultEntity> = withContext(Dispatchers.IO) {
+        if (!sourceFile.exists()) {
+            return@withContext Result.failure(FileNotFoundException("Source file not found: ${sourceFile.absolutePath}"))
+        }
+        val cleanTitle = title.ifBlank { sourceFile.nameWithoutExtension }
+        val ext = sourceFile.extension.ifBlank { "mp4" }
+        FileInputStream(sourceFile).buffered().use { stream ->
+            importStreamToVault(
+                sourceInputStream = stream,
+                title = cleanTitle,
+                originalExtension = ext,
+                durationMs = durationMs,
+                storageMode = storageMode,
+                vaultCredential = vaultCredential
+            )
+        }
+    }
+
+    /**
+     * Imports a video from an external Android ContentProvider URI into the vault.
+     */
+    suspend fun importVideoToVault(
+        sourceUri: Uri,
+        title: String,
+        durationMs: Long = 0L,
+        storageMode: VaultStorageMode = VaultStorageMode.NONE,
+        vaultCredential: String = ""
+    ): Result<VaultImportResult> = withContext(Dispatchers.IO) {
+        try {
+            val ctx = context
+                ?: return@withContext Result.failure(IllegalStateException("Context is required for URI-based import"))
+            val inputStream = ctx.contentResolver.openInputStream(sourceUri)
+                ?: return@withContext Result.failure(FileNotFoundException("Cannot open stream for URI: $sourceUri"))
+
+            val cleanTitle = title.ifBlank { "Protected Video" }
+            val originalExt = resolveExtension(sourceUri, cleanTitle)
+
+            val result = inputStream.use { stream ->
+                importStreamToVault(
+                    sourceInputStream = stream,
+                    title = cleanTitle,
+                    originalExtension = originalExt,
+                    durationMs = durationMs,
+                    storageMode = storageMode,
+                    vaultCredential = vaultCredential
+                )
+            }
+
+            result.fold(
+                onSuccess = { entity ->
+                    val updatedEntity = entity.copy(originalUri = sourceUri.toString())
+                    vaultDao.insert(updatedEntity)
+                    val pendingDeleteUri = removeOriginalSourceFile(sourceUri)
+                    Result.success(VaultImportResult(updatedEntity, pendingDeleteUri))
+                },
+                onFailure = { error ->
+                    Result.failure(error)
+                }
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun rebuildDatabaseFromStorage(credential: String = ""): Int = withContext(Dispatchers.IO) {
+    suspend fun rebuildDatabaseFromStorage(credential: String = ""): RebuildDatabaseResult = withContext(Dispatchers.IO) {
         var restoredCount = 0
-        try {
-            val vltFiles = vaultDirectory.listFiles { file -> file.extension == "vlt" } ?: return@withContext 0
-            val existingEntities = vaultDao.getAllVaultMedia().associateBy { File(it.vaultPath).name }
+        var invalidCount = 0
+        val vltFiles = vaultDirectory.listFiles { file -> file.isFile && file.extension == "vlt" }
+            ?: return@withContext RebuildDatabaseResult(0, 0)
+        val existingEntities = try {
+            vaultDao.getAllVaultMedia().associateBy { File(it.vaultPath).name }
+        } catch (_: Exception) {
+            emptyMap()
+        }
 
-            for (file in vltFiles) {
-                if (existingEntities.containsKey(file.name)) {
-                    continue
-                }
+        for (file in vltFiles) {
+            if (existingEntities.containsKey(file.name)) {
+                continue
+            }
 
+            val classification = migrationManager.classifyFile(file)
+            if (classification == VaultFileClassification.INVALID_UNKNOWN) {
+                invalidCount++
+                continue
+            }
+
+            try {
                 val header = try {
                     vaultContainer.inspectVaultFile(file)
                 } catch (_: Exception) {
@@ -181,31 +301,48 @@ class VaultFileManager(
                     try {
                         val tempPlay = getPlaybackFileInternal(file, fileId, credential)
                         val tp = generateAndSaveThumbnail(tempPlay, fileId)
-                        tempPlay.delete()
+                        releasePlaybackFile(tempPlay)
                         tp
                     } catch (_: Exception) {
                         null
                     }
                 }
 
+                val mode = when (classification) {
+                    VaultFileClassification.CURRENT_NO_ENCRYPTION -> VaultStorageMode.NONE
+                    VaultFileClassification.CURRENT_SECURE_ENCRYPTED,
+                    VaultFileClassification.LEGACY_ENCRYPTED -> VaultStorageMode.ENCRYPTED
+                    else -> header?.storageMode ?: VaultStorageMode.NONE
+                }
+
+                val version = when (classification) {
+                    VaultFileClassification.LEGACY_ENCRYPTED -> VaultFileFormat.FORMAT_VERSION_LEGACY_V1
+                    else -> header?.formatVersion ?: VaultFileFormat.FORMAT_VERSION_V2
+                }
+
+                val originalExt = header?.originalExtension?.ifBlank { "mp4" } ?: "mp4"
+                val title = header?.title?.ifBlank { file.nameWithoutExtension } ?: file.nameWithoutExtension
+
                 val entity = VaultEntity(
-                    title = header?.title?.ifBlank { file.nameWithoutExtension } ?: file.nameWithoutExtension,
+                    title = title,
                     originalUri = "",
                     vaultPath = file.absolutePath,
                     thumbnailPath = thumbPath,
                     fileSize = file.length(),
                     durationMs = header?.durationMs ?: 0L,
                     dateAdded = header?.dateAdded?.takeIf { it > 0 } ?: file.lastModified(),
-                    storageMode = header?.storageMode ?: VaultStorageMode.NONE,
-                    formatVersion = header?.formatVersion ?: 2,
-                    originalExtension = header?.originalExtension ?: "mp4"
+                    storageMode = mode,
+                    formatVersion = version,
+                    originalExtension = originalExt
                 )
 
                 vaultDao.insert(entity)
                 restoredCount++
+            } catch (_: Exception) {
+                invalidCount++
             }
-        } catch (_: Exception) {}
-        restoredCount
+        }
+        RebuildDatabaseResult(restoredCount, invalidCount)
     }
 
     private fun resolveExtension(sourceUri: Uri, title: String): String {
@@ -213,7 +350,7 @@ class VaultFileManager(
         if (fromTitle.isNotEmpty() && fromTitle.length in 2..5 && fromTitle.all { it.isLetterOrDigit() }) {
             return fromTitle
         }
-        val mime = context.contentResolver.getType(sourceUri)
+        val mime = context?.contentResolver?.getType(sourceUri)
         if (mime != null) {
             val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
             if (!ext.isNullOrBlank()) return ext.lowercase()
@@ -222,24 +359,25 @@ class VaultFileManager(
     }
 
     private fun removeOriginalSourceFile(sourceUri: Uri): Uri? {
+        val ctx = context ?: return null
         var successfullyDeleted = false
 
         try {
-            if (DocumentsContract.isDocumentUri(context, sourceUri)) {
-                successfullyDeleted = DocumentsContract.deleteDocument(context.contentResolver, sourceUri)
+            if (DocumentsContract.isDocumentUri(ctx, sourceUri)) {
+                successfullyDeleted = DocumentsContract.deleteDocument(ctx.contentResolver, sourceUri)
             }
         } catch (_: Exception) {}
 
         if (!successfullyDeleted) {
             try {
-                val deletedRows = context.contentResolver.delete(sourceUri, null, null)
+                val deletedRows = ctx.contentResolver.delete(sourceUri, null, null)
                 if (deletedRows > 0) successfullyDeleted = true
             } catch (_: Exception) {}
         }
 
         var originalPath: String? = null
         try {
-            val cursor = context.contentResolver.query(
+            val cursor = ctx.contentResolver.query(
                 sourceUri,
                 arrayOf(MediaStore.MediaColumns.DATA),
                 null,
@@ -262,7 +400,7 @@ class VaultFileManager(
                     }
                 }
                 MediaScannerConnection.scanFile(
-                    context,
+                    ctx,
                     arrayOf(originalPath),
                     null,
                     null
@@ -272,7 +410,7 @@ class VaultFileManager(
 
         if (successfullyDeleted) {
             try {
-                context.contentResolver.notifyChange(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, null)
+                ctx.contentResolver.notifyChange(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, null)
             } catch (_: Exception) {}
             return null
         }
@@ -281,12 +419,13 @@ class VaultFileManager(
     }
 
     private fun resolveMediaStoreUri(sourceUri: Uri, knownPath: String?): Uri? {
+        val ctx = context ?: return null
         if (sourceUri.authority == "media") {
             return sourceUri
         }
         val pathToQuery = knownPath ?: try {
             var p: String? = null
-            context.contentResolver.query(
+            ctx.contentResolver.query(
                 sourceUri,
                 arrayOf(MediaStore.MediaColumns.DATA),
                 null,
@@ -302,7 +441,7 @@ class VaultFileManager(
 
         if (pathToQuery != null) {
             try {
-                context.contentResolver.query(
+                ctx.contentResolver.query(
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.Video.Media._ID),
                     "${MediaStore.Video.Media.DATA} = ?",
@@ -322,21 +461,24 @@ class VaultFileManager(
         return null
     }
 
-    fun getPlaybackFile(vaultEntity: VaultEntity, credential: String = ""): File {
+    fun getPlaybackFile(vaultEntity: VaultEntity, credential: String = ""): File = runBlocking(Dispatchers.IO) {
         val vaultFile = File(vaultEntity.vaultPath)
-        val fileId = vaultFile.nameWithoutExtension
-        return getPlaybackFileInternal(vaultFile, fileId, credential)
+        if (!vaultFile.exists()) {
+            throw FileNotFoundException("Vault file not found: ${vaultEntity.vaultPath}")
+        }
+        val fileId = "${vaultEntity.id}_${vaultFile.nameWithoutExtension}"
+        getPlaybackFileInternal(vaultFile, fileId, credential)
     }
 
-    private fun getPlaybackFileInternal(vaultFile: File, fileId: String, credential: String = ""): File {
+    internal fun getPlaybackFileInternal(vaultFile: File, fileId: String, credential: String = ""): File {
         val header = try {
             runBlocking { vaultContainer.inspectVaultFile(vaultFile) }
         } catch (_: Exception) {
             null
         }
 
-        val ext = header?.originalExtension ?: "mp4"
-        val tempFile = File(tempPlaybackDirectory, "$fileId.$ext")
+        val ext = header?.originalExtension?.ifBlank { "mp4" } ?: "mp4"
+        val tempFile = File(tempPlaybackDirectory, "playback_${fileId}.$ext")
         if (tempFile.exists() && tempFile.length() > 0) {
             return tempFile
         }
@@ -347,6 +489,14 @@ class VaultFileManager(
         return tempFile
     }
 
+    fun releasePlaybackFile(playbackFile: File) {
+        try {
+            if (playbackFile.exists() && playbackFile.parentFile?.absolutePath == tempPlaybackDirectory.absolutePath) {
+                playbackFile.delete()
+            }
+        } catch (_: Exception) {}
+    }
+
     suspend fun restoreVideoFromVault(
         vaultEntity: VaultEntity,
         destinationDirectory: File,
@@ -355,34 +505,85 @@ class VaultFileManager(
         try {
             val vaultFile = File(vaultEntity.vaultPath)
             if (!vaultFile.exists()) {
-                return@withContext Result.failure(Exception("Vault file not found: ${vaultEntity.vaultPath}"))
+                return@withContext Result.failure(FileNotFoundException("Vault file not found: ${vaultEntity.vaultPath}"))
             }
 
             if (!destinationDirectory.exists()) {
                 destinationDirectory.mkdirs()
             }
 
-            var destFileName = vaultEntity.title
-            if (!destFileName.contains('.')) {
-                val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
-                destFileName = "$destFileName.$ext"
+            val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
+            var baseName = vaultEntity.title
+            if (baseName.endsWith(".$ext", ignoreCase = true)) {
+                baseName = baseName.substring(0, baseName.length - ext.length - 1)
             }
-            val restoredFile = File(destinationDirectory, destFileName)
+            var targetFile = File(destinationDirectory, "$baseName.$ext")
+            var counter = 1
+            while (targetFile.exists()) {
+                targetFile = File(destinationDirectory, "${baseName}_$counter.$ext")
+                counter++
+            }
 
-            vaultContainer.decryptVaultFile(vaultFile, restoredFile, credential)
+            val partFile = File(destinationDirectory, "${targetFile.name}.part")
+            if (partFile.exists()) partFile.delete()
 
-            vaultFile.delete()
-            vaultEntity.thumbnailPath?.let { File(it).delete() }
-            vaultDao.delete(vaultEntity)
+            try {
+                val header = vaultContainer.inspectVaultFile(vaultFile)
+                if (header.storageMode == VaultStorageMode.NONE) {
+                    FileInputStream(vaultFile).buffered().use { inStream ->
+                        FileOutputStream(partFile).buffered().use { outStream ->
+                            val buffer = ByteArray(64 * 1024)
+                            var bytesRead: Int
+                            while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                                outStream.write(buffer, 0, bytesRead)
+                            }
+                            outStream.flush()
+                        }
+                    }
+                } else {
+                    vaultContainer.decryptVaultFile(vaultFile, partFile, credential)
+                }
 
-            MediaScannerConnection.scanFile(
-                context,
-                arrayOf(restoredFile.absolutePath),
-                null,
-                null
-            )
+                if (!partFile.exists() || partFile.length() == 0L) {
+                    throw IOException("Restoration failed: target file is empty")
+                }
 
-            Result.success(restoredFile)
+                if (header.storageMode == VaultStorageMode.NONE && partFile.length() != vaultFile.length()) {
+                    throw IOException("Restoration failed: file size mismatch")
+                }
+
+                if (!partFile.renameTo(targetFile)) {
+                    partFile.copyTo(targetFile, overwrite = true)
+                    partFile.delete()
+                }
+
+                vaultFile.delete()
+                vaultEntity.thumbnailPath?.let {
+                    val thumb = File(it)
+                    if (thumb.exists()) thumb.delete()
+                }
+
+                val tempFile = File(tempPlaybackDirectory, "playback_${vaultEntity.id}_${vaultFile.nameWithoutExtension}.$ext")
+                if (tempFile.exists()) tempFile.delete()
+
+                vaultDao.delete(vaultEntity)
+
+                if (context != null) {
+                    try {
+                        MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(targetFile.absolutePath),
+                            null,
+                            null
+                        )
+                    } catch (_: Exception) {}
+                }
+
+                Result.success(targetFile)
+            } catch (e: Exception) {
+                if (partFile.exists()) partFile.delete()
+                Result.failure(e)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -392,16 +593,21 @@ class VaultFileManager(
         try {
             val vaultFile = File(vaultEntity.vaultPath)
             if (vaultFile.exists()) {
-                vaultFile.delete()
+                val deleted = vaultFile.delete()
+                if (!deleted && vaultFile.exists()) {
+                    return@withContext Result.failure(IOException("Failed to delete vault file on storage: ${vaultFile.absolutePath}"))
+                }
             }
+
             val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
-            val tempPlayback = File(tempPlaybackDirectory, "${vaultFile.nameWithoutExtension}.$ext")
-            if (tempPlayback.exists()) tempPlayback.delete()
+            val tempFile = File(tempPlaybackDirectory, "playback_${vaultEntity.id}_${vaultFile.nameWithoutExtension}.$ext")
+            if (tempFile.exists()) tempFile.delete()
 
             vaultEntity.thumbnailPath?.let {
-                val thumbFile = File(it)
-                if (thumbFile.exists()) thumbFile.delete()
+                val thumb = File(it)
+                if (thumb.exists()) thumb.delete()
             }
+
             vaultDao.delete(vaultEntity)
             Result.success(Unit)
         } catch (e: Exception) {
@@ -413,10 +619,28 @@ class VaultFileManager(
         try {
             tempPlaybackDirectory.listFiles()?.forEach { file ->
                 if (file.name != ".nomedia") {
-                    file.delete()
+                    try { file.delete() } catch (_: Exception) {}
+                }
+            }
+            cleanOrphanedPartFiles()
+        } catch (_: Exception) {}
+    }
+
+    fun cleanOrphanedPartFiles(): Int {
+        var count = 0
+        try {
+            vaultDirectory.listFiles()?.forEach { file ->
+                if (file.name.endsWith(".part") || file.name.endsWith(".migrating")) {
+                    if (file.delete()) count++
+                }
+            }
+            tempPlaybackDirectory.listFiles()?.forEach { file ->
+                if (file.name.endsWith(".part") || file.name.endsWith(".tmp")) {
+                    if (file.delete()) count++
                 }
             }
         } catch (_: Exception) {}
+        return count
     }
 
     private fun generateAndSaveThumbnail(videoFile: File, fileId: String): String? {
