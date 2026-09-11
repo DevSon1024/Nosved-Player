@@ -84,7 +84,8 @@ private enum class VaultSettingsFlow {
 @Composable
 fun VaultSettingsBottomSheet(
     onDismissRequest: () -> Unit,
-    securityManager: VaultSecurityManager
+    securityManager: VaultSecurityManager,
+    onRequestVaultReset: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var currentFlow by remember { mutableStateOf(VaultSettingsFlow.MAIN) }
@@ -98,35 +99,6 @@ fun VaultSettingsBottomSheet(
     var selectedQuestion by remember { mutableStateOf(securityManager.getSecurityQuestion() ?: VaultSecurityManager.DEFAULT_SECURITY_QUESTIONS.first()) }
     var newAnswerText by remember { mutableStateOf("") }
     var questionDropdownExpanded by remember { mutableStateOf(false) }
-
-    var showResetConfirmDialog by remember { mutableStateOf(false) }
-
-    if (showResetConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirmDialog = false },
-            icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Reset Privacy Vault?") },
-            text = { Text("This will remove your current PIN and security question. Note: any existing encrypted videos on device storage cannot be recovered without your previous PIN.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetConfirmDialog = false
-                        securityManager.resetVault(deleteFiles = false)
-                        Toast.makeText(context, "Vault has been reset", Toast.LENGTH_SHORT).show()
-                        onDismissRequest()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Reset Vault")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirmDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -171,7 +143,8 @@ fun VaultSettingsBottomSheet(
                                 currentFlow = VaultSettingsFlow.UPDATE_SECURITY_QUESTION_VERIFY_PIN
                             },
                             onResetVaultClick = {
-                                showResetConfirmDialog = true
+                                onDismissRequest()
+                                onRequestVaultReset()
                             }
                         )
                     }

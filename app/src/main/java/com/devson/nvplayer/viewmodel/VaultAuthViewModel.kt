@@ -31,6 +31,18 @@ sealed interface VaultAuthState {
         val remainingFiles: Int = 0
     ) : VaultAuthState
     data class ConfirmRemoveVault(val step: Int, val fileCount: Int) : VaultAuthState
+    data class EnterPinForReset(
+        val fileCount: Int,
+        val encryptedCount: Int,
+        val error: String? = null
+    ) : VaultAuthState
+    data class ConfirmDeleteVault(
+        val step: Int,
+        val fileCount: Int,
+        val encryptedCount: Int,
+        val hasEncryptedContent: Boolean,
+        val authenticatedPin: String
+    ) : VaultAuthState
     data class Restoring(val fileCount: Int) : VaultAuthState
     data class RestoreSuccess(val restoredCount: Int) : VaultAuthState
     data class RestoreExistingVault(val fileCount: Int) : VaultAuthState
@@ -98,33 +110,81 @@ class VaultAuthViewModel(
     }
 
     fun onRemoveOldVaultClicked() {
-        _authState.value = VaultAuthState.ConfirmRemoveVault(
-            step = 1,
-            fileCount = securityManager.getExistingVaultFileCount()
-        )
+        val count = securityManager.getExistingVaultFileCount()
+        _authState.value = VaultAuthState.ConfirmRemoveVault(step = 1, fileCount = count)
     }
 
-    fun onConfirmRemoveStep1() {
-        _authState.value = VaultAuthState.ConfirmRemoveVault(
-            step = 2,
-            fileCount = securityManager.getExistingVaultFileCount()
-        )
+    fun requestVaultReset() {
+        scope.launch(mainDispatcher) {
+            val (totalFiles, encryptedFiles) = withContext(ioDispatcher) {
+                val vaultDir = securityManager.persistentVaultDirectory
+                val vltFiles = vaultDir.listFiles { f -> f.extension == "vlt" } ?: emptyArray()
+                var encCount = 0
+                for (file in vltFiles) {
+                    try {
+                        val header = vaultFileManager?.vaultContainer?.inspectVaultFile(file)
+                        if (header?.storageMode == com.devson.nvplayer.domain.model.VaultStorageMode.ENCRYPTED) {
+                            encCount++
+                        }
+                    } catch (_: Exception) {
+                        encCount++
+                    }
+                }
+                Pair(vltFiles.size, encCount)
+            }
+
+            _pinDigits.value = ""
+            if (securityManager.hasPersistentVaultMetadata() || securityManager.isPinSet()) {
+                _authState.value = VaultAuthState.EnterPinForReset(
+                    fileCount = totalFiles,
+                    encryptedCount = encryptedFiles
+                )
+            } else {
+                _authState.value = VaultAuthState.ConfirmDeleteVault(
+                    step = 1,
+                    fileCount = totalFiles,
+                    encryptedCount = encryptedFiles,
+                    hasEncryptedContent = encryptedFiles > 0,
+                    authenticatedPin = ""
+                )
+            }
+        }
     }
 
-    fun onConfirmRemoveFinal() {
+    fun onConfirmResetStep1() {
+        val state = _authState.value as? VaultAuthState.ConfirmDeleteVault ?: return
+        _authState.value = state.copy(step = 2)
+    }
+
+    fun onCancelReset() {
+        _pinDigits.value = ""
+        checkPinStatus()
+    }
+
+    fun executeVaultReset(authenticatedPin: String) {
         scope.launch(mainDispatcher) {
             val result = withContext(ioDispatcher) {
-                vaultFileManager?.removeAllVaultData(securityManager)
-                    ?: run {
-                        securityManager.resetVault(deleteFiles = true)
-                        com.devson.nvplayer.data.security.VaultDeletionResult(
-                            success = true,
-                            deletedMediaCount = 0,
-                            failedMediaCount = 0,
-                            remainingFiles = emptyList()
-                        )
-                    }
+                try {
+                    vaultFileManager?.removeAllVaultData(securityManager, authenticatedPin)
+                        ?: run {
+                            securityManager.resetVault(deleteFiles = true)
+                            com.devson.nvplayer.data.security.VaultDeletionResult(
+                                success = true,
+                                deletedMediaCount = 0,
+                                failedMediaCount = 0,
+                                remainingFiles = emptyList()
+                            )
+                        }
+                } catch (e: Exception) {
+                    com.devson.nvplayer.data.security.VaultDeletionResult(
+                        success = false,
+                        deletedMediaCount = 0,
+                        failedMediaCount = 1,
+                        remainingFiles = listOf(e.message ?: "Authentication/Deletion failed")
+                    )
+                }
             }
+
             if (result.success) {
                 securityManager.setVaultInitializedLocally(false)
                 _pinDigits.value = ""
@@ -133,20 +193,38 @@ class VaultAuthViewModel(
                 _authState.value = VaultAuthState.SetupPin
             } else {
                 _authState.value = VaultAuthState.Error(
-                    "Partial deletion failure: ${result.remainingFiles.joinToString(", ")}"
+                    "Partial deletion failure: ${result.remainingFiles.joinToString(", ")}. Remaining data was preserved."
                 )
             }
         }
     }
 
-    fun onCancelRemoveVault() {
-        val fileCount = securityManager.getExistingVaultFileCount()
-        val isMetadataValid = securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
-        if (fileCount > 0) {
-            _authState.value = VaultAuthState.ExistingVaultFound(fileCount, isMetadataValid)
-        } else {
+    fun onConfirmRemoveStep1() {
+        val state = _authState.value as? VaultAuthState.ConfirmRemoveVault ?: return
+        _authState.value = state.copy(step = 2)
+    }
+
+    fun onConfirmRemoveFinal() {
+        scope.launch(mainDispatcher) {
+            withContext(ioDispatcher) {
+                try {
+                    vaultFileManager?.removeAllVaultData(securityManager, credential = null, force = true)
+                        ?: securityManager.resetVault(deleteFiles = true)
+                } catch (_: Exception) {
+                    securityManager.resetVault(deleteFiles = true)
+                }
+            }
+            securityManager.setVaultInitializedLocally(false)
+            _pinDigits.value = ""
+            setupPinTemp = ""
+            resetPinTemp = ""
             _authState.value = VaultAuthState.SetupPin
         }
+    }
+
+    fun onCancelRemoveVault() {
+        _pinDigits.value = ""
+        checkPinStatus()
     }
 
     fun onRetryPin() {
@@ -201,6 +279,21 @@ class VaultAuthViewModel(
                     } else {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.Error("Incorrect PIN")
+                    }
+                }
+                is VaultAuthState.EnterPinForReset -> {
+                    if (securityManager.verifyPin(pin)) {
+                        _pinDigits.value = ""
+                        _authState.value = VaultAuthState.ConfirmDeleteVault(
+                            step = 1,
+                            fileCount = state.fileCount,
+                            encryptedCount = state.encryptedCount,
+                            hasEncryptedContent = state.encryptedCount > 0,
+                            authenticatedPin = pin
+                        )
+                    } else {
+                        _pinDigits.value = ""
+                        _authState.value = state.copy(error = "Incorrect PIN")
                     }
                 }
                 is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> {

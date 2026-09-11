@@ -51,6 +51,7 @@ fun VaultScreen(
                 onLockClick = { authViewModel.lockVault() },
                 onPlayMedia = onPlayMedia,
                 initialOpenProtection = shouldOpenProtection,
+                onResetVaultClick = { authViewModel.requestVaultReset() },
                 modifier = Modifier.fillMaxSize()
             )
         } else {

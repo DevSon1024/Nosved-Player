@@ -681,17 +681,48 @@ class VaultFileManager(
         }
     }
 
-    suspend fun removeAllVaultData(securityManager: VaultSecurityManager? = null): VaultDeletionResult = withContext(ioDispatcher) {
+    suspend fun removeAllVaultData(
+        securityManager: VaultSecurityManager? = null,
+        credential: String? = null,
+        force: Boolean = false
+    ): VaultDeletionResult = withContext(ioDispatcher) {
+        if (!force && securityManager != null && securityManager.hasPersistentVaultMetadata()) {
+            if (credential.isNullOrBlank() || !securityManager.verifyVaultCredential(credential)) {
+                throw SecurityException("Authentication failed: valid vault credential required for reset")
+            }
+        }
+
         var deletedCount = 0
         var failedCount = 0
         val remaining = mutableListOf<String>()
 
+        try {
+            tempPlaybackDirectory.listFiles()?.forEach { file ->
+                if (file.name != ".nomedia") {
+                    if (!file.delete() && file.exists()) {
+                        remaining.add("playback_temp/${file.name}")
+                    }
+                }
+            }
+            val tempConvDir = context?.cacheDir?.let { File(it, "vault_conversion_temp") }
+                ?: File(tempPlaybackDirectory, ".vault_conversion_temp")
+            if (tempConvDir.exists()) {
+                tempConvDir.listFiles()?.forEach { file ->
+                    if (file.name != ".nomedia") {
+                        if (!file.delete() && file.exists()) {
+                            remaining.add("conversion_temp/${file.name}")
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
         val files = vaultDirectory.listFiles()
         if (files != null) {
             for (file in files) {
-                if (file.name == ".nomedia") continue
+                if (file.name == ".nomedia" || file.name == ".vault_config") continue
                 if (file.isDirectory) {
-                    if (file.name == ".thumbs" || file.name == ".playback_temp") {
+                    if (file.name == ".thumbs" || file.name == ".playback_temp" || file.name == ".vault_conversion_temp" || file.name == "vault_conversion_temp") {
                         file.listFiles()?.forEach { sub ->
                             if (sub.name != ".nomedia") {
                                 if (!sub.delete() && sub.exists()) {
@@ -712,6 +743,15 @@ class VaultFileManager(
             }
         }
 
+        if (failedCount > 0 || remaining.isNotEmpty()) {
+            return@withContext VaultDeletionResult(
+                success = false,
+                deletedMediaCount = deletedCount,
+                failedMediaCount = failedCount,
+                remainingFiles = remaining
+            )
+        }
+
         thumbsDirectory.listFiles()?.forEach { file ->
             if (file.name != ".nomedia") {
                 if (!file.delete() && file.exists()) {
@@ -720,30 +760,57 @@ class VaultFileManager(
             }
         }
 
-        tempPlaybackDirectory.listFiles()?.forEach { file ->
-            if (file.name != ".nomedia") {
-                if (!file.delete() && file.exists()) {
-                    remaining.add("playback_temp/${file.name}")
-                }
-            }
+        if (remaining.isNotEmpty()) {
+            return@withContext VaultDeletionResult(
+                success = false,
+                deletedMediaCount = deletedCount,
+                failedMediaCount = failedCount,
+                remainingFiles = remaining
+            )
         }
 
         try {
+            securityManager?.deleteVaultMetadata()
+        } catch (e: Exception) {
+            remaining.add(".vault_config")
+            return@withContext VaultDeletionResult(
+                success = false,
+                deletedMediaCount = deletedCount,
+                failedMediaCount = failedCount,
+                remainingFiles = remaining
+            )
+        }
+
+        var dbCleared = false
+        try {
             vaultDao.deleteAll()
+            dbCleared = true
         } catch (_: Exception) {
             try {
                 vaultDao.getAllVaultMedia().forEach { vaultDao.delete(it) }
-            } catch (_: Exception) {}
+                dbCleared = true
+            } catch (_: Exception) {
+                dbCleared = false
+            }
         }
 
-        securityManager?.deleteVaultMetadata()
+        if (!dbCleared) {
+            remaining.add("database_records")
+            return@withContext VaultDeletionResult(
+                success = false,
+                deletedMediaCount = deletedCount,
+                failedMediaCount = failedCount,
+                remainingFiles = remaining
+            )
+        }
 
-        val overallSuccess = failedCount == 0 && remaining.isEmpty()
+        securityManager?.setVaultInitializedLocally(false)
+
         VaultDeletionResult(
-            success = overallSuccess,
+            success = true,
             deletedMediaCount = deletedCount,
-            failedMediaCount = failedCount,
-            remainingFiles = remaining
+            failedMediaCount = 0,
+            remainingFiles = emptyList()
         )
     }
 

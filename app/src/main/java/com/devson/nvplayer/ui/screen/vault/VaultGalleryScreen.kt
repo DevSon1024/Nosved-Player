@@ -94,6 +94,7 @@ import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.util.formatSize
 import com.devson.nvplayer.viewmodel.VaultGalleryViewModel
 import com.devson.nvplayer.viewmodel.VideoConversionState
+import com.devson.nvplayer.ui.screen.settings.VaultSettingsBottomSheet
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -104,6 +105,7 @@ fun VaultGalleryScreen(
     onLockClick: () -> Unit,
     onPlayMedia: (VaultEntity, File, Video) -> Unit,
     initialOpenProtection: Boolean = false,
+    onResetVaultClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -114,6 +116,7 @@ fun VaultGalleryScreen(
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
     val currentStorageMode by viewModel.defaultStorageMode.collectAsStateWithLifecycle()
     var showProtectionSheet by remember(initialOpenProtection) { mutableStateOf(initialOpenProtection) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val activity = context as? Activity
@@ -238,6 +241,37 @@ fun VaultGalleryScreen(
                             contentDescription = "Lock Vault",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    Box {
+                        var topMenuExpanded by remember { mutableStateOf(false) }
+                        IconButton(onClick = { topMenuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "More Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = topMenuExpanded,
+                            onDismissRequest = { topMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Vault Settings") },
+                                leadingIcon = { Icon(Icons.Filled.Shield, contentDescription = null) },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    showSettingsSheet = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Reset Privacy Vault", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = { Icon(Icons.Filled.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    onResetVaultClick()
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -411,6 +445,14 @@ fun VaultGalleryScreen(
                 viewModel.setStorageMode(newMode)
             },
             onDismissRequest = { showProtectionSheet = false }
+        )
+    }
+
+    if (showSettingsSheet) {
+        VaultSettingsBottomSheet(
+            securityManager = viewModel.vaultSecurityManager,
+            onRequestVaultReset = onResetVaultClick,
+            onDismissRequest = { showSettingsSheet = false }
         )
     }
 }

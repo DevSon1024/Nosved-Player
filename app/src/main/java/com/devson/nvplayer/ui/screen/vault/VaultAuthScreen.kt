@@ -111,9 +111,12 @@ fun VaultAuthScreen(
                 authState is VaultAuthState.ExistingVaultFound ||
                 authState is VaultAuthState.IncorrectPin ||
                 authState is VaultAuthState.ConfirmRemoveVault ||
+                authState is VaultAuthState.EnterPinForReset ||
+                authState is VaultAuthState.ConfirmDeleteVault ||
                 authState is VaultAuthState.AnswerSecurityQuestion
     ) {
         when (authState) {
+            is VaultAuthState.EnterPinForReset, is VaultAuthState.ConfirmDeleteVault -> viewModel.onCancelReset()
             is VaultAuthState.ConfirmRemoveVault -> viewModel.onCancelRemoveVault()
             is VaultAuthState.IncorrectPin -> viewModel.onCancelRemoveVault()
             is VaultAuthState.RestorePinEntry -> viewModel.onCancelRemoveVault()
@@ -204,6 +207,92 @@ fun VaultAuthScreen(
                     },
                     dismissButton = {
                         TextButton(onClick = { viewModel.onCancelRemoveVault() }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        }
+        is VaultAuthState.ConfirmDeleteVault -> {
+            if (state.step == 1) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.onCancelReset() },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Delete Privacy Vault?",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "This will permanently delete your Privacy Vault:\n• All hidden videos will be removed\n• Encrypted videos will be permanently lost\n• Vault thumbnails will be removed\n• Vault metadata will be removed\n• Vault database records will be cleared\n• This action cannot be undone",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (state.hasEncryptedContent) {
+                                Text(
+                                    text = "Warning: Encrypted videos cannot be recovered without credentials.",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { viewModel.onConfirmResetStep1() },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Continue")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.onCancelReset() }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = { viewModel.onCancelReset() },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Confirm Permanent Deletion",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "${state.fileCount} file(s) will be permanently deleted from device storage. This action cannot be undone.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { viewModel.executeVaultReset(state.authenticatedPin) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Delete Permanently")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.onCancelReset() }) {
                             Text("Cancel")
                         }
                     }
@@ -356,7 +445,7 @@ fun VaultAuthScreen(
                             Icon(
                                 imageVector = when (state) {
                                     is VaultAuthState.SetupPin, is VaultAuthState.ConfirmPin -> Icons.Filled.Shield
-                                    is VaultAuthState.ResetPin, is VaultAuthState.ConfirmResetPin -> Icons.Filled.LockReset
+                                    is VaultAuthState.ResetPin, is VaultAuthState.ConfirmResetPin, is VaultAuthState.EnterPinForReset -> Icons.Filled.LockReset
                                     is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> Icons.Filled.Restore
                                     else -> Icons.Filled.Lock
                                 },
@@ -373,6 +462,7 @@ fun VaultAuthScreen(
                             is VaultAuthState.ConfirmPin -> "Confirm Your PIN"
                             is VaultAuthState.EnterPin -> "Privacy Vault"
                             is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> "Enter Previous Vault PIN"
+                            is VaultAuthState.EnterPinForReset -> "Authenticate to Reset Vault"
                             is VaultAuthState.ResetPin -> "Enter New PIN"
                             is VaultAuthState.ConfirmResetPin -> "Confirm New PIN"
                             is VaultAuthState.Error -> "Authentication Failed"
@@ -385,6 +475,7 @@ fun VaultAuthScreen(
                             is VaultAuthState.ConfirmPin -> "Re-enter the 4-digit PIN to confirm."
                             is VaultAuthState.EnterPin -> "Enter your 4-digit PIN to access."
                             is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> "Enter the 4-digit PIN used when these files were protected."
+                            is VaultAuthState.EnterPinForReset -> state.error ?: "Enter your Vault PIN to authorize deleting the Privacy Vault."
                             is VaultAuthState.ResetPin -> "Create a new 4-digit PIN for your Vault."
                             is VaultAuthState.ConfirmResetPin -> "Re-enter the new 4-digit PIN to confirm."
                             is VaultAuthState.Error -> (state as VaultAuthState.Error).message
@@ -392,10 +483,12 @@ fun VaultAuthScreen(
                             else -> ""
                         }
 
+                        val isErrorState = state is VaultAuthState.Error || (state is VaultAuthState.EnterPinForReset && state.error != null)
+
                         Text(
                             text = titleText,
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (state is VaultAuthState.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
+                            color = if (isErrorState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -403,7 +496,7 @@ fun VaultAuthScreen(
                         Text(
                             text = subtitleText,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (state is VaultAuthState.Error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isErrorState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
@@ -417,7 +510,7 @@ fun VaultAuthScreen(
                         ) {
                             for (i in 0 until 4) {
                                 val isFilled = i < pinDigits.length
-                                val dotColor = if (state is VaultAuthState.Error) {
+                                val dotColor = if (isErrorState) {
                                     MaterialTheme.colorScheme.error
                                 } else if (isFilled) {
                                     MaterialTheme.colorScheme.primary
@@ -439,6 +532,11 @@ fun VaultAuthScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             TextButton(onClick = { viewModel.onForgotPinClicked() }) {
                                 Text("Forgot PIN?", style = MaterialTheme.typography.labelLarge)
+                            }
+                        } else if (state is VaultAuthState.EnterPinForReset) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            TextButton(onClick = { viewModel.onCancelReset() }) {
+                                Text("Cancel", style = MaterialTheme.typography.labelLarge)
                             }
                         } else if (state is VaultAuthState.RestorePinEntry || state is VaultAuthState.RestoreExistingVault) {
                             Spacer(modifier = Modifier.height(12.dp))
