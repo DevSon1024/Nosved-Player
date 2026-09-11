@@ -9,23 +9,17 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.webkit.MimeTypeMap
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.security.SecureRandom
 import java.util.UUID
-import javax.crypto.Cipher
-import javax.crypto.CipherInputStream
-import javax.crypto.CipherOutputStream
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 data class VaultImportResult(
     val entity: VaultEntity,
@@ -34,15 +28,9 @@ data class VaultImportResult(
 
 class VaultFileManager(
     private val context: Context,
-    private val vaultDao: VaultDao
+    private val vaultDao: VaultDao,
+    val vaultContainer: VaultContainer = DefaultVaultContainer()
 ) {
-    // 256-bit AES Master Key derived deterministically for Vault encryption
-    private val aesKey: SecretKeySpec by lazy {
-        val seed = ("com.devson.nvplayer_VaultMasterAES256Key_NosvedPlayer_SecureStorage").toByteArray(Charsets.UTF_8)
-        val sha = java.security.MessageDigest.getInstance("SHA-256")
-        val keyBytes = sha.digest(seed)
-        SecretKeySpec(keyBytes, "AES")
-    }
 
     val vaultDirectory: File by lazy {
         val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
@@ -92,49 +80,43 @@ class VaultFileManager(
     suspend fun importVideoToVault(
         sourceUri: Uri,
         title: String,
-        durationMs: Long = 0L
+        durationMs: Long = 0L,
+        storageMode: VaultStorageMode = VaultStorageMode.NONE,
+        vaultCredential: String = ""
     ): Result<VaultImportResult> = withContext(Dispatchers.IO) {
         try {
             val fileId = UUID.randomUUID().toString()
             val destFile = File(vaultDirectory, "$fileId.vlt")
 
-            val iv = ByteArray(16)
-            SecureRandom().nextBytes(iv)
-
             val inputStream: InputStream = context.contentResolver.openInputStream(sourceUri)
                 ?: return@withContext Result.failure(Exception("Cannot open stream for URI: $sourceUri"))
 
             val cleanTitle = title.ifBlank { "Protected Video" }
-            val titleBytes = cleanTitle.toByteArray(Charsets.UTF_8)
+            val originalExt = resolveExtension(sourceUri, cleanTitle)
             val dateAdded = System.currentTimeMillis()
 
-            inputStream.use { input ->
-                FileOutputStream(destFile).use { fos ->
-                    val dos = DataOutputStream(fos)
-                    dos.write(iv)
-                    dos.write(HEADER_MAGIC)
-                    dos.writeInt(titleBytes.size)
-                    dos.write(titleBytes)
-                    dos.writeLong(durationMs)
-                    dos.writeLong(0L)
-                    dos.writeLong(dateAdded)
-                    dos.flush()
-
-                    val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-                    cipher.init(Cipher.ENCRYPT_MODE, aesKey, IvParameterSpec(iv))
-
-                    CipherOutputStream(fos, cipher).use { cos ->
-                        val buffer = ByteArray(64 * 1024)
-                        var bytesRead: Int
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            cos.write(buffer, 0, bytesRead)
-                        }
-                        cos.flush()
-                    }
+            val header = inputStream.use { input ->
+                if (storageMode == VaultStorageMode.ENCRYPTED) {
+                    vaultContainer.createEncryptedVaultFile(
+                        sourceInputStream = input,
+                        destinationVaultFile = destFile,
+                        passwordOrPin = vaultCredential,
+                        title = cleanTitle,
+                        originalExtension = originalExt,
+                        durationMs = durationMs
+                    )
+                } else {
+                    vaultContainer.createUnencryptedVaultFile(
+                        sourceInputStream = input,
+                        destinationVaultFile = destFile,
+                        title = cleanTitle,
+                        originalExtension = originalExt,
+                        durationMs = durationMs
+                    )
                 }
             }
 
-            val tempPlayback = getPlaybackFileInternal(destFile, fileId)
+            val tempPlayback = getPlaybackFileInternal(destFile, fileId, vaultCredential)
             val thumbPath = generateAndSaveThumbnail(tempPlayback, fileId)
             val finalDuration = if (durationMs > 0) {
                 durationMs
@@ -150,7 +132,10 @@ class VaultFileManager(
                 thumbnailPath = thumbPath,
                 fileSize = destFile.length(),
                 durationMs = finalDuration,
-                dateAdded = dateAdded
+                dateAdded = dateAdded,
+                storageMode = header.storageMode,
+                formatVersion = header.formatVersion,
+                originalExtension = header.originalExtension
             )
 
             val insertedId = vaultDao.insert(entity)
@@ -162,7 +147,7 @@ class VaultFileManager(
         }
     }
 
-    suspend fun rebuildDatabaseFromStorage(): Int = withContext(Dispatchers.IO) {
+    suspend fun rebuildDatabaseFromStorage(credential: String = ""): Int = withContext(Dispatchers.IO) {
         var restoredCount = 0
         try {
             val vltFiles = vaultDirectory.listFiles { file -> file.extension == "vlt" } ?: return@withContext 0
@@ -173,14 +158,19 @@ class VaultFileManager(
                     continue
                 }
 
-                val metadata = parseVaultFileHeader(file)
+                val header = try {
+                    vaultContainer.inspectVaultFile(file)
+                } catch (_: Exception) {
+                    null
+                }
+
                 val fileId = file.nameWithoutExtension
                 val existingThumb = File(thumbsDirectory, "$fileId.jpg")
                 val thumbPath = if (existingThumb.exists()) {
                     existingThumb.absolutePath
                 } else {
                     try {
-                        val tempPlay = getPlaybackFileInternal(file, fileId)
+                        val tempPlay = getPlaybackFileInternal(file, fileId, credential)
                         val tp = generateAndSaveThumbnail(tempPlay, fileId)
                         tempPlay.delete()
                         tp
@@ -190,13 +180,16 @@ class VaultFileManager(
                 }
 
                 val entity = VaultEntity(
-                    title = metadata?.title ?: file.nameWithoutExtension,
+                    title = header?.title?.ifBlank { file.nameWithoutExtension } ?: file.nameWithoutExtension,
                     originalUri = "",
                     vaultPath = file.absolutePath,
                     thumbnailPath = thumbPath,
                     fileSize = file.length(),
-                    durationMs = metadata?.durationMs ?: 0L,
-                    dateAdded = metadata?.dateAdded ?: file.lastModified()
+                    durationMs = header?.durationMs ?: 0L,
+                    dateAdded = header?.dateAdded?.takeIf { it > 0 } ?: file.lastModified(),
+                    storageMode = header?.storageMode ?: VaultStorageMode.NONE,
+                    formatVersion = header?.formatVersion ?: 2,
+                    originalExtension = header?.originalExtension ?: "mp4"
                 )
 
                 vaultDao.insert(entity)
@@ -206,44 +199,17 @@ class VaultFileManager(
         restoredCount
     }
 
-    private data class VaultHeaderMetadata(
-        val title: String,
-        val durationMs: Long,
-        val fileSize: Long,
-        val dateAdded: Long
-    )
-
-    private fun parseVaultFileHeader(file: File): VaultHeaderMetadata? {
-        return try {
-            FileInputStream(file).use { fis ->
-                val dis = DataInputStream(fis)
-                val iv = ByteArray(16)
-                if (dis.read(iv) != 16) return null
-
-                val magic = ByteArray(8)
-                if (dis.read(magic) != 8) return null
-                if (!magic.contentEquals(HEADER_MAGIC)) return null
-
-                val titleLen = dis.readInt()
-                if (titleLen <= 0 || titleLen > 2048) return null
-                val titleBytes = ByteArray(titleLen)
-                dis.readFully(titleBytes)
-                val title = String(titleBytes, Charsets.UTF_8)
-
-                val durationMs = dis.readLong()
-                val fileSize = dis.readLong()
-                val dateAdded = dis.readLong()
-
-                VaultHeaderMetadata(
-                    title = title,
-                    durationMs = durationMs,
-                    fileSize = fileSize,
-                    dateAdded = dateAdded
-                )
-            }
-        } catch (_: Exception) {
-            null
+    private fun resolveExtension(sourceUri: Uri, title: String): String {
+        val fromTitle = title.substringAfterLast('.', "").trim().lowercase()
+        if (fromTitle.isNotEmpty() && fromTitle.length in 2..5 && fromTitle.all { it.isLetterOrDigit() }) {
+            return fromTitle
         }
+        val mime = context.contentResolver.getType(sourceUri)
+        if (mime != null) {
+            val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+            if (!ext.isNullOrBlank()) return ext.lowercase()
+        }
+        return "mp4"
     }
 
     private fun removeOriginalSourceFile(sourceUri: Uri): Uri? {
@@ -347,94 +313,35 @@ class VaultFileManager(
         return null
     }
 
-    fun getPlaybackFile(vaultEntity: VaultEntity): File {
+    fun getPlaybackFile(vaultEntity: VaultEntity, credential: String = ""): File {
         val vaultFile = File(vaultEntity.vaultPath)
         val fileId = vaultFile.nameWithoutExtension
-        return getPlaybackFileInternal(vaultFile, fileId)
+        return getPlaybackFileInternal(vaultFile, fileId, credential)
     }
 
-    private fun getPlaybackFileInternal(vaultFile: File, fileId: String): File {
-        val tempFile = File(tempPlaybackDirectory, "$fileId.mp4")
+    private fun getPlaybackFileInternal(vaultFile: File, fileId: String, credential: String = ""): File {
+        val header = try {
+            runBlocking { vaultContainer.inspectVaultFile(vaultFile) }
+        } catch (_: Exception) {
+            null
+        }
+
+        val ext = header?.originalExtension ?: "mp4"
+        val tempFile = File(tempPlaybackDirectory, "$fileId.$ext")
         if (tempFile.exists() && tempFile.length() > 0) {
             return tempFile
         }
 
-        val partFile = File(tempPlaybackDirectory, "$fileId.mp4.part")
-        if (partFile.exists()) {
-            partFile.delete()
+        runBlocking {
+            vaultContainer.decryptVaultFile(vaultFile, tempFile, credential)
         }
-
-        try {
-            FileInputStream(vaultFile).buffered(256 * 1024).use { fis ->
-                val dis = DataInputStream(fis)
-                val iv = ByteArray(16)
-                dis.readFully(iv)
-
-                val magic = ByteArray(8)
-                dis.readFully(magic)
-
-                if (magic.contentEquals(HEADER_MAGIC)) {
-                    val titleLen = dis.readInt()
-                    if (titleLen in 1..2048) {
-                        val titleBytes = ByteArray(titleLen)
-                        dis.readFully(titleBytes)
-                    }
-                    dis.readLong()
-                    dis.readLong()
-                    dis.readLong()
-                } else {
-                    fis.close()
-                    FileInputStream(vaultFile).buffered(256 * 1024).use { legacyFis ->
-                        legacyFis.skip(16)
-                        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-                        cipher.init(Cipher.DECRYPT_MODE, aesKey, IvParameterSpec(iv))
-                        CipherInputStream(legacyFis, cipher).use { cis ->
-                            FileOutputStream(partFile).buffered(256 * 1024).use { fos ->
-                                val buffer = ByteArray(256 * 1024)
-                                var read: Int
-                                while (cis.read(buffer).also { read = it } != -1) {
-                                    fos.write(buffer, 0, read)
-                                }
-                                fos.flush()
-                            }
-                        }
-                    }
-                    if (partFile.renameTo(tempFile)) {
-                        return tempFile
-                    } else {
-                        return partFile
-                    }
-                }
-
-                val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-                cipher.init(Cipher.DECRYPT_MODE, aesKey, IvParameterSpec(iv))
-
-                CipherInputStream(dis, cipher).use { cis ->
-                    FileOutputStream(partFile).buffered(256 * 1024).use { fos ->
-                        val buffer = ByteArray(256 * 1024)
-                        var read: Int
-                        while (cis.read(buffer).also { read = it } != -1) {
-                            fos.write(buffer, 0, read)
-                        }
-                        fos.flush()
-                    }
-                }
-            }
-
-            if (partFile.renameTo(tempFile)) {
-                return tempFile
-            } else {
-                return partFile
-            }
-        } catch (e: Exception) {
-            if (partFile.exists()) partFile.delete()
-            throw e
-        }
+        return tempFile
     }
 
     suspend fun restoreVideoFromVault(
         vaultEntity: VaultEntity,
-        destinationDirectory: File
+        destinationDirectory: File,
+        credential: String = ""
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
             val vaultFile = File(vaultEntity.vaultPath)
@@ -448,13 +355,12 @@ class VaultFileManager(
 
             var destFileName = vaultEntity.title
             if (!destFileName.contains('.')) {
-                destFileName = "$destFileName.mp4"
+                val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
+                destFileName = "$destFileName.$ext"
             }
             val restoredFile = File(destinationDirectory, destFileName)
 
-            val tempPlay = getPlaybackFileInternal(vaultFile, vaultFile.nameWithoutExtension)
-            tempPlay.copyTo(restoredFile, overwrite = true)
-            tempPlay.delete()
+            vaultContainer.decryptVaultFile(vaultFile, restoredFile, credential)
 
             vaultFile.delete()
             vaultEntity.thumbnailPath?.let { File(it).delete() }
@@ -479,7 +385,8 @@ class VaultFileManager(
             if (vaultFile.exists()) {
                 vaultFile.delete()
             }
-            val tempPlayback = File(tempPlaybackDirectory, "${vaultFile.nameWithoutExtension}.mp4")
+            val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
+            val tempPlayback = File(tempPlaybackDirectory, "${vaultFile.nameWithoutExtension}.$ext")
             if (tempPlayback.exists()) tempPlayback.delete()
 
             vaultEntity.thumbnailPath?.let {
@@ -542,9 +449,5 @@ class VaultFileManager(
                 retriever.release()
             } catch (_: Exception) {}
         }
-    }
-
-    companion object {
-        private val HEADER_MAGIC = "NSDVLT01".toByteArray(Charsets.US_ASCII)
     }
 }

@@ -7,6 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+import androidx.room.TypeConverters
+
 @Database(
     entities = [
         WatchHistoryEntity::class,
@@ -17,9 +19,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MovieEntity::class,
         VaultEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
+@TypeConverters(VaultConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun watchHistoryDao(): WatchHistoryDao
     abstract fun videoMetadataDao(): VideoMetadataDao
@@ -147,6 +150,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addColumnIfNotExists(db, "vault_media", "storageMode", "TEXT NOT NULL DEFAULT 'ENCRYPTED'")
+                addColumnIfNotExists(db, "vault_media", "formatVersion", "INTEGER NOT NULL DEFAULT 1")
+                addColumnIfNotExists(db, "vault_media", "originalExtension", "TEXT NOT NULL DEFAULT 'mp4'")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -154,7 +165,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
