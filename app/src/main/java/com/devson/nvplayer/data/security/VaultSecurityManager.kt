@@ -5,53 +5,263 @@ import android.content.SharedPreferences
 import android.os.Environment
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import java.util.Base64
+import javax.crypto.AEADBadTagException
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
-class VaultSecurityManager(private val context: Context) {
+/**
+ * Manages vault credentials, PBKDF2 key derivation, and persistent cryptographic metadata.
+ * Logically separates authentication verification (via AES-GCM canary) from encryption-key derivation.
+ * Never persists plaintext PINs, passwords, or raw encryption keys.
+ */
+class VaultSecurityManager(
+    private val context: Context? = null,
+    private val customVaultDirectory: File? = null
+) {
 
-    private val masterKey: MasterKey = MasterKey.Builder(context.applicationContext)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val securePrefs: SharedPreferences = try {
-        EncryptedSharedPreferences.create(
-            context.applicationContext,
-            PREFS_FILE_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    } catch (e: Exception) {
-        context.applicationContext.deleteSharedPreferences(PREFS_FILE_NAME)
-        EncryptedSharedPreferences.create(
-            context.applicationContext,
-            PREFS_FILE_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+    private val securePrefs: SharedPreferences? by lazy {
+        context?.applicationContext?.let { appContext ->
+            try {
+                val masterKey = MasterKey.Builder(appContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                EncryptedSharedPreferences.create(
+                    appContext,
+                    PREFS_FILE_NAME,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (_: Exception) {
+                try {
+                    appContext.deleteSharedPreferences(PREFS_FILE_NAME)
+                    val masterKey = MasterKey.Builder(appContext)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                    EncryptedSharedPreferences.create(
+                        appContext,
+                        PREFS_FILE_NAME,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
     }
 
     val persistentVaultDirectory: File by lazy {
-        val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-        val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
-        if (!vaultDir.exists()) {
-            vaultDir.mkdirs()
+        if (customVaultDirectory != null) {
+            if (!customVaultDirectory.exists()) {
+                customVaultDirectory.mkdirs()
+            }
+            customVaultDirectory
+        } else {
+            val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+            val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
+            if (!vaultDir.exists()) {
+                vaultDir.mkdirs()
+            }
+            val nomedia = File(vaultDir, ".nomedia")
+            if (!nomedia.exists()) {
+                try { nomedia.createNewFile() } catch (_: Exception) {}
+            }
+            vaultDir
         }
-        val nomedia = File(vaultDir, ".nomedia")
-        if (!nomedia.exists()) {
-            try { nomedia.createNewFile() } catch (_: Exception) {}
-        }
-        vaultDir
     }
 
-    private val vaultConfigFile: File
+    val vaultConfigFile: File
         get() = File(persistentVaultDirectory, ".vault_config")
 
+    // In-memory cache of validated metadata to prevent excessive disk reads
+    @Volatile
+    private var cachedMetadata: VaultMetadata? = null
+
+    private var inMemoryBiometricEnabled: Boolean = true
+
+    // ==========================================
+    // Core Cryptographic Credential & Metadata APIs
+    // ==========================================
+
+    /**
+     * Checks if persistent vault metadata exists on external/persistent storage.
+     */
+    fun hasPersistentVaultMetadata(): Boolean {
+        return vaultConfigFile.exists() && vaultConfigFile.length() > 0L
+    }
+
+    /**
+     * Validates the integrity of the persistent vault metadata file without needing a credential.
+     */
+    fun validateVaultMetadata(): VaultMetadataStatus {
+        if (!vaultConfigFile.exists() || vaultConfigFile.length() == 0L) {
+            return VaultMetadataStatus.MISSING
+        }
+        return try {
+            val metadata = loadVaultMetadata()
+            if (metadata != null && metadata.salt.isNotEmpty() && metadata.authCiphertext.isNotEmpty() && metadata.authIv.isNotEmpty()) {
+                VaultMetadataStatus.VALID
+            } else {
+                VaultMetadataStatus.CORRUPTED
+            }
+        } catch (_: Exception) {
+            VaultMetadataStatus.CORRUPTED
+        }
+    }
+
+    /**
+     * Loads and parses the persistent vault metadata. Returns null if missing or malformed.
+     */
+    fun loadVaultMetadata(): VaultMetadata? {
+        cachedMetadata?.let { return it }
+
+        if (!vaultConfigFile.exists() || vaultConfigFile.length() == 0L) {
+            return null
+        }
+
+        return try {
+            val text = vaultConfigFile.readText(Charsets.UTF_8)
+            val metadata = VaultMetadataJson.fromJson(text)
+            cachedMetadata = metadata
+            metadata
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Initializes a new vault credential. Derives a temporary AES-256 key to generate
+     * an authenticated canary tag, then safely persists the metadata.
+     * Never writes the plaintext PIN or raw encryption key to disk.
+     */
+    fun createVaultCredential(
+        credential: String,
+        question: String = "",
+        answer: String = "",
+        iterations: Int = VaultKeyDerivation.DEFAULT_KDF_ITERATIONS
+    ): VaultMetadata {
+        require(credential.isNotEmpty()) { "Vault credential cannot be empty" }
+
+        val salt = VaultKeyDerivation.generateSalt()
+        val authIv = VaultKeyDerivation.generateGcmNonce()
+        val derivedKey = VaultKeyDerivation.deriveKey(credential, salt, iterations)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, derivedKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, authIv))
+        val authCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
+
+        var secAnswerSalt = ByteArray(0)
+        var secAnswerHash = ""
+        if (question.isNotBlank() && answer.isNotBlank()) {
+            secAnswerSalt = VaultKeyDerivation.generateSalt(16)
+            secAnswerHash = hashSecurityAnswer(answer, secAnswerSalt)
+        }
+
+        val metadata = VaultMetadata(
+            metadataVersion = VaultMetadata.CURRENT_METADATA_VERSION,
+            vaultFormatVersion = VaultMetadata.CURRENT_VAULT_FORMAT_VERSION,
+            kdfAlgorithm = VaultKeyDerivation.DEFAULT_KDF_ALGORITHM,
+            kdfIterations = iterations,
+            salt = salt,
+            authCiphertext = authCiphertext,
+            authIv = authIv,
+            securityQuestion = question,
+            securityAnswerSalt = secAnswerSalt,
+            securityAnswerHash = secAnswerHash,
+            timestamp = System.currentTimeMillis()
+        )
+
+        saveMetadataToDisk(metadata)
+        cachedMetadata = metadata
+        return metadata
+    }
+
+    /**
+     * Verifies the user's PIN/credential against the persisted canary tag.
+     * Returns true if credential correctly derives the key that decrypts the canary.
+     * Never alters, regenerates, or deletes any files or salt on wrong credentials.
+     */
+    fun verifyVaultCredential(credential: String): Boolean {
+        if (credential.isEmpty()) return false
+
+        val metadata = loadVaultMetadata() ?: return false
+
+        return try {
+            val candidateKey = VaultKeyDerivation.deriveKey(
+                credential = credential,
+                salt = metadata.salt,
+                iterations = metadata.kdfIterations
+            )
+
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                candidateKey,
+                GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, metadata.authIv)
+            )
+
+            val decryptedCanary = cipher.doFinal(metadata.authCiphertext)
+            decryptedCanary.contentEquals(AUTH_CANARY_PAYLOAD)
+        } catch (_: AEADBadTagException) {
+            false
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Derives the in-memory AES-256 SecretKeySpec for file operations after verifying the credential.
+     * The raw key is NEVER stored on disk.
+     */
+    fun deriveEncryptionKey(credential: String): SecretKeySpec {
+        val metadata = loadVaultMetadata()
+            ?: throw VaultInvalidHeaderException("Vault metadata is missing or corrupted")
+
+        if (!verifyVaultCredential(credential)) {
+            throw VaultAuthenticationException("Incorrect vault credential")
+        }
+
+        return VaultKeyDerivation.deriveKey(
+            credential = credential,
+            salt = metadata.salt,
+            iterations = metadata.kdfIterations
+        )
+    }
+
+    /**
+     * Safely deletes the vault metadata configuration file.
+     */
+    fun deleteVaultMetadata(): Boolean {
+        cachedMetadata = null
+        securePrefs?.edit()?.clear()?.apply()
+        return if (vaultConfigFile.exists()) {
+            vaultConfigFile.delete()
+        } else {
+            true
+        }
+    }
+
+    /**
+     * Checks if .vlt media files exist on disk while metadata is missing or corrupted (recovery state).
+     */
+    fun hasOrphanedVaultFiles(): Boolean {
+        val hasFiles = hasExistingVaultOnDisk()
+        val isMetadataValid = validateVaultMetadata() == VaultMetadataStatus.VALID
+        return hasFiles && !isMetadataValid
+    }
+
+    // ==========================================
+    // Backward-Compatible Facades for Existing UI
+    // ==========================================
+
     fun isPinSet(): Boolean {
-        return securePrefs.getString(KEY_VAULT_PIN_HASH, null)?.isNotEmpty() == true
+        return hasPersistentVaultMetadata() && validateVaultMetadata() == VaultMetadataStatus.VALID
     }
 
     fun hasExistingVaultOnDisk(): Boolean {
@@ -65,87 +275,84 @@ class VaultSecurityManager(private val context: Context) {
     }
 
     fun setPin(pin: String, question: String = "", answer: String = "") {
-        val pinHash = hashPin(pin)
-        val answerHash = if (answer.isNotBlank()) hashSecurityAnswer(answer) else ""
-        
-        securePrefs.edit()
-            .putString(KEY_VAULT_PIN_HASH, pinHash)
-            .apply()
-
-        if (question.isNotBlank()) {
-            securePrefs.edit()
-                .putString(KEY_VAULT_SECURITY_QUESTION, question)
-                .putString(KEY_VAULT_SECURITY_ANSWER_HASH, answerHash)
-                .apply()
-        }
-
-        saveToDiskConfig(pinHash, question, answerHash)
+        createVaultCredential(credential = pin, question = question, answer = answer)
     }
 
     fun verifyPin(pin: String): Boolean {
-        val storedHash = securePrefs.getString(KEY_VAULT_PIN_HASH, null)
-            ?: readDiskPinHash()
-            ?: return false
-        val inputHash = hashPin(pin)
-        val matches = storedHash == inputHash
-        if (matches && !securePrefs.contains(KEY_VAULT_PIN_HASH)) {
-            securePrefs.edit().putString(KEY_VAULT_PIN_HASH, storedHash).apply()
-            val diskQ = readDiskSecurityQuestion()
-            val diskA = readDiskSecurityAnswerHash()
-            if (!diskQ.isNullOrBlank()) {
-                securePrefs.edit()
-                    .putString(KEY_VAULT_SECURITY_QUESTION, diskQ)
-                    .putString(KEY_VAULT_SECURITY_ANSWER_HASH, diskA)
-                    .apply()
-            }
-        }
-        return matches
+        return verifyVaultCredential(pin)
     }
 
     fun updatePin(oldPin: String, newPin: String): Boolean {
-        if (!verifyPin(oldPin)) return false
-        val question = getSecurityQuestion() ?: ""
-        val answerHash = securePrefs.getString(KEY_VAULT_SECURITY_ANSWER_HASH, "") ?: readDiskSecurityAnswerHash() ?: ""
-        val newPinHash = hashPin(newPin)
-        securePrefs.edit().putString(KEY_VAULT_PIN_HASH, newPinHash).apply()
-        saveToDiskConfig(newPinHash, question, answerHash)
+        if (!verifyVaultCredential(oldPin)) return false
+
+        val oldMetadata = loadVaultMetadata() ?: return false
+        val question = oldMetadata.securityQuestion
+        val answerSalt = oldMetadata.securityAnswerSalt
+        val answerHash = oldMetadata.securityAnswerHash
+
+        // Generate new salt and canary under the new PIN
+        val newSalt = VaultKeyDerivation.generateSalt()
+        val newAuthIv = VaultKeyDerivation.generateGcmNonce()
+        val newKey = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, newKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
+        val newAuthCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
+
+        val updatedMetadata = oldMetadata.copy(
+            salt = newSalt,
+            authCiphertext = newAuthCiphertext,
+            authIv = newAuthIv,
+            securityQuestion = question,
+            securityAnswerSalt = answerSalt,
+            securityAnswerHash = answerHash,
+            timestamp = System.currentTimeMillis()
+        )
+
+        saveMetadataToDisk(updatedMetadata)
+        cachedMetadata = updatedMetadata
         return true
     }
 
     fun getSecurityQuestion(): String? {
-        return securePrefs.getString(KEY_VAULT_SECURITY_QUESTION, null)
-            ?: readDiskSecurityQuestion()
+        return loadVaultMetadata()?.securityQuestion?.takeIf { it.isNotBlank() }
     }
 
     fun verifySecurityAnswer(answer: String): Boolean {
-        val storedHash = securePrefs.getString(KEY_VAULT_SECURITY_ANSWER_HASH, null)
-            ?: readDiskSecurityAnswerHash()
-            ?: return false
-        val inputHash = hashSecurityAnswer(answer)
-        return storedHash == inputHash
+        val metadata = loadVaultMetadata() ?: return false
+        if (metadata.securityAnswerHash.isBlank() || metadata.securityAnswerSalt.isEmpty()) return false
+        val candidateHash = hashSecurityAnswer(answer, metadata.securityAnswerSalt)
+        return metadata.securityAnswerHash == candidateHash
     }
 
     fun resetPinWithSecurityAnswer(answer: String, newPin: String): Boolean {
         if (!verifySecurityAnswer(answer)) return false
-        val question = getSecurityQuestion() ?: ""
-        val answerHash = hashSecurityAnswer(answer)
-        val newPinHash = hashPin(newPin)
-        
-        securePrefs.edit()
-            .putString(KEY_VAULT_PIN_HASH, newPinHash)
-            .putString(KEY_VAULT_SECURITY_QUESTION, question)
-            .putString(KEY_VAULT_SECURITY_ANSWER_HASH, answerHash)
-            .apply()
+        val oldMetadata = loadVaultMetadata() ?: return false
 
-        saveToDiskConfig(newPinHash, question, answerHash)
+        // Security question allows resetting access to unencrypted hidden files.
+        // Re-creates metadata canary with new PIN.
+        val newSalt = VaultKeyDerivation.generateSalt()
+        val newAuthIv = VaultKeyDerivation.generateGcmNonce()
+        val newKey = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, newKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
+        val newAuthCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
+
+        val updatedMetadata = oldMetadata.copy(
+            salt = newSalt,
+            authCiphertext = newAuthCiphertext,
+            authIv = newAuthIv,
+            timestamp = System.currentTimeMillis()
+        )
+
+        saveMetadataToDisk(updatedMetadata)
+        cachedMetadata = updatedMetadata
         return true
     }
 
     fun resetVault(deleteFiles: Boolean) {
-        securePrefs.edit().clear().apply()
-        if (vaultConfigFile.exists()) {
-            try { vaultConfigFile.delete() } catch (_: Exception) {}
-        }
+        deleteVaultMetadata()
         if (deleteFiles && persistentVaultDirectory.exists()) {
             persistentVaultDirectory.listFiles()?.forEach { file ->
                 try { file.delete() } catch (_: Exception) {}
@@ -154,76 +361,46 @@ class VaultSecurityManager(private val context: Context) {
     }
 
     fun isBiometricEnabled(): Boolean {
-        return securePrefs.getBoolean(KEY_BIOMETRIC_ENABLED, true)
+        return securePrefs?.getBoolean(KEY_BIOMETRIC_ENABLED, true) ?: inMemoryBiometricEnabled
     }
 
     fun setBiometricEnabled(enabled: Boolean) {
-        securePrefs.edit()
-            .putBoolean(KEY_BIOMETRIC_ENABLED, enabled)
-            .apply()
+        inMemoryBiometricEnabled = enabled
+        securePrefs?.edit()?.putBoolean(KEY_BIOMETRIC_ENABLED, enabled)?.apply()
     }
 
-    private fun hashPin(pin: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val bytes = digest.digest(("NOSVED_PIN_SALT_2026_" + pin).toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
+    // ==========================================
+    // Internal Helper Methods
+    // ==========================================
+
+    private fun saveMetadataToDisk(metadata: VaultMetadata) {
+        val jsonString = VaultMetadataJson.toJson(metadata)
+
+        val parent = vaultConfigFile.parentFile
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs()
+        }
+
+        val tempConfig = File(vaultConfigFile.parentFile, ".vault_config.tmp")
+        tempConfig.writeText(jsonString, Charsets.UTF_8)
+        if (!tempConfig.renameTo(vaultConfigFile)) {
+            tempConfig.copyTo(vaultConfigFile, overwrite = true)
+            tempConfig.delete()
+        }
     }
 
-    private fun hashSecurityAnswer(answer: String): String {
+    private fun hashSecurityAnswer(answer: String, salt: ByteArray): String {
         val normalized = answer.trim().lowercase()
         val digest = MessageDigest.getInstance("SHA-256")
-        val bytes = digest.digest(("NOSVED_SEC_ANSWER_SALT_" + normalized).toByteArray(Charsets.UTF_8))
+        digest.update(salt)
+        val bytes = digest.digest(normalized.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun saveToDiskConfig(pinHash: String, question: String, answerHash: String) {
-        try {
-            val json = JSONObject().apply {
-                put("pinHash", pinHash)
-                put("question", question)
-                put("answerHash", answerHash)
-                put("timestamp", System.currentTimeMillis())
-            }
-            vaultConfigFile.writeText(json.toString(), Charsets.UTF_8)
-        } catch (_: Exception) {}
-    }
-
-    private fun readDiskPinHash(): String? {
-        if (!vaultConfigFile.exists()) return null
-        return try {
-            val json = JSONObject(vaultConfigFile.readText(Charsets.UTF_8))
-            json.optString("pinHash").takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun readDiskSecurityQuestion(): String? {
-        if (!vaultConfigFile.exists()) return null
-        return try {
-            val json = JSONObject(vaultConfigFile.readText(Charsets.UTF_8))
-            json.optString("question").takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun readDiskSecurityAnswerHash(): String? {
-        if (!vaultConfigFile.exists()) return null
-        return try {
-            val json = JSONObject(vaultConfigFile.readText(Charsets.UTF_8))
-            json.optString("answerHash").takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
     }
 
     companion object {
         private const val PREFS_FILE_NAME = "secure_vault_prefs"
-        private const val KEY_VAULT_PIN_HASH = "vault_pin_hash"
-        private const val KEY_VAULT_SECURITY_QUESTION = "vault_sec_question"
-        private const val KEY_VAULT_SECURITY_ANSWER_HASH = "vault_sec_answer_hash"
         private const val KEY_BIOMETRIC_ENABLED = "vault_biometric_enabled"
+        private val AUTH_CANARY_PAYLOAD = "NOSVED_VAULT_AUTH_CANARY_V2".toByteArray(Charsets.UTF_8)
 
         val DEFAULT_SECURITY_QUESTIONS = listOf(
             "What is your birthplace?",
