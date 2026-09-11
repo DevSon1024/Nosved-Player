@@ -49,6 +49,7 @@ fun SettingsScreen(
     onNavigateToGestures: () -> Unit = {},
     onNavigateToYtdlpSettings: () -> Unit = {},
     onNavigateToMpvConfig: () -> Unit = {},
+    onNavigateToLanguageSettings: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
@@ -174,6 +175,16 @@ fun SettingsScreen(
                             title = "Player Interface",
                             subtitle = "Manage player layout and visibility",
                             onClick = onNavigateToPlayerInterface
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Language,
+                            title = "Language",
+                            subtitle = "Default audio and subtitle language preferences",
+                            onClick = onNavigateToLanguageSettings
                         )
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 72.dp),

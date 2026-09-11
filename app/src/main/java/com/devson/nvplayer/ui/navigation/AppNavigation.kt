@@ -68,6 +68,7 @@ import com.devson.nvplayer.ui.screens.settings.PrivacyPolicyScreen
 import com.devson.nvplayer.ui.screen.settings.ToolScreen
 import com.devson.nvplayer.ui.screens.settings.MilliSecondScreen
 import com.devson.nvplayer.ui.screens.settings.MediaStoreFinderScreen
+import com.devson.nvplayer.ui.screen.settings.LanguageSettingsScreen
 import com.devson.nvplayer.ui.screen.editor.MpvHelpScreen
 import com.devson.nvplayer.ui.screen.NetworkHistoryScreen
 
@@ -442,6 +443,7 @@ fun AppNavigation(
                 onNavigateToRecycleBin = { navController.navigate("recycle_bin") { launchSingleTop = true } },
                 onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") { launchSingleTop = true } },
                 onNavigateToMpvConfig = { navController.navigate("mpv_config") { launchSingleTop = true } },
+                onNavigateToLanguageSettings = { navController.navigate("language_settings") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -450,6 +452,13 @@ fun AppNavigation(
             MpvConfigSettingsScreen(
                 onNavigateBack = safePopBackStack,
                 onNavigateToHelp = { navController.navigate("mpv_help") { launchSingleTop = true } },
+                settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("language_settings") {
+            LanguageSettingsScreen(
+                onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
             )
         }

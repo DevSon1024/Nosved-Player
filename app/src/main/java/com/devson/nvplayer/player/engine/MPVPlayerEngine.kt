@@ -527,7 +527,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                     else -> "${type.replaceFirstChar { it.uppercaseChar() }} Track #$id"
                 }
 
-                val track = TrackInfo(id, type, trackName, selected, isExternal = external)
+                val track = TrackInfo(id, type, trackName, selected, isExternal = external, lang = lang)
                 if (type == "sub") {
                     subs.add(track)
                 } else if (type == "audio") {
@@ -566,6 +566,52 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             Log.e("MPVPlayerEngine", "Failed to update chapters", e)
         }
     }
+
+    private fun applyDefaultLanguagePreferences() {
+        try {
+            val audioLangPref = settingsRepo.defaultAudioLangFlow.value.trim().lowercase()
+            val subLangPref = settingsRepo.defaultSubtitleLangFlow.value.trim().lowercase()
+
+            if (audioLangPref.isNotEmpty()) {
+                val audios = _audioTracks.value.filter { it.id != -1 }
+                val match = audios.firstOrNull { track ->
+                    langMatches(track.lang, audioLangPref)
+                }
+                if (match != null) {
+                    Log.d("MPVPlayerEngine", "Auto-selecting audio track: ${match.name} (lang=${match.lang}) for pref=$audioLangPref")
+                    selectAudioTrack(match.id)
+                } else {
+                    Log.d("MPVPlayerEngine", "No audio track matching pref=$audioLangPref, keeping MPV default")
+                }
+            }
+
+            if (subLangPref.isNotEmpty()) {
+                val subs = _subtitleTracks.value.filter { it.id != -1 }
+                val match = subs.firstOrNull { track ->
+                    langMatches(track.lang, subLangPref)
+                }
+                if (match != null) {
+                    Log.d("MPVPlayerEngine", "Auto-selecting subtitle track: ${match.name} (lang=${match.lang}) for pref=$subLangPref")
+                    selectSubtitleTrack(match.id)
+                } else {
+                    Log.d("MPVPlayerEngine", "No subtitle track matching pref=$subLangPref, disabling subtitles")
+                    selectSubtitleTrack(-1)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to apply default language preferences", e)
+        }
+    }
+
+    private fun langMatches(trackLang: String, pref: String): Boolean {
+        if (trackLang.isBlank() || pref.isBlank()) return false
+        val t = trackLang.trim().lowercase()
+        val p = pref.trim().lowercase()
+        return t == p || t.startsWith("$p-") || p.startsWith("$t-") ||
+            t.take(2) == p.take(2)
+    }
+
+
 
     override fun setAudioBoost(boost: Boolean) {
         Log.d("MPVPlayerEngine", "Setting audio boost: $boost")
@@ -962,6 +1008,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _playbackState.value = PlayerState.Playing
                 _isPlaying.value = true
                 updateTracks()
+                applyDefaultLanguagePreferences()
                 updateChapters()
                 togglePerformanceOverlayFromConf()
                 val settings = settingsRepo.playbackSettingsFlow.value
