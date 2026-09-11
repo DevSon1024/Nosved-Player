@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
 import com.devson.nvplayer.data.security.VaultFileManager
+import com.devson.nvplayer.data.security.VaultSecurityManager
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,8 @@ import java.io.File
 class VaultGalleryViewModel(
     application: Application,
     private val vaultDao: VaultDao,
-    private val vaultFileManager: VaultFileManager
+    private val vaultFileManager: VaultFileManager,
+    val vaultSecurityManager: VaultSecurityManager = VaultSecurityManager(application)
 ) : AndroidViewModel(application) {
 
     val vaultMediaList: StateFlow<List<VaultEntity>> = vaultDao.getAllVaultMediaFlow()
@@ -32,6 +35,9 @@ class VaultGalleryViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    private val _defaultStorageMode = MutableStateFlow(vaultSecurityManager.getDefaultStorageMode())
+    val defaultStorageMode: StateFlow<VaultStorageMode> = _defaultStorageMode.asStateFlow()
 
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
@@ -50,16 +56,37 @@ class VaultGalleryViewModel(
         _pendingIntentSender.value = null
     }
 
+    fun refreshStorageMode() {
+        _defaultStorageMode.value = vaultSecurityManager.getDefaultStorageMode()
+    }
+
+    fun setStorageMode(mode: VaultStorageMode): Boolean {
+        val success = vaultSecurityManager.setDefaultStorageMode(mode)
+        if (success) {
+            _defaultStorageMode.value = mode
+        }
+        return success
+    }
+
+    fun verifyAndSetStorageMode(credential: String, mode: VaultStorageMode): Boolean {
+        val success = vaultSecurityManager.verifyAndSetStorageMode(credential, mode)
+        if (success) {
+            _defaultStorageMode.value = mode
+        }
+        return success
+    }
+
     fun importVideos(uris: List<Uri>, titles: List<String>) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             var importedCount = 0
             val urisToRequestDelete = mutableListOf<Uri>()
+            val currentMode = _defaultStorageMode.value
 
             for (i in uris.indices) {
                 val uri = uris[i]
                 val title = titles.getOrNull(i) ?: "Protected Video"
-                val result = vaultFileManager.importVideoToVault(uri, title)
+                val result = vaultFileManager.importVideoToVault(sourceUri = uri, title = title, storageMode = currentMode)
                 if (result.isSuccess) {
                     importedCount++
                     val pendingDeleteUri = result.getOrNull()?.pendingDeleteUri
@@ -135,12 +162,14 @@ class VaultGalleryViewModel(
     class Factory(
         private val application: Application,
         private val vaultDao: VaultDao,
-        private val vaultFileManager: VaultFileManager
+        private val vaultFileManager: VaultFileManager,
+        private val vaultSecurityManager: VaultSecurityManager? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(VaultGalleryViewModel::class.java)) {
-                return VaultGalleryViewModel(application, vaultDao, vaultFileManager) as T
+                val secManager = vaultSecurityManager ?: VaultSecurityManager(application)
+                return VaultGalleryViewModel(application, vaultDao, vaultFileManager, secManager) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

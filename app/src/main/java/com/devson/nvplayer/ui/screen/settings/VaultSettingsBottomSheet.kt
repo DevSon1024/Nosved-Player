@@ -64,10 +64,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Shield
 import com.devson.nvplayer.data.security.VaultSecurityManager
+import com.devson.nvplayer.domain.model.VaultStorageMode
+import com.devson.nvplayer.ui.screen.vault.VaultProtectionContent
 
 private enum class VaultSettingsFlow {
     MAIN,
+    VAULT_PROTECTION_VERIFY_PIN,
+    STORAGE_PROTECTION_MODE,
     CHANGE_PIN_OLD,
     CHANGE_PIN_NEW,
     CHANGE_PIN_CONFIRM,
@@ -146,6 +151,12 @@ fun VaultSettingsBottomSheet(
                     VaultSettingsFlow.MAIN -> {
                         VaultSettingsMainContent(
                             isPinConfigured = isPinConfigured,
+                            currentStorageMode = securityManager.getDefaultStorageMode(),
+                            onVaultProtectionClick = {
+                                oldPinInput = ""
+                                errorMessage = null
+                                currentFlow = VaultSettingsFlow.VAULT_PROTECTION_VERIFY_PIN
+                            },
                             onChangePinClick = {
                                 oldPinInput = ""
                                 newPinInput = ""
@@ -162,6 +173,45 @@ fun VaultSettingsBottomSheet(
                             onResetVaultClick = {
                                 showResetConfirmDialog = true
                             }
+                        )
+                    }
+
+                    VaultSettingsFlow.VAULT_PROTECTION_VERIFY_PIN -> {
+                        PinInputStep(
+                            title = "Verify PIN",
+                            subtitle = "Enter current PIN to manage Vault Protection",
+                            pin = oldPinInput,
+                            error = errorMessage,
+                            onDigit = {
+                                if (oldPinInput.length < 4) {
+                                    oldPinInput += it
+                                    errorMessage = null
+                                    if (oldPinInput.length == 4) {
+                                        if (securityManager.verifyPin(oldPinInput)) {
+                                            currentFlow = VaultSettingsFlow.STORAGE_PROTECTION_MODE
+                                        } else {
+                                            oldPinInput = ""
+                                            errorMessage = "Incorrect PIN"
+                                        }
+                                    }
+                                }
+                            },
+                            onBackspace = { if (oldPinInput.isNotEmpty()) oldPinInput = oldPinInput.dropLast(1) },
+                            onCancel = { currentFlow = VaultSettingsFlow.MAIN }
+                        )
+                    }
+
+                    VaultSettingsFlow.STORAGE_PROTECTION_MODE -> {
+                        var selectedMode by remember { mutableStateOf(securityManager.getDefaultStorageMode()) }
+                        VaultProtectionContent(
+                            currentMode = selectedMode,
+                            onModeSelected = { newMode ->
+                                selectedMode = newMode
+                                securityManager.setDefaultStorageMode(newMode)
+                                Toast.makeText(context, "Storage protection mode updated", Toast.LENGTH_SHORT).show()
+                            },
+                            onClose = { currentFlow = VaultSettingsFlow.MAIN },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -352,6 +402,8 @@ fun VaultSettingsBottomSheet(
 @Composable
 private fun VaultSettingsMainContent(
     isPinConfigured: Boolean,
+    currentStorageMode: VaultStorageMode,
+    onVaultProtectionClick: () -> Unit,
     onChangePinClick: () -> Unit,
     onUpdateSecurityQuestionClick: () -> Unit,
     onResetVaultClick: () -> Unit
@@ -409,6 +461,13 @@ private fun VaultSettingsMainContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
+                    VaultSettingsRow(
+                        icon = Icons.Filled.Shield,
+                        title = "Vault Protection",
+                        subtitle = if (currentStorageMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden only \u2014 not encrypted.",
+                        onClick = onVaultProtectionClick
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     VaultSettingsRow(
                         icon = Icons.Filled.Pin,
                         title = "Change Vault PIN",

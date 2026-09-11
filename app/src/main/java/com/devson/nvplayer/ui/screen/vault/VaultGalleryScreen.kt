@@ -82,6 +82,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.devson.nvplayer.data.database.VaultEntity
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.util.formatDuration
 import com.devson.nvplayer.util.formatSize
@@ -95,6 +96,7 @@ fun VaultGalleryScreen(
     viewModel: VaultGalleryViewModel,
     onLockClick: () -> Unit,
     onPlayMedia: (VaultEntity, File, Video) -> Unit,
+    initialOpenProtection: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -103,6 +105,8 @@ fun VaultGalleryScreen(
     val vaultItems by viewModel.vaultMediaList.collectAsStateWithLifecycle()
     val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
+    val currentStorageMode by viewModel.defaultStorageMode.collectAsStateWithLifecycle()
+    var showProtectionSheet by remember(initialOpenProtection) { mutableStateOf(initialOpenProtection) }
 
     DisposableEffect(Unit) {
         val activity = context as? Activity
@@ -184,21 +188,34 @@ fun VaultGalleryScreen(
                             text = "Privacy Vault",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
+                        val isEncrypted = currentStorageMode == VaultStorageMode.ENCRYPTED
+                        val badgeLabel = if (isEncrypted) "Encrypted" else "Hidden (No Encryption)"
+                        val badgeContainerColor = if (isEncrypted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+                        val badgeContentColor = if (isEncrypted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .background(badgeContainerColor)
+                                .clickable { showProtectionSheet = true }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "ENCRYPTED",
+                                text = badgeLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = badgeContentColor
                             )
                         }
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showProtectionSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Shield,
+                            contentDescription = "Vault Protection",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = { mediaPickerLauncher.launch(arrayOf("video/*")) }) {
                         Icon(
                             imageVector = Icons.Filled.Add,
@@ -347,6 +364,16 @@ fun VaultGalleryScreen(
                     Text("Cancel")
                 }
             }
+        )
+    }
+
+    if (showProtectionSheet) {
+        VaultProtectionBottomSheet(
+            currentMode = currentStorageMode,
+            onModeSelected = { newMode ->
+                viewModel.setStorageMode(newMode)
+            },
+            onDismissRequest = { showProtectionSheet = false }
         )
     }
 }

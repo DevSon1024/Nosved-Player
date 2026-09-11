@@ -7,7 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.data.database.VaultEntity
@@ -25,6 +29,7 @@ fun VaultScreen(
     modifier: Modifier = Modifier
 ) {
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    var openProtectionAfterAuth by remember { mutableStateOf(false) }
 
     AnimatedContent(
         targetState = authState is VaultAuthState.Authenticated,
@@ -35,15 +40,25 @@ fun VaultScreen(
         modifier = modifier.fillMaxSize()
     ) { isAuthenticated ->
         if (isAuthenticated) {
+            val shouldOpenProtection = openProtectionAfterAuth
+            LaunchedEffect(shouldOpenProtection) {
+                if (shouldOpenProtection) {
+                    openProtectionAfterAuth = false
+                }
+            }
             VaultGalleryScreen(
                 viewModel = galleryViewModel,
                 onLockClick = { authViewModel.lockVault() },
                 onPlayMedia = onPlayMedia,
+                initialOpenProtection = shouldOpenProtection,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
             VaultAuthScreen(
                 viewModel = authViewModel,
+                onVaultProtectionClick = {
+                    openProtectionAfterAuth = true
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }

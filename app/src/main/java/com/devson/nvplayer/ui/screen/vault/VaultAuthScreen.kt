@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -75,12 +78,14 @@ import com.devson.nvplayer.viewmodel.VaultAuthViewModel
 @Composable
 fun VaultAuthScreen(
     viewModel: VaultAuthViewModel,
+    onVaultProtectionClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val pinDigits by viewModel.pinDigits.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = context as? FragmentActivity
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showStartFreshDialog by remember { mutableStateOf(false) }
@@ -141,6 +146,37 @@ fun VaultAuthScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 8.dp)
         )
+
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .clickable {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Enter PIN to authenticate and manage Vault Protection")
+                    }
+                    onVaultProtectionClick()
+                }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Shield,
+                    contentDescription = "Vault Protection",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Protection Mode",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
 
         when (val state = authState) {
             is VaultAuthState.SetupSecurityQuestion -> {

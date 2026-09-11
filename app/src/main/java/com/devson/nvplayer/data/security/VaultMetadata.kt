@@ -1,5 +1,6 @@
 package com.devson.nvplayer.data.security
 
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import java.util.Base64
 
 /**
@@ -30,6 +31,7 @@ data class VaultMetadata(
     val securityQuestion: String = "",
     val securityAnswerSalt: ByteArray = ByteArray(0),
     val securityAnswerHash: String = "",
+    val defaultStorageMode: VaultStorageMode = VaultStorageMode.NONE,
     val timestamp: Long = System.currentTimeMillis()
 ) {
     override fun equals(other: Any?): Boolean {
@@ -48,6 +50,7 @@ data class VaultMetadata(
         if (securityQuestion != other.securityQuestion) return false
         if (!securityAnswerSalt.contentEquals(other.securityAnswerSalt)) return false
         if (securityAnswerHash != other.securityAnswerHash) return false
+        if (defaultStorageMode != other.defaultStorageMode) return false
         if (timestamp != other.timestamp) return false
 
         return true
@@ -64,6 +67,7 @@ data class VaultMetadata(
         result = 31 * result + securityQuestion.hashCode()
         result = 31 * result + securityAnswerSalt.contentHashCode()
         result = 31 * result + securityAnswerHash.hashCode()
+        result = 31 * result + defaultStorageMode.hashCode()
         result = 31 * result + timestamp.hashCode()
         return result
     }
@@ -101,6 +105,7 @@ object VaultMetadataJson {
             append("  \"securityQuestion\": \"${escape(metadata.securityQuestion)}\",\n")
             append("  \"securityAnswerSalt\": \"$answerSaltB64\",\n")
             append("  \"securityAnswerHash\": \"${escape(metadata.securityAnswerHash)}\",\n")
+            append("  \"defaultStorageMode\": \"${metadata.defaultStorageMode.name}\",\n")
             append("  \"timestamp\": ${metadata.timestamp}\n")
             append("}")
         }
@@ -141,6 +146,13 @@ object VaultMetadataJson {
                 ByteArray(0)
             }
             val secAnswerHash = extractString("securityAnswerHash") ?: ""
+            val defaultStorageMode = extractString("defaultStorageMode")?.let {
+                try {
+                    VaultStorageMode.valueOf(it)
+                } catch (_: Exception) {
+                    VaultStorageMode.NONE
+                }
+            } ?: VaultStorageMode.NONE
             val timestamp = extractLong("timestamp") ?: System.currentTimeMillis()
 
             VaultMetadata(
@@ -154,6 +166,7 @@ object VaultMetadataJson {
                 securityQuestion = question,
                 securityAnswerSalt = secAnswerSalt,
                 securityAnswerHash = secAnswerHash,
+                defaultStorageMode = defaultStorageMode,
                 timestamp = timestamp
             )
         } catch (_: Exception) {

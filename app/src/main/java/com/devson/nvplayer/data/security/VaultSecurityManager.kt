@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.os.Environment
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import java.io.File
 import java.security.MessageDigest
 import java.util.Base64
@@ -367,6 +368,40 @@ class VaultSecurityManager(
     fun setBiometricEnabled(enabled: Boolean) {
         inMemoryBiometricEnabled = enabled
         securePrefs?.edit()?.putBoolean(KEY_BIOMETRIC_ENABLED, enabled)?.apply()
+    }
+
+    /**
+     * Returns the configured default storage mode for future imports.
+     * Defaults to VaultStorageMode.NONE (Hidden / No Encryption) for new installations.
+     */
+    fun getDefaultStorageMode(): VaultStorageMode {
+        return loadVaultMetadata()?.defaultStorageMode ?: VaultStorageMode.NONE
+    }
+
+    /**
+     * Updates the default storage mode in persistent metadata.
+     * Safe persistence inside .vault_config.
+     */
+    fun setDefaultStorageMode(mode: VaultStorageMode): Boolean {
+        val current = loadVaultMetadata() ?: return false
+        val updated = current.copy(
+            defaultStorageMode = mode,
+            timestamp = System.currentTimeMillis()
+        )
+        saveMetadataToDisk(updated)
+        cachedMetadata = updated
+        return true
+    }
+
+    /**
+     * Authenticates with user credential before changing the storage mode.
+     * Rejects unauthenticated attempts and leaves state unchanged.
+     */
+    fun verifyAndSetStorageMode(credential: String, mode: VaultStorageMode): Boolean {
+        if (!verifyVaultCredential(credential)) {
+            return false
+        }
+        return setDefaultStorageMode(mode)
     }
 
     // ==========================================

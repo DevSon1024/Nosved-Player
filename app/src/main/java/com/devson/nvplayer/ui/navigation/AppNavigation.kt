@@ -123,7 +123,8 @@ fun AppNavigation(
         factory = VaultGalleryViewModel.Factory(
             application = context.applicationContext as android.app.Application,
             vaultDao = database.vaultDao(),
-            vaultFileManager = vaultFileManager
+            vaultFileManager = vaultFileManager,
+            vaultSecurityManager = vaultSecurityManager
         )
     )
 
