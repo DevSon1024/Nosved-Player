@@ -22,6 +22,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+data class VideoConversionState(
+    val isConverting: Boolean = false,
+    val item: VaultEntity? = null,
+    val targetMode: VaultStorageMode? = null,
+    val progress: Float = 0f,
+    val error: String? = null
+)
+
 class VaultGalleryViewModel(
     application: Application,
     private val vaultDao: VaultDao,
@@ -42,11 +50,66 @@ class VaultGalleryViewModel(
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
 
+    private val _conversionState = MutableStateFlow(VideoConversionState())
+    val conversionState: StateFlow<VideoConversionState> = _conversionState.asStateFlow()
+
+    @Volatile
+    private var isConversionCancelled = false
+    private var conversionJob: kotlinx.coroutines.Job? = null
+
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     private val _pendingIntentSender = MutableStateFlow<android.content.IntentSender?>(null)
     val pendingIntentSender: StateFlow<android.content.IntentSender?> = _pendingIntentSender.asStateFlow()
+
+    fun verifyCredential(credential: String): Boolean {
+        return vaultSecurityManager.verifyVaultCredential(credential)
+    }
+
+    fun startProtectionConversion(item: VaultEntity, targetMode: VaultStorageMode, credential: String) {
+        if (_conversionState.value.isConverting) return
+        isConversionCancelled = false
+        _conversionState.value = VideoConversionState(
+            isConverting = true,
+            item = item,
+            targetMode = targetMode,
+            progress = 0f,
+            error = null
+        )
+
+        conversionJob = viewModelScope.launch(Dispatchers.IO) {
+            val result = vaultFileManager.convertVideoProtection(
+                vaultEntity = item,
+                targetMode = targetMode,
+                credential = credential,
+                securityManager = vaultSecurityManager,
+                onProgress = { p ->
+                    _conversionState.value = _conversionState.value.copy(progress = p)
+                },
+                isCancelled = { isConversionCancelled }
+            )
+
+            _conversionState.value = VideoConversionState(isConverting = false)
+
+            if (result.isSuccess) {
+                val targetLabel = if (targetMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden / No Encryption"
+                _statusMessage.value = "Converted \"${item.title}\" to $targetLabel."
+            } else {
+                val ex = result.exceptionOrNull()
+                if (ex is kotlinx.coroutines.CancellationException) {
+                    _statusMessage.value = "Conversion cancelled."
+                } else {
+                    _statusMessage.value = "Conversion failed: ${ex?.message ?: "Unknown error"}"
+                }
+            }
+        }
+    }
+
+    fun cancelConversion() {
+        isConversionCancelled = true
+        conversionJob?.cancel()
+    }
 
     fun clearStatusMessage() {
         _statusMessage.value = null

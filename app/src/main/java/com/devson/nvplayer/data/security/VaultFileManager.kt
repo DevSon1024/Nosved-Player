@@ -13,6 +13,7 @@ import android.webkit.MimeTypeMap
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
 import com.devson.nvplayer.domain.model.VaultStorageMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -41,6 +42,54 @@ data class VaultDeletionResult(
     val failedMediaCount: Int,
     val remainingFiles: List<String>
 )
+
+class ProgressInputStream(
+    private val wrapped: InputStream,
+    private val totalBytes: Long,
+    private val onProgress: ((Float) -> Unit)?,
+    private val isCancelled: (() -> Boolean)? = null
+) : InputStream() {
+    private var bytesRead = 0L
+    private var lastPercent = -1
+
+    override fun read(): Int {
+        if (isCancelled?.invoke() == true) {
+            throw CancellationException("Operation cancelled by user")
+        }
+        val b = wrapped.read()
+        if (b != -1) {
+            bytesRead++
+            report()
+        }
+        return b
+    }
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (isCancelled?.invoke() == true) {
+            throw CancellationException("Operation cancelled by user")
+        }
+        val r = wrapped.read(b, off, len)
+        if (r > 0) {
+            bytesRead += r
+            report()
+        }
+        return r
+    }
+
+    private fun report() {
+        if (totalBytes > 0 && onProgress != null) {
+            val percent = ((bytesRead.toDouble() / totalBytes.toDouble()) * 100).toInt()
+            if (percent != lastPercent) {
+                lastPercent = percent
+                onProgress.invoke((bytesRead.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f))
+            }
+        }
+    }
+
+    override fun close() {
+        wrapped.close()
+    }
+}
 
 class VaultFileManager(
     private val context: Context? = null,
@@ -698,6 +747,172 @@ class VaultFileManager(
         )
     }
 
+    suspend fun convertVideoProtection(
+        vaultEntity: VaultEntity,
+        targetMode: VaultStorageMode,
+        credential: String,
+        securityManager: VaultSecurityManager,
+        onProgress: ((Float) -> Unit)? = null,
+        isCancelled: (() -> Boolean)? = null
+    ): Result<VaultEntity> = withContext(ioDispatcher) {
+        if (vaultEntity.storageMode == targetMode) {
+            return@withContext Result.success(vaultEntity)
+        }
+
+        val vaultFile = File(vaultEntity.vaultPath)
+        if (!vaultFile.exists()) {
+            return@withContext Result.failure(FileNotFoundException("Vault file not found: ${vaultEntity.vaultPath}"))
+        }
+
+        if (credential.isBlank() || !securityManager.verifyVaultCredential(credential)) {
+            return@withContext Result.failure(SecurityException("Invalid vault credentials"))
+        }
+
+        val sourceFileSize = vaultFile.length()
+        val requiredSpace = (sourceFileSize * 2) + (10L * 1024 * 1024)
+        val usableSpace = vaultDirectory.usableSpace
+        if (usableSpace > 0 && usableSpace < requiredSpace) {
+            return@withContext Result.failure(
+                IOException("Insufficient storage space for conversion. Required: ${requiredSpace / (1024 * 1024)}MB, Available: ${usableSpace / (1024 * 1024)}MB")
+            )
+        }
+
+        val convertingFile = File(vaultFile.parentFile ?: vaultDirectory, "${vaultFile.name}.converting")
+        val backupFile = File(vaultFile.parentFile ?: vaultDirectory, "${vaultFile.name}.backup")
+        if (convertingFile.exists()) convertingFile.delete()
+        if (backupFile.exists()) backupFile.delete()
+
+        val tempConvDir = context?.cacheDir?.let { File(it, "vault_conversion_temp") }
+            ?: File(tempPlaybackDirectory, ".vault_conversion_temp")
+        if (!tempConvDir.exists()) tempConvDir.mkdirs()
+        val nomedia = File(tempConvDir, ".nomedia")
+        if (!nomedia.exists()) {
+            try { nomedia.createNewFile() } catch (_: Exception) {}
+        }
+        var tempDecryptedFile: File? = null
+
+        try {
+            if (isCancelled?.invoke() == true) {
+                throw CancellationException("Operation cancelled by user")
+            }
+
+            val newHeader: VaultFileHeader = if (targetMode == VaultStorageMode.ENCRYPTED) {
+                FileInputStream(vaultFile).buffered().use { fis ->
+                    val progressStream = ProgressInputStream(fis, sourceFileSize, onProgress, isCancelled)
+                    vaultContainer.createEncryptedVaultFile(
+                        sourceInputStream = progressStream,
+                        destinationVaultFile = convertingFile,
+                        passwordOrPin = credential,
+                        title = vaultEntity.title,
+                        originalExtension = vaultEntity.originalExtension.ifBlank { "mp4" },
+                        durationMs = vaultEntity.durationMs,
+                        originalSize = sourceFileSize
+                    )
+                }
+            } else {
+                val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
+                val intermediateFile = File(tempConvDir, "conv_${vaultEntity.id}_${UUID.randomUUID()}.$ext")
+                tempDecryptedFile = intermediateFile
+                if (intermediateFile.exists()) intermediateFile.delete()
+
+                vaultContainer.decryptVaultFile(vaultFile, intermediateFile, credential)
+
+                if (isCancelled?.invoke() == true) {
+                    throw CancellationException("Operation cancelled by user")
+                }
+
+                if (!intermediateFile.exists() || intermediateFile.length() == 0L) {
+                    throw IOException("Decryption produced empty intermediate file")
+                }
+
+                val intermediateSize = intermediateFile.length()
+                val header = FileInputStream(intermediateFile).buffered().use { fis ->
+                    val progressStream = ProgressInputStream(fis, intermediateSize, onProgress, isCancelled)
+                    vaultContainer.createUnencryptedVaultFile(
+                        sourceInputStream = progressStream,
+                        destinationVaultFile = convertingFile,
+                        title = vaultEntity.title,
+                        originalExtension = ext,
+                        durationMs = vaultEntity.durationMs,
+                        originalSize = intermediateSize
+                    )
+                }
+
+                intermediateFile.delete()
+                tempDecryptedFile = null
+                header
+            }
+
+            if (isCancelled?.invoke() == true) {
+                throw CancellationException("Operation cancelled by user")
+            }
+
+            if (!convertingFile.exists() || convertingFile.length() == 0L) {
+                throw IOException("Converted file is missing or empty")
+            }
+
+            if (targetMode == VaultStorageMode.ENCRYPTED) {
+                val verified = vaultContainer.verifyVaultFileIntegrity(convertingFile, credential)
+                if (!verified) {
+                    throw IOException("Integrity check failed on newly encrypted vault file")
+                }
+            }
+
+            var renameSuccess = vaultFile.renameTo(backupFile)
+            if (!renameSuccess) {
+                vaultFile.copyTo(backupFile, overwrite = true)
+                vaultFile.delete()
+                renameSuccess = true
+            }
+
+            if (!convertingFile.renameTo(vaultFile)) {
+                convertingFile.copyTo(vaultFile, overwrite = true)
+                convertingFile.delete()
+            }
+
+            val updatedEntity = vaultEntity.copy(
+                fileSize = vaultFile.length(),
+                storageMode = targetMode,
+                formatVersion = newHeader.formatVersion
+            )
+
+            try {
+                vaultDao.insert(updatedEntity)
+            } catch (dbEx: Exception) {
+                if (backupFile.exists()) {
+                    vaultFile.delete()
+                    if (!backupFile.renameTo(vaultFile)) {
+                        backupFile.copyTo(vaultFile, overwrite = true)
+                        backupFile.delete()
+                    }
+                }
+                throw dbEx
+            }
+
+            if (backupFile.exists()) {
+                backupFile.delete()
+            }
+            val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
+            val cachedPlayback = File(tempPlaybackDirectory, "playback_${vaultEntity.id}_${vaultFile.nameWithoutExtension}.$ext")
+            if (cachedPlayback.exists()) {
+                cachedPlayback.delete()
+            }
+
+            Result.success(updatedEntity)
+        } catch (e: Exception) {
+            if (convertingFile.exists()) convertingFile.delete()
+            tempDecryptedFile?.let {
+                if (it.exists()) it.delete()
+            }
+            if (backupFile.exists() && (!vaultFile.exists() || vaultFile.length() == 0L)) {
+                backupFile.renameTo(vaultFile)
+            } else if (backupFile.exists()) {
+                backupFile.delete()
+            }
+            Result.failure(e)
+        }
+    }
+
     fun cleanPlaybackTemp() {
         try {
             tempPlaybackDirectory.listFiles()?.forEach { file ->
@@ -713,13 +928,34 @@ class VaultFileManager(
         var count = 0
         try {
             vaultDirectory.listFiles()?.forEach { file ->
-                if (file.name.endsWith(".part") || file.name.endsWith(".migrating")) {
+                if (file.name.endsWith(".part") || file.name.endsWith(".migrating") || file.name.endsWith(".converting")) {
                     if (file.delete()) count++
+                } else if (file.name.endsWith(".backup")) {
+                    val primaryName = file.name.removeSuffix(".backup")
+                    val primaryFile = File(vaultDirectory, primaryName)
+                    if (!primaryFile.exists() || primaryFile.length() == 0L) {
+                        if (file.renameTo(primaryFile)) {
+                            count++
+                        } else {
+                            if (file.delete()) count++
+                        }
+                    } else {
+                        if (file.delete()) count++
+                    }
                 }
             }
             tempPlaybackDirectory.listFiles()?.forEach { file ->
                 if (file.name.endsWith(".part") || file.name.endsWith(".tmp")) {
                     if (file.delete()) count++
+                }
+            }
+            val tempConvDir = context?.cacheDir?.let { File(it, "vault_conversion_temp") }
+                ?: File(tempPlaybackDirectory, ".vault_conversion_temp")
+            if (tempConvDir.exists()) {
+                tempConvDir.listFiles()?.forEach { file ->
+                    if (file.name != ".nomedia") {
+                        if (file.delete()) count++
+                    }
                 }
             }
         } catch (_: Exception) {}
