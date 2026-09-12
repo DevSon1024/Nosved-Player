@@ -30,6 +30,8 @@ data class VaultMetadata(
     val authIv: ByteArray,
     val wrappedMasterKey: ByteArray = ByteArray(0),
     val wrappedKeyIv: ByteArray = ByteArray(0),
+    val secWrappedMasterKey: ByteArray = ByteArray(0),
+    val secWrappedKeyIv: ByteArray = ByteArray(0),
     val securityQuestion: String = "",
     val securityAnswerSalt: ByteArray = ByteArray(0),
     val securityAnswerHash: String = "",
@@ -51,6 +53,8 @@ data class VaultMetadata(
         if (!authIv.contentEquals(other.authIv)) return false
         if (!wrappedMasterKey.contentEquals(other.wrappedMasterKey)) return false
         if (!wrappedKeyIv.contentEquals(other.wrappedKeyIv)) return false
+        if (!secWrappedMasterKey.contentEquals(other.secWrappedMasterKey)) return false
+        if (!secWrappedKeyIv.contentEquals(other.secWrappedKeyIv)) return false
         if (securityQuestion != other.securityQuestion) return false
         if (!securityAnswerSalt.contentEquals(other.securityAnswerSalt)) return false
         if (securityAnswerHash != other.securityAnswerHash) return false
@@ -70,6 +74,8 @@ data class VaultMetadata(
         result = 31 * result + authIv.contentHashCode()
         result = 31 * result + wrappedMasterKey.contentHashCode()
         result = 31 * result + wrappedKeyIv.contentHashCode()
+        result = 31 * result + secWrappedMasterKey.contentHashCode()
+        result = 31 * result + secWrappedKeyIv.contentHashCode()
         result = 31 * result + securityQuestion.hashCode()
         result = 31 * result + securityAnswerSalt.contentHashCode()
         result = 31 * result + securityAnswerHash.hashCode()
@@ -99,6 +105,8 @@ object VaultMetadataJson {
         val authIvB64 = Base64.getEncoder().encodeToString(metadata.authIv)
         val wrappedMasterKeyB64 = Base64.getEncoder().encodeToString(metadata.wrappedMasterKey)
         val wrappedKeyIvB64 = Base64.getEncoder().encodeToString(metadata.wrappedKeyIv)
+        val secWrappedMasterKeyB64 = Base64.getEncoder().encodeToString(metadata.secWrappedMasterKey)
+        val secWrappedKeyIvB64 = Base64.getEncoder().encodeToString(metadata.secWrappedKeyIv)
         val answerSaltB64 = Base64.getEncoder().encodeToString(metadata.securityAnswerSalt)
 
         return buildString {
@@ -112,6 +120,8 @@ object VaultMetadataJson {
             append("  \"authIv\": \"$authIvB64\",\n")
             append("  \"wrappedMasterKey\": \"$wrappedMasterKeyB64\",\n")
             append("  \"wrappedKeyIv\": \"$wrappedKeyIvB64\",\n")
+            append("  \"secWrappedMasterKey\": \"$secWrappedMasterKeyB64\",\n")
+            append("  \"secWrappedKeyIv\": \"$secWrappedKeyIvB64\",\n")
             append("  \"securityQuestion\": \"${escape(metadata.securityQuestion)}\",\n")
             append("  \"securityAnswerSalt\": \"$answerSaltB64\",\n")
             append("  \"securityAnswerHash\": \"${escape(metadata.securityAnswerHash)}\",\n")
@@ -162,6 +172,20 @@ object VaultMetadataJson {
                 ByteArray(0)
             }
 
+            val secWrappedMasterKeyStr = extractString("secWrappedMasterKey")
+            val secWrappedMasterKey = if (!secWrappedMasterKeyStr.isNullOrEmpty()) {
+                Base64.getDecoder().decode(secWrappedMasterKeyStr)
+            } else {
+                ByteArray(0)
+            }
+
+            val secWrappedKeyIvStr = extractString("secWrappedKeyIv")
+            val secWrappedKeyIv = if (!secWrappedKeyIvStr.isNullOrEmpty()) {
+                Base64.getDecoder().decode(secWrappedKeyIvStr)
+            } else {
+                ByteArray(0)
+            }
+
             val question = extractString("securityQuestion") ?: ""
             val secAnswerSaltStr = extractString("securityAnswerSalt")
             val secAnswerSalt = if (!secAnswerSaltStr.isNullOrEmpty()) {
@@ -189,6 +213,8 @@ object VaultMetadataJson {
                 authIv = authIv,
                 wrappedMasterKey = wrappedMasterKey,
                 wrappedKeyIv = wrappedKeyIv,
+                secWrappedMasterKey = secWrappedMasterKey,
+                secWrappedKeyIv = secWrappedKeyIv,
                 securityQuestion = question,
                 securityAnswerSalt = secAnswerSalt,
                 securityAnswerHash = secAnswerHash,

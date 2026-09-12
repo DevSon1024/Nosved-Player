@@ -358,6 +358,9 @@ class FakeVaultDao : VaultDao {
     override suspend fun updatePlaybackPosition(id: Long, pos: Long) {
         entities[id]?.let { entities[id] = it.copy(lastPlaybackPosition = pos) }
     }
+    override suspend fun update(vaultMedia: VaultEntity) {
+        entities[vaultMedia.id] = vaultMedia
+    }
     override suspend fun delete(vaultMedia: VaultEntity) { entities.remove(vaultMedia.id) }
     override suspend fun deleteById(id: Long) { entities.remove(id) }
     override suspend fun deleteAll() { entities.clear() }

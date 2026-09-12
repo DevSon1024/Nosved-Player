@@ -1,6 +1,9 @@
 package com.devson.nvplayer.ui.screen.vault
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -350,12 +353,21 @@ fun VaultAuthScreen(
         }
 
         when (val state = authState) {
+            is VaultAuthState.NeedsStorageAccess -> {
+                NeedsStorageAccessContent(
+                    state = state,
+                    pulseScale = pulseScale,
+                    onFolderSelected = { uri -> viewModel.onStorageFolderSelected(uri) }
+                )
+            }
+
             is VaultAuthState.ExistingVaultFound -> {
                 ExistingVaultFoundContent(
                     fileCount = state.fileCount,
                     isMetadataValid = state.isMetadataValid,
                     pulseScale = pulseScale,
-                    onRestore = { viewModel.onRestoreExistingVaultClicked() },
+                    onRememberPin = { viewModel.onRestoreExistingVaultClicked() },
+                    onForgotPin = { viewModel.onForgotPinClicked() },
                     onRemove = { viewModel.onRemoveOldVaultClicked() }
                 )
             }
@@ -364,6 +376,7 @@ fun VaultAuthScreen(
                 IncorrectPinContent(
                     message = state.message,
                     onRetry = { viewModel.onRetryPin() },
+                    onForgotPin = { viewModel.onForgotPinClicked() },
                     onRemove = { viewModel.onRemoveOldVaultClicked() }
                 )
             }
@@ -533,6 +546,11 @@ fun VaultAuthScreen(
                             TextButton(onClick = { viewModel.onForgotPinClicked() }) {
                                 Text("Forgot PIN?", style = MaterialTheme.typography.labelLarge)
                             }
+                        } else if (state is VaultAuthState.Error) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            TextButton(onClick = { viewModel.onForgotPinClicked() }) {
+                                Text("Forgot PIN?", style = MaterialTheme.typography.labelLarge)
+                            }
                         } else if (state is VaultAuthState.EnterPinForReset) {
                             Spacer(modifier = Modifier.height(12.dp))
                             TextButton(onClick = { viewModel.onCancelReset() }) {
@@ -579,7 +597,8 @@ private fun ExistingVaultFoundContent(
     fileCount: Int,
     isMetadataValid: Boolean,
     pulseScale: Float,
-    onRestore: () -> Unit,
+    onRememberPin: () -> Unit,
+    onForgotPin: () -> Unit,
     onRemove: () -> Unit
 ) {
     Column(
@@ -616,7 +635,7 @@ private fun ExistingVaultFoundContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Existing Vault Data Found",
+            text = "Existing Protected Content Found",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
@@ -625,7 +644,7 @@ private fun ExistingVaultFoundContent(
         Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "Nosved Player found protected vault data ($fileCount video${if (fileCount != 1) "s" else ""}) from a previous installation. You can restore it if you remember your previous Vault PIN.",
+            text = "There is existing hidden or encrypted content ($fileCount video${if (fileCount != 1) "s" else ""}) found on your device. Do you remember your previous Vault PIN?",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -649,7 +668,7 @@ private fun ExistingVaultFoundContent(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Protected Files: $fileCount video(s) detected\nSecurity Status: ${if (isMetadataValid) "Verified Cryptographic Metadata" else "Unverified / Orphaned Media"}",
+                    text = "Protected Files: $fileCount video(s) detected\nSecurity Status: ${if (isMetadataValid) "Verified Cryptographic Metadata" else "Existing Protected Files"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -659,37 +678,52 @@ private fun ExistingVaultFoundContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = onRestore,
+            onClick = onRememberPin,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Restore,
+                imageVector = Icons.Filled.Lock,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Restore Existing Vault", fontWeight = FontWeight.SemiBold)
+            Text("I Remember PIN (Unlock)", fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = onRemove,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            onClick = onForgotPin,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Delete,
+                imageVector = Icons.Filled.LockReset,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
+            Text("I Forgot PIN (Reset & Recover)", fontWeight = FontWeight.SemiBold)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+            onClick = onRemove,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
             Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
         }
     }
@@ -699,6 +733,7 @@ private fun ExistingVaultFoundContent(
 private fun IncorrectPinContent(
     message: String,
     onRetry: () -> Unit,
+    onForgotPin: () -> Unit,
     onRemove: () -> Unit
 ) {
     Column(
@@ -773,19 +808,34 @@ private fun IncorrectPinContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = onRemove,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            onClick = onForgotPin,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Delete,
+                imageVector = Icons.Filled.LockReset,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
+            Text("I Forgot PIN (Recover with Question)", fontWeight = FontWeight.SemiBold)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+            onClick = onRemove,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
             Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
         }
     }
@@ -957,7 +1007,7 @@ private fun AnswerSecurityQuestionContent(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Resetting your PIN using the security question only restores access to unencrypted hidden files. Encrypted videos cannot be decrypted without the original PIN.",
+                        text = "Answering your security question allows you to reset your Vault PIN and restore full access to all your hidden and encrypted content.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1109,3 +1159,113 @@ private fun KeypadDigitButton(
         )
     }
 }
+
+@Composable
+private fun NeedsStorageAccessContent(
+    state: VaultAuthState.NeedsStorageAccess,
+    pulseScale: Float,
+    onFolderSelected: (Uri) -> Unit
+) {
+    val treeLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            onFolderSelected(uri)
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(96.dp)
+                .scale(pulseScale)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Shield,
+                contentDescription = "Storage Access",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = if (state.isReconnect) "Reconnect Vault Storage" else "Select Vault Storage Folder",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = if (state.isReconnect) {
+                "Storage permissions were revoked or moved. Please re-select the NosvedPlayer vault folder in Documents to restore access."
+            } else {
+                "Secure Vault stores your protected videos in your Documents folder so they survive app reinstalls and updates.\n\nPlease select Documents/NosvedPlayer to continue."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 22.sp
+        )
+
+        if (state.message != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = {
+                val initialUri = try {
+                    Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments")
+                } catch (_: Exception) {
+                    null
+                }
+                treeLauncher.launch(initialUri)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text(
+                text = if (state.isReconnect) "Reconnect Vault Folder" else "Select Vault Folder",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+        }
+    }
+}
+

@@ -264,10 +264,10 @@ class VaultSecurityManagerTest {
         assertFalse(manager.verifyVaultCredential("2222"))
         assertTrue(manager.verifyVaultCredential("3333"))
 
-        // Security answer recovery creates a new master key for future media
+        // Security answer recovery preserves the Vault Master Key so existing encrypted content is NOT lost
         val masterKeyAfter = manager.deriveEncryptionKey("3333")
-        assertFalse(
-            "Security question reset generates a fresh master key for future files",
+        assertTrue(
+            "Security question reset preserves the Master Key to retain access to all encrypted content",
             masterKeyBefore.encoded.contentEquals(masterKeyAfter.encoded)
         )
     }

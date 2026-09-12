@@ -24,6 +24,7 @@ object VaultFileFormat {
 
     const val KDF_ID_PBKDF2_HMAC_SHA256: Short = 1
     const val KDF_ID_LEGACY_STATIC: Short = 2
+    const val KDF_ID_MASTER_KEY: Short = 3
 
     /**
      * Serializes a Version 2 Encrypted header into the target output stream and returns
@@ -45,7 +46,8 @@ object VaultFileFormat {
         // 4. Cipher Algorithm ID (2 bytes Short)
         memDos.writeShort(CIPHER_ID_AES_256_GCM.toInt())
         // 5. KDF Algorithm ID (2 bytes Short)
-        memDos.writeShort(KDF_ID_PBKDF2_HMAC_SHA256.toInt())
+        val kdfId = if (header.kdfAlgorithm == "MASTER_KEY") KDF_ID_MASTER_KEY else KDF_ID_PBKDF2_HMAC_SHA256
+        memDos.writeShort(kdfId.toInt())
         // 6. KDF Iterations (4 bytes Int)
         memDos.writeInt(header.kdfIterations)
         // 7. Salt (length + bytes)
@@ -85,6 +87,9 @@ object VaultFileFormat {
         bis.mark(48)
         val probe = ByteArray(24)
         val readCount = bis.read(probe)
+        if (readCount < 8) {
+            throw VaultInvalidHeaderException("File too short to contain vault or media header: $readCount bytes")
+        }
         bis.reset()
 
         if (readCount >= 8 && probe.copyOfRange(0, 8).contentEquals(MAGIC_V2_ENCRYPTED)) {
@@ -149,7 +154,11 @@ object VaultFileFormat {
             val dateAdded = readLongAndRecord()
 
             val cipherAlg = if (cipherId == CIPHER_ID_AES_256_GCM.toInt()) "AES/GCM/NoPadding" else "UNKNOWN"
-            val kdfAlg = if (kdfId == KDF_ID_PBKDF2_HMAC_SHA256.toInt()) VaultKeyDerivation.DEFAULT_KDF_ALGORITHM else "UNKNOWN"
+            val kdfAlg = when (kdfId) {
+                KDF_ID_PBKDF2_HMAC_SHA256.toInt() -> VaultKeyDerivation.DEFAULT_KDF_ALGORITHM
+                KDF_ID_MASTER_KEY.toInt() -> "MASTER_KEY"
+                else -> "UNKNOWN"
+            }
 
             val header = VaultFileHeader(
                 formatVersion = version,
@@ -201,7 +210,7 @@ object VaultFileFormat {
         }
 
         // Case 3: Raw Unencrypted File (NONE)
-        val ext = detectMediaExtension(probe)
+        val ext = detectMediaExtension(probe) ?: "mp4"
         val header = VaultFileHeader(
             formatVersion = FORMAT_VERSION_V2,
             storageMode = VaultStorageMode.NONE,
@@ -217,6 +226,14 @@ object VaultFileFormat {
             dateAdded = System.currentTimeMillis()
         )
         return Pair(header, ByteArray(0))
+    }
+
+    /**
+     * Inspects a vault stream without reading or decrypting the full media payload.
+     */
+    fun inspectStream(inputStream: InputStream): VaultFileHeader {
+        val (header, _) = readHeaderWithBytes(inputStream)
+        return header
     }
 
     /**
@@ -244,7 +261,7 @@ object VaultFileFormat {
     /**
      * Sniffs media container magic bytes to infer the original extension.
      */
-    fun detectMediaExtension(bytes: ByteArray): String {
+    fun detectMediaExtension(bytes: ByteArray): String? {
         if (bytes.size >= 8) {
             // ISO Base Media File Format (MP4 / M4V / MOV): offset 4..7 == 'ftyp'
             if (bytes[4] == 0x66.toByte() && bytes[5] == 0x74.toByte() &&
@@ -266,7 +283,11 @@ object VaultFileFormat {
             ) {
                 return "avi"
             }
+            // FLV
+            if (bytes[0] == 0x46.toByte() && bytes[1] == 0x4C.toByte() && bytes[2] == 0x56.toByte()) {
+                return "flv"
+            }
         }
-        return "mp4"
+        return null
     }
 }

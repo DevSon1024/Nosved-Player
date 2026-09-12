@@ -12,6 +12,9 @@ interface VaultDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(vaultMedia: VaultEntity): Long
 
+    @androidx.room.Update
+    suspend fun update(vaultMedia: VaultEntity)
+
     @Query("SELECT * FROM vault_media ORDER BY dateAdded DESC")
     fun getAllVaultMediaFlow(): Flow<List<VaultEntity>>
 

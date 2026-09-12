@@ -47,6 +47,9 @@ class VaultEndToEndReinstallTest {
         override suspend fun updatePlaybackPosition(id: Long, pos: Long) {
             entities[id]?.let { entities[id] = it.copy(lastPlaybackPosition = pos) }
         }
+        override suspend fun update(vaultMedia: VaultEntity) {
+            entities[vaultMedia.id] = vaultMedia
+        }
         override suspend fun delete(vaultMedia: VaultEntity) { entities.remove(vaultMedia.id) }
         override suspend fun deleteById(id: Long) { entities.remove(id) }
         override suspend fun deleteAll() { entities.clear() }
@@ -76,7 +79,8 @@ class VaultEndToEndReinstallTest {
             customVaultDirectory = vaultDir,
             customThumbsDirectory = thumbsDir,
             customTempPlaybackDirectory = tempPlaybackDir,
-            ioDispatcher = Dispatchers.Unconfined
+            ioDispatcher = Dispatchers.Unconfined,
+            customSecurityManager = secManager
         )
         return Fixture(vaultDir, thumbsDir, tempPlaybackDir, secManager, fileManager, dao)
     }
@@ -461,6 +465,91 @@ class VaultEndToEndReinstallTest {
         // Verify saveMetadataToDisk can overwrite existing .vault_config without FileAlreadyExistsException
         reinstalledSecManager.setDefaultStorageMode(VaultStorageMode.ENCRYPTED)
         assertEquals(VaultStorageMode.ENCRYPTED, reinstalledSecManager.getDefaultStorageMode())
+    }
+
+    @Test
+    fun testReinstallForgotPasswordSecurityQuestionResetsPinAndRestoresEncryptedVideoWithoutLoss() = runBlocking {
+        val fixture = createFixture()
+        val originalPin = "1234"
+        val question = "What was the name of your first pet?"
+        val answer = "Fluffy"
+
+        // 1. Initial setup with PIN and security question
+        fixture.securityManager.createVaultCredential(
+            credential = originalPin,
+            question = question,
+            answer = answer
+        )
+
+        // 2. Encrypt media into vault
+        val originalVideo = sampleMp4Payload(3072)
+        val importResult = fixture.fileManager.importStreamToVault(
+            sourceInputStream = ByteArrayInputStream(originalVideo),
+            title = "SecretFamilyVideo",
+            originalExtension = "mp4",
+            durationMs = 8000L,
+            storageMode = VaultStorageMode.ENCRYPTED,
+            vaultCredential = originalPin
+        )
+        assertTrue("Import must succeed", importResult.isSuccess)
+        val initialEntity = importResult.getOrThrow()
+        assertEquals(VaultStorageMode.ENCRYPTED, initialEntity.storageMode)
+
+        // 3. Simulate app uninstall (wipe local preferences and Room DB)
+        fixture.dao.deleteAll()
+        fixture.securityManager.setVaultInitializedLocally(false)
+        fixture.securityManager.clearSession()
+        assertEquals(0, fixture.dao.entities.size)
+
+        // 4. App reinstall and startup
+        val authVm = VaultAuthViewModel(
+            application = null,
+            securityManager = fixture.securityManager,
+            vaultFileManager = fixture.fileManager,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
+            coroutineScope = CoroutineScope(Dispatchers.Unconfined)
+        )
+
+        // Must automatically detect existing vault
+        val initialState = authVm.authState.value
+        assertTrue("Must detect existing vault on reinstall: $initialState", initialState is VaultAuthState.ExistingVaultFound)
+
+        // 5. User chooses 'I Forgot PIN' option
+        authVm.onForgotPinClicked()
+        assertTrue(authVm.authState.value is VaultAuthState.AnswerSecurityQuestion)
+
+        // 6. User verifies security answer
+        assertTrue(authVm.verifySecurityAnswerAndProceed(answer))
+        assertTrue(authVm.authState.value is VaultAuthState.ResetPin)
+
+        // 7. User sets new PIN "9999"
+        val newPin = "9999"
+        newPin.forEach { digit -> authVm.onDigit(digit.toString()) }
+        assertTrue(authVm.authState.value is VaultAuthState.ConfirmResetPin)
+
+        newPin.forEach { digit -> authVm.onDigit(digit.toString()) }
+
+        // Wait for async rebuild
+        var attempts = 0
+        while (authVm.authState.value !is VaultAuthState.Authenticated && attempts < 50) {
+            Thread.sleep(50)
+            attempts++
+        }
+
+        // 8. Authenticated and Room DB restored
+        assertEquals(VaultAuthState.Authenticated, authVm.authState.value)
+        assertEquals(1, fixture.dao.entities.size)
+        val restoredEntity = fixture.dao.getAllVaultMedia().first()
+        assertEquals("SecretFamilyVideo", restoredEntity.title)
+        assertEquals(VaultStorageMode.ENCRYPTED, restoredEntity.storageMode)
+
+        // 9. Playback with new PIN succeeds and decrypted bytes match original plaintext
+        val playbackFile = fixture.fileManager.getPlaybackFile(restoredEntity, newPin)
+        assertNotNull(playbackFile)
+        assertTrue(playbackFile.exists())
+        assertArrayEquals("Decrypted video using new PIN must match original bytes without loss", originalVideo, playbackFile.readBytes())
+        fixture.fileManager.releasePlaybackFile(playbackFile)
     }
 }
 
