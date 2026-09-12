@@ -7,6 +7,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.devson.nvplayer.domain.model.VaultStorageMode
 import java.io.File
+import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -503,10 +504,33 @@ class VaultSecurityManager(
         }
 
         val tempConfig = File(vaultConfigFile.parentFile, ".vault_config.tmp")
-        tempConfig.writeText(jsonString, Charsets.UTF_8)
-        if (!tempConfig.renameTo(vaultConfigFile)) {
-            tempConfig.copyTo(vaultConfigFile, overwrite = true)
-            tempConfig.delete()
+        try {
+            tempConfig.writeText(jsonString, Charsets.UTF_8)
+            if (vaultConfigFile.exists()) {
+                vaultConfigFile.delete()
+            }
+            if (!tempConfig.renameTo(vaultConfigFile)) {
+                FileOutputStream(vaultConfigFile, false).use { out ->
+                    tempConfig.inputStream().use { input ->
+                        input.copyTo(out)
+                    }
+                    out.flush()
+                }
+                tempConfig.delete()
+            }
+        } catch (e: Exception) {
+            try {
+                FileOutputStream(vaultConfigFile, false).use { out ->
+                    out.write(jsonString.toByteArray(Charsets.UTF_8))
+                    out.flush()
+                }
+            } catch (_: Exception) {
+                vaultConfigFile.writeText(jsonString, Charsets.UTF_8)
+            } finally {
+                if (tempConfig.exists()) {
+                    try { tempConfig.delete() } catch (_: Exception) {}
+                }
+            }
         }
     }
 

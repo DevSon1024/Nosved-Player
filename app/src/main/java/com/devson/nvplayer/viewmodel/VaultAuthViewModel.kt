@@ -233,6 +233,12 @@ class VaultAuthViewModel(
     }
 
     fun onDigit(digit: String) {
+        if (_authState.value is VaultAuthState.SetupPin) {
+            if (securityManager.hasExistingVaultOnDisk() || securityManager.hasPersistentVaultMetadata()) {
+                checkPinStatus()
+                return
+            }
+        }
         if (_pinDigits.value.length < 4) {
             _pinDigits.value += digit
             if (_pinDigits.value.length == 4) {
@@ -380,6 +386,10 @@ class VaultAuthViewModel(
     fun completeSecurityQuestionSetup(question: String, answer: String) {
         val current = _authState.value
         if (current is VaultAuthState.SetupSecurityQuestion) {
+            if (securityManager.hasExistingVaultOnDisk() && !securityManager.isVaultInitializedLocally()) {
+                checkPinStatus()
+                return
+            }
             securityManager.setPin(current.pin, question, answer)
             securityManager.setVaultInitializedLocally(true)
             scope.launch(ioDispatcher) {

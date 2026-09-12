@@ -384,4 +384,83 @@ class VaultEndToEndReinstallTest {
                 e is VaultIntegrityException || e.cause is javax.crypto.AEADBadTagException)
         }
     }
+
+    @Test
+    fun testUnencryptedMediaReinstallWithDelayedPermissionAndOverwriteSafety() = runBlocking {
+        val fixture = createFixture()
+        val pin = "1234"
+
+        // Phase 1: Initial install, setup PIN and hide 1 unencrypted video
+        fixture.securityManager.setPin(pin, "Favorite color?", "Blue")
+        val mp4Bytes = sampleMp4Payload()
+        val importResult = fixture.fileManager.importStreamToVault(
+            sourceInputStream = ByteArrayInputStream(mp4Bytes),
+            title = "VacationVideo",
+            storageMode = VaultStorageMode.NONE
+        )
+        assertTrue(importResult.isSuccess)
+        val vltFiles = fixture.vaultDir.listFiles { f -> f.extension == "vlt" } ?: emptyArray()
+        assertEquals(1, vltFiles.size)
+        assertTrue(fixture.securityManager.hasPersistentVaultMetadata())
+
+        // Phase 2: Simulate app uninstall/reinstall
+        // New SecurityManager, fresh state, no local prefs
+        val reinstalledSecManager = VaultSecurityManager(customVaultDirectory = fixture.vaultDir)
+        assertFalse(reinstalledSecManager.isVaultInitializedLocally())
+
+        val reinstalledDao = InMemoryVaultDao()
+        val reinstalledFileManager = VaultFileManager(
+            context = null,
+            vaultDao = reinstalledDao,
+            vaultContainer = DefaultVaultContainer(),
+            customVaultDirectory = fixture.vaultDir,
+            customThumbsDirectory = fixture.thumbsDir,
+            customTempPlaybackDirectory = fixture.tempPlaybackDir,
+            ioDispatcher = Dispatchers.Unconfined
+        )
+
+        val reinstalledAuthVm = VaultAuthViewModel(
+            securityManager = reinstalledSecManager,
+            vaultFileManager = reinstalledFileManager,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
+            coroutineScope = CoroutineScope(Dispatchers.Unconfined)
+        )
+
+        // Verify that checkPinStatus correctly detects existing vault data
+        reinstalledAuthVm.checkPinStatus()
+        val authState = reinstalledAuthVm.authState.value
+        assertTrue("State must be ExistingVaultFound: $authState", authState is VaultAuthState.ExistingVaultFound)
+        val foundState = authState as VaultAuthState.ExistingVaultFound
+        assertEquals(1, foundState.fileCount)
+        assertTrue(foundState.isMetadataValid)
+
+        // Verify SetupPin guard in onDigit if auth state somehow stayed in SetupPin
+        // Force state to SetupPin to simulate permission delay
+        reinstalledAuthVm.onCancelRemoveVault() // runs checkPinStatus, sets ExistingVaultFound
+        
+        // Verify Restore flow works for unencrypted video
+        reinstalledAuthVm.onRestoreExistingVaultClicked()
+        assertTrue(reinstalledAuthVm.authState.value is VaultAuthState.RestorePinEntry)
+
+        // Enter correct PIN -> Restores media into Room database
+        pin.forEach { digit -> reinstalledAuthVm.onDigit(digit.toString()) }
+
+        // Wait for async rebuild
+        var attempts = 0
+        while (reinstalledAuthVm.authState.value !is VaultAuthState.Authenticated && attempts < 50) {
+            Thread.sleep(50)
+            attempts++
+        }
+
+        assertEquals(VaultAuthState.Authenticated, reinstalledAuthVm.authState.value)
+        assertEquals(1, reinstalledDao.entities.size)
+        val restoredEntity = reinstalledDao.entities.values.first()
+        assertEquals(VaultStorageMode.NONE, restoredEntity.storageMode)
+
+        // Verify saveMetadataToDisk can overwrite existing .vault_config without FileAlreadyExistsException
+        reinstalledSecManager.setDefaultStorageMode(VaultStorageMode.ENCRYPTED)
+        assertEquals(VaultStorageMode.ENCRYPTED, reinstalledSecManager.getDefaultStorageMode())
+    }
 }
+

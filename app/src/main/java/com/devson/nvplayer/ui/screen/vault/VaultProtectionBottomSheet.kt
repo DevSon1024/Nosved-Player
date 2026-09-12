@@ -80,11 +80,13 @@ fun VaultProtectionContent(
     currentMode: VaultStorageMode,
     onModeSelected: (VaultStorageMode) -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isScrollable: Boolean = true
 ) {
+    val scrollModifier = if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.verticalScroll(rememberScrollState())
+        modifier = modifier.then(scrollModifier)
     ) {
         Box(
             modifier = Modifier

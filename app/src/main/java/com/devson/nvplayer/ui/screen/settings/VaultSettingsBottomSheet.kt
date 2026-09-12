@@ -116,7 +116,7 @@ fun VaultSettingsBottomSheet(
         ) {
             AnimatedContent(
                 targetState = currentFlow,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = { (fadeIn() togetherWith fadeOut()).using(null) },
                 label = "vault_settings_flow"
             ) { flow ->
                 when (flow) {
@@ -184,6 +184,7 @@ fun VaultSettingsBottomSheet(
                                 Toast.makeText(context, "Storage protection mode updated", Toast.LENGTH_SHORT).show()
                             },
                             onClose = { currentFlow = VaultSettingsFlow.MAIN },
+                            isScrollable = false,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
