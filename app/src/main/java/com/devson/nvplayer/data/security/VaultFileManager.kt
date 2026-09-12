@@ -12,6 +12,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
+import androidx.documentfile.provider.DocumentFile
 import javax.crypto.spec.SecretKeySpec
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
@@ -403,7 +404,8 @@ class VaultFileManager(
 
             result.fold(
                 onSuccess = { entity ->
-                    val pendingDeleteUri = removeOriginalSourceFile(sourceUri)
+                    val explicitPath = resolvedPath.ifBlank { originalPath }
+                    val pendingDeleteUri = removeOriginalSourceFile(sourceUri, explicitPath)
                     Result.success(VaultImportResult(entity, pendingDeleteUri))
                 },
                 onFailure = { error ->
@@ -577,42 +579,74 @@ class VaultFileManager(
         return "mp4"
     }
 
-    private fun removeOriginalSourceFile(sourceUri: Uri): Uri? {
+    private fun removeOriginalSourceFile(sourceUri: Uri, explicitPath: String? = null): Uri? {
         val ctx = context ?: return null
-        return try {
-            val deleted = ctx.contentResolver.delete(sourceUri, null, null)
-            if (deleted > 0) null else sourceUri
-        } catch (e: SecurityException) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                val intentSender = MediaStore.createDeleteRequest(
-                    ctx.contentResolver,
-                    listOf(sourceUri)
-                ).intentSender
-                sourceUri
-            } else {
-                sourceUri
+
+        // 1. SAF Document URI deletion
+        try {
+            if (DocumentsContract.isDocumentUri(ctx, sourceUri)) {
+                if (DocumentsContract.deleteDocument(ctx.contentResolver, sourceUri)) {
+                    return null
+                }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {}
+
+        // 2. DocumentFile deletion for non-MediaStore content URIs
+        try {
+            if (sourceUri.scheme == "content" && !isMediaStoreUri(sourceUri)) {
+                val docFile = DocumentFile.fromSingleUri(ctx, sourceUri)
+                if (docFile?.exists() == true && docFile.delete()) {
+                    return null
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 3. Direct File deletion if physical path is known
+        val filePath = explicitPath ?: getFilePathFromUri(sourceUri)
+        if (!filePath.isNullOrBlank()) {
             try {
-                if (sourceUri.scheme == "file") {
-                    val file = File(sourceUri.path ?: "")
-                    if (file.exists() && file.delete()) null else sourceUri
-                } else if (sourceUri.scheme == "content") {
-                    val filePath = getFilePathFromUri(sourceUri)
-                    if (filePath != null) {
-                        val file = File(filePath)
-                        if (file.exists() && file.delete()) {
-                            try {
-                                ctx.contentResolver.delete(sourceUri, null, null)
-                            } catch (_: Exception) {}
-                            null
-                        } else sourceUri
-                    } else sourceUri
-                } else sourceUri
-            } catch (_: Exception) {
-                sourceUri
-            }
+                val file = File(filePath)
+                if (file.exists() && file.delete()) {
+                    try {
+                        ctx.contentResolver.delete(sourceUri, null, null)
+                    } catch (_: Exception) {}
+                    MediaScannerConnection.scanFile(ctx, arrayOf(filePath), null, null)
+                    return null
+                }
+            } catch (_: Exception) {}
         }
+
+        // 4. ContentResolver direct deletion (works if app has permission or created the media)
+        try {
+            val deleted = ctx.contentResolver.delete(sourceUri, null, null)
+            if (deleted > 0) {
+                if (!filePath.isNullOrBlank()) {
+                    MediaScannerConnection.scanFile(ctx, arrayOf(filePath), null, null)
+                }
+                return null
+            }
+        } catch (e: SecurityException) {
+            // Cannot delete directly without user consent on Android 11+
+            if (isMediaStoreUri(sourceUri)) {
+                return sourceUri
+            }
+        } catch (_: Exception) {}
+
+        // 5. Direct file scheme deletion
+        if (sourceUri.scheme == "file") {
+            try {
+                val file = File(sourceUri.path ?: "")
+                if (file.exists() && file.delete()) {
+                    return null
+                }
+            } catch (_: Exception) {}
+        }
+
+        return if (isMediaStoreUri(sourceUri)) sourceUri else null
+    }
+
+    private fun isMediaStoreUri(uri: Uri): Boolean {
+        return uri.scheme == "content" && uri.authority == MediaStore.AUTHORITY
     }
 
     private fun getFilePathFromUri(uri: Uri): String? {

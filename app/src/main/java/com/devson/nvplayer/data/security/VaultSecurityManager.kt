@@ -93,6 +93,9 @@ class VaultSecurityManager(
     @Volatile
     private var cachedMetadata: VaultMetadata? = null
 
+    val currentCachedMetadata: VaultMetadata?
+        get() = cachedMetadata
+
     private var inMemoryBiometricEnabled: Boolean = true
     private var inMemoryVaultInitializedLocally: Boolean = false
     @Volatile

@@ -1,5 +1,7 @@
 package com.devson.nvplayer.ui.screen.vault
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -58,11 +60,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,10 +88,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.devson.nvplayer.data.security.storage.SafVaultStorage
 import com.devson.nvplayer.data.security.VaultSecurityManager
 import com.devson.nvplayer.viewmodel.VaultAuthState
 import com.devson.nvplayer.viewmodel.VaultAuthViewModel
 import kotlinx.coroutines.launch
+
+private fun Context.findFragmentActivity(): FragmentActivity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is FragmentActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +113,7 @@ fun VaultAuthScreen(
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val pinDigits by viewModel.pinDigits.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val activity = context as? FragmentActivity
+    val activity = (context as? FragmentActivity) ?: context.findFragmentActivity()
     val coroutineScope = rememberCoroutineScope()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -580,8 +596,9 @@ fun VaultAuthScreen(
                         onDigitClick = { viewModel.onDigit(it) },
                         onBackspaceClick = { viewModel.onBackspace() },
                         onBiometricClick = {
-                            if (activity != null) {
-                                viewModel.authenticateWithBiometrics(activity)
+                            val fragActivity = activity ?: context.findFragmentActivity()
+                            if (fragActivity != null) {
+                                viewModel.authenticateWithBiometrics(fragActivity)
                             }
                         },
                         showBiometric = (state is VaultAuthState.EnterPin || state is VaultAuthState.Error) && viewModel.securityManager.isBiometricEnabled()

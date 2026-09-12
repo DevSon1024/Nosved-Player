@@ -167,11 +167,16 @@ class VaultGalleryViewModel(
 
             if (urisToRequestDelete.isNotEmpty() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 try {
-                    val intentSender = android.provider.MediaStore.createDeleteRequest(
-                        getApplication<Application>().contentResolver,
-                        urisToRequestDelete
-                    ).intentSender
-                    _pendingIntentSender.value = intentSender
+                    val mediaStoreUris = urisToRequestDelete.filter {
+                        it.scheme == "content" && it.authority == android.provider.MediaStore.AUTHORITY
+                    }
+                    if (mediaStoreUris.isNotEmpty()) {
+                        val intentSender = android.provider.MediaStore.createDeleteRequest(
+                            getApplication<Application>().contentResolver,
+                            mediaStoreUris
+                        ).intentSender
+                        _pendingIntentSender.value = intentSender
+                    }
                 } catch (_: Exception) {}
             }
 

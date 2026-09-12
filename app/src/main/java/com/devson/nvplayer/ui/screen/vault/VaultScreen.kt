@@ -33,7 +33,6 @@ fun VaultScreen(
     modifier: Modifier = Modifier
 ) {
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
-    var openProtectionAfterAuth by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -65,26 +64,16 @@ fun VaultScreen(
         modifier = modifier.fillMaxSize()
     ) { isAuthenticated ->
         if (isAuthenticated) {
-            val shouldOpenProtection = openProtectionAfterAuth
-            LaunchedEffect(shouldOpenProtection) {
-                if (shouldOpenProtection) {
-                    openProtectionAfterAuth = false
-                }
-            }
             VaultGalleryScreen(
                 viewModel = galleryViewModel,
                 onLockClick = { authViewModel.lockVault() },
                 onPlayMedia = onPlayMedia,
-                initialOpenProtection = shouldOpenProtection,
                 onResetVaultClick = { authViewModel.requestVaultReset() },
                 modifier = Modifier.fillMaxSize()
             )
         } else {
             VaultAuthScreen(
                 viewModel = authViewModel,
-                onVaultProtectionClick = {
-                    openProtectionAfterAuth = true
-                },
                 modifier = Modifier.fillMaxSize()
             )
         }

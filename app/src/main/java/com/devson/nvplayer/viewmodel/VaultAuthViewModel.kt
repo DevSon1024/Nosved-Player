@@ -97,25 +97,31 @@ class VaultAuthViewModel(
             return
         }
 
-        val hasFilesOnDisk = securityManager.hasExistingVaultOnDisk()
-        val fileCount = securityManager.getExistingVaultFileCount()
-        val isMetadataValid = securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
-        val isLocallyInitialized = securityManager.isVaultInitializedLocally()
+        scope.launch(mainDispatcher) {
+            val (hasFilesOnDisk, fileCount, isMetadataValid) = withContext(ioDispatcher) {
+                Triple(
+                    securityManager.hasExistingVaultOnDisk(),
+                    securityManager.getExistingVaultFileCount(),
+                    securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
+                )
+            }
+            val isLocallyInitialized = securityManager.isVaultInitializedLocally()
 
-        if (hasFilesOnDisk && !isLocallyInitialized) {
-            _authState.value = VaultAuthState.ExistingVaultFound(
-                fileCount = fileCount,
-                isMetadataValid = isMetadataValid
-            )
-        } else if (isMetadataValid || securityManager.isPinSet()) {
-            _authState.value = VaultAuthState.EnterPin
-        } else if (hasFilesOnDisk) {
-            _authState.value = VaultAuthState.ExistingVaultFound(
-                fileCount = fileCount,
-                isMetadataValid = isMetadataValid
-            )
-        } else {
-            _authState.value = VaultAuthState.SetupPin
+            if (hasFilesOnDisk && !isLocallyInitialized) {
+                _authState.value = VaultAuthState.ExistingVaultFound(
+                    fileCount = fileCount,
+                    isMetadataValid = isMetadataValid
+                )
+            } else if (isMetadataValid || securityManager.isPinSet()) {
+                _authState.value = VaultAuthState.EnterPin
+            } else if (hasFilesOnDisk) {
+                _authState.value = VaultAuthState.ExistingVaultFound(
+                    fileCount = fileCount,
+                    isMetadataValid = isMetadataValid
+                )
+            } else {
+                _authState.value = VaultAuthState.SetupPin
+            }
         }
     }
 
@@ -307,7 +313,10 @@ class VaultAuthViewModel(
                     }
                 }
                 is VaultAuthState.EnterPin -> {
-                    if (securityManager.verifyPin(pin)) {
+                    val isValid = withContext(ioDispatcher) {
+                        securityManager.verifyPin(pin)
+                    }
+                    if (isValid) {
                         _pinDigits.value = ""
                         securityManager.setVaultInitializedLocally(true)
                         withContext(ioDispatcher) {
@@ -322,9 +331,11 @@ class VaultAuthViewModel(
                 is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> {
                     val fileCount = (current as? VaultAuthState.RestorePinEntry)?.fileCount
                         ?: (current as? VaultAuthState.RestoreExistingVault)?.fileCount
-                        ?: securityManager.getExistingVaultFileCount()
+                        ?: withContext(ioDispatcher) { securityManager.getExistingVaultFileCount() }
                     _authState.value = VaultAuthState.Restoring(fileCount)
-                    val valid = securityManager.verifyPin(pin)
+                    val valid = withContext(ioDispatcher) {
+                        securityManager.verifyPin(pin)
+                    }
                     if (valid) {
                         _pinDigits.value = ""
                         securityManager.setVaultInitializedLocally(true)
@@ -347,7 +358,9 @@ class VaultAuthViewModel(
                 }
                 is VaultAuthState.IncorrectPin -> {
                     val wasFromRestore = current.isFromRestore
-                    val valid = securityManager.verifyPin(pin)
+                    val valid = withContext(ioDispatcher) {
+                        securityManager.verifyPin(pin)
+                    }
                     if (valid) {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.Restoring(current.remainingFiles)
@@ -370,7 +383,10 @@ class VaultAuthViewModel(
                     }
                 }
                 is VaultAuthState.EnterPinForReset -> {
-                    if (securityManager.verifyPin(pin)) {
+                    val isValid = withContext(ioDispatcher) {
+                        securityManager.verifyPin(pin)
+                    }
+                    if (isValid) {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.ConfirmDeleteVault(
                             step = 1,
@@ -393,7 +409,9 @@ class VaultAuthViewModel(
                     if (pin == resetPinTemp) {
                         val answer = verifiedSecurityAnswer
                         if (answer != null) {
-                            val success = securityManager.resetPinWithSecurityAnswer(answer, pin)
+                            val success = withContext(ioDispatcher) {
+                                securityManager.resetPinWithSecurityAnswer(answer, pin)
+                            }
                             if (success) {
                                 _pinDigits.value = ""
                                 verifiedSecurityAnswer = null
@@ -418,7 +436,10 @@ class VaultAuthViewModel(
                     }
                 }
                 is VaultAuthState.Error -> {
-                    if (securityManager.verifyPin(pin)) {
+                    val isValid = withContext(ioDispatcher) {
+                        securityManager.verifyPin(pin)
+                    }
+                    if (isValid) {
                         _pinDigits.value = ""
                         securityManager.setVaultInitializedLocally(true)
                         withContext(ioDispatcher) {
@@ -438,13 +459,15 @@ class VaultAuthViewModel(
     fun completeSecurityQuestionSetup(question: String, answer: String) {
         val current = _authState.value
         if (current is VaultAuthState.SetupSecurityQuestion) {
-            securityManager.setPin(current.pin, question, answer)
-            securityManager.setVaultInitializedLocally(true)
-            scope.launch(ioDispatcher) {
-                vaultFileManager?.rebuildDatabaseFromStorage(credential = current.pin)
+            scope.launch(mainDispatcher) {
+                withContext(ioDispatcher) {
+                    securityManager.setPin(current.pin, question, answer)
+                    securityManager.setVaultInitializedLocally(true)
+                    vaultFileManager?.rebuildDatabaseFromStorage(credential = current.pin)
+                }
+                _pinDigits.value = ""
+                _authState.value = VaultAuthState.Authenticated
             }
-            _pinDigits.value = ""
-            _authState.value = VaultAuthState.Authenticated
         }
     }
 
@@ -499,8 +522,14 @@ class VaultAuthViewModel(
     }
 
     fun authenticateWithBiometrics(activity: FragmentActivity) {
-        if (!securityManager.isBiometricEnabled()) return
-        if (!VaultBiometricHelper.canAuthenticate(activity)) return
+        if (!securityManager.isBiometricEnabled()) {
+            _authState.value = VaultAuthState.Error("Biometric authentication is disabled in settings")
+            return
+        }
+        if (!VaultBiometricHelper.canAuthenticate(activity)) {
+            _authState.value = VaultAuthState.Error("Biometrics not enrolled or supported on this device")
+            return
+        }
 
         VaultBiometricHelper.promptBiometric(
             activity = activity,
@@ -514,7 +543,14 @@ class VaultAuthViewModel(
                     _authState.value = VaultAuthState.Authenticated
                 }
             },
-            onError = { _: Int, _: CharSequence -> }
+            onError = { errorCode: Int, errString: CharSequence ->
+                if (errorCode != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED &&
+                    errorCode != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                    errorCode != androidx.biometric.BiometricPrompt.ERROR_CANCELED
+                ) {
+                    _authState.value = VaultAuthState.Error(errString.toString())
+                }
+            }
         )
     }
 

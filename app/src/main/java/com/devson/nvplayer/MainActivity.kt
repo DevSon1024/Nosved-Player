@@ -6,7 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,7 +46,7 @@ import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.player.service.MediaPlaybackService
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val _isInPipMode = mutableStateOf(false)
     private val deepLinkUri = mutableStateOf<Uri?>(null)

@@ -104,7 +104,6 @@ fun VaultGalleryScreen(
     viewModel: VaultGalleryViewModel,
     onLockClick: () -> Unit,
     onPlayMedia: (VaultEntity, File, Video) -> Unit,
-    initialOpenProtection: Boolean = false,
     onResetVaultClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -114,8 +113,6 @@ fun VaultGalleryScreen(
     val vaultItems by viewModel.vaultMediaList.collectAsStateWithLifecycle()
     val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
-    val currentStorageMode by viewModel.defaultStorageMode.collectAsStateWithLifecycle()
-    var showProtectionSheet by remember(initialOpenProtection) { mutableStateOf(initialOpenProtection) }
     var showSettingsSheet by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -192,42 +189,12 @@ fun VaultGalleryScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Privacy Vault",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                        )
-                        val isEncrypted = currentStorageMode == VaultStorageMode.ENCRYPTED
-                        val badgeLabel = if (isEncrypted) "Encrypted" else "Hidden (No Encryption)"
-                        val badgeContainerColor = if (isEncrypted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-                        val badgeContentColor = if (isEncrypted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(badgeContainerColor)
-                                .clickable { showProtectionSheet = true }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = badgeLabel,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = badgeContentColor
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Privacy Vault",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
                 },
                 actions = {
-                    IconButton(onClick = { showProtectionSheet = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Shield,
-                            contentDescription = "Vault Protection",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                     IconButton(onClick = { mediaPickerLauncher.launch(arrayOf("video/*")) }) {
                         Icon(
                             imageVector = Icons.Filled.Add,
@@ -439,21 +406,14 @@ fun VaultGalleryScreen(
         )
     }
 
-    if (showProtectionSheet) {
-        VaultProtectionBottomSheet(
-            currentMode = currentStorageMode,
-            onModeSelected = { newMode ->
-                viewModel.setStorageMode(newMode)
-            },
-            onDismissRequest = { showProtectionSheet = false }
-        )
-    }
-
     if (showSettingsSheet) {
         VaultSettingsBottomSheet(
             securityManager = viewModel.vaultSecurityManager,
             onRequestVaultReset = onResetVaultClick,
-            onDismissRequest = { showSettingsSheet = false }
+            onDismissRequest = {
+                showSettingsSheet = false
+                viewModel.refreshStorageMode()
+            }
         )
     }
 }
