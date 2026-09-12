@@ -139,7 +139,7 @@ class VaultGalleryViewModel(
         return success
     }
 
-    fun importVideos(uris: List<Uri>, titles: List<String>) {
+    fun importVideos(uris: List<Uri>, titles: List<String>, paths: List<String>? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             var importedCount = 0
@@ -149,7 +149,13 @@ class VaultGalleryViewModel(
             for (i in uris.indices) {
                 val uri = uris[i]
                 val title = titles.getOrNull(i) ?: "Protected Video"
-                val result = vaultFileManager.importVideoToVault(sourceUri = uri, title = title, storageMode = currentMode)
+                val path = paths?.getOrNull(i)
+                val result = vaultFileManager.importVideoToVault(
+                    sourceUri = uri,
+                    title = title,
+                    storageMode = currentMode,
+                    originalPath = path
+                )
                 if (result.isSuccess) {
                     importedCount++
                     val pendingDeleteUri = result.getOrNull()?.pendingDeleteUri
@@ -174,16 +180,27 @@ class VaultGalleryViewModel(
         }
     }
 
+    fun getRestoreTargetFolderName(vaultEntity: VaultEntity): String {
+        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            ?: File(getApplication<Application>().filesDir, "Restored")
+        val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
+        return if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
+    }
+
     fun restoreVideo(vaultEntity: VaultEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                 ?: File(getApplication<Application>().filesDir, "Restored")
+            val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
             val credential = vaultSecurityManager.getActiveCredential() ?: ""
-            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, moviesDir, credential)
+            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, targetDir, credential)
             _isProcessing.value = false
             if (result.isSuccess) {
-                _statusMessage.value = "Restored ${vaultEntity.title} to Movies."
+                val finalFile = result.getOrNull()
+                val folderName = finalFile?.parentFile?.name
+                    ?: if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
+                _statusMessage.value = "Restored ${vaultEntity.title} to $folderName."
             } else {
                 _statusMessage.value = "Failed to restore: ${result.exceptionOrNull()?.message}"
             }

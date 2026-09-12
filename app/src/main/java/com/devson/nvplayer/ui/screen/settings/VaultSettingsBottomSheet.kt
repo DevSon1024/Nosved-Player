@@ -438,7 +438,7 @@ private fun VaultSettingsMainContent(
                     VaultSettingsRow(
                         icon = Icons.Filled.Shield,
                         title = "Vault Protection",
-                        subtitle = if (currentStorageMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden only \u2014 not encrypted.",
+                        subtitle = if (currentStorageMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden only -- not encrypted.",
                         onClick = onVaultProtectionClick
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

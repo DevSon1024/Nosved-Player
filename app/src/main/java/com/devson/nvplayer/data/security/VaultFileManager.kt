@@ -1,15 +1,18 @@
 package com.devson.nvplayer.data.security
 
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
+import javax.crypto.spec.SecretKeySpec
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
 import com.devson.nvplayer.data.security.storage.FileVaultStorage
@@ -332,6 +335,7 @@ class VaultFileManager(
                 durationMs = durationMs,
                 storageMode = storageMode,
                 vaultCredential = vaultCredential,
+                originalUri = sourceFile.absolutePath,
                 originalSize = sourceFile.length()
             )
         }
@@ -345,7 +349,8 @@ class VaultFileManager(
         title: String,
         durationMs: Long = 0L,
         storageMode: VaultStorageMode = VaultStorageMode.NONE,
-        vaultCredential: String = ""
+        vaultCredential: String = "",
+        originalPath: String? = null
     ): Result<VaultImportResult> = withContext(Dispatchers.IO) {
         try {
             val ctx = context
@@ -355,6 +360,26 @@ class VaultFileManager(
 
             val cleanTitle = title.ifBlank { "Protected Video" }
             val originalExt = resolveExtension(sourceUri, cleanTitle)
+
+            var resolvedPath = originalPath?.trim().orEmpty()
+            if (resolvedPath.isBlank()) {
+                if (sourceUri.scheme == "file") {
+                    resolvedPath = sourceUri.path ?: ""
+                } else if (sourceUri.scheme == "content") {
+                    try {
+                        val proj = arrayOf(MediaStore.Video.Media.DATA)
+                        ctx.contentResolver.query(sourceUri, proj, null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val idx = cursor.getColumnIndex(MediaStore.Video.Media.DATA)
+                                if (idx != -1) {
+                                    resolvedPath = cursor.getString(idx) ?: ""
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            val finalOriginalUri = if (resolvedPath.isNotBlank()) resolvedPath else sourceUri.toString()
 
             var originalSize = 0L
             try {
@@ -371,7 +396,7 @@ class VaultFileManager(
                     durationMs = durationMs,
                     storageMode = storageMode,
                     vaultCredential = vaultCredential,
-                    originalUri = sourceUri.toString(),
+                    originalUri = finalOriginalUri,
                     originalSize = originalSize
                 )
             }
@@ -669,7 +694,150 @@ class VaultFileManager(
         } catch (_: Exception) {}
     }
 
-    suspend fun restoreVideoFromVault(
+    private fun isPublicExternalStorage(dir: File): Boolean {
+        val path = dir.absolutePath.replace('\\', '/')
+        val extRoot = Environment.getExternalStorageDirectory()?.absolutePath?.replace('\\', '/') ?: "/storage/emulated/0"
+        return path.startsWith(extRoot, ignoreCase = true) ||
+               path.startsWith("/storage/emulated/0", ignoreCase = true) ||
+               path.startsWith("/sdcard", ignoreCase = true) ||
+               path.contains("/Movies", ignoreCase = true) ||
+               path.contains("/Download", ignoreCase = true) ||
+               path.contains("/DCIM", ignoreCase = true)
+    }
+
+    private fun resolveMimeType(extension: String): String {
+        val clean = extension.trimStart('.').lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(clean)
+            ?: when (clean) {
+                "mkv" -> "video/x-matroska"
+                "mp4" -> "video/mp4"
+                "mov" -> "video/quicktime"
+                "avi" -> "video/x-msvideo"
+                "webm" -> "video/webm"
+                "3gp" -> "video/3gpp"
+                "ts" -> "video/mp2t"
+                "flv" -> "video/x-flv"
+                else -> "video/*"
+            }
+    }
+
+    private suspend fun restoreViaMediaStore(
+        context: Context,
+        filename: String,
+        baseName: String,
+        ext: String,
+        credential: String,
+        masterKey: SecretKeySpec?,
+        destinationDirectory: File,
+        vaultEntity: VaultEntity
+    ): Result<File> {
+        val resolver = context.contentResolver
+        val mimeType = resolveMimeType(ext)
+        val destPath = destinationDirectory.absolutePath.replace('\\', '/')
+        val extRoot = Environment.getExternalStorageDirectory()?.absolutePath?.replace('\\', '/') ?: "/storage/emulated/0"
+        val relativePath = if (destPath.startsWith(extRoot, ignoreCase = true)) {
+            val rel = destPath.removePrefix(extRoot).trimStart('/')
+            if (rel.isNotEmpty()) {
+                if (rel.endsWith("/")) rel else "$rel/"
+            } else {
+                "${Environment.DIRECTORY_MOVIES}/"
+            }
+        } else if (destPath.contains("Movies", ignoreCase = true)) {
+            "${Environment.DIRECTORY_MOVIES}/"
+        } else {
+            "${Environment.DIRECTORY_MOVIES}/"
+        }
+
+        val displayName = "$baseName.$ext"
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Video.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Video.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Video.Media.RELATIVE_PATH, relativePath)
+            put(MediaStore.Video.Media.IS_PENDING, 1)
+        }
+
+        val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val destUri = runCatching {
+            resolver.insert(collection, contentValues)
+        }.getOrNull() ?: return Result.failure(IOException("Failed to insert MediaStore entry for $displayName in $relativePath"))
+
+        try {
+            resolver.openOutputStream(destUri)?.buffered(64 * 1024)?.use { outStream ->
+                vaultStorage.openInputStream(filename).use { inStream ->
+                    vaultContainer.decryptVaultStream(inStream, outStream, credential, masterKey = masterKey)
+                }
+            } ?: throw IOException("Cannot open output stream for MediaStore URI: $destUri")
+
+            val finishValues = ContentValues().apply {
+                put(MediaStore.Video.Media.IS_PENDING, 0)
+            }
+            resolver.update(destUri, finishValues, null, null)
+
+            var resolvedFile: File? = null
+            try {
+                val projection = arrayOf(MediaStore.Video.Media.DATA)
+                resolver.query(destUri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(MediaStore.Video.Media.DATA)
+                        if (idx != -1) {
+                            val path = cursor.getString(idx)
+                            if (!path.isNullOrBlank()) {
+                                resolvedFile = File(path)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            val finalFile = resolvedFile ?: File(destinationDirectory, displayName)
+
+            vaultStorage.deleteFile(filename)
+            removeIndexEntry(filename)
+
+            vaultEntity.thumbnailPath?.let {
+                val thumb = File(it)
+                if (thumb.exists()) thumb.delete()
+            }
+
+            val tempFile = File(tempPlaybackDirectory, "playback_${vaultEntity.id}_${filename.substringBeforeLast(".vlt")}.$ext")
+            if (tempFile.exists()) tempFile.delete()
+
+            vaultDao.delete(vaultEntity)
+
+            try {
+                MediaScannerConnection.scanFile(context, arrayOf(finalFile.absolutePath), arrayOf(mimeType), null)
+            } catch (_: Exception) {}
+
+            return Result.success(finalFile)
+        } catch (e: Exception) {
+            try { resolver.delete(destUri, null, null) } catch (_: Exception) {}
+            return Result.failure(e)
+        }
+    }
+
+    fun resolveRestoreDestination(vaultEntity: VaultEntity, defaultDir: File): File {
+        val raw = vaultEntity.originalUri.trim()
+        if (raw.isBlank() || raw.startsWith("content://", ignoreCase = true)) return defaultDir
+
+        val path = if (raw.startsWith("file://", ignoreCase = true)) {
+            try { Uri.parse(raw).path ?: "" } catch (_: Exception) { "" }
+        } else {
+            raw
+        }
+
+        if (path.isNotBlank()) {
+            try {
+                val originalFile = File(path)
+                val originalParent = originalFile.parentFile
+                if (originalParent != null && originalParent.exists() && originalParent.isDirectory) {
+                    return originalParent
+                }
+            } catch (_: Exception) {}
+        }
+        return defaultDir
+    }
+
+    private suspend fun restoreVideoInternal(
         vaultEntity: VaultEntity,
         destinationDirectory: File,
         credential: String = ""
@@ -680,15 +848,41 @@ class VaultFileManager(
                 return@withContext Result.failure(FileNotFoundException("Vault file not found: ${vaultEntity.vaultPath}"))
             }
 
+            val header = vaultStorage.openInputStream(filename).use { inStream ->
+                vaultContainer.inspectVaultStream(inStream)
+            }
+
+            val ext = header.originalExtension.ifBlank { vaultEntity.originalExtension.ifBlank { "mp4" } }.trimStart('.').lowercase()
+            var baseName = vaultEntity.title.ifBlank { header.title.ifBlank { "Restored_Video" } }
+            if (baseName.endsWith(".$ext", ignoreCase = true)) {
+                baseName = baseName.substring(0, baseName.length - ext.length - 1)
+            }
+
+            val masterKey = if (credential.isNotBlank()) {
+                try { securityManager.deriveEncryptionKey(credential) } catch (_: Exception) { null }
+            } else null
+
+            // If context is available on Android Q+ and targeting public storage, restore via MediaStore to avoid EPERM
+            if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isPublicExternalStorage(destinationDirectory)) {
+                val mediaResult = restoreViaMediaStore(
+                    context = context,
+                    filename = filename,
+                    baseName = baseName,
+                    ext = ext,
+                    credential = credential,
+                    masterKey = masterKey,
+                    destinationDirectory = destinationDirectory,
+                    vaultEntity = vaultEntity
+                )
+                if (mediaResult.isSuccess) {
+                    return@withContext mediaResult
+                }
+            }
+
             if (!destinationDirectory.exists()) {
                 destinationDirectory.mkdirs()
             }
 
-            val ext = vaultEntity.originalExtension.ifBlank { "mp4" }
-            var baseName = vaultEntity.title
-            if (baseName.endsWith(".$ext", ignoreCase = true)) {
-                baseName = baseName.substring(0, baseName.length - ext.length - 1)
-            }
             var targetFile = File(destinationDirectory, "$baseName.$ext")
             var counter = 1
             while (targetFile.exists()) {
@@ -700,25 +894,9 @@ class VaultFileManager(
             if (partFile.exists()) partFile.delete()
 
             try {
-                val header = vaultStorage.openInputStream(filename).use { inStream ->
-                    vaultContainer.inspectVaultStream(inStream)
-                }
-
-                if (header.storageMode == VaultStorageMode.NONE) {
-                    vaultStorage.openInputStream(filename).use { inStream ->
-                        FileOutputStream(partFile).buffered().use { outStream ->
-                            inStream.copyTo(outStream, 64 * 1024)
-                            outStream.flush()
-                        }
-                    }
-                } else {
-                    val masterKey = if (credential.isNotBlank()) {
-                        try { securityManager.deriveEncryptionKey(credential) } catch (_: Exception) { null }
-                    } else null
-                    vaultStorage.openInputStream(filename).use { inStream ->
-                        FileOutputStream(partFile).buffered().use { outStream ->
-                            vaultContainer.decryptVaultStream(inStream, outStream, credential, masterKey = masterKey)
-                        }
+                vaultStorage.openInputStream(filename).use { inStream ->
+                    FileOutputStream(partFile).buffered(64 * 1024).use { outStream ->
+                        vaultContainer.decryptVaultStream(inStream, outStream, credential, masterKey = masterKey)
                     }
                 }
 
@@ -763,6 +941,29 @@ class VaultFileManager(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun restoreVideoFromVault(
+        vaultEntity: VaultEntity,
+        destinationDirectory: File,
+        credential: String = ""
+    ): Result<File> = withContext(ioDispatcher) {
+        val primaryResult = restoreVideoInternal(vaultEntity, destinationDirectory, credential)
+        if (primaryResult.isSuccess) {
+            return@withContext primaryResult
+        }
+
+        // If restoring to custom/original directory failed (e.g. Scoped Storage restrictions on hidden folders),
+        // fallback to public Movies directory so the media is safely restored without loss.
+        val defaultMoviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        if (defaultMoviesDir != null && destinationDirectory.canonicalPath != defaultMoviesDir.canonicalPath) {
+            val fallbackResult = restoreVideoInternal(vaultEntity, defaultMoviesDir, credential)
+            if (fallbackResult.isSuccess) {
+                return@withContext fallbackResult
+            }
+        }
+
+        primaryResult
     }
 
     suspend fun deletePermanently(vaultEntity: VaultEntity): Result<Unit> = withContext(ioDispatcher) {

@@ -201,6 +201,99 @@ class VaultFileManagerTest {
     }
 
     @Test
+    fun restoreUnencryptedVideo() = runBlocking {
+        val (manager, dirs) = createVaultFileManager()
+        val originalBytes = sampleMp4Bytes()
+
+        val entity = manager.importStreamToVault(
+            sourceInputStream = ByteArrayInputStream(originalBytes),
+            title = "Unencrypted Restore",
+            originalExtension = "mp4",
+            storageMode = VaultStorageMode.NONE
+        ).getOrThrow()
+
+        val restoreDir = tempFolder.newFolder("unencrypted_restored_output")
+        val result = manager.restoreVideoFromVault(entity, restoreDir)
+
+        assertTrue(result.isSuccess)
+        val restoredFile = result.getOrThrow()
+        assertTrue(restoredFile.exists())
+        assertEquals("Unencrypted Restore.mp4", restoredFile.name)
+        assertArrayEquals(originalBytes, restoredFile.readBytes())
+
+        val vaultFile = File(entity.vaultPath)
+        assertFalse("Vault file must be deleted after restore", vaultFile.exists())
+        assertNull(fakeDao.getById(entity.id))
+    }
+
+    @Test
+    fun resolveRestoreDestination_returnsOriginalParentWhenExists_andFallbackWhenMissing() = runBlocking {
+        val (manager, _) = createVaultFileManager()
+        val defaultMoviesDir = tempFolder.newFolder("default_movies")
+
+        // 1. Original folder exists
+        val customFolder = tempFolder.newFolder("custom_subtitles")
+        val originalFile = File(customFolder, "demo.mp4")
+        val entityWithExistingFolder = VaultEntity(
+            title = "demo",
+            originalUri = originalFile.absolutePath,
+            vaultPath = "dummy.vlt",
+            fileSize = 100L
+        )
+        val resolvedExisting = manager.resolveRestoreDestination(entityWithExistingFolder, defaultMoviesDir)
+        assertEquals(customFolder.canonicalPath, resolvedExisting.canonicalPath)
+
+        // 2. Original folder was deleted
+        val deletedFolder = File(tempFolder.root, "deleted_folder")
+        val nonExistentFile = File(deletedFolder, "deleted.mp4")
+        val entityWithDeletedFolder = VaultEntity(
+            title = "deleted",
+            originalUri = nonExistentFile.absolutePath,
+            vaultPath = "dummy.vlt",
+            fileSize = 100L
+        )
+        val resolvedDeleted = manager.resolveRestoreDestination(entityWithDeletedFolder, defaultMoviesDir)
+        assertEquals(defaultMoviesDir.canonicalPath, resolvedDeleted.canonicalPath)
+
+        // 3. Original URI is blank
+        val entityWithBlankUri = VaultEntity(
+            title = "blank",
+            originalUri = "",
+            vaultPath = "dummy.vlt",
+            fileSize = 100L
+        )
+        val resolvedBlank = manager.resolveRestoreDestination(entityWithBlankUri, defaultMoviesDir)
+        assertEquals(defaultMoviesDir.canonicalPath, resolvedBlank.canonicalPath)
+    }
+
+    @Test
+    fun restoreToOriginalFolder_restoresAtExactLocationWhenDirectoryExists() = runBlocking {
+        val (manager, _) = createVaultFileManager()
+        val originalBytes = sampleMp4Bytes()
+        val originalFolder = tempFolder.newFolder("original_custom_folder")
+        val dummyOriginalFile = File(originalFolder, "my_clip.mp4")
+
+        val entity = manager.importStreamToVault(
+            sourceInputStream = ByteArrayInputStream(originalBytes),
+            title = "my_clip",
+            originalExtension = "mp4",
+            storageMode = VaultStorageMode.NONE,
+            originalUri = dummyOriginalFile.absolutePath
+        ).getOrThrow()
+
+        val defaultMoviesDir = tempFolder.newFolder("default_movies_fallback")
+        val targetDestination = manager.resolveRestoreDestination(entity, defaultMoviesDir)
+        assertEquals(originalFolder.canonicalPath, targetDestination.canonicalPath)
+
+        val result = manager.restoreVideoFromVault(entity, targetDestination)
+        assertTrue(result.isSuccess)
+        val restoredFile = result.getOrThrow()
+        assertEquals(originalFolder.canonicalPath, restoredFile.parentFile?.canonicalPath)
+        assertEquals("my_clip.mp4", restoredFile.name)
+        assertArrayEquals(originalBytes, restoredFile.readBytes())
+    }
+
+    @Test
     fun deletion() = runBlocking {
         val (manager, dirs) = createVaultFileManager()
         val originalBytes = sampleMp4Bytes()

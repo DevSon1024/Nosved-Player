@@ -1146,10 +1146,11 @@ fun VideoListScreen(
                     onClick = {
                         val uris = videosToVault.map { Uri.parse(it.uri) }
                         val titles = videosToVault.map { it.title }
+                        val paths = videosToVault.map { it.path }
                         showVaultConfirmDialog = false
                         selectedVideos = emptySet()
                         selectedFolders = emptySet()
-                        vaultGalleryViewModel?.importVideos(uris, titles)
+                        vaultGalleryViewModel?.importVideos(uris, titles, paths)
                         videosToVault = emptyList()
                     }
                 ) {

@@ -390,11 +390,12 @@ fun VaultGalleryScreen(
     }
 
     selectedItemForRestore?.let { item ->
+        val targetFolderName = remember(item) { viewModel.getRestoreTargetFolderName(item) }
         AlertDialog(
             onDismissRequest = { selectedItemForRestore = null },
             icon = { Icon(Icons.Filled.Restore, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("Restore to Public Storage?") },
-            text = { Text("This will unencrypt and move \"${item.title}\" back to your public Movies folder.") },
+            title = { Text("Restore Video?") },
+            text = { Text("This will unencrypt and move \"${item.title}\" back to your $targetFolderName.") },
             confirmButton = {
                 TextButton(
                     onClick = {

@@ -823,21 +823,21 @@ private fun IncorrectPinContent(
             Text("I Forgot PIN (Recover with Question)", fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // Spacer(modifier = Modifier.height(12.dp))
 
-        TextButton(
-            onClick = onRemove,
-            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
-        }
+        // TextButton(
+        //     onClick = onRemove,
+        //     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        //     modifier = Modifier.fillMaxWidth()
+        // ) {
+        //     Icon(
+        //         imageVector = Icons.Filled.Delete,
+        //         contentDescription = null,
+        //         modifier = Modifier.size(18.dp)
+        //     )
+        //     Spacer(modifier = Modifier.width(6.dp))
+        //     Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
+        // }
     }
 }
 
