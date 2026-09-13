@@ -7,7 +7,7 @@
 <br>
 
 <p align="center">
-  <strong>A high-performance, native Android video player  where desktop-class power meets mobile elegance.</strong>
+  <strong>A high-performance, native Android video player where desktop-class power meets mobile elegance.</strong>
 </p>
 
 <br>
@@ -46,7 +46,7 @@
 
 ## ✦ What is Nosved Player?
 
-Originally built on ExoPlayer, Nosved Player has been **completely re-engineered** to run on the **`mpv-android`** engine the same battle-tested media engine powering desktop MPV. This architectural leap merges a **minimalist Material Design 3 UI** with the raw decoding power of MPV, delivering unmatched format compatibility, hardware acceleration, and seamless video handling.
+Originally built on ExoPlayer, Nosved Player has been **completely re-engineered** to run on the **`mpv-android`** engine the same battle-tested media engine powering desktop MPV. This architecture merges a **minimal and clean Material Design 3 UI** with the raw decoding power of MPV, delivering unmatched format compatibility, hardware acceleration, and seamless video playing.
 
 > **Result:** A video player that feels premium and native on Android, while handling every format, codec, and subtitle track your library can throw at it.
 
