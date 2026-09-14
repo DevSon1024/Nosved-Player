@@ -109,25 +109,16 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("sub-visibility", "yes")
             MPVLib.setOptionString("secondary-sid", "no")
             MPVLib.setOptionString("sub-auto", "fuzzy")
+            MPVLib.setOptionString("sub-fonts-dir", "/system/fonts")
+            MPVLib.setOptionString("sub-ass-override", "scale")
 
             // Keep native player responsive and smooth
             MPVLib.setOptionString("keep-open", "yes")
 
-            // Ensure cacert.pem is copied for SSL/TLS verification
-            val cacertFile = File(context.filesDir, "cacert.pem")
-            if (!cacertFile.exists()) {
-                try {
-                    context.assets.open("cacert.pem").use { input ->
-                        FileOutputStream(cacertFile).use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-                    Log.d("MPVPlayerEngine", "Copied cacert.pem successfully")
-                } catch (e: Exception) {
-                    Log.e("MPVPlayerEngine", "Failed to copy cacert.pem", e)
-                }
-            }
+            // Ensure required assets (subfont.ttf, cacert.pem) are copied for subtitles and TLS
+            copyRequiredAssets(context)
 
+            val cacertFile = File(context.filesDir, "cacert.pem")
             // Configure TLS options
             MPVLib.setOptionString("tls-verify", "yes")
             MPVLib.setOptionString("tls-ca-file", cacertFile.absolutePath)
@@ -436,11 +427,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             val pos = (100 - (settings.subtitleVerticalOffset * 100).toInt()).coerceIn(0, 100)
             MPVLib.setPropertyInt("sub-pos", pos)
 
-            // Subtitle font family
+            // Subtitle font family (empty string lets libass fall back to subfont.ttf)
             val fontName = when (settings.subtitleFont) {
-                com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT -> "sans-serif"
+                com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT -> ""
                 com.devson.nvplayer.data.repository.SubtitleFont.MONOSPACE -> "monospace"
-                com.devson.nvplayer.data.repository.SubtitleFont.SANS_SERIF -> "sans-serif"
+                com.devson.nvplayer.data.repository.SubtitleFont.SANS_SERIF -> ""
                 com.devson.nvplayer.data.repository.SubtitleFont.SERIF -> "serif"
             }
             MPVLib.setPropertyString("sub-font", fontName)
@@ -594,8 +585,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                     Log.d("MPVPlayerEngine", "Auto-selecting subtitle track: ${match.name} (lang=${match.lang}) for pref=$subLangPref")
                     selectSubtitleTrack(match.id)
                 } else {
-                    Log.d("MPVPlayerEngine", "No subtitle track matching pref=$subLangPref, disabling subtitles")
-                    selectSubtitleTrack(-1)
+                    Log.d("MPVPlayerEngine", "No subtitle track matching pref=$subLangPref, keeping MPV default")
                 }
             }
         } catch (e: Exception) {
@@ -1091,6 +1081,30 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             }
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to toggle performance overlay", e)
+        }
+    }
+
+    private fun copyRequiredAssets(context: Context) {
+        try {
+            `is`.xyz.mpv.Utils.copyAssets(context)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Utils.copyAssets failed, falling back to manual copy", e)
+        }
+
+        listOf("subfont.ttf", "cacert.pem").forEach { fileName ->
+            val destFile = File(context.filesDir, fileName)
+            if (!destFile.exists() || destFile.length() == 0L) {
+                try {
+                    context.assets.open(fileName).use { input ->
+                        FileOutputStream(destFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Log.d("MPVPlayerEngine", "Copied asset $fileName to ${destFile.absolutePath}")
+                } catch (e: Exception) {
+                    Log.e("MPVPlayerEngine", "Failed to copy asset: $fileName", e)
+                }
+            }
         }
     }
 }

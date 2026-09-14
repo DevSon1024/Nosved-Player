@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+import com.devson.nvplayer.domain.model.VaultStorageMode
+
 @Entity(
     tableName = "vault_media",
     indices = [
@@ -20,5 +22,9 @@ data class VaultEntity(
     val fileSize: Long,
     val durationMs: Long = 0L,
     val dateAdded: Long = System.currentTimeMillis(),
-    val lastPlaybackPosition: Long = 0L
+    val lastPlaybackPosition: Long = 0L,
+    val storageMode: VaultStorageMode = VaultStorageMode.ENCRYPTED,
+    val formatVersion: Int = 1,
+    val originalExtension: String = "mp4"
 )
+

@@ -80,7 +80,7 @@ Originally built on ExoPlayer, Nosved Player has been **completely re-engineered
 </p>
 
 <p align="center">
-  <sub><b> Smart Library &nbsp;&nbsp;|&nbsp;&nbsp; 📁 Video Explorer &nbsp;&nbsp;|&nbsp;&nbsp; Encrypted Vault &nbsp;&nbsp;|&nbsp;&nbsp; ⚙️ Settings</b></sub>
+  <sub><b> Smart Library &nbsp;&nbsp;|&nbsp;&nbsp; Video Explorer &nbsp;&nbsp;|&nbsp;&nbsp; Security Vault &nbsp;&nbsp;|&nbsp;&nbsp; Settings</b></sub>
 </p>
 
 <br>
@@ -96,7 +96,7 @@ Originally built on ExoPlayer, Nosved Player has been **completely re-engineered
 </p>
 
 <p align="center">
-  <sub><b> Online Feed &nbsp;&nbsp;|&nbsp;&nbsp;  Layout Customizer &nbsp;&nbsp;|&nbsp;&nbsp;  Storage Analyzer &nbsp;&nbsp;|&nbsp;&nbsp; 🔍 Media Inspector</b></sub>
+  <sub><b> Feed Play &nbsp;&nbsp;|&nbsp;&nbsp;  Player Layout Customizer &nbsp;&nbsp;|&nbsp;&nbsp;  Storage Analyzer &nbsp;&nbsp;|&nbsp;&nbsp; Media Inspector</b></sub>
 </p>
 
 ---
@@ -109,7 +109,7 @@ Originally built on ExoPlayer, Nosved Player has been **completely re-engineered
   </a>
 </p>
 <p align="center">
-  <sub><b>⚡ High-Performance Playback Interface  Gesture Controls · HW/SW Engine Switching · Real-time Enhance</b></sub>
+  <sub><b>⚡ High-Performance Playback Interface Gesture Controls · HW/SW Engine Switching · PIP · Enhance Mode</b></sub>
 </p>
 
 <br>
@@ -122,6 +122,9 @@ Originally built on ExoPlayer, Nosved Player has been **completely re-engineered
 
 <p align="center">
   <sub><b> Up Next Queue &nbsp;&nbsp;|&nbsp;&nbsp; Quick Controls & Playback Speed</b></sub>
+</p>
+<p align="center">
+  <b> Screenshots from v1.3.0</b>
 </p>
 
 ---

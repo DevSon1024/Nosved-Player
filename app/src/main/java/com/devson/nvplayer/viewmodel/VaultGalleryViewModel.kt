@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.devson.nvplayer.data.database.VaultDao
 import com.devson.nvplayer.data.database.VaultEntity
 import com.devson.nvplayer.data.security.VaultFileManager
+import com.devson.nvplayer.data.security.VaultSecurityManager
+import com.devson.nvplayer.domain.model.VaultStorageMode
 import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,10 +22,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
+data class VideoConversionState(
+    val isConverting: Boolean = false,
+    val item: VaultEntity? = null,
+    val targetMode: VaultStorageMode? = null,
+    val progress: Float = 0f,
+    val error: String? = null
+)
+
 class VaultGalleryViewModel(
     application: Application,
     private val vaultDao: VaultDao,
-    private val vaultFileManager: VaultFileManager
+    private val vaultFileManager: VaultFileManager,
+    val vaultSecurityManager: VaultSecurityManager = VaultSecurityManager(application)
 ) : AndroidViewModel(application) {
 
     val vaultMediaList: StateFlow<List<VaultEntity>> = vaultDao.getAllVaultMediaFlow()
@@ -33,14 +44,72 @@ class VaultGalleryViewModel(
             initialValue = emptyList()
         )
 
+    private val _defaultStorageMode = MutableStateFlow(vaultSecurityManager.getDefaultStorageMode())
+    val defaultStorageMode: StateFlow<VaultStorageMode> = _defaultStorageMode.asStateFlow()
+
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
+    private val _conversionState = MutableStateFlow(VideoConversionState())
+    val conversionState: StateFlow<VideoConversionState> = _conversionState.asStateFlow()
+
+    @Volatile
+    private var isConversionCancelled = false
+    private var conversionJob: kotlinx.coroutines.Job? = null
 
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     private val _pendingIntentSender = MutableStateFlow<android.content.IntentSender?>(null)
     val pendingIntentSender: StateFlow<android.content.IntentSender?> = _pendingIntentSender.asStateFlow()
+
+    fun verifyCredential(credential: String): Boolean {
+        return vaultSecurityManager.verifyVaultCredential(credential)
+    }
+
+    fun startProtectionConversion(item: VaultEntity, targetMode: VaultStorageMode, credential: String) {
+        if (_conversionState.value.isConverting) return
+        isConversionCancelled = false
+        _conversionState.value = VideoConversionState(
+            isConverting = true,
+            item = item,
+            targetMode = targetMode,
+            progress = 0f,
+            error = null
+        )
+
+        conversionJob = viewModelScope.launch(Dispatchers.IO) {
+            val result = vaultFileManager.convertVideoProtection(
+                vaultEntity = item,
+                targetMode = targetMode,
+                credential = credential,
+                securityManager = vaultSecurityManager,
+                onProgress = { p ->
+                    _conversionState.value = _conversionState.value.copy(progress = p)
+                },
+                isCancelled = { isConversionCancelled }
+            )
+
+            _conversionState.value = VideoConversionState(isConverting = false)
+
+            if (result.isSuccess) {
+                val targetLabel = if (targetMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden / No Encryption"
+                _statusMessage.value = "Converted \"${item.title}\" to $targetLabel."
+            } else {
+                val ex = result.exceptionOrNull()
+                if (ex is kotlinx.coroutines.CancellationException) {
+                    _statusMessage.value = "Conversion cancelled."
+                } else {
+                    _statusMessage.value = "Conversion failed: ${ex?.message ?: "Unknown error"}"
+                }
+            }
+        }
+    }
+
+    fun cancelConversion() {
+        isConversionCancelled = true
+        conversionJob?.cancel()
+    }
 
     fun clearStatusMessage() {
         _statusMessage.value = null
@@ -50,16 +119,43 @@ class VaultGalleryViewModel(
         _pendingIntentSender.value = null
     }
 
-    fun importVideos(uris: List<Uri>, titles: List<String>) {
+    fun refreshStorageMode() {
+        _defaultStorageMode.value = vaultSecurityManager.getDefaultStorageMode()
+    }
+
+    fun setStorageMode(mode: VaultStorageMode): Boolean {
+        val success = vaultSecurityManager.setDefaultStorageMode(mode)
+        if (success) {
+            _defaultStorageMode.value = mode
+        }
+        return success
+    }
+
+    fun verifyAndSetStorageMode(credential: String, mode: VaultStorageMode): Boolean {
+        val success = vaultSecurityManager.verifyAndSetStorageMode(credential, mode)
+        if (success) {
+            _defaultStorageMode.value = mode
+        }
+        return success
+    }
+
+    fun importVideos(uris: List<Uri>, titles: List<String>, paths: List<String>? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             var importedCount = 0
             val urisToRequestDelete = mutableListOf<Uri>()
+            val currentMode = _defaultStorageMode.value
 
             for (i in uris.indices) {
                 val uri = uris[i]
                 val title = titles.getOrNull(i) ?: "Protected Video"
-                val result = vaultFileManager.importVideoToVault(uri, title)
+                val path = paths?.getOrNull(i)
+                val result = vaultFileManager.importVideoToVault(
+                    sourceUri = uri,
+                    title = title,
+                    storageMode = currentMode,
+                    originalPath = path
+                )
                 if (result.isSuccess) {
                     importedCount++
                     val pendingDeleteUri = result.getOrNull()?.pendingDeleteUri
@@ -71,11 +167,16 @@ class VaultGalleryViewModel(
 
             if (urisToRequestDelete.isNotEmpty() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 try {
-                    val intentSender = android.provider.MediaStore.createDeleteRequest(
-                        getApplication<Application>().contentResolver,
-                        urisToRequestDelete
-                    ).intentSender
-                    _pendingIntentSender.value = intentSender
+                    val mediaStoreUris = urisToRequestDelete.filter {
+                        it.scheme == "content" && it.authority == android.provider.MediaStore.AUTHORITY
+                    }
+                    if (mediaStoreUris.isNotEmpty()) {
+                        val intentSender = android.provider.MediaStore.createDeleteRequest(
+                            getApplication<Application>().contentResolver,
+                            mediaStoreUris
+                        ).intentSender
+                        _pendingIntentSender.value = intentSender
+                    }
                 } catch (_: Exception) {}
             }
 
@@ -84,15 +185,27 @@ class VaultGalleryViewModel(
         }
     }
 
+    fun getRestoreTargetFolderName(vaultEntity: VaultEntity): String {
+        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            ?: File(getApplication<Application>().filesDir, "Restored")
+        val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
+        return if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
+    }
+
     fun restoreVideo(vaultEntity: VaultEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                 ?: File(getApplication<Application>().filesDir, "Restored")
-            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, moviesDir)
+            val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
+            val credential = vaultSecurityManager.getActiveCredential() ?: ""
+            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, targetDir, credential)
             _isProcessing.value = false
             if (result.isSuccess) {
-                _statusMessage.value = "Restored ${vaultEntity.title} to Movies."
+                val finalFile = result.getOrNull()
+                val folderName = finalFile?.parentFile?.name
+                    ?: if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
+                _statusMessage.value = "Restored ${vaultEntity.title} to $folderName."
             } else {
                 _statusMessage.value = "Failed to restore: ${result.exceptionOrNull()?.message}"
             }
@@ -113,7 +226,8 @@ class VaultGalleryViewModel(
     }
 
     suspend fun preparePlaybackVideo(vaultEntity: VaultEntity): Pair<File, Video> = kotlinx.coroutines.withContext(Dispatchers.IO) {
-        val playbackFile = vaultFileManager.getPlaybackFile(vaultEntity)
+        val credential = vaultSecurityManager.getActiveCredential() ?: ""
+        val playbackFile = vaultFileManager.getPlaybackFile(vaultEntity, credential)
         val uri = Uri.fromFile(playbackFile)
         val video = Video(
             uri = uri.toString(),
@@ -129,18 +243,21 @@ class VaultGalleryViewModel(
     }
 
     fun getPlaybackFile(vaultEntity: VaultEntity): File {
-        return vaultFileManager.getPlaybackFile(vaultEntity)
+        val credential = vaultSecurityManager.getActiveCredential() ?: ""
+        return vaultFileManager.getPlaybackFile(vaultEntity, credential)
     }
 
     class Factory(
         private val application: Application,
         private val vaultDao: VaultDao,
-        private val vaultFileManager: VaultFileManager
+        private val vaultFileManager: VaultFileManager,
+        private val vaultSecurityManager: VaultSecurityManager? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(VaultGalleryViewModel::class.java)) {
-                return VaultGalleryViewModel(application, vaultDao, vaultFileManager) as T
+                val secManager = vaultSecurityManager ?: VaultSecurityManager(application)
+                return VaultGalleryViewModel(application, vaultDao, vaultFileManager, secManager) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

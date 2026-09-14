@@ -46,6 +46,7 @@ import com.devson.nvplayer.ui.screen.vault.VaultScreen
 import com.devson.nvplayer.data.database.AppDatabase
 import com.devson.nvplayer.data.security.VaultFileManager
 import com.devson.nvplayer.data.security.VaultSecurityManager
+import com.devson.nvplayer.data.security.storage.SafVaultStorage
 import com.devson.nvplayer.viewmodel.VaultAuthViewModel
 import com.devson.nvplayer.viewmodel.VaultGalleryViewModel
 import com.devson.nvplayer.viewmodel.LibraryViewModel
@@ -110,8 +111,9 @@ fun AppNavigation(
     )
 
     val database = remember { AppDatabase.getDatabase(context) }
-    val vaultSecurityManager = remember { VaultSecurityManager(context) }
-    val vaultFileManager = remember { VaultFileManager(context, database.vaultDao()) }
+    val vaultStorage = remember { SafVaultStorage(context) }
+    val vaultSecurityManager = remember { VaultSecurityManager(context = context, customVaultStorage = vaultStorage) }
+    val vaultFileManager = remember { VaultFileManager(context = context, vaultDao = database.vaultDao(), customSecurityManager = vaultSecurityManager, customVaultStorage = vaultStorage) }
     val vaultAuthViewModel: VaultAuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = VaultAuthViewModel.Factory(
             application = context.applicationContext as android.app.Application,
@@ -123,7 +125,8 @@ fun AppNavigation(
         factory = VaultGalleryViewModel.Factory(
             application = context.applicationContext as android.app.Application,
             vaultDao = database.vaultDao(),
-            vaultFileManager = vaultFileManager
+            vaultFileManager = vaultFileManager,
+            vaultSecurityManager = vaultSecurityManager
         )
     )
 
