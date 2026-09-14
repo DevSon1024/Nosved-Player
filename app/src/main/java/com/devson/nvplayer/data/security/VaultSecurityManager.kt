@@ -77,12 +77,16 @@ class VaultSecurityManager(
         if (vaultStorage is FileVaultStorage) {
             vaultStorage.baseDirectory
         } else if (customVaultDirectory != null) {
-            if (!customVaultDirectory.exists()) customVaultDirectory.mkdirs()
             customVaultDirectory
         } else {
             val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
-            vaultDir
+            val appFolder = File(docsDir, "NosvedPlayer")
+            val nestedDir = File(appFolder, ".vault_secure_media")
+            if (nestedDir.exists() && File(nestedDir, ".vault_config").exists()) {
+                nestedDir
+            } else {
+                appFolder
+            }
         }
     }
 

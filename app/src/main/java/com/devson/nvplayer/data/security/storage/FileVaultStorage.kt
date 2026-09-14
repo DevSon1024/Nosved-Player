@@ -19,7 +19,7 @@ class FileVaultStorage(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : VaultStorage {
 
-    init {
+    private fun ensureDirectory(): File {
         if (!baseDirectory.exists()) {
             baseDirectory.mkdirs()
         }
@@ -27,6 +27,7 @@ class FileVaultStorage(
         if (!nomedia.exists()) {
             try { nomedia.createNewFile() } catch (_: Exception) {}
         }
+        return baseDirectory
     }
 
     override fun isStorageAccessible(): Boolean {
@@ -57,6 +58,7 @@ class FileVaultStorage(
     }
 
     override suspend fun writeVaultConfig(content: String): Boolean = withContext(ioDispatcher) {
+        ensureDirectory()
         val configFile = File(baseDirectory, ".vault_config")
         val tempFile = File(baseDirectory, ".vault_config.tmp")
         try {
@@ -124,6 +126,7 @@ class FileVaultStorage(
     }
 
     override suspend fun writeVaultIndex(content: String): Boolean = withContext(ioDispatcher) {
+        ensureDirectory()
         val indexFile = File(baseDirectory, ".vault_index")
         val tempFile = File(baseDirectory, ".vault_index.tmp")
         try {
@@ -190,6 +193,7 @@ class FileVaultStorage(
     }
 
     override suspend fun openOutputStream(filename: String): OutputStream = withContext(ioDispatcher) {
+        ensureDirectory()
         FileOutputStream(File(baseDirectory, filename), false)
     }
 

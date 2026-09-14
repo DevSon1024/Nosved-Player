@@ -345,7 +345,7 @@ class VaultResetHardeningTest {
         waitForState { viewModel.authState.value is VaultAuthState.SetupPin }
 
         // Verify post-deletion state is SetupPin
-        assertEquals(VaultAuthState.SetupPin, viewModel.authState.value)
+        assertTrue(viewModel.authState.value is VaultAuthState.SetupPin)
 
         // Step 1 verification: playback temp cleaned
         val playbackFiles = fixture.tempPlaybackDir.listFiles { f -> f.name != ".nomedia" } ?: emptyArray()

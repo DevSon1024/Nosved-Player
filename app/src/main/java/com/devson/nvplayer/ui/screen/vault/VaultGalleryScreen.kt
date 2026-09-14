@@ -1,7 +1,10 @@
 package com.devson.nvplayer.ui.screen.vault
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -148,7 +151,19 @@ fun VaultGalleryScreen(
     }
 
     val mediaPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
+        contract = object : ActivityResultContracts.OpenMultipleDocuments() {
+            override fun createIntent(context: Context, input: Array<String>): Intent {
+                val intent = super.createIntent(context, input)
+                try {
+                    val moviesUri = DocumentsContract.buildDocumentUri(
+                        "com.android.externalstorage.documents",
+                        "primary:Movies"
+                    )
+                    intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, moviesUri)
+                } catch (_: Exception) {}
+                return intent
+            }
+        }
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             for (uri in uris) {

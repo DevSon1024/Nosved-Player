@@ -4,11 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Environment
 import androidx.documentfile.provider.DocumentFile
 import com.devson.nvplayer.data.security.VaultMetadataJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -51,8 +55,10 @@ class SafVaultStorage(
             } catch (_: SecurityException) {
                 // If permission cannot be persisted, proceed if accessible
             }
+            val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return false
+            if (!rootDoc.exists() || !rootDoc.canRead()) return false
             prefs.edit().putString(KEY_TREE_URI, treeUri.toString()).commit()
-            ensureVaultDirectory() != null
+            true
         } catch (_: Exception) {
             false
         }
@@ -62,20 +68,62 @@ class SafVaultStorage(
         prefs.edit().remove(KEY_TREE_URI).commit()
     }
 
-    override fun isStorageAccessible(): Boolean {
-        val uri = getSavedTreeUri() ?: return false
+    /**
+     * Checks if the physical NosvedPlayer vault folder and .vault_config exist in Documents.
+     * Used on fresh installs to detect if an existing vault from a prior install is present in Documents.
+     */
+    fun hasPhysicalVaultFolder(): Boolean {
         return try {
-            val vaultDoc = getVaultDirectoryDocument()
-            vaultDoc != null && vaultDoc.exists() && vaultDoc.canRead() && vaultDoc.canWrite()
+            val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+            val appFolder = File(docsDir, "NosvedPlayer")
+            if (!appFolder.exists() || !appFolder.isDirectory) return false
+            val directConfig = File(appFolder, CONFIG_FILENAME)
+            val vaultFolder = File(appFolder, VAULT_FOLDER_NAME)
+            val nestedConfig = File(vaultFolder, CONFIG_FILENAME)
+            (directConfig.exists() && directConfig.length() > 0L) || (nestedConfig.exists() && nestedConfig.length() > 0L)
         } catch (_: Exception) {
             false
         }
     }
 
+    fun getPhysicalVaultLocationDescription(): String {
+        return "Documents/NosvedPlayer"
+    }
+
+    /**
+     * Tests whether Documents/NosvedPlayer/.vault_secure_media exists and is directly writable.
+     * Never creates folders during probing to avoid phantom folder creation.
+     */
+    fun canWriteDirectly(): Boolean {
+        return try {
+            val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+            val appFolder = File(docsDir, "NosvedPlayer")
+            if (!appFolder.exists() || !appFolder.isDirectory) return false
+            val vaultFolder = File(appFolder, VAULT_FOLDER_NAME)
+            val targetFolder = if (vaultFolder.exists() && vaultFolder.isDirectory) vaultFolder else appFolder
+            targetFolder.canRead() && targetFolder.canWrite()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun isStorageAccessible(): Boolean {
+        val uri = getSavedTreeUri()
+        if (uri != null) {
+            return try {
+                val vaultDoc = getVaultDirectoryDocument()
+                vaultDoc != null && vaultDoc.exists() && vaultDoc.canRead() && vaultDoc.canWrite()
+            } catch (_: Exception) {
+                false
+            }
+        }
+        return canWriteDirectly()
+    }
+
     override fun getStorageLocationDescription(): String {
         val vaultDoc = getVaultDirectoryDocument()
         if (vaultDoc != null && vaultDoc.exists()) {
-            return "Documents/NosvedPlayer/$VAULT_FOLDER_NAME"
+            return "Documents/NosvedPlayer"
         }
         val uri = getSavedTreeUri()
         return uri?.toString() ?: "Storage not connected"
@@ -97,63 +145,102 @@ class SafVaultStorage(
         }
     }
 
+    private fun openInputStreamForDoc(doc: DocumentFile): InputStream? {
+        return try {
+            if (doc.uri.scheme == "file") {
+                val path = doc.uri.path
+                if (path != null) FileInputStream(File(path)) else context.contentResolver.openInputStream(doc.uri)
+            } else {
+                context.contentResolver.openInputStream(doc.uri)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun openOutputStreamForDoc(doc: DocumentFile, mode: String = "wt"): OutputStream? {
+        return try {
+            if (doc.uri.scheme == "file") {
+                val path = doc.uri.path
+                if (path != null) FileOutputStream(File(path)) else context.contentResolver.openOutputStream(doc.uri, mode)
+            } else {
+                context.contentResolver.openOutputStream(doc.uri, mode)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun findOrCreateVaultDirectory(createIfMissing: Boolean): DocumentFile? {
-        val treeUri = getSavedTreeUri() ?: return null
+        val treeUri = getSavedTreeUri()
+        if (treeUri == null) {
+            if (canWriteDirectly()) {
+                try {
+                    val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+                    val appFolder = File(docsDir, "NosvedPlayer")
+                    val vaultFolder = File(appFolder, VAULT_FOLDER_NAME)
+                    if (vaultFolder.exists() && File(vaultFolder, CONFIG_FILENAME).exists()) {
+                        return DocumentFile.fromFile(vaultFolder)
+                    } else if (appFolder.exists()) {
+                        return DocumentFile.fromFile(appFolder)
+                    }
+                } catch (_: Exception) {}
+            }
+            return null
+        }
         return try {
             val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             if (!rootDoc.exists() || !rootDoc.canRead()) return null
 
-            // 1. If user directly selected .vault_secure_media
-            if (rootDoc.name == VAULT_FOLDER_NAME) {
-                if (createIfMissing) ensureNoMedia(rootDoc)
-                return rootDoc
-            }
-
-            // 2. If root has .vault_secure_media directly inside it
-            val directVault = rootDoc.findFile(VAULT_FOLDER_NAME)
-            if (directVault != null && directVault.exists()) {
-                if (createIfMissing) ensureNoMedia(directVault)
-                return directVault
-            }
-
-            // 3. If root has "NosvedPlayer" subfolder (e.g. user selected Documents)
-            val appFolder = rootDoc.findFile("NosvedPlayer")
-            if (appFolder != null && appFolder.isDirectory) {
-                val nestedVault = appFolder.findFile(VAULT_FOLDER_NAME)
-                if (nestedVault != null && nestedVault.exists()) {
-                    if (createIfMissing) ensureNoMedia(nestedVault)
-                    return nestedVault
-                }
-                if (createIfMissing) {
-                    val created = appFolder.createDirectory(VAULT_FOLDER_NAME)
-                    if (created != null && created.exists()) {
-                        ensureNoMedia(created)
-                        return created
-                    }
-                }
-            }
-
-            // 4. If root is "NosvedPlayer" (e.g. user opened Documents/NosvedPlayer and selected it)
-            if (rootDoc.name?.equals("NosvedPlayer", ignoreCase = true) == true) {
+            // 1. If root itself is NosvedPlayer or .vault_secure_media
+            if (rootDoc.name?.equals("NosvedPlayer", ignoreCase = true) == true || rootDoc.name == VAULT_FOLDER_NAME) {
                 val vault = rootDoc.findFile(VAULT_FOLDER_NAME)
-                    ?: if (createIfMissing) rootDoc.createDirectory(VAULT_FOLDER_NAME) else null
+                if (vault != null && vault.exists() && vault.findFile(CONFIG_FILENAME) != null) {
+                    if (createIfMissing) ensureNoMedia(vault)
+                    return vault
+                }
+                if (rootDoc.findFile(CONFIG_FILENAME) != null) {
+                    if (createIfMissing) ensureNoMedia(rootDoc)
+                    return rootDoc
+                }
                 if (vault != null && vault.exists()) {
                     if (createIfMissing) ensureNoMedia(vault)
                     return vault
                 }
+                if (createIfMissing) ensureNoMedia(rootDoc)
+                return rootDoc
             }
 
-            // 5. If creating when missing and root is Documents or similar
+            // 2. If root is Documents or similar directory containing NosvedPlayer folder
+            val appFolder = rootDoc.findFile("NosvedPlayer")
+            if (appFolder != null && appFolder.isDirectory) {
+                val nestedVault = appFolder.findFile(VAULT_FOLDER_NAME)
+                if (nestedVault != null && nestedVault.exists() && nestedVault.findFile(CONFIG_FILENAME) != null) {
+                    if (createIfMissing) ensureNoMedia(nestedVault)
+                    return nestedVault
+                }
+                if (appFolder.findFile(CONFIG_FILENAME) != null) {
+                    if (createIfMissing) ensureNoMedia(appFolder)
+                    return appFolder
+                }
+                if (nestedVault != null && nestedVault.exists()) {
+                    if (createIfMissing) ensureNoMedia(nestedVault)
+                    return nestedVault
+                }
+                if (createIfMissing) ensureNoMedia(appFolder)
+                return appFolder
+            }
+
+            // 3. Only if createIfMissing is true (explicit new vault creation)
             if (createIfMissing) {
                 val targetAppFolder = rootDoc.findFile("NosvedPlayer")
                     ?: rootDoc.createDirectory("NosvedPlayer")
-                val targetParent = targetAppFolder ?: rootDoc
-                val createdVault = targetParent.findFile(VAULT_FOLDER_NAME)
-                    ?: targetParent.createDirectory(VAULT_FOLDER_NAME)
-                if (createdVault != null && createdVault.exists()) {
-                    ensureNoMedia(createdVault)
-                    return createdVault
+                if (targetAppFolder != null && targetAppFolder.exists()) {
+                    ensureNoMedia(targetAppFolder)
+                    return targetAppFolder
                 }
+                ensureNoMedia(rootDoc)
+                return rootDoc
             }
 
             null
@@ -173,7 +260,7 @@ class SafVaultStorage(
         val file = vaultDoc.findFile(CONFIG_FILENAME) ?: return@withContext null
         if (!file.exists() || file.length() == 0L) return@withContext null
         try {
-            context.contentResolver.openInputStream(file.uri)?.use { stream ->
+            openInputStreamForDoc(file)?.use { stream ->
                 stream.bufferedReader(Charsets.UTF_8).readText()
             }
         } catch (_: Exception) {
@@ -191,13 +278,13 @@ class SafVaultStorage(
             tmpDoc = vaultDoc.createFile("application/octet-stream", CONFIG_TMP_FILENAME)
                 ?: return@withContext false
 
-            context.contentResolver.openOutputStream(tmpDoc.uri, "wt")?.use { stream ->
+            openOutputStreamForDoc(tmpDoc, "wt")?.use { stream ->
                 stream.write(content.toByteArray(Charsets.UTF_8))
                 stream.flush()
             } ?: return@withContext false
 
             // Verify content is valid JSON metadata before committing
-            val verifiedText = context.contentResolver.openInputStream(tmpDoc.uri)?.use { stream ->
+            val verifiedText = openInputStreamForDoc(tmpDoc)?.use { stream ->
                 stream.bufferedReader(Charsets.UTF_8).readText()
             } ?: ""
             val verified = VaultMetadataJson.fromJson(verifiedText)
@@ -215,8 +302,8 @@ class SafVaultStorage(
                 // Fallback if provider does not support rename
                 val newConfigDoc = vaultDoc.createFile("application/octet-stream", CONFIG_FILENAME)
                     ?: return@withContext false
-                context.contentResolver.openOutputStream(newConfigDoc.uri, "wt")?.use { out ->
-                    context.contentResolver.openInputStream(tmpDoc.uri)?.use { input ->
+                openOutputStreamForDoc(newConfigDoc, "wt")?.use { out ->
+                    openInputStreamForDoc(tmpDoc)?.use { input ->
                         input.copyTo(out)
                     }
                     out.flush()
@@ -250,7 +337,7 @@ class SafVaultStorage(
         val file = vaultDoc.findFile(INDEX_FILENAME) ?: return@withContext null
         if (!file.exists() || file.length() == 0L) return@withContext null
         try {
-            context.contentResolver.openInputStream(file.uri)?.use { stream ->
+            openInputStreamForDoc(file)?.use { stream ->
                 stream.bufferedReader(Charsets.UTF_8).readText()
             }
         } catch (_: Exception) {
@@ -268,12 +355,12 @@ class SafVaultStorage(
             tmpDoc = vaultDoc.createFile("application/octet-stream", INDEX_TMP_FILENAME)
                 ?: return@withContext false
 
-            context.contentResolver.openOutputStream(tmpDoc.uri, "wt")?.use { stream ->
+            openOutputStreamForDoc(tmpDoc, "wt")?.use { stream ->
                 stream.write(content.toByteArray(Charsets.UTF_8))
                 stream.flush()
             } ?: return@withContext false
 
-            val verifiedText = context.contentResolver.openInputStream(tmpDoc.uri)?.use { stream ->
+            val verifiedText = openInputStreamForDoc(tmpDoc)?.use { stream ->
                 stream.bufferedReader(Charsets.UTF_8).readText()
             } ?: ""
             val verified = VaultIndexJson.fromJson(verifiedText)
@@ -290,8 +377,8 @@ class SafVaultStorage(
             if (!tmpDoc.renameTo(INDEX_FILENAME)) {
                 val newIndexDoc = vaultDoc.createFile("application/octet-stream", INDEX_FILENAME)
                     ?: return@withContext false
-                context.contentResolver.openOutputStream(newIndexDoc.uri, "wt")?.use { out ->
-                    context.contentResolver.openInputStream(tmpDoc.uri)?.use { input ->
+                openOutputStreamForDoc(newIndexDoc, "wt")?.use { out ->
+                    openInputStreamForDoc(tmpDoc)?.use { input ->
                         input.copyTo(out)
                     }
                     out.flush()
@@ -342,7 +429,7 @@ class SafVaultStorage(
             ?: throw FileNotFoundException("Vault storage directory not accessible")
         val fileDoc = vaultDoc.findFile(filename)
             ?: throw FileNotFoundException("Vault file not found: $filename")
-        context.contentResolver.openInputStream(fileDoc.uri)
+        openInputStreamForDoc(fileDoc)
             ?: throw IOException("Cannot open input stream for: $filename")
     }
 
@@ -354,7 +441,7 @@ class SafVaultStorage(
             fileDoc = vaultDoc.createFile("application/octet-stream", filename)
                 ?: throw IOException("Cannot create file in vault storage: $filename")
         }
-        context.contentResolver.openOutputStream(fileDoc.uri, "wt")
+        openOutputStreamForDoc(fileDoc, "wt")
             ?: throw IOException("Cannot open output stream for: $filename")
     }
 
@@ -377,8 +464,8 @@ class SafVaultStorage(
             try {
                 val targetDoc = vaultDoc.createFile("application/octet-stream", newFilename)
                     ?: return@withContext false
-                context.contentResolver.openOutputStream(targetDoc.uri, "wt")?.use { out ->
-                    context.contentResolver.openInputStream(sourceDoc.uri)?.use { input ->
+                openOutputStreamForDoc(targetDoc, "wt")?.use { out ->
+                    openInputStreamForDoc(sourceDoc)?.use { input ->
                         input.copyTo(out)
                     }
                     out.flush()

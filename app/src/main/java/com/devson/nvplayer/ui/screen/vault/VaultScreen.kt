@@ -38,7 +38,7 @@ fun VaultScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (authViewModel.authState.value !is VaultAuthState.Authenticated) {
+                if (authViewModel.authState.value !is VaultAuthState.Authenticated && !authViewModel.isConfiguringStorage) {
                     authViewModel.checkPinStatus()
                 }
             }
