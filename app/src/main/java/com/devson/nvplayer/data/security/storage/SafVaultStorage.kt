@@ -80,7 +80,12 @@ class SafVaultStorage(
             val directConfig = File(appFolder, CONFIG_FILENAME)
             val vaultFolder = File(appFolder, VAULT_FOLDER_NAME)
             val nestedConfig = File(vaultFolder, CONFIG_FILENAME)
-            (directConfig.exists() && directConfig.length() > 0L) || (nestedConfig.exists() && nestedConfig.length() > 0L)
+            val altDirectConfig = File(appFolder, ".config")
+            val altNestedConfig = File(vaultFolder, ".config")
+            (directConfig.exists() && directConfig.length() > 0L) ||
+            (nestedConfig.exists() && nestedConfig.length() > 0L) ||
+            (altDirectConfig.exists() && altDirectConfig.length() > 0L) ||
+            (altNestedConfig.exists() && altNestedConfig.length() > 0L)
         } catch (_: Exception) {
             false
         }

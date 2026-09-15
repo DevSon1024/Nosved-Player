@@ -59,7 +59,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -138,13 +137,17 @@ fun VaultAuthScreen(
                 authState is VaultAuthState.AnswerSecurityQuestion ||
                 authState is VaultAuthState.NeedsStorageAccess
     ) {
-        when (authState) {
+        when (val current = authState) {
             is VaultAuthState.EnterPinForReset, is VaultAuthState.ConfirmDeleteVault -> viewModel.onCancelReset()
             is VaultAuthState.ConfirmRemoveVault -> viewModel.onCancelRemoveVault()
             is VaultAuthState.IncorrectPin -> viewModel.onCancelRemoveVault()
             is VaultAuthState.RestorePinEntry -> viewModel.onCancelRemoveVault()
             is VaultAuthState.AnswerSecurityQuestion -> viewModel.checkPinStatus()
-            is VaultAuthState.NeedsStorageAccess -> viewModel.onCancelStorageAccess()
+            is VaultAuthState.NeedsStorageAccess -> {
+                if (!current.isConfiguring) {
+                    viewModel.onCancelStorageAccess()
+                }
+            }
             else -> {}
         }
     }
@@ -1232,12 +1235,20 @@ private fun NeedsStorageAccessContent(
                     )
                 )
         ) {
-            Icon(
-                imageVector = if (state.existingFolderFound) Icons.Filled.FolderOpen else Icons.Filled.Shield,
-                contentDescription = "Storage Access",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
-            )
+            if (state.isConfiguring) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    strokeWidth = 3.5.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = if (state.existingFolderFound) Icons.Filled.FolderOpen else Icons.Filled.Shield,
+                    contentDescription = "Storage Access",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1327,14 +1338,33 @@ private fun NeedsStorageAccessContent(
 
         if (state.isConfiguring) {
             Spacer(modifier = Modifier.height(16.dp))
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            )
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = if (state.existingFolderFound) "Connecting & verifying vault folder..." else "Configuring secure vault storage...",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -1347,18 +1377,16 @@ private fun NeedsStorageAccessContent(
 
         Button(
             onClick = {
-                if (!state.isConfiguring) {
-                    val initialUri = try {
-                        if (state.existingFolderFound) {
-                            Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments%2FNosvedPlayer")
-                        } else {
-                            Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments")
-                        }
-                    } catch (_: Exception) {
-                        null
+                val initialUri = try {
+                    if (state.existingFolderFound) {
+                        Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments%2FNosvedPlayer")
+                    } else {
+                        Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments")
                     }
-                    treeLauncher.launch(initialUri)
+                } catch (_: Exception) {
+                    null
                 }
+                treeLauncher.launch(initialUri)
             },
             enabled = !state.isConfiguring,
             modifier = Modifier
@@ -1369,13 +1397,13 @@ private fun NeedsStorageAccessContent(
         ) {
             if (state.isConfiguring) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.5.dp
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Setting up secure vault...",
+                    text = "Connecting...",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
             } else {

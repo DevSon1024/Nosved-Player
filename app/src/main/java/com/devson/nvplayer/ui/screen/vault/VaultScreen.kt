@@ -50,7 +50,7 @@ fun VaultScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (authState !is VaultAuthState.Authenticated) {
+        if (authState !is VaultAuthState.Authenticated && !authViewModel.isConfiguringStorage) {
             authViewModel.checkPinStatus()
         }
     }
