@@ -1,11 +1,10 @@
 package com.devson.nvplayer.ui.screen.vault
 
-import android.content.Context
-import android.content.ContextWrapper
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -36,8 +35,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockReset
@@ -62,15 +59,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,20 +83,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.devson.nvplayer.data.security.storage.SafVaultStorage
 import com.devson.nvplayer.data.security.VaultSecurityManager
 import com.devson.nvplayer.viewmodel.VaultAuthState
 import com.devson.nvplayer.viewmodel.VaultAuthViewModel
 import kotlinx.coroutines.launch
-
-private fun Context.findFragmentActivity(): FragmentActivity? {
-    var ctx = this
-    while (ctx is ContextWrapper) {
-        if (ctx is FragmentActivity) return ctx
-        ctx = ctx.baseContext
-    }
-    return null
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,10 +98,69 @@ fun VaultAuthScreen(
     val authState by viewModel.authState.collectAsStateWithLifecycle()
     val pinDigits by viewModel.pinDigits.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val activity = (context as? FragmentActivity) ?: context.findFragmentActivity()
+    val activity = context as? FragmentActivity
     val coroutineScope = rememberCoroutineScope()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !viewModel.securityManager.hasStorageAccess()) {
+            showPermissionDialog = true
+        }
+    }
+
+    if (showPermissionDialog && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !viewModel.securityManager.hasStorageAccess()) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Shield,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Storage Access Required",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "To locate, protect, and restore your hidden videos across app reinstalls and updates, Nosved Player requires All Files Access permission.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDialog = false
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            try {
+                                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                ) {
+                    Text("Grant Permission")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Later")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(authState) {
         if (authState is VaultAuthState.Error) {
@@ -134,20 +176,14 @@ fun VaultAuthScreen(
                 authState is VaultAuthState.ConfirmRemoveVault ||
                 authState is VaultAuthState.EnterPinForReset ||
                 authState is VaultAuthState.ConfirmDeleteVault ||
-                authState is VaultAuthState.AnswerSecurityQuestion ||
-                authState is VaultAuthState.NeedsStorageAccess
+                authState is VaultAuthState.AnswerSecurityQuestion
     ) {
-        when (val current = authState) {
+        when (authState) {
             is VaultAuthState.EnterPinForReset, is VaultAuthState.ConfirmDeleteVault -> viewModel.onCancelReset()
             is VaultAuthState.ConfirmRemoveVault -> viewModel.onCancelRemoveVault()
             is VaultAuthState.IncorrectPin -> viewModel.onCancelRemoveVault()
             is VaultAuthState.RestorePinEntry -> viewModel.onCancelRemoveVault()
             is VaultAuthState.AnswerSecurityQuestion -> viewModel.checkPinStatus()
-            is VaultAuthState.NeedsStorageAccess -> {
-                if (!current.isConfiguring) {
-                    viewModel.onCancelStorageAccess()
-                }
-            }
             else -> {}
         }
     }
@@ -377,14 +413,6 @@ fun VaultAuthScreen(
         }
 
         when (val state = authState) {
-            is VaultAuthState.NeedsStorageAccess -> {
-                NeedsStorageAccessContent(
-                    state = state,
-                    pulseScale = pulseScale,
-                    onFolderSelected = { uri -> viewModel.onStorageFolderSelected(uri) }
-                )
-            }
-
             is VaultAuthState.ExistingVaultFound -> {
                 ExistingVaultFoundContent(
                     fileCount = state.fileCount,
@@ -508,7 +536,7 @@ fun VaultAuthScreen(
                         }
 
                         val subtitleText = when (state) {
-                            is VaultAuthState.SetupPin -> state.message ?: "Create a 4-digit PIN to securely protect your private media."
+                            is VaultAuthState.SetupPin -> "Create a 4-digit PIN to securely protect your private media."
                             is VaultAuthState.ConfirmPin -> "Re-enter the 4-digit PIN to confirm."
                             is VaultAuthState.EnterPin -> "Enter your 4-digit PIN to access."
                             is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> "Enter the 4-digit PIN used when these files were protected."
@@ -521,7 +549,6 @@ fun VaultAuthScreen(
                         }
 
                         val isErrorState = state is VaultAuthState.Error || (state is VaultAuthState.EnterPinForReset && state.error != null)
-                        val isWarningMessage = state is VaultAuthState.SetupPin && state.message != null
 
                         Text(
                             text = titleText,
@@ -534,7 +561,7 @@ fun VaultAuthScreen(
                         Text(
                             text = subtitleText,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isErrorState || isWarningMessage) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isErrorState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
@@ -566,20 +593,7 @@ fun VaultAuthScreen(
                         }
 
                         // Action links
-                        if (state is VaultAuthState.SetupPin) {
-                            if (state.message == null && viewModel.hasPhysicalVaultFolder()) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                TextButton(onClick = { viewModel.onConnectExistingVaultClicked() }) {
-                                    Icon(
-                                        imageVector = Icons.Filled.FolderOpen,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Already have a vault? Connect folder", style = MaterialTheme.typography.labelLarge)
-                                }
-                            }
-                        } else if (state is VaultAuthState.EnterPin) {
+                        if (state is VaultAuthState.EnterPin) {
                             Spacer(modifier = Modifier.height(12.dp))
                             TextButton(onClick = { viewModel.onForgotPinClicked() }) {
                                 Text("Forgot PIN?", style = MaterialTheme.typography.labelLarge)
@@ -618,9 +632,8 @@ fun VaultAuthScreen(
                         onDigitClick = { viewModel.onDigit(it) },
                         onBackspaceClick = { viewModel.onBackspace() },
                         onBiometricClick = {
-                            val fragActivity = activity ?: context.findFragmentActivity()
-                            if (fragActivity != null) {
-                                viewModel.authenticateWithBiometrics(fragActivity)
+                            if (activity != null) {
+                                viewModel.authenticateWithBiometrics(activity)
                             }
                         },
                         showBiometric = (state is VaultAuthState.EnterPin || state is VaultAuthState.Error) && viewModel.securityManager.isBiometricEnabled()
@@ -862,21 +875,21 @@ private fun IncorrectPinContent(
             Text("I Forgot PIN (Recover with Question)", fontWeight = FontWeight.SemiBold)
         }
 
-        // Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // TextButton(
-        //     onClick = onRemove,
-        //     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-        //     modifier = Modifier.fillMaxWidth()
-        // ) {
-        //     Icon(
-        //         imageVector = Icons.Filled.Delete,
-        //         contentDescription = null,
-        //         modifier = Modifier.size(18.dp)
-        //     )
-        //     Spacer(modifier = Modifier.width(6.dp))
-        //     Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
-        // }
+        TextButton(
+            onClick = onRemove,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Remove Old Vault Data", fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
@@ -888,6 +901,7 @@ private fun SetupSecurityQuestionContent(
     var selectedQuestion by remember { mutableStateOf(VaultSecurityManager.DEFAULT_SECURITY_QUESTIONS.first()) }
     var answerText by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -964,17 +978,26 @@ private fun SetupSecurityQuestionContent(
 
         Button(
             onClick = {
-                if (answerText.isNotBlank()) {
+                if (answerText.isNotBlank() && !isSaving) {
+                    isSaving = true
                     onSave(selectedQuestion, answerText)
                 }
             },
-            enabled = answerText.isNotBlank(),
+            enabled = answerText.isNotBlank() && !isSaving,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Save & Enter Vault", fontWeight = FontWeight.SemiBold)
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Save & Enter Vault", fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -1198,221 +1221,3 @@ private fun KeypadDigitButton(
         )
     }
 }
-
-@Composable
-private fun NeedsStorageAccessContent(
-    state: VaultAuthState.NeedsStorageAccess,
-    pulseScale: Float,
-    onFolderSelected: (Uri) -> Unit
-) {
-    val treeLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        if (uri != null) {
-            onFolderSelected(uri)
-        }
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(96.dp)
-                .scale(pulseScale)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                        )
-                    )
-                )
-        ) {
-            if (state.isConfiguring) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 3.5.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else {
-                Icon(
-                    imageVector = if (state.existingFolderFound) Icons.Filled.FolderOpen else Icons.Filled.Shield,
-                    contentDescription = "Storage Access",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        val title = when {
-            state.isReconnect -> "Reconnect Vault Storage"
-            state.existingFolderFound -> "Existing Vault Detected"
-            else -> "Create Vault Storage"
-        }
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val description = when {
-            state.isReconnect ->
-                "Storage permissions were revoked. Please re-select your NosvedPlayer vault folder in Documents to restore access."
-            state.existingFolderFound ->
-                "An existing vault folder was detected on your device. Please select this folder to connect to your vault and restore your hidden videos."
-            else ->
-                "Your PIN has been created! To complete setting up your vault, select the Documents folder. Nosved Player will automatically create the secure folder structure inside it."
-        }
-
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp)
-            ) {
-                Text(
-                    text = if (state.existingFolderFound) "Detected Vault Location" else "Target Storage Location",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (state.existingFolderFound) "Documents / NosvedPlayer" else "Documents",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (state.existingFolderFound) {
-                        "Tap the button below and select the 'NosvedPlayer' folder inside Documents."
-                    } else {
-                        "Tap the button below, select the 'Documents' folder, and tap 'Use this folder'."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        if (state.message != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Surface(
-                color = MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = state.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-
-        if (state.isConfiguring) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.5.dp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Text(
-                        text = if (state.existingFolderFound) "Connecting & verifying vault folder..." else "Configuring secure vault storage...",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        val buttonText = when {
-            state.isReconnect -> "Reconnect Vault Folder"
-            state.existingFolderFound -> "Select Documents/NosvedPlayer"
-            else -> "Select Documents Folder"
-        }
-
-        Button(
-            onClick = {
-                val initialUri = try {
-                    if (state.existingFolderFound) {
-                        Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments%2FNosvedPlayer")
-                    } else {
-                        Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments")
-                    }
-                } catch (_: Exception) {
-                    null
-                }
-                treeLauncher.launch(initialUri)
-            },
-            enabled = !state.isConfiguring,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            if (state.isConfiguring) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Connecting...",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-            } else {
-                Text(
-                    text = buttonText,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-            }
-        }
-    }
-}
-

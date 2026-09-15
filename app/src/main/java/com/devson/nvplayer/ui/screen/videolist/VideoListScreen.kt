@@ -358,7 +358,7 @@ fun VideoListScreen(
                 },
                 showBackButton = selectedFolder != null || (viewSettings.viewMode == ViewMode.FOLDERS && currentExplorerPath != baseRoot),
                 showHomeBackButton = false,
-                onClearSelection = { 
+                onClearSelection = {
                     selectedFolders = emptySet()
                     selectedVideos = emptySet()
                 },
@@ -786,17 +786,17 @@ fun VideoListScreen(
                             val sortedItems = remember(explorerItems, viewSettings.sortField, viewSettings.sortDirection, allVideosForSize, historyMap) {
                                 val folders = explorerItems.filterIsInstance<ExplorerItem.FolderItem>().map { it.folder }
                                 val videos = explorerItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
-                                
+
                                 val folderVideosMap = folders.associateWith { folder ->
                                     allVideosForSize.filter { it.path.startsWith(folder.id) }
                                 }
-                                
+
                                 val sortedFolders = folders.applyFolderSort(folderVideosMap, viewSettings.sortField, viewSettings.sortDirection, historyMap)
                                 val sortedVideos = videos.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
-                                
+
                                 sortedFolders.map { ExplorerItem.FolderItem(it) } + sortedVideos.map { ExplorerItem.VideoItem(it) }
                             }
-                            
+
                             val sortedExpVideos = remember(sortedItems) {
                                 sortedItems.filterIsInstance<ExplorerItem.VideoItem>().map { it.video }
                             }
@@ -875,8 +875,8 @@ fun VideoListScreen(
                 }
                 ViewMode.FOLDERS -> {
                     val allVideosFlat = videosFlat
-                    val fromFolders = selectedFolders.flatMap { f -> 
-                        allVideosFlat.filter { it.path.startsWith(f.id) } 
+                    val fromFolders = selectedFolders.flatMap { f ->
+                        allVideosFlat.filter { it.path.startsWith(f.id) }
                     }
                     (selectedVideos + fromFolders).toSet()
                 }
@@ -892,7 +892,7 @@ fun VideoListScreen(
     if (showRenameDialog && (selectedFolders.size == 1 || selectedVideos.size == 1)) {
         val isFolder = selectedFolders.size == 1 && selectedFolder == null
         val title = if (isFolder) "Rename Folder" else "Rename Video"
-        
+
         CustomRenameDialog(
             initialName = renameInputText,
             title = title,
@@ -910,8 +910,8 @@ fun VideoListScreen(
                         Toast.makeText(context, "Could not determine folder path.", Toast.LENGTH_SHORT).show()
                     }
                 } else {
-                    val video = if (selectedFolder != null) selectedVideos.firstOrNull() 
-                               else (videosByFolder[selectedFolders.first()] ?: emptyList()).firstOrNull()
+                    val video = if (selectedFolder != null) selectedVideos.firstOrNull()
+                    else (videosByFolder[selectedFolders.first()] ?: emptyList()).firstOrNull()
                     if (video != null) {
                         fileOpsViewModel.renameVideo(context, Uri.parse(video.uri), newName)
                     }
@@ -1146,11 +1146,10 @@ fun VideoListScreen(
                     onClick = {
                         val uris = videosToVault.map { Uri.parse(it.uri) }
                         val titles = videosToVault.map { it.title }
-                        val paths = videosToVault.map { it.path }
                         showVaultConfirmDialog = false
                         selectedVideos = emptySet()
                         selectedFolders = emptySet()
-                        vaultGalleryViewModel?.importVideos(uris, titles, paths)
+                        vaultGalleryViewModel?.importVideos(uris, titles)
                         videosToVault = emptyList()
                     }
                 ) {

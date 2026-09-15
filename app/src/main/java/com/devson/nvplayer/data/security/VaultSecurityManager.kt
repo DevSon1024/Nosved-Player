@@ -2,18 +2,17 @@ package com.devson.nvplayer.data.security
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.Environment
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.devson.nvplayer.data.security.storage.FileVaultStorage
-import com.devson.nvplayer.data.security.storage.SafVaultStorage
-import com.devson.nvplayer.data.security.storage.VaultStorage
 import com.devson.nvplayer.domain.model.VaultStorageMode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.Base64
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -25,20 +24,8 @@ import javax.crypto.spec.SecretKeySpec
  */
 class VaultSecurityManager(
     private val context: Context? = null,
-    private val customVaultDirectory: File? = null,
-    customVaultStorage: VaultStorage? = null
+    private val customVaultDirectory: File? = null
 ) {
-
-    val vaultStorage: VaultStorage = customVaultStorage
-        ?: (if (customVaultDirectory != null) {
-            FileVaultStorage(customVaultDirectory)
-        } else if (context != null) {
-            SafVaultStorage(context)
-        } else {
-            val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
-            FileVaultStorage(vaultDir)
-        })
 
     private val securePrefs: SharedPreferences? by lazy {
         context?.applicationContext?.let { appContext ->
@@ -54,76 +41,79 @@ class VaultSecurityManager(
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } catch (_: Exception) {
-                try {
-                    appContext.deleteSharedPreferences(PREFS_FILE_NAME)
-                    val masterKey = MasterKey.Builder(appContext)
-                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                        .build()
-                    EncryptedSharedPreferences.create(
-                        appContext,
-                        PREFS_FILE_NAME,
-                        masterKey,
-                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                    )
-                } catch (_: Exception) {
-                    null
-                }
+                null
             }
         }
     }
 
     val persistentVaultDirectory: File by lazy {
-        if (vaultStorage is FileVaultStorage) {
-            vaultStorage.baseDirectory
-        } else if (customVaultDirectory != null) {
+        if (customVaultDirectory != null) {
+            if (!customVaultDirectory.exists()) {
+                customVaultDirectory.mkdirs()
+            }
             customVaultDirectory
         } else {
             val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            val appFolder = File(docsDir, "NosvedPlayer")
-            val nestedDir = File(appFolder, ".vault_secure_media")
-            if (nestedDir.exists() && File(nestedDir, ".vault_config").exists()) {
-                nestedDir
-            } else {
-                appFolder
+            val vaultDir = File(docsDir, "NosvedPlayer/.vault_secure_media")
+            if (!vaultDir.exists()) {
+                try { vaultDir.mkdirs() } catch (_: Exception) {}
             }
+            val nomedia = File(vaultDir, ".nomedia")
+            if (!nomedia.exists()) {
+                try { nomedia.createNewFile() } catch (_: Exception) {}
+            }
+            vaultDir
         }
     }
 
     val vaultConfigFile: File
         get() = File(persistentVaultDirectory, ".vault_config")
 
+    private val internalConfigFile: File?
+        get() = context?.filesDir?.let { File(it, ".vault_config") }
+
     // In-memory cache of validated metadata to prevent excessive disk reads
     @Volatile
     private var cachedMetadata: VaultMetadata? = null
-
-    val currentCachedMetadata: VaultMetadata?
-        get() = cachedMetadata
 
     private var inMemoryBiometricEnabled: Boolean = true
     private var inMemoryVaultInitializedLocally: Boolean = false
     @Volatile
     private var inMemoryActiveCredential: String? = null
 
+    /**
+     * Checks whether the app has storage access to manage persistent external vault media across uninstalls.
+     */
+    fun hasStorageAccess(): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Environment.isExternalStorageManager()
+            } else {
+                true
+            }
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    
     // Core Cryptographic Credential & Metadata APIs
 
     /**
-     * Checks if persistent vault metadata exists on external/persistent storage.
+     * Checks if persistent vault metadata exists on external/persistent or internal storage.
      */
     fun hasPersistentVaultMetadata(): Boolean {
-        return runBlocking(Dispatchers.IO) {
-            vaultStorage.hasVaultConfig()
-        }
+        val extExists = try { vaultConfigFile.exists() && vaultConfigFile.length() > 0L } catch (_: Exception) { false }
+        if (extExists) return true
+        val internalConfig = internalConfigFile
+        return try { internalConfig != null && internalConfig.exists() && internalConfig.length() > 0L } catch (_: Exception) { false }
     }
 
     /**
      * Validates the integrity of the persistent vault metadata file without needing a credential.
      */
     fun validateVaultMetadata(): VaultMetadataStatus {
-        val hasConfig = runBlocking(Dispatchers.IO) {
-            vaultStorage.hasVaultConfig()
-        }
-        if (!hasConfig) {
+        if (!hasPersistentVaultMetadata()) {
             return VaultMetadataStatus.MISSING
         }
         return try {
@@ -144,24 +134,53 @@ class VaultSecurityManager(
     }
 
     /**
-     * Loads and parses the persistent vault metadata. Returns null if missing or malformed.
+     * Loads and parses the persistent vault metadata. Checks external storage first,
+     * and falls back to internal app storage.
      */
+    private var lastConfigTimestamp: Long = 0L
+
     fun loadVaultMetadata(forceReload: Boolean = false): VaultMetadata? {
-        if (!forceReload && cachedMetadata != null) {
+        val fileModified = try { vaultConfigFile.lastModified() } catch (_: Exception) { 0L }
+        if (!forceReload && cachedMetadata != null && fileModified == lastConfigTimestamp && fileModified > 0L) {
             return cachedMetadata
         }
 
-        val text = runBlocking(Dispatchers.IO) {
-            vaultStorage.readVaultConfig()
-        } ?: return null
-
-        return try {
-            val metadata = VaultMetadataJson.fromJson(text)
-            cachedMetadata = metadata
-            metadata
-        } catch (_: Exception) {
-            null
+        // 1. Attempt reading from persistent external storage
+        if (try { vaultConfigFile.exists() && vaultConfigFile.length() > 0L } catch (_: Exception) { false }) {
+            try {
+                val text = vaultConfigFile.readText(Charsets.UTF_8)
+                val metadata = VaultMetadataJson.fromJson(text)
+                if (metadata != null) {
+                    cachedMetadata = metadata
+                    lastConfigTimestamp = fileModified
+                    return metadata
+                }
+            } catch (_: Exception) {}
         }
+
+        // 2. Attempt reading from app-internal fallback storage
+        val internalConfig = internalConfigFile
+        if (try { internalConfig != null && internalConfig.exists() && internalConfig.length() > 0L } catch (_: Exception) { false }) {
+            try {
+                val text = internalConfig?.readText(Charsets.UTF_8)
+                if (!text.isNullOrEmpty()) {
+                    val metadata = VaultMetadataJson.fromJson(text)
+                    if (metadata != null) {
+                        cachedMetadata = metadata
+                        lastConfigTimestamp = internalConfig.lastModified()
+                        // If external storage is writable, sync it back
+                        try {
+                            if (!vaultConfigFile.exists() || vaultConfigFile.canWrite()) {
+                                vaultConfigFile.writeText(text, Charsets.UTF_8)
+                            }
+                        } catch (_: Exception) {}
+                        return metadata
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return null
     }
 
     /**
@@ -263,22 +282,24 @@ class VaultSecurityManager(
 
             inMemoryActiveCredential = credential
             true
+        } catch (_: AEADBadTagException) {
+            false
         } catch (_: Exception) {
             false
         }
     }
 
     /**
-     * Derives the persistent Vault Master Key (AES-256) using the authenticated user credential.
+     * Derives the in-memory AES-256 SecretKeySpec for file operations after verifying the credential.
+     * Unwraps the persisted Vault Master Key using the PIN-derived KEK.
+     * The raw master key is NEVER stored on disk in plaintext.
      */
     fun deriveEncryptionKey(credential: String): SecretKeySpec {
-        require(credential.isNotEmpty()) { "Vault credential cannot be empty" }
-
         val metadata = loadVaultMetadata()
-            ?: throw IllegalStateException("Persistent vault metadata not initialized or unreadable")
+            ?: throw VaultInvalidHeaderException("Vault metadata is missing or corrupted")
 
         if (!verifyVaultCredential(credential)) {
-            throw VaultAuthenticationException("Invalid vault credential")
+            throw VaultAuthenticationException("Incorrect vault credential")
         }
 
         val kek = VaultKeyDerivation.deriveKey(
@@ -288,12 +309,8 @@ class VaultSecurityManager(
         )
 
         return if (metadata.wrappedMasterKey.isNotEmpty() && metadata.wrappedKeyIv.isNotEmpty()) {
-            try {
-                val masterKeyBytes = unwrapMasterKey(metadata.wrappedMasterKey, kek, metadata.wrappedKeyIv)
-                SecretKeySpec(masterKeyBytes, "AES")
-            } catch (e: Exception) {
-                throw VaultAuthenticationException("Invalid vault credential: could not unwrap master key", e)
-            }
+            val masterKeyBytes = unwrapMasterKey(metadata.wrappedMasterKey, kek, metadata.wrappedKeyIv)
+            SecretKeySpec(masterKeyBytes, "AES")
         } else {
             kek
         }
@@ -307,8 +324,11 @@ class VaultSecurityManager(
         inMemoryActiveCredential = null
         setVaultInitializedLocally(false)
         securePrefs?.edit()?.clear()?.apply()
-        return runBlocking {
-            vaultStorage.deleteVaultConfig()
+        internalConfigFile?.let { try { if (it.exists()) it.delete() } catch (_: Exception) {} }
+        return if (vaultConfigFile.exists()) {
+            try { vaultConfigFile.delete() } catch (_: Exception) { false }
+        } else {
+            true
         }
     }
 
@@ -321,25 +341,17 @@ class VaultSecurityManager(
     /**
      * Explicitly clears the active in-memory session credential upon locking the vault.
      */
-    fun lockVault() {
+    fun clearSession() {
         inMemoryActiveCredential = null
     }
 
-    fun clearSession() {
-        lockVault()
-    }
-
     /**
-     * Detects if previous vault media exists on external storage while the metadata is corrupted or missing.
+     * Checks if .vlt media files exist on disk while metadata is missing or corrupted (recovery state).
      */
-    fun isVaultCorruptedWithExistingFiles(): Boolean {
+    fun hasOrphanedVaultFiles(): Boolean {
         val hasFiles = hasExistingVaultOnDisk()
         val isMetadataValid = validateVaultMetadata() == VaultMetadataStatus.VALID
         return hasFiles && !isMetadataValid
-    }
-
-    fun hasOrphanedVaultFiles(): Boolean {
-        return isVaultCorruptedWithExistingFiles()
     }
 
     // Backward-Compatible Facades for Existing UI
@@ -349,15 +361,34 @@ class VaultSecurityManager(
     }
 
     fun hasExistingVaultOnDisk(): Boolean {
-        return runBlocking(Dispatchers.IO) {
-            vaultStorage.hasVaultConfig() || vaultStorage.listVaultFiles().isNotEmpty()
+        val extFiles = try {
+            persistentVaultDirectory.listFiles { file -> file.extension == "vlt" }
+        } catch (_: Exception) {
+            null
         }
+        if (extFiles != null && extFiles.isNotEmpty()) return true
+
+        val internalFiles = try {
+            context?.filesDir?.let { File(it, "vault_secure_media") }?.listFiles { file -> file.extension == "vlt" }
+        } catch (_: Exception) {
+            null
+        }
+        return internalFiles != null && internalFiles.isNotEmpty()
     }
 
     fun getExistingVaultFileCount(): Int {
-        return runBlocking(Dispatchers.IO) {
-            vaultStorage.listVaultFiles().size
-        }
+        var count = 0
+        try {
+            val extFiles = persistentVaultDirectory.listFiles { file -> file.extension == "vlt" }
+            count += extFiles?.size ?: 0
+        } catch (_: Exception) {}
+
+        try {
+            val internalFiles = context?.filesDir?.let { File(it, "vault_secure_media") }?.listFiles { file -> file.extension == "vlt" }
+            count += internalFiles?.size ?: 0
+        } catch (_: Exception) {}
+
+        return count
     }
 
     fun setPin(pin: String, question: String = "", answer: String = "") {
@@ -381,28 +412,22 @@ class VaultSecurityManager(
         val masterKeyBytes = if (oldMetadata.wrappedMasterKey.isNotEmpty() && oldMetadata.wrappedKeyIv.isNotEmpty()) {
             unwrapMasterKey(oldMetadata.wrappedMasterKey, oldKek, oldMetadata.wrappedKeyIv)
         } else {
-            ByteArray(32).also { secureRandom.nextBytes(it) }
+            // Upgrade legacy V2: previously the derived key was used directly as media encryption key
+            oldKek.encoded
         }
 
+        // Generate new salt and nonces under the new PIN
         val newSalt = VaultKeyDerivation.generateSalt()
         val newAuthIv = VaultKeyDerivation.generateGcmNonce()
         val newWrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
         val newKek = VaultKeyDerivation.deriveKey(newPin, newSalt, oldMetadata.kdfIterations)
 
+        // Architecture A: Re-wrap the SAME Vault Master Key with the new KEK
         val newWrappedMasterKey = wrapMasterKey(masterKeyBytes, newKek, newWrappedKeyIv)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, newKek, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, newAuthIv))
         val newAuthCiphertext = cipher.doFinal(AUTH_CANARY_PAYLOAD)
-
-        var secWrappedMasterKey = oldMetadata.secWrappedMasterKey
-        var secWrappedKeyIv = oldMetadata.secWrappedKeyIv
-        if (question.isNotBlank() && answerSalt.isNotEmpty()) {
-            // Retain existing security question recovery wrapping
-            if (secWrappedMasterKey.isEmpty() || secWrappedKeyIv.isEmpty()) {
-                secWrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
-            }
-        }
 
         val updatedMetadata = oldMetadata.copy(
             salt = newSalt,
@@ -410,46 +435,17 @@ class VaultSecurityManager(
             authIv = newAuthIv,
             wrappedMasterKey = newWrappedMasterKey,
             wrappedKeyIv = newWrappedKeyIv,
-            secWrappedMasterKey = secWrappedMasterKey,
-            secWrappedKeyIv = secWrappedKeyIv,
+            secWrappedMasterKey = oldMetadata.secWrappedMasterKey,
+            secWrappedKeyIv = oldMetadata.secWrappedKeyIv,
+            securityQuestion = question,
+            securityAnswerSalt = answerSalt,
+            securityAnswerHash = answerHash,
             timestamp = System.currentTimeMillis()
         )
 
         saveMetadataToDisk(updatedMetadata)
         cachedMetadata = updatedMetadata
         inMemoryActiveCredential = newPin
-        setVaultInitializedLocally(true)
-        return true
-    }
-
-    fun setSecurityQuestion(question: String, answer: String): Boolean {
-        if (question.isBlank() || answer.isBlank()) return false
-        val metadata = loadVaultMetadata() ?: return false
-        val activeCred = getActiveCredential() ?: return false
-
-        val kek = VaultKeyDerivation.deriveKey(activeCred, metadata.salt, metadata.kdfIterations)
-        val masterKeyBytes = if (metadata.wrappedMasterKey.isNotEmpty() && metadata.wrappedKeyIv.isNotEmpty()) {
-            unwrapMasterKey(metadata.wrappedMasterKey, kek, metadata.wrappedKeyIv)
-        } else {
-            return false
-        }
-
-        val salt = VaultKeyDerivation.generateSalt(16)
-        val hash = hashSecurityAnswer(answer, salt)
-        val secKey = VaultKeyDerivation.deriveKey(answer.trim().lowercase(), salt, metadata.kdfIterations)
-        val secWrappedKeyIv = VaultKeyDerivation.generateGcmNonce()
-        val secWrappedMasterKey = wrapMasterKey(masterKeyBytes, secKey, secWrappedKeyIv)
-
-        val updated = metadata.copy(
-            securityQuestion = question,
-            securityAnswerSalt = salt,
-            securityAnswerHash = hash,
-            secWrappedMasterKey = secWrappedMasterKey,
-            secWrappedKeyIv = secWrappedKeyIv,
-            timestamp = System.currentTimeMillis()
-        )
-        saveMetadataToDisk(updated)
-        cachedMetadata = updated
         return true
     }
 
@@ -458,17 +454,13 @@ class VaultSecurityManager(
     }
 
     fun hasEncryptedVaultFiles(): Boolean {
-        return runBlocking(Dispatchers.IO) {
-            val files = vaultStorage.listVaultFiles()
-            files.any { entry ->
-                try {
-                    vaultStorage.openInputStream(entry.filename).use { stream ->
-                        val header = VaultFileFormat.inspectStream(stream)
-                        header.storageMode == VaultStorageMode.ENCRYPTED
-                    }
-                } catch (_: Exception) {
-                    false
-                }
+        val files = persistentVaultDirectory.listFiles { file -> file.extension == "vlt" } ?: return false
+        return files.any { file ->
+            try {
+                val header = VaultFileFormat.inspectFile(file)
+                header.storageMode == VaultStorageMode.ENCRYPTED
+            } catch (_: Exception) {
+                false
             }
         }
     }
@@ -535,9 +527,9 @@ class VaultSecurityManager(
 
     fun resetVault(deleteFiles: Boolean) {
         deleteVaultMetadata()
-        if (deleteFiles) {
-            runBlocking {
-                vaultStorage.clearVault()
+        if (deleteFiles && persistentVaultDirectory.exists()) {
+            persistentVaultDirectory.listFiles()?.forEach { file ->
+                try { file.delete() } catch (_: Exception) {}
             }
         }
     }
@@ -594,16 +586,75 @@ class VaultSecurityManager(
         return setDefaultStorageMode(mode)
     }
 
+    
     // Internal Helper Methods
+    
 
     private fun saveMetadataToDisk(metadata: VaultMetadata) {
         val jsonString = VaultMetadataJson.toJson(metadata)
-        val success = runBlocking(Dispatchers.IO) {
-            vaultStorage.writeVaultConfig(jsonString)
-        }
-        if (success) {
-            cachedMetadata = metadata
-        }
+
+        // 1. Always safely persist to app internal storage as a guaranteed zero-crash fallback
+        try {
+            val internalConfig = internalConfigFile
+            if (internalConfig != null) {
+                val internalParent = internalConfig.parentFile
+                if (internalParent != null && !internalParent.exists()) {
+                    internalParent.mkdirs()
+                }
+                val internalTmp = File(internalConfig.parentFile, ".vault_config.tmp")
+                internalTmp.writeText(jsonString, Charsets.UTF_8)
+                if (internalConfig.exists()) {
+                    internalConfig.delete()
+                }
+                if (!internalTmp.renameTo(internalConfig)) {
+                    internalConfig.writeText(jsonString, Charsets.UTF_8)
+                    try { internalTmp.delete() } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Persist to external persistent storage for survival across app uninstalls
+        try {
+            val parent = vaultConfigFile.parentFile
+            if (parent != null && !parent.exists()) {
+                try { parent.mkdirs() } catch (_: Exception) {}
+            }
+
+            val tempConfig = File(vaultConfigFile.parentFile, ".vault_config.tmp")
+            try {
+                tempConfig.writeText(jsonString, Charsets.UTF_8)
+                if (vaultConfigFile.exists()) {
+                    vaultConfigFile.delete()
+                }
+                if (!tempConfig.renameTo(vaultConfigFile)) {
+                    FileOutputStream(vaultConfigFile, false).use { out ->
+                        tempConfig.inputStream().use { input ->
+                            input.copyTo(out)
+                        }
+                        out.flush()
+                    }
+                    tempConfig.delete()
+                }
+            } catch (e: Exception) {
+                try {
+                    FileOutputStream(vaultConfigFile, false).use { out ->
+                        out.write(jsonString.toByteArray(Charsets.UTF_8))
+                        out.flush()
+                    }
+                } catch (_: Exception) {
+                    try {
+                        vaultConfigFile.writeText(jsonString, Charsets.UTF_8)
+                    } catch (_: Exception) {
+                        // Suppressed: Persistent external storage may lack write access (pending MANAGE_EXTERNAL_STORAGE).
+                        // Internal backup is safely persisted.
+                    }
+                } finally {
+                    if (tempConfig.exists()) {
+                        try { tempConfig.delete() } catch (_: Exception) {}
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     private fun hashSecurityAnswer(answer: String, salt: ByteArray): String {

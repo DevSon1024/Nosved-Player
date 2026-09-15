@@ -50,11 +50,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,9 +68,6 @@ import androidx.compose.material.icons.filled.Shield
 import com.devson.nvplayer.data.security.VaultSecurityManager
 import com.devson.nvplayer.domain.model.VaultStorageMode
 import com.devson.nvplayer.ui.screen.vault.VaultProtectionContent
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private enum class VaultSettingsFlow {
     MAIN,
@@ -93,34 +88,15 @@ fun VaultSettingsBottomSheet(
     onRequestVaultReset: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var currentFlow by remember { mutableStateOf(VaultSettingsFlow.MAIN) }
-
-    var isPinConfigured by remember { mutableStateOf(securityManager.isVaultInitializedLocally()) }
-    var currentStorageMode by remember { mutableStateOf(securityManager.currentCachedMetadata?.defaultStorageMode ?: VaultStorageMode.NONE) }
-    var selectedQuestion by remember { mutableStateOf(securityManager.currentCachedMetadata?.securityQuestion ?: VaultSecurityManager.DEFAULT_SECURITY_QUESTIONS.first()) }
-    var isVerifying by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val configured = securityManager.isPinSet() || securityManager.hasExistingVaultOnDisk()
-            val mode = securityManager.getDefaultStorageMode()
-            val q = securityManager.getSecurityQuestion()
-            withContext(Dispatchers.Main) {
-                isPinConfigured = configured
-                currentStorageMode = mode
-                if (!q.isNullOrBlank()) {
-                    selectedQuestion = q
-                }
-            }
-        }
-    }
+    val isPinConfigured = remember { securityManager.isPinSet() || securityManager.hasExistingVaultOnDisk() }
 
     var oldPinInput by remember { mutableStateOf("") }
     var newPinInput by remember { mutableStateOf("") }
     var confirmPinInput by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var selectedQuestion by remember { mutableStateOf(securityManager.getSecurityQuestion() ?: VaultSecurityManager.DEFAULT_SECURITY_QUESTIONS.first()) }
     var newAnswerText by remember { mutableStateOf("") }
     var questionDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -147,7 +123,7 @@ fun VaultSettingsBottomSheet(
                     VaultSettingsFlow.MAIN -> {
                         VaultSettingsMainContent(
                             isPinConfigured = isPinConfigured,
-                            currentStorageMode = currentStorageMode,
+                            currentStorageMode = securityManager.getDefaultStorageMode(),
                             onVaultProtectionClick = {
                                 oldPinInput = ""
                                 errorMessage = null
@@ -180,42 +156,32 @@ fun VaultSettingsBottomSheet(
                             pin = oldPinInput,
                             error = errorMessage,
                             onDigit = {
-                                if (oldPinInput.length < 4 && !isVerifying) {
+                                if (oldPinInput.length < 4) {
                                     oldPinInput += it
                                     errorMessage = null
                                     if (oldPinInput.length == 4) {
-                                        coroutineScope.launch {
-                                            isVerifying = true
-                                            val valid = withContext(Dispatchers.IO) {
-                                                securityManager.verifyPin(oldPinInput)
-                                            }
-                                            isVerifying = false
-                                            if (valid) {
-                                                currentFlow = VaultSettingsFlow.STORAGE_PROTECTION_MODE
-                                            } else {
-                                                oldPinInput = ""
-                                                errorMessage = "Incorrect PIN"
-                                            }
+                                        if (securityManager.verifyPin(oldPinInput)) {
+                                            currentFlow = VaultSettingsFlow.STORAGE_PROTECTION_MODE
+                                        } else {
+                                            oldPinInput = ""
+                                            errorMessage = "Incorrect PIN"
                                         }
                                     }
                                 }
                             },
-                            onBackspace = { if (oldPinInput.isNotEmpty() && !isVerifying) oldPinInput = oldPinInput.dropLast(1) },
+                            onBackspace = { if (oldPinInput.isNotEmpty()) oldPinInput = oldPinInput.dropLast(1) },
                             onCancel = { currentFlow = VaultSettingsFlow.MAIN }
                         )
                     }
 
                     VaultSettingsFlow.STORAGE_PROTECTION_MODE -> {
+                        var selectedMode by remember { mutableStateOf(securityManager.getDefaultStorageMode()) }
                         VaultProtectionContent(
-                            currentMode = currentStorageMode,
+                            currentMode = selectedMode,
                             onModeSelected = { newMode ->
-                                currentStorageMode = newMode
-                                coroutineScope.launch {
-                                    withContext(Dispatchers.IO) {
-                                        securityManager.setDefaultStorageMode(newMode)
-                                    }
-                                    Toast.makeText(context, "Storage protection mode updated", Toast.LENGTH_SHORT).show()
-                                }
+                                selectedMode = newMode
+                                securityManager.setDefaultStorageMode(newMode)
+                                Toast.makeText(context, "Storage protection mode updated", Toast.LENGTH_SHORT).show()
                             },
                             onClose = { currentFlow = VaultSettingsFlow.MAIN },
                             isScrollable = false,
@@ -230,27 +196,20 @@ fun VaultSettingsBottomSheet(
                             pin = oldPinInput,
                             error = errorMessage,
                             onDigit = {
-                                if (oldPinInput.length < 4 && !isVerifying) {
+                                if (oldPinInput.length < 4) {
                                     oldPinInput += it
                                     errorMessage = null
                                     if (oldPinInput.length == 4) {
-                                        coroutineScope.launch {
-                                            isVerifying = true
-                                            val valid = withContext(Dispatchers.IO) {
-                                                securityManager.verifyPin(oldPinInput)
-                                            }
-                                            isVerifying = false
-                                            if (valid) {
-                                                currentFlow = VaultSettingsFlow.CHANGE_PIN_NEW
-                                            } else {
-                                                oldPinInput = ""
-                                                errorMessage = "Incorrect current PIN"
-                                            }
+                                        if (securityManager.verifyPin(oldPinInput)) {
+                                            currentFlow = VaultSettingsFlow.CHANGE_PIN_NEW
+                                        } else {
+                                            oldPinInput = ""
+                                            errorMessage = "Incorrect current PIN"
                                         }
                                     }
                                 }
                             },
-                            onBackspace = { if (oldPinInput.isNotEmpty() && !isVerifying) oldPinInput = oldPinInput.dropLast(1) },
+                            onBackspace = { if (oldPinInput.isNotEmpty()) oldPinInput = oldPinInput.dropLast(1) },
                             onCancel = { currentFlow = VaultSettingsFlow.MAIN }
                         )
                     }
@@ -262,7 +221,7 @@ fun VaultSettingsBottomSheet(
                             pin = newPinInput,
                             error = errorMessage,
                             onDigit = {
-                                if (newPinInput.length < 4 && !isVerifying) {
+                                if (newPinInput.length < 4) {
                                     newPinInput += it
                                     errorMessage = null
                                     if (newPinInput.length == 4) {
@@ -270,7 +229,7 @@ fun VaultSettingsBottomSheet(
                                     }
                                 }
                             },
-                            onBackspace = { if (newPinInput.isNotEmpty() && !isVerifying) newPinInput = newPinInput.dropLast(1) },
+                            onBackspace = { if (newPinInput.isNotEmpty()) newPinInput = newPinInput.dropLast(1) },
                             onCancel = { currentFlow = VaultSettingsFlow.MAIN }
                         )
                     }
@@ -282,25 +241,14 @@ fun VaultSettingsBottomSheet(
                             pin = confirmPinInput,
                             error = errorMessage,
                             onDigit = {
-                                if (confirmPinInput.length < 4 && !isVerifying) {
+                                if (confirmPinInput.length < 4) {
                                     confirmPinInput += it
                                     errorMessage = null
                                     if (confirmPinInput.length == 4) {
                                         if (confirmPinInput == newPinInput) {
-                                            coroutineScope.launch {
-                                                isVerifying = true
-                                                val success = withContext(Dispatchers.IO) {
-                                                    securityManager.updatePin(oldPinInput, newPinInput)
-                                                }
-                                                isVerifying = false
-                                                if (success) {
-                                                    Toast.makeText(context, "PIN updated successfully", Toast.LENGTH_SHORT).show()
-                                                    currentFlow = VaultSettingsFlow.MAIN
-                                                } else {
-                                                    confirmPinInput = ""
-                                                    errorMessage = "Failed to update PIN"
-                                                }
-                                            }
+                                            securityManager.updatePin(oldPinInput, newPinInput)
+                                            Toast.makeText(context, "PIN updated successfully", Toast.LENGTH_SHORT).show()
+                                            currentFlow = VaultSettingsFlow.MAIN
                                         } else {
                                             confirmPinInput = ""
                                             errorMessage = "PINs do not match. Try again."
@@ -308,7 +256,7 @@ fun VaultSettingsBottomSheet(
                                     }
                                 }
                             },
-                            onBackspace = { if (confirmPinInput.isNotEmpty() && !isVerifying) confirmPinInput = confirmPinInput.dropLast(1) },
+                            onBackspace = { if (confirmPinInput.isNotEmpty()) confirmPinInput = confirmPinInput.dropLast(1) },
                             onCancel = { currentFlow = VaultSettingsFlow.MAIN }
                         )
                     }
@@ -320,27 +268,20 @@ fun VaultSettingsBottomSheet(
                             pin = oldPinInput,
                             error = errorMessage,
                             onDigit = {
-                                if (oldPinInput.length < 4 && !isVerifying) {
+                                if (oldPinInput.length < 4) {
                                     oldPinInput += it
                                     errorMessage = null
                                     if (oldPinInput.length == 4) {
-                                        coroutineScope.launch {
-                                            isVerifying = true
-                                            val valid = withContext(Dispatchers.IO) {
-                                                securityManager.verifyPin(oldPinInput)
-                                            }
-                                            isVerifying = false
-                                            if (valid) {
-                                                currentFlow = VaultSettingsFlow.UPDATE_SECURITY_QUESTION_FORM
-                                            } else {
-                                                oldPinInput = ""
-                                                errorMessage = "Incorrect PIN"
-                                            }
+                                        if (securityManager.verifyPin(oldPinInput)) {
+                                            currentFlow = VaultSettingsFlow.UPDATE_SECURITY_QUESTION_FORM
+                                        } else {
+                                            oldPinInput = ""
+                                            errorMessage = "Incorrect PIN"
                                         }
                                     }
                                 }
                             },
-                            onBackspace = { if (oldPinInput.isNotEmpty() && !isVerifying) oldPinInput = oldPinInput.dropLast(1) },
+                            onBackspace = { if (oldPinInput.isNotEmpty()) oldPinInput = oldPinInput.dropLast(1) },
                             onCancel = { currentFlow = VaultSettingsFlow.MAIN }
                         )
                     }
@@ -405,13 +346,9 @@ fun VaultSettingsBottomSheet(
                             Button(
                                 onClick = {
                                     if (newAnswerText.isNotBlank()) {
-                                        coroutineScope.launch {
-                                            withContext(Dispatchers.IO) {
-                                                securityManager.setPin(oldPinInput, selectedQuestion, newAnswerText)
-                                            }
-                                            Toast.makeText(context, "Security question updated", Toast.LENGTH_SHORT).show()
-                                            currentFlow = VaultSettingsFlow.MAIN
-                                        }
+                                        securityManager.setPin(oldPinInput, selectedQuestion, newAnswerText)
+                                        Toast.makeText(context, "Security question updated", Toast.LENGTH_SHORT).show()
+                                        currentFlow = VaultSettingsFlow.MAIN
                                     }
                                 },
                                 enabled = newAnswerText.isNotBlank(),
@@ -501,7 +438,7 @@ private fun VaultSettingsMainContent(
                     VaultSettingsRow(
                         icon = Icons.Filled.Shield,
                         title = "Vault Protection",
-                        subtitle = if (currentStorageMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden only -- not encrypted.",
+                        subtitle = if (currentStorageMode == VaultStorageMode.ENCRYPTED) "Encrypted" else "Hidden only \u2014 not encrypted.",
                         onClick = onVaultProtectionClick
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

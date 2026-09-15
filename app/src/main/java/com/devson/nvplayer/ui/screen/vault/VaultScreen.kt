@@ -33,12 +33,13 @@ fun VaultScreen(
     modifier: Modifier = Modifier
 ) {
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    var openProtectionAfterAuth by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (authViewModel.authState.value !is VaultAuthState.Authenticated && !authViewModel.isConfiguringStorage) {
+                if (authViewModel.authState.value !is VaultAuthState.Authenticated) {
                     authViewModel.checkPinStatus()
                 }
             }
@@ -50,7 +51,7 @@ fun VaultScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (authState !is VaultAuthState.Authenticated && !authViewModel.isConfiguringStorage) {
+        if (authState !is VaultAuthState.Authenticated) {
             authViewModel.checkPinStatus()
         }
     }
@@ -64,16 +65,26 @@ fun VaultScreen(
         modifier = modifier.fillMaxSize()
     ) { isAuthenticated ->
         if (isAuthenticated) {
+            val shouldOpenProtection = openProtectionAfterAuth
+            LaunchedEffect(shouldOpenProtection) {
+                if (shouldOpenProtection) {
+                    openProtectionAfterAuth = false
+                }
+            }
             VaultGalleryScreen(
                 viewModel = galleryViewModel,
                 onLockClick = { authViewModel.lockVault() },
                 onPlayMedia = onPlayMedia,
+                initialOpenProtection = shouldOpenProtection,
                 onResetVaultClick = { authViewModel.requestVaultReset() },
                 modifier = Modifier.fillMaxSize()
             )
         } else {
             VaultAuthScreen(
                 viewModel = authViewModel,
+                onVaultProtectionClick = {
+                    openProtectionAfterAuth = true
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }

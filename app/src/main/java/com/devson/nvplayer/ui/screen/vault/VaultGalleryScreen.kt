@@ -1,10 +1,7 @@
 package com.devson.nvplayer.ui.screen.vault
 
 import android.app.Activity
-import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -107,6 +104,7 @@ fun VaultGalleryScreen(
     viewModel: VaultGalleryViewModel,
     onLockClick: () -> Unit,
     onPlayMedia: (VaultEntity, File, Video) -> Unit,
+    initialOpenProtection: Boolean = false,
     onResetVaultClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -116,7 +114,8 @@ fun VaultGalleryScreen(
     val vaultItems by viewModel.vaultMediaList.collectAsStateWithLifecycle()
     val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
-    var showSettingsSheet by remember { mutableStateOf(false) }
+    val currentStorageMode by viewModel.defaultStorageMode.collectAsStateWithLifecycle()
+    var showSettingsSheet by remember(initialOpenProtection) { mutableStateOf(initialOpenProtection) }
 
     DisposableEffect(Unit) {
         val activity = context as? Activity
@@ -151,19 +150,7 @@ fun VaultGalleryScreen(
     }
 
     val mediaPickerLauncher = rememberLauncherForActivityResult(
-        contract = object : ActivityResultContracts.OpenMultipleDocuments() {
-            override fun createIntent(context: Context, input: Array<String>): Intent {
-                val intent = super.createIntent(context, input)
-                try {
-                    val moviesUri = DocumentsContract.buildDocumentUri(
-                        "com.android.externalstorage.documents",
-                        "primary:Movies"
-                    )
-                    intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, moviesUri)
-                } catch (_: Exception) {}
-                return intent
-            }
-        }
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             for (uri in uris) {
@@ -204,10 +191,32 @@ fun VaultGalleryScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Privacy Vault",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Privacy Vault",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                        val isEncrypted = currentStorageMode == VaultStorageMode.ENCRYPTED
+                        val badgeLabel = if (isEncrypted) "Encrypted" else "Hidden (No Encryption)"
+                        val badgeContainerColor = if (isEncrypted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+                        val badgeContentColor = if (isEncrypted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(badgeContainerColor)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = badgeLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = badgeContentColor
+                            )
+                        }
+                    }
                 },
                 actions = {
                     IconButton(onClick = { mediaPickerLauncher.launch(arrayOf("video/*")) }) {
@@ -372,12 +381,11 @@ fun VaultGalleryScreen(
     }
 
     selectedItemForRestore?.let { item ->
-        val targetFolderName = remember(item) { viewModel.getRestoreTargetFolderName(item) }
         AlertDialog(
             onDismissRequest = { selectedItemForRestore = null },
             icon = { Icon(Icons.Filled.Restore, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text("Restore Video?") },
-            text = { Text("This will unencrypt and move \"${item.title}\" back to your $targetFolderName.") },
+            title = { Text("Restore to Public Storage?") },
+            text = { Text("This will unencrypt and move \"${item.title}\" back to your public Movies folder.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -421,14 +429,12 @@ fun VaultGalleryScreen(
         )
     }
 
+
     if (showSettingsSheet) {
         VaultSettingsBottomSheet(
             securityManager = viewModel.vaultSecurityManager,
             onRequestVaultReset = onResetVaultClick,
-            onDismissRequest = {
-                showSettingsSheet = false
-                viewModel.refreshStorageMode()
-            }
+            onDismissRequest = { showSettingsSheet = false }
         )
     }
 }

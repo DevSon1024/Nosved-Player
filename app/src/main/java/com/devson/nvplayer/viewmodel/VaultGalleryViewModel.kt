@@ -139,7 +139,7 @@ class VaultGalleryViewModel(
         return success
     }
 
-    fun importVideos(uris: List<Uri>, titles: List<String>, paths: List<String>? = null) {
+    fun importVideos(uris: List<Uri>, titles: List<String>) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             var importedCount = 0
@@ -149,13 +149,7 @@ class VaultGalleryViewModel(
             for (i in uris.indices) {
                 val uri = uris[i]
                 val title = titles.getOrNull(i) ?: "Protected Video"
-                val path = paths?.getOrNull(i)
-                val result = vaultFileManager.importVideoToVault(
-                    sourceUri = uri,
-                    title = title,
-                    storageMode = currentMode,
-                    originalPath = path
-                )
+                val result = vaultFileManager.importVideoToVault(sourceUri = uri, title = title, storageMode = currentMode)
                 if (result.isSuccess) {
                     importedCount++
                     val pendingDeleteUri = result.getOrNull()?.pendingDeleteUri
@@ -167,16 +161,11 @@ class VaultGalleryViewModel(
 
             if (urisToRequestDelete.isNotEmpty() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 try {
-                    val mediaStoreUris = urisToRequestDelete.filter {
-                        it.scheme == "content" && it.authority == android.provider.MediaStore.AUTHORITY
-                    }
-                    if (mediaStoreUris.isNotEmpty()) {
-                        val intentSender = android.provider.MediaStore.createDeleteRequest(
-                            getApplication<Application>().contentResolver,
-                            mediaStoreUris
-                        ).intentSender
-                        _pendingIntentSender.value = intentSender
-                    }
+                    val intentSender = android.provider.MediaStore.createDeleteRequest(
+                        getApplication<Application>().contentResolver,
+                        urisToRequestDelete
+                    ).intentSender
+                    _pendingIntentSender.value = intentSender
                 } catch (_: Exception) {}
             }
 
@@ -185,27 +174,16 @@ class VaultGalleryViewModel(
         }
     }
 
-    fun getRestoreTargetFolderName(vaultEntity: VaultEntity): String {
-        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-            ?: File(getApplication<Application>().filesDir, "Restored")
-        val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
-        return if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
-    }
-
     fun restoreVideo(vaultEntity: VaultEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             _isProcessing.value = true
             val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                 ?: File(getApplication<Application>().filesDir, "Restored")
-            val targetDir = vaultFileManager.resolveRestoreDestination(vaultEntity, moviesDir)
             val credential = vaultSecurityManager.getActiveCredential() ?: ""
-            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, targetDir, credential)
+            val result = vaultFileManager.restoreVideoFromVault(vaultEntity, moviesDir, credential)
             _isProcessing.value = false
             if (result.isSuccess) {
-                val finalFile = result.getOrNull()
-                val folderName = finalFile?.parentFile?.name
-                    ?: if (targetDir.absolutePath == moviesDir.absolutePath) "Movies" else targetDir.name
-                _statusMessage.value = "Restored ${vaultEntity.title} to $folderName."
+                _statusMessage.value = "Restored ${vaultEntity.title} to Movies."
             } else {
                 _statusMessage.value = "Failed to restore: ${result.exceptionOrNull()?.message}"
             }

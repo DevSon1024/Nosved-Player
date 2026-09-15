@@ -87,9 +87,6 @@ object VaultFileFormat {
         bis.mark(48)
         val probe = ByteArray(24)
         val readCount = bis.read(probe)
-        if (readCount < 8) {
-            throw VaultInvalidHeaderException("File too short to contain vault or media header: $readCount bytes")
-        }
         bis.reset()
 
         if (readCount >= 8 && probe.copyOfRange(0, 8).contentEquals(MAGIC_V2_ENCRYPTED)) {
@@ -210,7 +207,7 @@ object VaultFileFormat {
         }
 
         // Case 3: Raw Unencrypted File (NONE)
-        val ext = detectMediaExtension(probe) ?: "mp4"
+        val ext = detectMediaExtension(probe)
         val header = VaultFileHeader(
             formatVersion = FORMAT_VERSION_V2,
             storageMode = VaultStorageMode.NONE,
@@ -226,14 +223,6 @@ object VaultFileFormat {
             dateAdded = System.currentTimeMillis()
         )
         return Pair(header, ByteArray(0))
-    }
-
-    /**
-     * Inspects a vault stream without reading or decrypting the full media payload.
-     */
-    fun inspectStream(inputStream: InputStream): VaultFileHeader {
-        val (header, _) = readHeaderWithBytes(inputStream)
-        return header
     }
 
     /**
@@ -261,7 +250,7 @@ object VaultFileFormat {
     /**
      * Sniffs media container magic bytes to infer the original extension.
      */
-    fun detectMediaExtension(bytes: ByteArray): String? {
+    fun detectMediaExtension(bytes: ByteArray): String {
         if (bytes.size >= 8) {
             // ISO Base Media File Format (MP4 / M4V / MOV): offset 4..7 == 'ftyp'
             if (bytes[4] == 0x66.toByte() && bytes[5] == 0x74.toByte() &&
@@ -283,11 +272,7 @@ object VaultFileFormat {
             ) {
                 return "avi"
             }
-            // FLV
-            if (bytes[0] == 0x46.toByte() && bytes[1] == 0x4C.toByte() && bytes[2] == 0x56.toByte()) {
-                return "flv"
-            }
         }
-        return null
+        return "mp4"
     }
 }

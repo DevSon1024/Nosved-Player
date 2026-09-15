@@ -147,7 +147,7 @@ object LegacyVaultManager {
                 val detectedExt = if (destinationFile.exists() && destinationFile.length() >= 4) {
                     val headerBytes = ByteArray(minOf(64, destinationFile.length().toInt()))
                     FileInputStream(destinationFile).use { it.read(headerBytes) }
-                    VaultFileFormat.detectMediaExtension(headerBytes) ?: "mp4"
+                    VaultFileFormat.detectMediaExtension(headerBytes)
                 } else {
                     "mp4"
                 }

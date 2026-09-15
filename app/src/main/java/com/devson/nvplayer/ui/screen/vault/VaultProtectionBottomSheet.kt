@@ -151,7 +151,7 @@ fun VaultProtectionContent(
 
         StorageModeOptionCard(
             title = "Hidden / No Encryption",
-            badgeText = "Hidden only -- not encrypted.",
+            badgeText = "Hidden only \u2014 not encrypted.",
             badgeColor = MaterialTheme.colorScheme.secondaryContainer,
             badgeTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
             description = "Files are hidden inside the vault and stored without encryption. The original video data is preserved, so a .vlt file can be recovered outside Nosved Player by changing its extension.",

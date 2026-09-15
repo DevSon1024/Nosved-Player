@@ -1,7 +1,6 @@
 package com.devson.nvplayer.viewmodel
 
 import android.app.Application
-import android.net.Uri
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -10,7 +9,6 @@ import com.devson.nvplayer.data.security.VaultBiometricHelper
 import com.devson.nvplayer.data.security.VaultFileManager
 import com.devson.nvplayer.data.security.VaultMetadataStatus
 import com.devson.nvplayer.data.security.VaultSecurityManager
-import com.devson.nvplayer.data.security.storage.SafVaultStorage
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,14 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 sealed interface VaultAuthState {
-    data class NeedsStorageAccess(
-        val isReconnect: Boolean = false,
-        val existingFolderFound: Boolean = false,
-        val detectedFolderPath: String? = null,
-        val message: String? = null,
-        val isConfiguring: Boolean = false
-    ) : VaultAuthState
-    data class SetupPin(val message: String? = null) : VaultAuthState
+    data object SetupPin : VaultAuthState
     data object ConfirmPin : VaultAuthState
     data class SetupSecurityQuestion(val pin: String) : VaultAuthState
     data object EnterPin : VaultAuthState
@@ -83,12 +74,6 @@ class VaultAuthViewModel(
     private var resetPinTemp: String = ""
     private var verifiedSecurityAnswer: String? = null
 
-    val isConfiguringStorage: Boolean
-        get() = (_authState.value as? VaultAuthState.NeedsStorageAccess)?.isConfiguring == true
-
-    data class PendingSetup(val pin: String, val question: String, val answer: String)
-    private var pendingSetupCredentials: PendingSetup? = null
-
     init {
         checkPinStatus()
     }
@@ -99,263 +84,47 @@ class VaultAuthViewModel(
         resetPinTemp = ""
         verifiedSecurityAnswer = null
 
-        val storage = securityManager.vaultStorage
-        val safStorage = storage as? SafVaultStorage
+        val hasFilesOnDisk = securityManager.hasExistingVaultOnDisk()
+        val fileCount = securityManager.getExistingVaultFileCount()
+        val isMetadataValid = securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
+        val isLocallyInitialized = securityManager.isVaultInitializedLocally()
 
-        if (!storage.isStorageAccessible()) {
-            val hasSavedUri = safStorage?.getSavedTreeUri() != null
-            if (hasSavedUri) {
-                _authState.value = VaultAuthState.NeedsStorageAccess(
-                    isReconnect = true,
-                    existingFolderFound = true,
-                    detectedFolderPath = "Documents/NosvedPlayer",
-                    message = "Storage access revoked. Please reconnect the vault folder."
-                )
-                return
-            }
-
-            // Check if existing vault folder exists physically on disk (from a prior install)
-            val folderDetected = safStorage?.hasPhysicalVaultFolder() == true
-            if (folderDetected) {
-                _authState.value = VaultAuthState.SetupPin(message = null)
-                return
-            }
-
-            // If not found in Documents:
-            _authState.value = VaultAuthState.SetupPin(
-                message = "NosvedPlayer folder and metadata not exist, create new one"
+        if (hasFilesOnDisk && !isLocallyInitialized) {
+            _authState.value = VaultAuthState.ExistingVaultFound(
+                fileCount = fileCount,
+                isMetadataValid = isMetadataValid
             )
-            return
-        }
-
-        scope.launch(mainDispatcher) {
-            val isLocallyInitialized = securityManager.isVaultInitializedLocally()
-            if (isLocallyInitialized) {
-                val isMetadataValid = withContext(ioDispatcher) {
-                    securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
-                }
-                if (isMetadataValid || securityManager.isPinSet()) {
-                    _authState.value = VaultAuthState.EnterPin
-                    return@launch
-                }
-            }
-
-            val (hasFilesOnDisk, fileCount, isMetadataValid) = withContext(ioDispatcher) {
-                Triple(
-                    securityManager.hasExistingVaultOnDisk(),
-                    securityManager.getExistingVaultFileCount(),
-                    securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID
-                )
-            }
-
-            if (hasFilesOnDisk && !isLocallyInitialized) {
-                _authState.value = VaultAuthState.ExistingVaultFound(
-                    fileCount = fileCount,
-                    isMetadataValid = isMetadataValid
-                )
-            } else if (isMetadataValid || securityManager.isPinSet()) {
-                _authState.value = VaultAuthState.EnterPin
-            } else if (hasFilesOnDisk) {
-                _authState.value = VaultAuthState.ExistingVaultFound(
-                    fileCount = fileCount,
-                    isMetadataValid = isMetadataValid
-                )
-            } else {
-                _authState.value = VaultAuthState.SetupPin(
-                    message = "NosvedPlayer folder and metadata not exist, create new one"
-                )
-            }
-        }
-    }
-
-    fun hasPhysicalVaultFolder(): Boolean {
-        val safStorage = securityManager.vaultStorage as? SafVaultStorage
-        return safStorage?.hasPhysicalVaultFolder() == true
-    }
-
-    fun onConnectExistingVaultClicked() {
-        _pinDigits.value = ""
-        setupPinTemp = ""
-        resetPinTemp = ""
-        pendingSetupCredentials = null
-        val safStorage = securityManager.vaultStorage as? SafVaultStorage
-        val folderExists = safStorage?.hasPhysicalVaultFolder() == true
-
-        if (folderExists) {
-            _authState.value = VaultAuthState.NeedsStorageAccess(
-                isReconnect = false,
-                existingFolderFound = true,
-                detectedFolderPath = "Documents/NosvedPlayer",
-                message = null
+        } else if (isMetadataValid || securityManager.isPinSet()) {
+            _authState.value = VaultAuthState.EnterPin
+        } else if (hasFilesOnDisk) {
+            _authState.value = VaultAuthState.ExistingVaultFound(
+                fileCount = fileCount,
+                isMetadataValid = isMetadataValid
             )
         } else {
-            _authState.value = VaultAuthState.SetupPin(
-                message = "NosvedPlayer folder and metadata not exist, create new one"
-            )
-        }
-    }
-
-    fun onStorageFolderSelected(treeUri: Uri) {
-        val safStorage = securityManager.vaultStorage as? SafVaultStorage
-        if (safStorage != null) {
-            val currentState = _authState.value as? VaultAuthState.NeedsStorageAccess
-            _authState.value = currentState?.copy(isConfiguring = true) ?: VaultAuthState.NeedsStorageAccess(
-                isReconnect = false,
-                existingFolderFound = pendingSetupCredentials == null,
-                detectedFolderPath = safStorage.getPhysicalVaultLocationDescription(),
-                message = null,
-                isConfiguring = true
-            )
-            val success = safStorage.setTreeUri(treeUri)
-            if (success) {
-                val pending = pendingSetupCredentials
-                if (pending != null) {
-                    scope.launch(mainDispatcher) {
-                        try {
-                            val (hasExisting, hasConfig) = withContext(ioDispatcher) {
-                                Pair(
-                                    securityManager.hasExistingVaultOnDisk(),
-                                    safStorage.hasVaultConfig()
-                                )
-                            }
-                            if (hasExisting || hasConfig) {
-                                // Selected folder already contains existing vault files!
-                                // Abort new credential setup so we never overwrite existing vault keys.
-                                pendingSetupCredentials = null
-                                checkPinStatus()
-                            } else {
-                                pendingSetupCredentials = null
-                                withContext(ioDispatcher) {
-                                    securityManager.setPin(pending.pin, pending.question, pending.answer)
-                                    securityManager.setVaultInitializedLocally(true)
-                                }
-                                _pinDigits.value = ""
-                                _authState.value = VaultAuthState.Authenticated
-                                scope.launch(ioDispatcher) {
-                                    try {
-                                        vaultFileManager?.rebuildDatabaseFromStorage(credential = pending.pin)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            _authState.value = VaultAuthState.NeedsStorageAccess(
-                                isReconnect = false,
-                                existingFolderFound = false,
-                                detectedFolderPath = "Documents/NosvedPlayer",
-                                message = "Failed to configure storage: ${e.message}",
-                                isConfiguring = false
-                            )
-                        }
-                    }
-                } else {
-                    scope.launch(mainDispatcher) {
-                        try {
-                            val hasConfig = withContext(ioDispatcher) {
-                                safStorage.hasVaultConfig() || securityManager.hasExistingVaultOnDisk()
-                            }
-                            if (!hasConfig) {
-                                // Selected folder does not contain NosvedPlayer folder or metadata!
-                                safStorage.clearSavedTreeUri()
-                                _pinDigits.value = ""
-                                setupPinTemp = ""
-                                resetPinTemp = ""
-                                _authState.value = VaultAuthState.SetupPin(
-                                    message = "NosvedPlayer folder and metadata not exist, create new one"
-                                )
-                            } else {
-                                checkPinStatus()
-                            }
-                        } catch (e: Exception) {
-                            _authState.value = VaultAuthState.NeedsStorageAccess(
-                                isReconnect = false,
-                                existingFolderFound = false,
-                                detectedFolderPath = "Documents/NosvedPlayer",
-                                message = "Failed to connect vault: ${e.message}",
-                                isConfiguring = false
-                            )
-                        }
-                    }
-                }
-            } else {
-                _authState.value = VaultAuthState.NeedsStorageAccess(
-                    isReconnect = true,
-                    existingFolderFound = pendingSetupCredentials == null,
-                    detectedFolderPath = safStorage.getPhysicalVaultLocationDescription(),
-                    message = "Could not access the selected directory. Please ensure read and write permissions are granted.",
-                    isConfiguring = false
-                )
-            }
-        } else {
-            checkPinStatus()
-        }
-    }
-
-    fun onCancelStorageAccess() {
-        if (pendingSetupCredentials != null) {
-            pendingSetupCredentials = null
-            _pinDigits.value = ""
-            setupPinTemp = ""
-            resetPinTemp = ""
-            _authState.value = VaultAuthState.SetupPin(
-                message = "NosvedPlayer folder and metadata not exist, create new one"
-            )
-        } else {
-            val storage = securityManager.vaultStorage
-            val safStorage = storage as? SafVaultStorage
-            safStorage?.clearSavedTreeUri()
-            if (!storage.isStorageAccessible()) {
-                _pinDigits.value = ""
-                setupPinTemp = ""
-                resetPinTemp = ""
-                _authState.value = VaultAuthState.SetupPin(
-                    message = "NosvedPlayer folder and metadata not exist, create new one"
-                )
-            } else {
-                checkPinStatus()
-            }
+            _authState.value = VaultAuthState.SetupPin
         }
     }
 
     fun onRestoreExistingVaultClicked() {
         _pinDigits.value = ""
-        val count = (_authState.value as? VaultAuthState.ExistingVaultFound)?.fileCount
-            ?: securityManager.getExistingVaultFileCount()
-        _authState.value = VaultAuthState.RestorePinEntry(count)
+        _authState.value = VaultAuthState.RestorePinEntry(securityManager.getExistingVaultFileCount())
     }
 
     fun onRemoveOldVaultClicked() {
-        val count = (_authState.value as? VaultAuthState.ExistingVaultFound)?.fileCount
-            ?: securityManager.getExistingVaultFileCount()
+        val count = securityManager.getExistingVaultFileCount()
         _authState.value = VaultAuthState.ConfirmRemoveVault(step = 1, fileCount = count)
-    }
-
-    fun onCancelRemoveVault() {
-        _pinDigits.value = ""
-        checkPinStatus()
-    }
-
-    fun onRetryPin() {
-        _pinDigits.value = ""
-        val current = _authState.value
-        if (current is VaultAuthState.IncorrectPin && current.isFromRestore) {
-            _authState.value = VaultAuthState.RestorePinEntry(current.remainingFiles)
-        } else {
-            _authState.value = VaultAuthState.EnterPin
-        }
     }
 
     fun requestVaultReset() {
         scope.launch(mainDispatcher) {
             val (totalFiles, encryptedFiles) = withContext(ioDispatcher) {
-                val vltFiles = securityManager.vaultStorage.listVaultFiles()
+                val vaultDir = securityManager.persistentVaultDirectory
+                val vltFiles = vaultDir.listFiles { f -> f.extension == "vlt" } ?: emptyArray()
                 var encCount = 0
-                for (entry in vltFiles) {
+                for (file in vltFiles) {
                     try {
-                        val header = securityManager.vaultStorage.openInputStream(entry.filename).use { stream ->
-                            vaultFileManager?.vaultContainer?.inspectVaultStream(stream)
-                        }
+                        val header = vaultFileManager?.vaultContainer?.inspectVaultFile(file)
                         if (header?.storageMode == com.devson.nvplayer.domain.model.VaultStorageMode.ENCRYPTED) {
                             encCount++
                         }
@@ -423,7 +192,7 @@ class VaultAuthViewModel(
                 _pinDigits.value = ""
                 setupPinTemp = ""
                 resetPinTemp = ""
-                _authState.value = VaultAuthState.SetupPin()
+                _authState.value = VaultAuthState.SetupPin
             } else {
                 _authState.value = VaultAuthState.Error(
                     "Partial deletion failure: ${result.remainingFiles.joinToString(", ")}. Remaining data was preserved."
@@ -451,32 +220,56 @@ class VaultAuthViewModel(
             _pinDigits.value = ""
             setupPinTemp = ""
             resetPinTemp = ""
-            _authState.value = VaultAuthState.SetupPin()
+            _authState.value = VaultAuthState.SetupPin
         }
     }
 
+    fun onCancelRemoveVault() {
+        _pinDigits.value = ""
+        checkPinStatus()
+    }
+
+    fun onRetryPin() {
+        _pinDigits.value = ""
+        _authState.value = VaultAuthState.RestorePinEntry(securityManager.getExistingVaultFileCount())
+    }
+
     fun onDigit(digit: String) {
+        val current = _authState.value
+        if (current is VaultAuthState.Error) {
+            if (setupPinTemp.isNotEmpty()) {
+                _authState.value = VaultAuthState.ConfirmPin
+            } else if (resetPinTemp.isNotEmpty()) {
+                _authState.value = VaultAuthState.ConfirmResetPin
+            } else if (securityManager.validateVaultMetadata() == VaultMetadataStatus.VALID || securityManager.isPinSet()) {
+                _authState.value = VaultAuthState.EnterPin
+            } else {
+                _authState.value = VaultAuthState.SetupPin
+            }
+            _pinDigits.value = ""
+        }
+
         if (_pinDigits.value.length < 4) {
             _pinDigits.value += digit
             if (_pinDigits.value.length == 4) {
-                onPinComplete(_pinDigits.value)
+                processCompletedPin(_pinDigits.value)
             }
         }
     }
 
-    fun onDeleteDigit() {
+    fun onBackspace() {
         if (_pinDigits.value.isNotEmpty()) {
             _pinDigits.value = _pinDigits.value.dropLast(1)
         }
     }
 
-    fun onClearDigits() {
+    fun onClear() {
         _pinDigits.value = ""
     }
 
-    private fun onPinComplete(pin: String) {
+    private fun processCompletedPin(pin: String) {
         scope.launch(mainDispatcher) {
-            when (val current = _authState.value) {
+            when (val state = _authState.value) {
                 is VaultAuthState.SetupPin -> {
                     setupPinTemp = pin
                     _pinDigits.value = ""
@@ -485,42 +278,48 @@ class VaultAuthViewModel(
                 is VaultAuthState.ConfirmPin -> {
                     if (pin == setupPinTemp) {
                         _pinDigits.value = ""
-                        _authState.value = VaultAuthState.SetupSecurityQuestion(pin = setupPinTemp)
+                        _authState.value = VaultAuthState.SetupSecurityQuestion(pin)
                     } else {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.Error("PINs do not match. Try again.")
                     }
                 }
                 is VaultAuthState.EnterPin -> {
-                    val isValid = withContext(ioDispatcher) {
-                        securityManager.verifyPin(pin)
-                    }
-                    if (isValid) {
+                    if (securityManager.verifyPin(pin)) {
                         _pinDigits.value = ""
                         securityManager.setVaultInitializedLocally(true)
-                        _authState.value = VaultAuthState.Authenticated
-                        scope.launch(ioDispatcher) {
-                            try {
-                                vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
                         }
+                        _authState.value = VaultAuthState.Authenticated
                     } else {
                         _pinDigits.value = ""
-                        _authState.value = VaultAuthState.IncorrectPin("Incorrect PIN. Please try again.")
+                        _authState.value = VaultAuthState.Error("Incorrect PIN")
+                    }
+                }
+                is VaultAuthState.EnterPinForReset -> {
+                    if (securityManager.verifyPin(pin)) {
+                        _pinDigits.value = ""
+                        _authState.value = VaultAuthState.ConfirmDeleteVault(
+                            step = 1,
+                            fileCount = state.fileCount,
+                            encryptedCount = state.encryptedCount,
+                            hasEncryptedContent = state.encryptedCount > 0,
+                            authenticatedPin = pin
+                        )
+                    } else {
+                        _pinDigits.value = ""
+                        _authState.value = state.copy(error = "Incorrect PIN")
                     }
                 }
                 is VaultAuthState.RestorePinEntry, is VaultAuthState.RestoreExistingVault -> {
-                    val fileCount = (current as? VaultAuthState.RestorePinEntry)?.fileCount
-                        ?: (current as? VaultAuthState.RestoreExistingVault)?.fileCount
-                        ?: withContext(ioDispatcher) { securityManager.getExistingVaultFileCount() }
-                    _authState.value = VaultAuthState.Restoring(fileCount)
-                    val valid = withContext(ioDispatcher) {
-                        securityManager.verifyPin(pin)
-                    }
-                    if (valid) {
+                    val fileCount = (state as? VaultAuthState.RestorePinEntry)?.fileCount
+                        ?: (state as? VaultAuthState.RestoreExistingVault)?.fileCount
+                        ?: securityManager.getExistingVaultFileCount()
+
+                    if (securityManager.verifyPin(pin)) {
                         _pinDigits.value = ""
+                        _authState.value = VaultAuthState.Restoring(fileCount)
                         securityManager.setVaultInitializedLocally(true)
                         try {
                             withContext(ioDispatcher) {
@@ -540,47 +339,21 @@ class VaultAuthViewModel(
                     }
                 }
                 is VaultAuthState.IncorrectPin -> {
-                    val wasFromRestore = current.isFromRestore
-                    val valid = withContext(ioDispatcher) {
-                        securityManager.verifyPin(pin)
-                    }
-                    if (valid) {
+                    if (securityManager.verifyPin(pin)) {
                         _pinDigits.value = ""
-                        _authState.value = VaultAuthState.Restoring(current.remainingFiles)
+                        _authState.value = VaultAuthState.Restoring(state.remainingFiles)
                         securityManager.setVaultInitializedLocally(true)
-                        try {
-                            withContext(ioDispatcher) {
-                                vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
+                        withContext(ioDispatcher) {
+                            vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
                         }
                         _authState.value = VaultAuthState.Authenticated
                     } else {
                         _pinDigits.value = ""
                         _authState.value = VaultAuthState.IncorrectPin(
                             message = "Incorrect Vault PIN. Your existing vault data has not been changed.",
-                            isFromRestore = wasFromRestore,
-                            remainingFiles = current.remainingFiles
+                            isFromRestore = true,
+                            remainingFiles = state.remainingFiles
                         )
-                    }
-                }
-                is VaultAuthState.EnterPinForReset -> {
-                    val isValid = withContext(ioDispatcher) {
-                        securityManager.verifyPin(pin)
-                    }
-                    if (isValid) {
-                        _pinDigits.value = ""
-                        _authState.value = VaultAuthState.ConfirmDeleteVault(
-                            step = 1,
-                            fileCount = current.fileCount,
-                            encryptedCount = current.encryptedCount,
-                            hasEncryptedContent = current.encryptedCount > 0,
-                            authenticatedPin = pin
-                        )
-                    } else {
-                        _pinDigits.value = ""
-                        _authState.value = current.copy(error = "Incorrect PIN. Cannot proceed with vault deletion.")
                     }
                 }
                 is VaultAuthState.ResetPin -> {
@@ -591,37 +364,37 @@ class VaultAuthViewModel(
                 is VaultAuthState.ConfirmResetPin -> {
                     if (pin == resetPinTemp) {
                         val answer = verifiedSecurityAnswer
-                        if (answer != null) {
-                            val success = withContext(ioDispatcher) {
-                                securityManager.resetPinWithSecurityAnswer(answer, pin)
-                            }
-                            if (success) {
-                                _pinDigits.value = ""
-                                verifiedSecurityAnswer = null
-                                securityManager.setVaultInitializedLocally(true)
-                                withContext(ioDispatcher) {
-                                    vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
+                        verifiedSecurityAnswer = null
+                        val success = withContext(ioDispatcher) {
+                            try {
+                                if (!answer.isNullOrBlank()) {
+                                    securityManager.resetPinWithSecurityAnswer(answer, pin)
+                                } else {
+                                    securityManager.setPin(pin)
+                                    true
                                 }
-                                _authState.value = VaultAuthState.Authenticated
-                            } else {
-                                _pinDigits.value = ""
-                                _authState.value = VaultAuthState.Error(
-                                    "Cannot reset PIN: Encrypted media requires original PIN key."
-                                )
+                            } catch (_: Exception) {
+                                false
                             }
+                        }
+                        if (success) {
+                            securityManager.setVaultInitializedLocally(true)
+                            _pinDigits.value = ""
+                            withContext(ioDispatcher) {
+                                vaultFileManager?.rebuildDatabaseFromStorage(credential = pin)
+                            }
+                            _authState.value = VaultAuthState.Authenticated
                         } else {
                             _pinDigits.value = ""
-                            _authState.value = VaultAuthState.Error("Security verification expired.")
+                            _authState.value = VaultAuthState.Error("Failed to reset PIN. Original PIN may be required for encrypted media.")
                         }
                     } else {
                         _pinDigits.value = ""
-                        _authState.value = VaultAuthState.Error("PINs do not match. Try again.")
+                        _authState.value = VaultAuthState.Error("New PINs do not match. Try again.")
                     }
                 }
                 is VaultAuthState.Error -> {
-                    val isValid = withContext(ioDispatcher) {
-                        securityManager.verifyPin(pin)
-                    }
+                    val isValid = withContext(ioDispatcher) { securityManager.verifyPin(pin) }
                     if (isValid) {
                         _pinDigits.value = ""
                         securityManager.setVaultInitializedLocally(true)
@@ -643,25 +416,18 @@ class VaultAuthViewModel(
         val current = _authState.value
         if (current is VaultAuthState.SetupSecurityQuestion) {
             scope.launch(mainDispatcher) {
-                val storage = securityManager.vaultStorage
-                if (!storage.isStorageAccessible()) {
-                    pendingSetupCredentials = PendingSetup(current.pin, question, answer)
-                    _authState.value = VaultAuthState.NeedsStorageAccess(
-                        isReconnect = false,
-                        existingFolderFound = false,
-                        detectedFolderPath = "Documents",
-                        message = null
-                    )
-                    return@launch
+                try {
+                    withContext(ioDispatcher) {
+                        securityManager.setPin(current.pin, question, answer)
+                        securityManager.setVaultInitializedLocally(true)
+                        vaultFileManager?.rebuildDatabaseFromStorage(credential = current.pin)
+                    }
+                    _pinDigits.value = ""
+                    _authState.value = VaultAuthState.Authenticated
+                } catch (e: Exception) {
+                    _pinDigits.value = ""
+                    _authState.value = VaultAuthState.Error(e.message ?: "Failed to save vault security settings")
                 }
-
-                withContext(ioDispatcher) {
-                    securityManager.setPin(current.pin, question, answer)
-                    securityManager.setVaultInitializedLocally(true)
-                    vaultFileManager?.rebuildDatabaseFromStorage(credential = current.pin)
-                }
-                _pinDigits.value = ""
-                _authState.value = VaultAuthState.Authenticated
             }
         }
     }
@@ -696,82 +462,46 @@ class VaultAuthViewModel(
         if (deleteExistingFiles) {
             scope.launch(mainDispatcher) {
                 withContext(ioDispatcher) {
-                    securityManager.resetVault(deleteFiles = true)
-                    vaultFileManager?.removeAllVaultData(securityManager, credential = null, force = true)
+                    vaultFileManager?.removeAllVaultData(securityManager)
+                        ?: securityManager.resetVault(deleteFiles = true)
                 }
                 _pinDigits.value = ""
                 setupPinTemp = ""
                 resetPinTemp = ""
-                _authState.value = VaultAuthState.SetupPin()
+                _authState.value = VaultAuthState.SetupPin
             }
         } else {
+            securityManager.resetVault(deleteFiles = false)
             _pinDigits.value = ""
             setupPinTemp = ""
             resetPinTemp = ""
-            _authState.value = VaultAuthState.SetupPin()
+            _authState.value = VaultAuthState.SetupPin
         }
-    }
-
-    fun onBackspace() {
-        onDeleteDigit()
     }
 
     fun authenticateWithBiometrics(activity: FragmentActivity) {
-        if (!securityManager.isBiometricEnabled()) {
-            _authState.value = VaultAuthState.Error("Biometric authentication is disabled in settings")
-            return
-        }
         if (!VaultBiometricHelper.canAuthenticate(activity)) {
-            _authState.value = VaultAuthState.Error("Biometrics not enrolled or supported on this device")
             return
         }
 
         VaultBiometricHelper.promptBiometric(
             activity = activity,
             onSuccess = {
-                scope.launch(mainDispatcher) {
-                    securityManager.setVaultInitializedLocally(true)
-                    val activePin = securityManager.getActiveCredential() ?: ""
-                    withContext(ioDispatcher) {
-                        vaultFileManager?.rebuildDatabaseFromStorage(credential = activePin)
-                    }
-                    _authState.value = VaultAuthState.Authenticated
+                _pinDigits.value = ""
+                scope.launch(ioDispatcher) {
+                    vaultFileManager?.rebuildDatabaseFromStorage()
                 }
+                _authState.value = VaultAuthState.Authenticated
             },
-            onError = { errorCode: Int, errString: CharSequence ->
-                if (errorCode != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED &&
-                    errorCode != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
-                    errorCode != androidx.biometric.BiometricPrompt.ERROR_CANCELED
-                ) {
-                    _authState.value = VaultAuthState.Error(errString.toString())
-                }
-            }
+            onError = { _, _ -> }
         )
     }
 
-    fun onDismissError() {
-        _pinDigits.value = ""
-        checkPinStatus()
-    }
-
-    fun clearActiveSession() {
-        securityManager.lockVault()
-        _pinDigits.value = ""
-        setupPinTemp = ""
-        resetPinTemp = ""
-        verifiedSecurityAnswer = null
-        checkPinStatus()
-    }
-
     fun lockVault() {
-        clearActiveSession()
-    }
-
-    fun resetAuth() {
-        _pinDigits.value = ""
-        setupPinTemp = ""
-        resetPinTemp = ""
-        verifiedSecurityAnswer = null
+        securityManager.clearSession()
+        scope.launch(ioDispatcher) {
+            vaultFileManager?.cleanPlaybackTemp()
+        }
         checkPinStatus()
     }
 
