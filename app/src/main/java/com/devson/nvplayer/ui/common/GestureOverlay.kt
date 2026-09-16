@@ -148,15 +148,30 @@ fun GestureOverlay(
     var volumeHideJob by remember { mutableStateOf<Job?>(null) }
     var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
 
+    fun getSystemBrightness(): Float {
+        return try {
+            val sysInt = android.provider.Settings.System.getInt(
+                context.contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS
+            )
+            (sysInt / 255f).coerceIn(0.01f, 1.0f)
+        } catch (_: Exception) {
+            0.5f
+        }
+    }
+
     var currentVolumeFloat by remember {
         val initialVol = if (savedVolume >= 0) savedVolume else audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         mutableStateOf(initialVol.toFloat() / maxVolume.coerceAtLeast(1))
     }
     var currentBrightnessFloat by remember {
-        mutableStateOf(if (savedBrightness >= 0f) savedBrightness else {
+        val initialBrightness = if (playbackSettings.saveBrightnessLevel && savedBrightness >= 0f) {
+            savedBrightness
+        } else {
             val lp = activity?.window?.attributes
-            if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
-        })
+            if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else getSystemBrightness()
+        }
+        mutableStateOf(initialBrightness)
     }
 
 
@@ -350,7 +365,12 @@ fun GestureOverlay(
 
                                             if (isLeftHalfDrag && settings.brightnessGestureEnabled) {
                                                 val lp = activity?.window?.attributes
-                                                currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) lp.screenBrightness else 0.5f
+                                                currentBrightnessFloat = if (lp != null && lp.screenBrightness >= 0f) {
+                                                    lp.screenBrightness
+                                                } else {
+                                                    getSystemBrightness()
+                                                }
+                                                currentBrightnessPercent = (currentBrightnessFloat * 100).toInt()
                                                 showBrightnessIndicator = true
                                                 brightnessHideJob?.cancel()
                                             } else if (!isLeftHalfDrag && settings.volumeGestureEnabled) {
@@ -469,7 +489,9 @@ fun GestureOverlay(
                                             showSeekIndicator = false
                                             onSeekState.value(currentSeekPos, true)
                                         } else if (isLeftHalfDrag) {
-                                            onSaveBrightnessState.value(currentBrightnessFloat)
+                                            if (playbackSettingsState.value.saveBrightnessLevel) {
+                                                onSaveBrightnessState.value(currentBrightnessFloat)
+                                            }
                                             brightnessHideJob = launch {
                                                 delay(1000L)
                                                 showBrightnessIndicator = false

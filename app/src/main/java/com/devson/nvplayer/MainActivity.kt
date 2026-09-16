@@ -50,6 +50,23 @@ class MainActivity : FragmentActivity() {
 
     private val _isInPipMode = mutableStateOf(false)
     private val deepLinkUri = mutableStateOf<Uri?>(null)
+    private val shortcutDestination = mutableStateOf<String?>(null)
+
+    private fun handleShortcutIntent(intent: Intent?) {
+        if (intent == null) return
+        val destination = intent.getStringExtra(com.devson.nvplayer.util.AppShortcutHelper.EXTRA_SHORTCUT_DESTINATION)
+            ?: when (intent.action) {
+                com.devson.nvplayer.util.AppShortcutHelper.ACTION_SHORTCUT_VIDEO_LIST -> "video_list"
+                com.devson.nvplayer.util.AppShortcutHelper.ACTION_SHORTCUT_VAULT -> "vault"
+                com.devson.nvplayer.util.AppShortcutHelper.ACTION_SHORTCUT_RECYCLE_BIN -> "recycle_bin"
+                com.devson.nvplayer.util.AppShortcutHelper.ACTION_SHORTCUT_NETWORK_STREAM -> "network_history"
+                else -> null
+            }
+        if (destination != null) {
+            shortcutDestination.value = destination
+            intent.removeExtra(com.devson.nvplayer.util.AppShortcutHelper.EXTRA_SHORTCUT_DESTINATION)
+        }
+    }
 
     private fun handleIntent(intent: Intent?): Uri? {
         if (intent == null) return null
@@ -199,6 +216,9 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        handleShortcutIntent(intent)
+        com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(this)
+
         val uri = handleIntent(intent)
         deepLinkUri.value = uri
         if (uri != null) {
@@ -275,7 +295,9 @@ class MainActivity : FragmentActivity() {
                         isInPipMode = _isInPipMode.value,
                         onEnterPip = { enterPipMode() },
                         initialUri = deepLinkUri.value,
-                        onDeepLinkHandled = { deepLinkUri.value = null }
+                        onDeepLinkHandled = { deepLinkUri.value = null },
+                        shortcutDestination = shortcutDestination.value,
+                        onShortcutHandled = { shortcutDestination.value = null }
                     )
                 }
             }
@@ -285,6 +307,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleShortcutIntent(intent)
         val uri = handleIntent(intent)
         if (uri != null) {
             deepLinkUri.value = uri

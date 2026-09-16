@@ -336,6 +336,14 @@ fun PlayerInterfaceSettingsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 InterfaceSectionHeader("Automation Behavior")
                 SettingToggleCard(
+                    icon = Icons.Default.LightMode,
+                    title = "Save Brightness Level",
+                    subtitle = "Save and restore custom brightness across playback sessions instead of matching device brightness",
+                    checked = playbackSettings.saveBrightnessLevel,
+                    onCheckedChange = { settingsViewModel.updateSaveBrightnessLevel(it) }
+                )
+
+                SettingToggleCard(
                     icon = Icons.Default.PauseCircle,
                     title = "Pause on Obstruction",
                     subtitle = "Pause video playback automatically if screen is covered",

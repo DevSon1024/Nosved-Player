@@ -92,7 +92,9 @@ fun AppNavigation(
     isInPipMode: Boolean = false,
     onEnterPip: () -> Unit = {},
     initialUri: Uri? = null,
-    onDeepLinkHandled: () -> Unit = {}
+    onDeepLinkHandled: () -> Unit = {},
+    shortcutDestination: String? = null,
+    onShortcutHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
 
@@ -207,6 +209,19 @@ fun AppNavigation(
                 launchSingleTop = true
             }
             onDeepLinkHandled()
+        }
+    }
+
+    LaunchedEffect(shortcutDestination) {
+        if (shortcutDestination != null) {
+            if (shortcutDestination in topLevelRoutes) {
+                navigateToTopLevel(shortcutDestination)
+            } else {
+                navController.navigate(shortcutDestination) {
+                    launchSingleTop = true
+                }
+            }
+            onShortcutHandled()
         }
     }
 
@@ -1005,6 +1020,7 @@ fun AppNavigation(
                 onUpdateShowUpNextQueue = { settingsViewModel.updateShowUpNextQueue(it) },
                 onUpdateIsAmbientModeEnabled = { settingsViewModel.updateIsAmbientModeEnabled(it) },
                 onUpdateAmbientBlurStyle = { settingsViewModel.updateAmbientBlurStyle(it) },
+                onUpdateSaveBrightnessLevel = { settingsViewModel.updateSaveBrightnessLevel(it) },
                 onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
                 onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
                 onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },

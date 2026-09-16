@@ -226,9 +226,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 showControlGradients = true,
                 showUpNextQueue = true,
                 queueLayoutMode = LayoutMode.LIST,
-                isAmbientModeEnabled = false
+                isAmbientModeEnabled = false,
+                saveBrightnessLevel = false
             )
         )
+
+    fun updateSaveBrightnessLevel(enabled: Boolean) {
+        viewModelScope.launch { settingsRepo.updateSaveBrightnessLevel(enabled) }
+    }
 
     fun updateSeekBarStyle(style: String) {
         viewModelScope.launch { settingsRepo.updateSeekBarStyle(style) }

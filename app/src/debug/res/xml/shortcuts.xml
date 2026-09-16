@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_video_list"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_videos"
+        android:shortcutShortLabel="@string/shortcut_videos_short"
+        android:shortcutLongLabel="@string/shortcut_videos_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.devson.nvplayer.debug"
+            android:targetClass="com.devson.nvplayer.MainActivity">
+            <extra
+                android:name="shortcut_destination"
+                android:value="video_list" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_vault"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_vault"
+        android:shortcutShortLabel="@string/shortcut_vault_short"
+        android:shortcutLongLabel="@string/shortcut_vault_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.devson.nvplayer.debug"
+            android:targetClass="com.devson.nvplayer.MainActivity">
+            <extra
+                android:name="shortcut_destination"
+                android:value="vault" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_recycle_bin"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_recycle_bin"
+        android:shortcutShortLabel="@string/shortcut_recycle_bin_short"
+        android:shortcutLongLabel="@string/shortcut_recycle_bin_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.devson.nvplayer.debug"
+            android:targetClass="com.devson.nvplayer.MainActivity">
+            <extra
+                android:name="shortcut_destination"
+                android:value="recycle_bin" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_network_streaming"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_network"
+        android:shortcutShortLabel="@string/shortcut_network_short"
+        android:shortcutLongLabel="@string/shortcut_network_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.devson.nvplayer.debug"
+            android:targetClass="com.devson.nvplayer.MainActivity">
+            <extra
+                android:name="shortcut_destination"
+                android:value="network_history" />
+        </intent>
+    </shortcut>
+</shortcuts>

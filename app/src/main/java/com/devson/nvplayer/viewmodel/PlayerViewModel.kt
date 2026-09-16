@@ -168,10 +168,24 @@ class PlayerViewModel(
     val playbackSettings = settingsRepo.playbackSettingsFlow
 
     init {
-        _savedBrightness.value = playerPrefs.getFloat("brightness", 0.5f)
+        _savedBrightness.value = if (playbackSettings.value.saveBrightnessLevel) {
+            playerPrefs.getFloat("brightness", -1.0f)
+        } else {
+            -1.0f
+        }
         _savedVolume.value = playerPrefs.getInt("volume", -1)
         _audioBoosterEnabled.value = playerPrefs.getBoolean("audio_booster_enabled", false)
         _audioBoostVolume.value = playerPrefs.getInt("audio_boost_volume", 200)
+
+        viewModelScope.launch {
+            playbackSettings.collectLatest { settings ->
+                if (!settings.saveBrightnessLevel) {
+                    _savedBrightness.value = -1.0f
+                } else if (_savedBrightness.value < 0f) {
+                    _savedBrightness.value = playerPrefs.getFloat("brightness", -1.0f)
+                }
+            }
+        }
 
         // Observe mediaTitle changes to update the network stream history title in the database
         viewModelScope.launch {
@@ -419,8 +433,10 @@ class PlayerViewModel(
     }
 
     fun saveBrightness(brightness: Float) {
-        playerPrefs.edit().putFloat("brightness", brightness).apply()
-        _savedBrightness.value = brightness
+        if (playbackSettings.value.saveBrightnessLevel) {
+            playerPrefs.edit().putFloat("brightness", brightness).apply()
+            _savedBrightness.value = brightness
+        }
     }
 
     fun saveVolume(volume: Int) {

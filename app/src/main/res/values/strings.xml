@@ -84,4 +84,14 @@
     <string name="player_appearance">Player Appearance</string>
     <string name="ambient_mode">Ambient Mode</string>
     <string name="ambient_mode_warning">Makes the player background glow. May increase battery usage and affect performance.</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_videos_short">Videos</string>
+    <string name="shortcut_videos_long">Video List</string>
+    <string name="shortcut_vault_short">Vault</string>
+    <string name="shortcut_vault_long">Secure Vault</string>
+    <string name="shortcut_recycle_bin_short">Recycle Bin</string>
+    <string name="shortcut_recycle_bin_long">Recycle Bin</string>
+    <string name="shortcut_network_short">Network</string>
+    <string name="shortcut_network_long">Network Streaming</string>
 </resources>

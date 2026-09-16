@@ -190,6 +190,7 @@ fun PlayerScreen(
     onUpdateShowUpNextQueue: (Boolean) -> Unit = {},
     onUpdateIsAmbientModeEnabled: (Boolean) -> Unit = {},
     onUpdateAmbientBlurStyle: (com.devson.nvplayer.data.repository.AmbientBlurStyle) -> Unit = {},
+    onUpdateSaveBrightnessLevel: (Boolean) -> Unit = {},
     networkSpeedBytesPerSec: Long = 0L,
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
@@ -439,7 +440,11 @@ fun PlayerScreen(
     LaunchedEffect(Unit) {
         activity?.let { act ->
             val lp = act.window.attributes
-            lp.screenBrightness = savedBrightness
+            if (playbackSettings.saveBrightnessLevel && savedBrightness >= 0f) {
+                lp.screenBrightness = savedBrightness
+            } else {
+                lp.screenBrightness = -1.0f
+            }
             act.window.attributes = lp
         }
         if (savedVolume >= 0) {
@@ -566,6 +571,9 @@ fun PlayerScreen(
                 insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
                 // Explicitly clear keep screen awake flag when leaving the player
                 window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                val lp = window.attributes
+                lp.screenBrightness = -1.0f
+                window.attributes = lp
             }
             var currentContext = context
             while (currentContext is ContextWrapper) {
@@ -1041,6 +1049,7 @@ fun PlayerScreen(
             onUpdateShowUpNextQueue = onUpdateShowUpNextQueue,
             onUpdateIsAmbientModeEnabled = onUpdateIsAmbientModeEnabled,
             onUpdateAmbientBlurStyle = onUpdateAmbientBlurStyle,
+            onUpdateSaveBrightnessLevel = onUpdateSaveBrightnessLevel,
             onDismiss = { showPlayerSettingsSideSheet = false }
         )
 

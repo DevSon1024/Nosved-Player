@@ -66,7 +66,7 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options",
             "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
             "show_up_next_queue", "queue_layout_mode", "is_ambient_mode_enabled",
-            "whitelisted_folders", "folder_filter_mode" -> {
+            "whitelisted_folders", "folder_filter_mode", "save_brightness_level" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -378,7 +378,8 @@ class PlaybackSettingsRepository(context: Context) {
             isAmbientModeEnabled = prefs.getBoolean("is_ambient_mode_enabled", false),
             ambientBlurStyle = AmbientBlurStyle.fromKey(
                 prefs.getString("ambient_blur_style", AmbientBlurStyle.GLOW.key) ?: AmbientBlurStyle.GLOW.key
-            )
+            ),
+            saveBrightnessLevel = prefs.getBoolean("save_brightness_level", false)
         )
     }
 
@@ -485,6 +486,7 @@ class PlaybackSettingsRepository(context: Context) {
                 putString("queue_layout_mode", updated.queueLayoutMode.name)
                 putBoolean("is_ambient_mode_enabled", updated.isAmbientModeEnabled)
                 putString("ambient_blur_style", updated.ambientBlurStyle.key)
+                putBoolean("save_brightness_level", updated.saveBrightnessLevel)
                 apply()
             }
         }
@@ -496,6 +498,10 @@ class PlaybackSettingsRepository(context: Context) {
      */
     fun close() {
         prefs.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    suspend fun updateSaveBrightnessLevel(enabled: Boolean) {
+        updatePlaybackSettings { it.copy(saveBrightnessLevel = enabled) }
     }
 
     suspend fun updateBlacklistedFolders(folders: Set<String>) {

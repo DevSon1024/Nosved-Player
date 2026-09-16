@@ -93,6 +93,7 @@ fun PlayerSettingsSideSheet(
     onUpdateShowUpNextQueue: (Boolean) -> Unit = {},
     onUpdateIsAmbientModeEnabled: (Boolean) -> Unit = {},
     onUpdateAmbientBlurStyle: (com.devson.nvplayer.data.repository.AmbientBlurStyle) -> Unit = {},
+    onUpdateSaveBrightnessLevel: (Boolean) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -324,7 +325,8 @@ fun PlayerSettingsSideSheet(
                             4 -> AutomationTab(
                                 playbackSettings = playbackSettings,
                                 onUpdatePauseWhenObstructed = onUpdatePauseWhenObstructed,
-                                onUpdateKeepAwakeAlways = onUpdateKeepAwakeAlways
+                                onUpdateKeepAwakeAlways = onUpdateKeepAwakeAlways,
+                                onUpdateSaveBrightnessLevel = onUpdateSaveBrightnessLevel
                             )
                             5 -> InformationTab(
                                 video = currentVideo
@@ -1259,11 +1261,22 @@ private fun OverlaysTab(
 private fun AutomationTab(
     playbackSettings: PlaybackSettings,
     onUpdatePauseWhenObstructed: (Boolean) -> Unit,
-    onUpdateKeepAwakeAlways: (Boolean) -> Unit
+    onUpdateKeepAwakeAlways: (Boolean) -> Unit,
+    onUpdateSaveBrightnessLevel: (Boolean) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SheetSectionLabel("Automation Behavior")
         SheetCard {
+            SheetToggleRow(
+                icon = Icons.Default.LightMode,
+                title = "Save Brightness Level",
+                subtitle = "Save and restore custom brightness across playback sessions instead of matching device brightness",
+                checked = playbackSettings.saveBrightnessLevel,
+                onCheckedChange = onUpdateSaveBrightnessLevel
+            )
+
+            SheetDivider()
+
             SheetToggleRow(
                 icon = Icons.Default.PauseCircle,
                 title = "Pause on Obstruction",
