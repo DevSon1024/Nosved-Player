@@ -60,11 +60,25 @@ class MainActivity : FragmentActivity() {
         val type = intent.type
 
         if (Intent.ACTION_VIEW == action) {
-            uri = intent.data
-        } else if (Intent.ACTION_SEND == action && type == "text/plain") {
-            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-            if (!sharedText.isNullOrBlank()) {
-                uri = Uri.parse(sharedText.trim())
+            uri = intent.data ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+        } else if (Intent.ACTION_SEND == action) {
+            if (type == "text/plain") {
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                if (!sharedText.isNullOrBlank()) {
+                    uri = Uri.parse(sharedText.trim())
+                }
+            } else if (type?.startsWith("video/") == true ||
+                type?.contains("matroska", ignoreCase = true) == true ||
+                type == "application/octet-stream" ||
+                intent.hasExtra(Intent.EXTRA_STREAM)
+            ) {
+                val streamUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+                }
+                uri = streamUri ?: intent.data ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
             }
         }
 

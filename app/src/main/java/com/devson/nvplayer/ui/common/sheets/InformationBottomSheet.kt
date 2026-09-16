@@ -445,7 +445,8 @@ fun SingleVideoInformationContent(
                                             InfoPropertyRow(icon = Icons.Outlined.AspectRatio, label = "Resolution", value = "${video.width}x${video.height}")
                                         }
                                         if (video.frameRate != null && video.frameRate > 0) {
-                                            InfoPropertyRow(icon = Icons.Outlined.Speed, label = "Frame Rate", value = "${video.frameRate} fps")
+                                            val formattedFps = if (video.frameRate % 1f == 0f) "${video.frameRate.toInt()} fps" else String.format(java.util.Locale.US, "%.2f fps", video.frameRate)
+                                            InfoPropertyRow(icon = Icons.Outlined.Speed, label = "Frame Rate", value = formattedFps)
                                         }
                                         InfoPropertyRow(icon = Icons.Outlined.Movie, label = "Video Codec", value = "Standard Video Stream")
                                     }
@@ -561,7 +562,14 @@ fun SingleVideoInformationContent(
                         InfoPropertyRow(icon = Icons.Outlined.AspectRatio, label = "Resolution", value = "${video.width}x${video.height}")
                     }
                     if (video.frameRate != null && video.frameRate > 0) {
-                        InfoPropertyRow(icon = Icons.Outlined.Speed, label = "Frame Rate", value = "${video.frameRate.toInt()} fps")
+                        val formattedFps = if (video.frameRate % 1f == 0f) "${video.frameRate.toInt()} fps" else String.format(java.util.Locale.US, "%.2f fps", video.frameRate)
+                        InfoPropertyRow(icon = Icons.Outlined.Speed, label = "Frame Rate", value = formattedFps)
+                    }
+                    if (video.embeddedSubtitles.isNotEmpty()) {
+                        InfoPropertyRow(icon = Icons.Outlined.Subtitles, label = "Embedded Subtitles", value = video.embeddedSubtitles.joinToString(", "))
+                    }
+                    if (video.externalSubtitles.isNotEmpty()) {
+                        InfoPropertyRow(icon = Icons.Outlined.Subtitles, label = "External Subtitles", value = video.externalSubtitles.joinToString(", "))
                     }
                     if (video.dateAdded > 0) {
                         InfoPropertyRow(icon = Icons.Outlined.CalendarToday, label = "Date Added", value = formatDate(video.dateAdded))

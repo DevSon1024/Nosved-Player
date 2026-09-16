@@ -26,8 +26,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.util.Locale
+import com.devson.nvplayer.data.database.CachedVideoMetadata
+import com.devson.nvplayer.data.media.VideoMetadataExtractor
 import com.devson.nvplayer.ui.screens.videolist.state.ExplorerItem
 import com.devson.nvplayer.ui.screens.videolist.state.PathSegment
 
@@ -40,6 +45,7 @@ class VideoListViewModel(
     // Raw (unfiltered) scan result - populated once per disk scan
     private val _rawVideosByFolder = MutableStateFlow<Map<VideoFolder, List<Video>>>(emptyMap())
     private val _rawVideosFlat = MutableStateFlow<List<Video>>(emptyList())
+    val rawVideosFlat: StateFlow<List<Video>> = _rawVideosFlat.asStateFlow()
  
     private val _historyMap = MutableStateFlow<Map<String, WatchHistory>>(emptyMap())
 
@@ -131,7 +137,7 @@ class VideoListViewModel(
                 }
                 FolderFilterMode.NONE -> storageFiltered
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     /**
      * Master-filtered folder map: storage+folder-mode filtered, then hidden-path and search filtered.
@@ -161,7 +167,7 @@ class VideoListViewModel(
                     matchesStorage && matchesPath && matchesSearch && matchesFilter
                 }
             }.filterValues { it.isNotEmpty() }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val videosFlat: StateFlow<List<Video>> =
         combine(_activeVideosFlat, _searchQuery) { activeFlat, query ->
@@ -170,7 +176,7 @@ class VideoListViewModel(
                 val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
                 matchesPath && matchesSearch
             }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val navContext: StateFlow<Triple<ViewMode, VideoFolder?, String?>> = combine(
         viewSettingsRepo.viewSettingsFlow,
@@ -274,7 +280,11 @@ class VideoListViewModel(
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
+        if (!forceRefresh && _rawVideosFlat.value.isNotEmpty()) {
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
+            val isInitial = _rawVideosFlat.value.isEmpty()
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
@@ -283,60 +293,59 @@ class VideoListViewModel(
                 } catch (e: Exception) {
                     android.util.Log.e("VideoListViewModel", "Error scanning common directories", e)
                 }
-            } else {
+            } else if (isInitial) {
                 _isLoading.value = true
             }
             _loadingProgress.value = 0f
             try {
                 val videoItems = repository.getAllVideos()
-                val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
                 val metadataDao = repository.videoMetadataDao
-                
+                val cachedMap = try {
+                    metadataDao.getAllMetadataSync().associateBy { it.uri }.toMutableMap()
+                } catch (_: Exception) {
+                    mutableMapOf()
+                }
+
                 // Group by parent folder absolute path
                 val groupedByPath = videoItems.groupBy { item ->
                     File(item.path).parentFile?.absolutePath ?: item.folderName
                 }
-                
-                val totalPaths = groupedByPath.size
-                var index = 0
-                groupedByPath.forEach { (parentPath, items) ->
-                    _loadingProgress.value = if (totalPaths > 0) index.toFloat() / totalPaths.toFloat() else 1f
-                    
+
+                val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
+                val uncachedVideos = mutableListOf<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
+
+                for ((parentPath, items) in groupedByPath) {
                     val folderName = File(parentPath).name.ifEmpty { parentPath }
                     val videos = items.map { item ->
                         val uriStr = item.uri.toString()
-                        
+                        val cached = cachedMap[uriStr]
                         val finalSize: Long
                         val finalDateModified: Long
                         val finalDuration: Long
-                        
-                        if (item.size > 0 && item.duration > 0) {
+                        val finalFps: Float?
+                        val finalEmbeddedSubs: List<String>
+                        val externalSubs: List<String>
+
+                        if (cached != null) {
+                            finalSize = if (item.size > 0) item.size else cached.size
+                            finalDateModified = if (item.dateModified > 0) item.dateModified * 1000 else cached.dateModified
+                            finalDuration = if (item.duration > 0) item.duration else cached.duration
+                            finalFps = if (cached.frameRate != null && cached.frameRate > 0f) cached.frameRate else null
+                            finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                            externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+
+                            // Re-probe if frame rate was previously not detected (e.g. MKVs cached prior to EBML/MediaInfo extractor)
+                            if (finalFps == null) {
+                                uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
+                            }
+                        } else {
                             finalSize = item.size
                             finalDateModified = item.dateModified * 1000
                             finalDuration = item.duration
-                        } else {
-                            val cached = metadataDao.getMetadataByUri(uriStr)
-                            if (cached != null) {
-                                finalSize = cached.size
-                                finalDateModified = cached.dateModified
-                                finalDuration = cached.duration
-                            } else {
-                                val extracted = withTimeoutOrNull(1000L) {
-                                    com.devson.nvplayer.util.getVideoMetadata(repository.context, item.uri)
-                                } ?: com.devson.nvplayer.util.VideoMetadata(0L, 0L)
-                                finalSize = if (extracted.fileSize > 0) extracted.fileSize else item.size
-                                finalDateModified = if (extracted.lastModified > 0) extracted.lastModified else item.dateModified * 1000
-                                finalDuration = item.duration
-                                
-                                metadataDao.insertOrUpdate(
-                                    com.devson.nvplayer.data.database.CachedVideoMetadata(
-                                        uri = uriStr,
-                                        size = finalSize,
-                                        dateModified = finalDateModified,
-                                        duration = finalDuration
-                                    )
-                                )
-                            }
+                            finalFps = null
+                            finalEmbeddedSubs = emptyList()
+                            externalSubs = emptyList()
+                            uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                         }
 
                         Video(
@@ -353,29 +362,84 @@ class VideoListViewModel(
                             playedTime = null,
                             lastPlayedAt = null,
                             resolution = "${item.width}x${item.height}",
-                            frameRate = 30.0f,
-                            thumbnailUri = item.thumbnailUri?.toString()
+                            frameRate = finalFps,
+                            thumbnailUri = item.thumbnailUri?.toString(),
+                            embeddedSubtitles = finalEmbeddedSubs,
+                            externalSubtitles = externalSubs
                         )
                     }
                     if (videos.isNotEmpty()) {
-                        val videoFolder = VideoFolder(
-                            id = parentPath,
-                            name = folderName
-                        )
-                        mappedVideos[videoFolder] = videos
-                    }
-                    index++
-
-                    // Progressive chunk emission so Compose UI updates smoothly without blocking
-                    if (index % 2 == 0 || index == totalPaths) {
-                        _rawVideosByFolder.value = mappedVideos.toMap()
-                        _rawVideosFlat.value = mappedVideos.values.flatten()
+                        mappedVideos[VideoFolder(id = parentPath, name = folderName)] = videos
                     }
                 }
 
                 _loadingProgress.value = 1f
                 _rawVideosByFolder.value = mappedVideos.toMap()
                 _rawVideosFlat.value = mappedVideos.values.flatten()
+                _isLoading.value = false
+                _isRefreshing.value = false
+
+                // Background asynchronous metadata enhancement for uncached videos
+                if (uncachedVideos.isNotEmpty()) {
+                    launch(Dispatchers.IO) {
+                        try {
+                            val dispatcher = Dispatchers.IO.limitedParallelism(4)
+                            val updatedItems = uncachedVideos.map { (item, duration, dateMod) ->
+                                async(dispatcher) {
+                                    val uriStr = item.uri.toString()
+                                    val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path)
+                                    val details = try {
+                                        withTimeoutOrNull(1500L) {
+                                            VideoMetadataExtractor.extractDetails(repository.context, item.path, item.uri, duration)
+                                        }
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+
+                                    val fps = details?.frameRate
+                                    val embeddedSubs = details?.embeddedSubtitles ?: emptyList()
+
+                                    val cachedMetadata = CachedVideoMetadata(
+                                        uri = uriStr,
+                                        size = item.size,
+                                        dateModified = dateMod,
+                                        duration = duration,
+                                        externalSubtitleUri = null,
+                                        frameRate = fps ?: -1f,
+                                        embeddedSubtitles = embeddedSubs.joinToString(","),
+                                        externalSubtitles = externalSubs.joinToString(",")
+                                    )
+                                    Triple(uriStr, cachedMetadata, Pair(fps, Pair(embeddedSubs, externalSubs)))
+                                }
+                            }.awaitAll()
+
+                            metadataDao.insertAll(updatedItems.map { it.second })
+
+                            val enhancementMap = updatedItems.associate { it.first to it.third }
+                            val currentByFolder = _rawVideosByFolder.value
+                            val updatedByFolder = currentByFolder.mapValues { (_, folderVideos) ->
+                                folderVideos.map { video ->
+                                    val enhancement = enhancementMap[video.uri]
+                                    if (enhancement != null) {
+                                        val (fps, subsPair) = enhancement
+                                        val (embedded, external) = subsPair
+                                        video.copy(
+                                            frameRate = fps,
+                                            embeddedSubtitles = embedded,
+                                            externalSubtitles = external
+                                        )
+                                    } else {
+                                        video
+                                    }
+                                }
+                            }
+                            _rawVideosByFolder.value = updatedByFolder
+                            _rawVideosFlat.value = updatedByFolder.values.flatten()
+                        } catch (e: Exception) {
+                            android.util.Log.e("VideoListViewModel", "Background metadata extraction error", e)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 android.util.Log.e("VideoListViewModel", "Failed to load videos", e)
                 _loadError.value = e.localizedMessage ?: "Failed to load videos"

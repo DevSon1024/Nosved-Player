@@ -10,6 +10,9 @@ interface VideoMetadataDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(metadata: CachedVideoMetadata)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(metadataList: List<CachedVideoMetadata>)
+
     @Query("SELECT * FROM cached_video_metadata WHERE uri = :uri LIMIT 1")
     suspend fun getMetadataByUri(uri: String): CachedVideoMetadata?
 

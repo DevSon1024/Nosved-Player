@@ -598,6 +598,20 @@ class VaultFileManager(
         } catch (_: Exception) {}
     }
 
+    fun resolveRestoreDestination(entity: VaultEntity, defaultMoviesDir: File): File {
+        val originalPath = entity.originalUri
+        if (!originalPath.isNullOrBlank()) {
+            try {
+                val origFile = File(originalPath)
+                val parent = origFile.parentFile
+                if (parent != null && parent.exists() && parent.isDirectory) {
+                    return parent
+                }
+            } catch (_: Exception) {}
+        }
+        return defaultMoviesDir
+    }
+
     suspend fun restoreVideoFromVault(
         vaultEntity: VaultEntity,
         destinationDirectory: File,

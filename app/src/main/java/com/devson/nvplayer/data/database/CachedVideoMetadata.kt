@@ -9,5 +9,8 @@ data class CachedVideoMetadata(
     val size: Long,
     val dateModified: Long,
     val duration: Long,
-    val externalSubtitleUri: String? = null
+    val externalSubtitleUri: String? = null,
+    val frameRate: Float? = null,
+    val embeddedSubtitles: String? = null,
+    val externalSubtitles: String? = null
 )

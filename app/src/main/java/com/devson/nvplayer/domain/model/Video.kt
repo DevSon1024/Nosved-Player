@@ -46,7 +46,9 @@ data class Video(
     val resolution: String? = null,
     val frameRate: Float? = null,
     val dateExpires: Long? = null,
-    val thumbnailUri: String? = null
+    val thumbnailUri: String? = null,
+    val embeddedSubtitles: List<String> = emptyList(),
+    val externalSubtitles: List<String> = emptyList()
 )
 
 fun List<Video>.applySort(

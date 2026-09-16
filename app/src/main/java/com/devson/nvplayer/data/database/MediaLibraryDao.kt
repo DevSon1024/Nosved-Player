@@ -26,6 +26,9 @@ interface MediaLibraryDao {
     @Query("SELECT * FROM series ORDER BY title ASC")
     fun getAllSeries(): Flow<List<SeriesEntity>>
 
+    @Query("SELECT * FROM series")
+    suspend fun getAllSeriesSync(): List<SeriesEntity>
+
     @Delete
     suspend fun deleteSeries(series: SeriesEntity)
 
@@ -33,8 +36,14 @@ interface MediaLibraryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSeason(season: SeasonEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSeasons(seasons: List<SeasonEntity>): List<Long>
+
     @Query("SELECT * FROM seasons WHERE seriesId = :seriesId ORDER BY seasonNumber ASC")
     fun getSeasonsForSeries(seriesId: Long): Flow<List<SeasonEntity>>
+
+    @Query("SELECT * FROM seasons")
+    suspend fun getAllSeasonsSync(): List<SeasonEntity>
 
     @Query("SELECT * FROM seasons WHERE seriesId = :seriesId AND seasonNumber = :seasonNumber LIMIT 1")
     suspend fun getSeasonByNumber(seriesId: Long, seasonNumber: Int): SeasonEntity?
@@ -48,6 +57,9 @@ interface MediaLibraryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEpisodes(episodes: List<EpisodeEntity>): List<Long>
+
+    @Query("SELECT * FROM episodes")
+    suspend fun getAllEpisodesSync(): List<EpisodeEntity>
 
     @Query("SELECT * FROM episodes WHERE seasonId = :seasonId ORDER BY episodeNumber ASC")
     fun getEpisodesForSeason(seasonId: Long): Flow<List<EpisodeEntity>>
@@ -70,6 +82,9 @@ interface MediaLibraryDao {
 
     @Query("SELECT * FROM movies WHERE fileUri = :fileUri LIMIT 1")
     suspend fun getMovieByUri(fileUri: String): MovieEntity?
+
+    @Query("SELECT * FROM movies")
+    suspend fun getAllMoviesSync(): List<MovieEntity>
 
     @Query("SELECT * FROM movies ORDER BY title ASC")
     fun getAllMovies(): Flow<List<MovieEntity>>

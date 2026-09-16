@@ -35,6 +35,9 @@ object MatroskaSubtitleDemuxer {
     private const val ID_LANGUAGE_IETF = 0x22B59DL
     private const val ID_CONTENT_ENCODINGS = 0x6D80L
     private const val ID_CONTENT_COMP_ALGO = 0x4254L
+    private const val ID_DEFAULT_DURATION = 0x23E383L
+    private const val ID_VIDEO = 0xE0L
+    private const val ID_FRAME_RATE = 0x2383E3L
 
     // Cluster IDs
     private const val ID_CLUSTER = 0x1F43B675L
@@ -43,6 +46,16 @@ object MatroskaSubtitleDemuxer {
     private const val ID_BLOCK_GROUP = 0xA0L
     private const val ID_BLOCK = 0xA1L
     private const val ID_BLOCK_DURATION = 0x9BL
+
+    data class MatroskaHeaderInfo(
+        val videoFps: Float? = null,
+        val subtitleTracks: List<SubtitleStreamInfo> = emptyList()
+    )
+
+    private data class MatroskaParseResult(
+        val videoFps: Float? = null,
+        val tracks: List<MatroskaTrack> = emptyList()
+    )
 
     data class MatroskaTrack(
         val trackNumber: Long,
@@ -110,10 +123,13 @@ object MatroskaSubtitleDemuxer {
         }
     }
 
-    suspend fun inspectMatroskaTracks(fd: FileDescriptor): List<SubtitleStreamInfo> = withContext(Dispatchers.IO) {
+    suspend fun inspectMatroska(fd: FileDescriptor): MatroskaHeaderInfo = withContext(Dispatchers.IO) {
         val tracks = mutableListOf<SubtitleStreamInfo>()
+        var fps: Float? = null
         try {
-            val internalTracks = parseTracks(fd)
+            val parseResult = parseTracks(fd)
+            fps = parseResult.videoFps
+            val internalTracks = parseResult.tracks
             val subTracks = internalTracks.filter { it.isSubtitle }
             val nameCounts = subTracks.groupBy { it.name.trim().lowercase() }
 
@@ -158,7 +174,11 @@ object MatroskaSubtitleDemuxer {
         } catch (e: Exception) {
             Log.w(TAG, "Error inspecting Matroska tracks", e)
         }
-        tracks
+        MatroskaHeaderInfo(videoFps = fps, subtitleTracks = tracks)
+    }
+
+    suspend fun inspectMatroskaTracks(fd: FileDescriptor): List<SubtitleStreamInfo> {
+        return inspectMatroska(fd).subtitleTracks
     }
 
     suspend fun demuxTrackCues(
@@ -173,7 +193,7 @@ object MatroskaSubtitleDemuxer {
         val buffer = ByteBuffer.allocate(128 * 1024)
         buffer.flip() // Initially empty
 
-        val internalTracks = parseTracks(fd)
+        val internalTracks = parseTracks(fd).tracks
         val subtitleTracks = internalTracks.filter { it.isSubtitle }
 
         val matchedTrack = subtitleTracks.find {
@@ -364,7 +384,7 @@ object MatroskaSubtitleDemuxer {
         return DemuxedCue(startTimeMs = maxOf(0L, startTimeMs), durationMs = -1L, rawText = text)
     }
 
-    private fun parseTracks(fd: FileDescriptor): List<MatroskaTrack> {
+    private fun parseTracks(fd: FileDescriptor): MatroskaParseResult {
         val fis = FileInputStream(fd)
         val channel = fis.channel
         channel.position(0)
@@ -373,6 +393,7 @@ object MatroskaSubtitleDemuxer {
         buffer.flip()
 
         val tracks = mutableListOf<MatroskaTrack>()
+        var detectedFps: Float? = null
 
         while (true) {
             val id = readElementId(channel, buffer)
@@ -398,11 +419,13 @@ object MatroskaSubtitleDemuxer {
                                 var trackNum = 0L
                                 var trackUid = 0L
                                 var trackType = 0L
+                                var defaultDurationNs = 0L
                                 var name = ""
                                 var codecId = ""
                                 var lang = "eng"
                                 var codecPrivate: ByteArray? = null
                                 var isCompressed = false
+                                var trackFps: Float? = null
 
                                 while (currentFileOffset(channel, buffer) < entryEnd) {
                                     val fieldId = readElementId(channel, buffer)
@@ -413,10 +436,28 @@ object MatroskaSubtitleDemuxer {
                                         ID_TRACK_NUMBER -> trackNum = readUInt(channel, buffer, fieldSize.toInt())
                                         ID_TRACK_UID -> trackUid = readUInt(channel, buffer, fieldSize.toInt())
                                         ID_TRACK_TYPE -> trackType = readUInt(channel, buffer, fieldSize.toInt())
+                                        ID_DEFAULT_DURATION -> defaultDurationNs = readUInt(channel, buffer, fieldSize.toInt())
                                         ID_NAME -> name = readString(channel, buffer, fieldSize.toInt())
                                         ID_CODEC_ID -> codecId = readString(channel, buffer, fieldSize.toInt())
                                         ID_LANGUAGE -> lang = readString(channel, buffer, fieldSize.toInt())
                                         ID_LANGUAGE_IETF -> lang = readString(channel, buffer, fieldSize.toInt())
+                                        ID_VIDEO -> {
+                                            val videoEnd = currentFileOffset(channel, buffer) + fieldSize
+                                            while (currentFileOffset(channel, buffer) < videoEnd) {
+                                                val vFieldId = readElementId(channel, buffer)
+                                                if (vFieldId == -1L) break
+                                                val vFieldSize = readElementSize(channel, buffer)
+                                                when (vFieldId) {
+                                                    ID_FRAME_RATE -> {
+                                                        val fr = readFloat(channel, buffer, vFieldSize.toInt())
+                                                        if (fr in 1f..360f) {
+                                                            trackFps = fr
+                                                        }
+                                                    }
+                                                    else -> if (vFieldSize > 0) skipBytes(channel, buffer, vFieldSize)
+                                                }
+                                            }
+                                        }
                                         ID_CODEC_PRIVATE -> {
                                             if (fieldSize in 1..512 * 1024) {
                                                 val cpBytes = ByteArray(fieldSize.toInt())
@@ -444,6 +485,18 @@ object MatroskaSubtitleDemuxer {
                                     }
                                 }
 
+                                if (trackType == 1L && detectedFps == null) {
+                                    if (defaultDurationNs > 0) {
+                                        val calculated = 1_000_000_000.0 / defaultDurationNs.toDouble()
+                                        if (calculated in 1.0..360.0) {
+                                            detectedFps = calculated.toFloat()
+                                        }
+                                    }
+                                    if (detectedFps == null && trackFps != null) {
+                                        detectedFps = trackFps
+                                    }
+                                }
+
                                 if (trackNum > 0 && trackType == 17L) {
                                     tracks.add(
                                         MatroskaTrack(
@@ -462,7 +515,7 @@ object MatroskaSubtitleDemuxer {
                                 if (trackEntrySize > 0) skipBytes(channel, buffer, trackEntrySize)
                             }
                         }
-                        return tracks
+                        return MatroskaParseResult(videoFps = detectedFps, tracks = tracks)
                     } else {
                         if (childSize > 0) skipBytes(channel, buffer, childSize)
                     }
@@ -472,7 +525,7 @@ object MatroskaSubtitleDemuxer {
                 if (size > 0) skipBytes(channel, buffer, size)
             }
         }
-        return tracks
+        return MatroskaParseResult(videoFps = detectedFps, tracks = tracks)
     }
 
     private fun isZlibCompressed(data: ByteArray): Boolean {
@@ -574,6 +627,27 @@ object MatroskaSubtitleDemuxer {
             value = (value shl 8) or (buffer.get().toLong() and 0xFF)
         }
         return value
+    }
+
+    private fun readFloat(channel: FileChannel, buffer: ByteBuffer, size: Int): Float {
+        return try {
+            when (size) {
+                4 -> {
+                    if (!ensureBytes(channel, buffer, 4)) return 0f
+                    buffer.float
+                }
+                8 -> {
+                    if (!ensureBytes(channel, buffer, 8)) return 0f
+                    buffer.double.toFloat()
+                }
+                else -> {
+                    if (size > 0) skipBytes(channel, buffer, size.toLong())
+                    0f
+                }
+            }
+        } catch (_: Exception) {
+            0f
+        }
     }
 
     private fun readShort(channel: FileChannel, buffer: ByteBuffer): Short {
