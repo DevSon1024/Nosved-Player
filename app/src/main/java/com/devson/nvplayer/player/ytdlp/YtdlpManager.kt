@@ -17,6 +17,10 @@ object YtdlpManager {
         return File(context.filesDir, YTDL_DIR).apply { if (!exists()) mkdirs() }
     }
 
+    fun isInstalled(context: Context): Boolean {
+        return File(getYtdlDir(context), "yt-dlp").exists()
+    }
+
     fun getExecutablePath(context: Context): String {
         return File(context.applicationInfo.nativeLibraryDir, "libytdl.so").absolutePath
     }

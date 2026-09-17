@@ -17,9 +17,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material3.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -254,6 +256,28 @@ fun PlayerScreen(
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
     var showQualitySideSheet by remember { mutableStateOf(false) }
     var showImportSubtitleDialog by remember { mutableStateOf(false) }
+
+    val streamQualityState by (activeViewModel?.streamQualityState ?: MutableStateFlow(com.devson.nvplayer.data.model.StreamQualityState())).collectAsState()
+    val isQualitySelectorVisible by (activeViewModel?.isQualitySelectorVisible ?: MutableStateFlow(false)).collectAsState()
+    val qualityHudMessage by (activeViewModel?.qualityHudMessage ?: MutableStateFlow(null)).collectAsState()
+
+    var qualityOverlayText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(qualityHudMessage) {
+        val msg = qualityHudMessage
+        if (!msg.isNullOrBlank()) {
+            qualityOverlayText = msg
+            activeViewModel?.clearQualityHudMessage()
+            delay(1200L)
+            qualityOverlayText = null
+        }
+    }
+
+    LaunchedEffect(isQualitySelectorVisible) {
+        if (isQualitySelectorVisible) {
+            showQualitySideSheet = true
+        }
+    }
 
     val safSubtitlePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
@@ -859,6 +883,7 @@ fun PlayerScreen(
                                 activeViewModel?.enterFrameCaptureMode()
                              },
                              ytdlQuality = playbackSettings.ytdlQuality,
+                             currentQualityLabel = streamQualityState.currentQuality?.label ?: if (playbackSettings.ytdlQuality == -1) "Auto" else "${playbackSettings.ytdlQuality}p",
                             onShowQuality = { showQualitySideSheet = true },
                             modifier = Modifier
                         )
@@ -930,6 +955,68 @@ fun PlayerScreen(
                         }
                     }
                 }
+
+                // Stream Quality Overlay HUD
+                AnimatedVisibility(
+                    visible = qualityOverlayText != null,
+                    enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
+                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150)),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.HighQuality,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = qualityOverlayText ?: "",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val isAnySideSheetVisible = showSubtitleSettingsSideSheet ||
+            showImportSubtitleDialog ||
+            showQualitySideSheet ||
+            showAudioSettingsSideSheet ||
+            showPlayerSettingsSideSheet ||
+            showChaptersSideSheet ||
+            showDecoderSideSheet ||
+            showEnhanceSettingsSideSheet
+
+        if (!isInPipMode && isNetworkStream) {
+            AnimatedVisibility(
+                visible = controlsVisible && !isLocked && !isAnySideSheetVisible,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 70.dp, end = 16.dp)
+            ) {
+                StreamingDataPanel(
+                    speedBps = networkSpeedBytesPerSec,
+                    bufferSec = bufferDurationSeconds
+                )
             }
         }
 
@@ -997,14 +1084,18 @@ fun PlayerScreen(
 
         QualitySettingsSideSheet(
             visible = showQualitySideSheet,
+            qualityState = streamQualityState,
             playbackSettings = playbackSettings,
-            onSelectQuality = { quality ->
-                activeViewModel?.changeYtdlQuality(quality)
+            onSelectQuality = { option ->
+                activeViewModel?.selectQuality(option)
             },
             onDataSaverToggled = { enabled ->
                 activeViewModel?.toggleDataSaver(enabled)
             },
-            onDismiss = { showQualitySideSheet = false }
+            onDismiss = {
+                showQualitySideSheet = false
+                activeViewModel?.closeQualitySelector()
+            }
         )
 
         AudioSettingsSideSheet(
@@ -1081,23 +1172,6 @@ fun PlayerScreen(
             onUpdateEnhanceHue = onUpdateEnhanceHue,
             onDismiss = { showEnhanceSettingsSideSheet = false }
         )
-
-        if (!isInPipMode && isNetworkStream) {
-            AnimatedVisibility(
-                visible = controlsVisible && !isLocked,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 70.dp, end = 16.dp)
-            ) {
-                StreamingDataPanel(
-                    speedBps = networkSpeedBytesPerSec,
-                    bufferSec = bufferDurationSeconds
-                )
-            }
-        }
 
         if (isLocked) {
             // Auto-hide the unlock button after 3 seconds

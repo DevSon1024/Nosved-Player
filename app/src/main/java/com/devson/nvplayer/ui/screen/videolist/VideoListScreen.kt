@@ -81,6 +81,7 @@ fun VideoListScreen(
     onNavigateToFeed: (Int) -> Unit = {},
     onPlayStream: (Uri) -> Unit = {},
     onNetworkHistoryClick: () -> Unit = {},
+    onNavigateToYtdlpSettings: () -> Unit = {},
     viewModel: VideoListViewModel = viewModel(),
     homeViewModel: HomeViewModel,
     vaultGalleryViewModel: VaultGalleryViewModel? = null,
@@ -1003,10 +1004,7 @@ fun VideoListScreen(
             onPlay = { uri ->
                 val uriString = uri.toString().lowercase(java.util.Locale.ROOT)
                 val isYoutube = uriString.contains("youtube") || uriString.contains("youtu.be")
-                val isYtdlpInstalled = java.io.File(
-                    com.devson.nvplayer.player.ytdlp.YtdlpManager.getYtdlDir(context),
-                    "yt-dlp"
-                ).exists()
+                val isYtdlpInstalled = com.devson.nvplayer.player.ytdlp.YtdlpManager.isInstalled(context)
 
                 if (isYoutube && !isYtdlpInstalled) {
                     showNetworkDialog = false
@@ -1019,6 +1017,10 @@ fun VideoListScreen(
             onHistoryClick = {
                 showNetworkDialog = false
                 onNetworkHistoryClick()
+            },
+            onNavigateToYtdlpSettings = {
+                showNetworkDialog = false
+                onNavigateToYtdlpSettings()
             }
         )
     }
@@ -1045,7 +1047,7 @@ fun VideoListScreen(
                 Button(
                     onClick = {
                         showYtdlpMissingDialog = false
-                        onNavigateToSettings()
+                        onNavigateToYtdlpSettings()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary

@@ -58,5 +58,11 @@ interface PlayerEngine {
         isEnabled: Boolean,
         style: com.devson.nvplayer.data.repository.AmbientBlurStyle = com.devson.nvplayer.data.repository.AmbientBlurStyle.GLOW
     )
+    fun getAdaptiveTracks(): List<com.devson.nvplayer.data.model.VideoQualityOption> = emptyList()
+    fun changeStreamQuality(
+        quality: com.devson.nvplayer.data.model.VideoQualityOption,
+        streamUrl: String,
+        streamType: com.devson.nvplayer.data.model.StreamType
+    ) {}
     fun release()
 }

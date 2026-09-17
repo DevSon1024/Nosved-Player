@@ -8,13 +8,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.HighQuality
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,19 +26,23 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devson.nvplayer.data.model.StreamQualityState
+import com.devson.nvplayer.data.model.StreamType
+import com.devson.nvplayer.data.model.VideoQualityOption
 import com.devson.nvplayer.data.repository.PlaybackSettings
 
 @Composable
 fun QualitySettingsSideSheet(
     visible: Boolean,
+    qualityState: StreamQualityState,
     playbackSettings: PlaybackSettings,
-    onSelectQuality: (Int) -> Unit,
+    onSelectQuality: (VideoQualityOption) -> Unit,
     onDataSaverToggled: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val sheetWidthPercent = if (isLandscape) 0.5f else 1.0f
+    val sheetWidthPercent = if (isLandscape) 0.48f else 1.0f
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -53,7 +58,7 @@ fun QualitySettingsSideSheet(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (isLandscape) Color.Black.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.1f))
+                    .background(if (isLandscape) Color.Black.copy(alpha = 0.50f) else Color.Black.copy(alpha = 0.40f))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -101,45 +106,47 @@ fun QualitySettingsSideSheet(
                     .wrapContentHeight(Alignment.Bottom)
             }
         ) {
-            Box(
+            Surface(
                 modifier = if (isLandscape) {
                     Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f))
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
                         )
                 } else {
                     Modifier
                         .fillMaxWidth()
                         .wrapContentHeight()
-                        .heightIn(max = (configuration.screenHeightDp * 0.6f).dp)
+                        .heightIn(max = (configuration.screenHeightDp * 0.75f).dp)
                         .animateContentSize(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                        .background(
-                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.65f),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                        )
                         .border(
                             width = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                         )
-                }
+                },
+                shape = if (isLandscape) {
+                    RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+                } else {
+                    RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                },
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+                tonalElevation = 8.dp
             ) {
                 Column(
                     modifier = if (isLandscape) {
                         Modifier
                             .fillMaxSize()
                             .systemBarsPadding()
-                            .padding(horizontal = 24.dp, vertical = 20.dp)
+                            .padding(horizontal = 22.dp, vertical = 18.dp)
                     } else {
                         Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
                             .statusBarsPadding()
-                            .padding(horizontal = 24.dp, vertical = 20.dp)
+                            .padding(horizontal = 22.dp, vertical = 18.dp)
                     }
                 ) {
                     // Header
@@ -150,20 +157,41 @@ fun QualitySettingsSideSheet(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = "Stream Quality Selection",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.HighQuality,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Stream Quality",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = when (qualityState.streamType) {
+                                        StreamType.DIRECT_FILE -> "Direct media file"
+                                        StreamType.ADAPTIVE_MANIFEST -> "Adaptive HLS / DASH stream"
+                                        StreamType.PLATFORM_URL -> "Platform video stream"
+                                        StreamType.UNKNOWN -> "Network video"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         IconButton(onClick = onDismiss) {
                             Icon(
@@ -173,75 +201,159 @@ fun QualitySettingsSideSheet(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Data Saver Toggle
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)
+                        ),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Data Saver",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Limits resolution to 480p and reduces buffer size to save data.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Data Saver",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Limits resolution to 480p and reduces buffer size.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Switch(
+                                checked = playbackSettings.isDataSaverEnabled,
+                                onCheckedChange = onDataSaverToggled
                             )
                         }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Switch(
-                            checked = playbackSettings.isDataSaverEnabled,
-                            onCheckedChange = onDataSaverToggled
-                        )
                     }
 
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                     )
 
-                    // Scrollable content
-                    Column(
-                        modifier = Modifier
-                            .then(
-                                if (isLandscape) Modifier.weight(1f)
-                                else Modifier.weight(1f, fill = false)
-                            )
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        val qualities = listOf(
-                            -1 to "Auto / Maximum Quality",
-                            2160 to "2160p (4K)",
-                            1440 to "1440p (2K)",
-                            1080 to "1080p (Full HD)",
-                            720 to "720p (HD)",
-                            480 to "480p",
-                            360 to "360p",
-                            240 to "240p",
-                            144 to "144p"
-                        )
+                    // Content Area
+                    if (qualityState.isLoading && qualityState.availableQualities.isEmpty()) {
+                        // Loading State
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 3.dp,
+                                    modifier = Modifier.size(34.dp)
+                                )
+                                Text(
+                                    text = "Checking available stream qualities...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else if (qualityState.streamType == StreamType.DIRECT_FILE) {
+                        // Direct Media File Informational Card
+                        val fixedOption = qualityState.currentQuality ?: qualityState.availableQualities.firstOrNull()
+                        val resText = if (fixedOption != null && fixedOption.width > 0 && fixedOption.height > 0) {
+                            "${fixedOption.width}x${fixedOption.height}"
+                        } else if (fixedOption != null && fixedOption.height > 0) {
+                            "${fixedOption.height}p"
+                        } else {
+                            "source resolution"
+                        }
 
-                        qualities.forEach { (q, label) ->
-                            val isSelected = playbackSettings.ytdlQuality == q
-                            QualityItem(
-                                title = label,
-                                isSelected = isSelected,
-                                onClick = {
-                                    onSelectQuality(q)
-                                    onDismiss()
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f)
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = "Original Quality",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "This video is a direct file with a fixed resolution ($resText).",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            )
+                            }
+                        }
+                    } else {
+                        // Variable Stream Qualities (HLS / DASH / yt-dlp)
+                        val qualities = qualityState.availableQualities
+                        if (qualities.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Auto stream quality active",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(
+                                    items = qualities,
+                                    key = { "${it.id}_${it.height}_${it.isAuto}" }
+                                ) { option ->
+                                    QualityOptionRow(
+                                        option = option,
+                                        isSelected = option.isSelected,
+                                        onClick = {
+                                            onSelectQuality(option)
+                                            onDismiss()
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -251,21 +363,17 @@ fun QualitySettingsSideSheet(
 }
 
 @Composable
-private fun QualityItem(
-    title: String,
+private fun QualityOptionRow(
+    option: VideoQualityOption,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f)
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f)
     }
-    val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
-    }
+
     val contentColor = if (isSelected) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -275,27 +383,45 @@ private fun QualityItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(containerColor)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = contentColor,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = option.label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor
+            )
+            if (option.fps > 30) {
+                Text(
+                    text = "${option.fps} fps high frame rate",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         if (isSelected) {
             Icon(
-                imageVector = Icons.Rounded.CheckCircle,
+                imageVector = Icons.Outlined.Check,
                 contentDescription = "Selected",
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
+            )
+        } else {
+            RadioButton(
+                selected = false,
+                onClick = null,
+                colors = RadioButtonDefaults.colors(
+                    unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.size(20.dp)
             )
         }
     }

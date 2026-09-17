@@ -53,7 +53,10 @@ fun HistoryScreen(
     allVideos: List<Video>,
     onVideoSelected: (Video, List<Video>, Long) -> Unit,
     onBack: () -> Unit,
-    homeViewModel: HomeViewModel = viewModel()
+    homeViewModel: HomeViewModel = viewModel(),
+    onPlayStream: (Uri) -> Unit = {},
+    onNetworkHistoryClick: () -> Unit = {},
+    onNavigateToYtdlpSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val history by homeViewModel.history.collectAsState()
@@ -61,7 +64,26 @@ fun HistoryScreen(
     var isGridView by rememberSaveable { mutableStateOf(false) }
     var selectedUris by remember { mutableStateOf(emptySet<String>()) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showNetworkDialog by remember { mutableStateOf(false) }
     var selectedVideoForInfo by remember { mutableStateOf<Video?>(null) }
+
+    if (showNetworkDialog) {
+        NetworkStreamDialog(
+            onDismiss = { showNetworkDialog = false },
+            onPlay = { uri ->
+                showNetworkDialog = false
+                onPlayStream(uri)
+            },
+            onHistoryClick = {
+                showNetworkDialog = false
+                onNetworkHistoryClick()
+            },
+            onNavigateToYtdlpSettings = {
+                showNetworkDialog = false
+                onNavigateToYtdlpSettings()
+            }
+        )
+    }
 
     val isSelectionMode = selectedUris.isNotEmpty()
 
@@ -163,6 +185,13 @@ fun HistoryScreen(
                             )
                         }
                     } else {
+                        IconButton(onClick = { showNetworkDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Language,
+                                contentDescription = "Play Network Stream",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         if (historyVideos.isNotEmpty()) {
                             IconButton(onClick = { isGridView = !isGridView }) {
                                 Icon(
@@ -206,11 +235,28 @@ fun HistoryScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = stringResource(R.string.history_no_history),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.history_no_history),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = { showNetworkDialog = true },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Language,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Play Network Stream")
+                    }
+                }
             }
         } else {
             val playlist = remember(historyVideos) { historyVideos }

@@ -56,6 +56,7 @@ fun LibraryHomeScreen(
     onNavigateToSearch: (String) -> Unit,
     onPlayStream: (Uri) -> Unit = {},
     onNetworkHistoryClick: () -> Unit = {},
+    onNavigateToYtdlpSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -76,6 +77,10 @@ fun LibraryHomeScreen(
             onHistoryClick = {
                 showNetworkDialog = false
                 onNetworkHistoryClick()
+            },
+            onNavigateToYtdlpSettings = {
+                showNetworkDialog = false
+                onNavigateToYtdlpSettings()
             }
         )
     }

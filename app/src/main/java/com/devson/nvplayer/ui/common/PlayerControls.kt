@@ -109,6 +109,7 @@ fun PlayerControls(
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
     ytdlQuality: Int = -1,
+    currentQualityLabel: String = "",
     onShowQuality: () -> Unit = {},
     isBottomLayoutEnabled: Boolean = false,
     showControlGradients: Boolean = true,
@@ -258,6 +259,7 @@ fun PlayerControls(
                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                 onBackgroundPlayClick = onBackgroundPlayClick,
                 ytdlQuality = ytdlQuality,
+                currentQualityLabel = currentQualityLabel,
                 onShowQuality = onShowQuality,
                 onTitleClick = onTitleClick,
                 onScreenshotClick = onScreenshotClick
@@ -539,6 +541,7 @@ fun PlayerControls(
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                         onBackgroundPlayClick = onBackgroundPlayClick,
                         ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
                         onShowQuality = onShowQuality,
                         onTitleClick = onTitleClick,
                         onScreenshotClick = onScreenshotClick
@@ -578,6 +581,7 @@ fun PlayerControls(
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
                         onBackgroundPlayClick = onBackgroundPlayClick,
                         ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
                         onShowQuality = onShowQuality,
                         onTitleClick = onTitleClick,
                         onScreenshotClick = onScreenshotClick
@@ -1007,6 +1011,7 @@ fun RenderPlayerButton(
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
     ytdlQuality: Int = -1,
+    currentQualityLabel: String = "",
     onShowQuality: () -> Unit = {},
     onTitleClick: () -> Unit = {},
     onScreenshotClick: () -> Unit = {}
@@ -1109,7 +1114,11 @@ fun RenderPlayerButton(
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             } else if (button == PlayerButton.STREAM_QUALITY) {
-                val label = if (ytdlQuality == -1) "Auto" else "${ytdlQuality}p"
+                val label = when {
+                    currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
+                    ytdlQuality == -1 -> "Auto"
+                    else -> "${ytdlQuality}p"
+                }
                 Text(
                     text = label,
                     color = Color.White,
@@ -1179,7 +1188,11 @@ fun RenderPlayerButton(
                     fontWeight = FontWeight.Bold
                 )
             } else if (button == PlayerButton.STREAM_QUALITY) {
-                val label = if (ytdlQuality == -1) "Auto" else "${ytdlQuality}p"
+                val label = when {
+                    currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
+                    ytdlQuality == -1 -> "Auto"
+                    else -> "${ytdlQuality}p"
+                }
                 Text(
                     text = label,
                     color = Color.White,

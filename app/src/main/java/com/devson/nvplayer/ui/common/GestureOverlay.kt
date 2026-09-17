@@ -691,7 +691,7 @@ fun GestureOverlay(
                         else -> Icons.Rounded.BrightnessHigh
                     },
                     contentDescription = "Brightness",
-                    tint = Color(0xFFFFB300),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -706,11 +706,7 @@ fun GestureOverlay(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight((currentBrightnessPercent / 100f).coerceIn(0f, 1f))
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color(0xFFFFD600), Color(0xFFFF8F00))
-                                )
-                            )
+                            .background(MaterialTheme.colorScheme.primary)
                             .align(Alignment.BottomStart)
                     )
                 }

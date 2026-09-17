@@ -42,7 +42,12 @@ import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import android.media.MediaMetadataRetriever
+import com.devson.nvplayer.data.model.StreamQualityState
+import com.devson.nvplayer.data.model.StreamType
+import com.devson.nvplayer.data.model.VideoQualityOption
+import com.devson.nvplayer.util.StreamQualityHelper
 
 data class PreFetchedVideoMetadata(
     val width: Int,
@@ -78,6 +83,27 @@ class PlayerViewModel(
     val networkSpeedBytesPerSec = MutableStateFlow(0L)
     val bufferDurationSeconds = MutableStateFlow(0.0)
     val isNetworkStream = MutableStateFlow(false)
+
+    private val _streamQualityState = MutableStateFlow(StreamQualityState())
+    val streamQualityState: StateFlow<StreamQualityState> = _streamQualityState.asStateFlow()
+
+    private val _isQualitySelectorVisible = MutableStateFlow(false)
+    val isQualitySelectorVisible: StateFlow<Boolean> = _isQualitySelectorVisible.asStateFlow()
+
+    private val _qualityHudMessage = MutableStateFlow<String?>(null)
+    val qualityHudMessage: StateFlow<String?> = _qualityHudMessage.asStateFlow()
+
+    fun openQualitySelector() {
+        _isQualitySelectorVisible.value = true
+    }
+
+    fun closeQualitySelector() {
+        _isQualitySelectorVisible.value = false
+    }
+
+    fun clearQualityHudMessage() {
+        _qualityHudMessage.value = null
+    }
 
     private val _isHwSupported = MutableStateFlow(true)
     val isHwSupported: StateFlow<Boolean> = _isHwSupported.asStateFlow()
@@ -229,6 +255,52 @@ class PlayerViewModel(
                     clearPlaybackProgress()
                 }
             }
+        }
+
+        viewModelScope.launch {
+            playbackState.collect { state ->
+                if (state is PlayerState.Playing) {
+                    val currentStreamType = _streamQualityState.value.streamType
+                    if (currentStreamType == StreamType.ADAPTIVE_MANIFEST) {
+                        val adaptiveTracks = playerEngine.getAdaptiveTracks()
+                        if (adaptiveTracks.isNotEmpty()) {
+                            val selected = adaptiveTracks.firstOrNull { it.isSelected } ?: adaptiveTracks.firstOrNull()
+                            _streamQualityState.value = StreamQualityState(
+                                streamType = StreamType.ADAPTIVE_MANIFEST,
+                                isLoading = false,
+                                availableQualities = adaptiveTracks,
+                                currentQuality = selected
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            combine(
+                playerEngine.videoWidth,
+                playerEngine.videoHeight
+            ) { w, h -> Pair(w.toInt(), h.toInt()) }
+                .distinctUntilChanged()
+                .collect { (w, h) ->
+                    val currentState = _streamQualityState.value
+                    if (currentState.streamType == StreamType.DIRECT_FILE && h > 0) {
+                        val fixedOpt = VideoQualityOption(
+                            id = "fixed",
+                            label = "Original (${h}p)",
+                            height = h,
+                            width = w,
+                            isSelected = true,
+                            isFixed = true
+                        )
+                        _streamQualityState.value = currentState.copy(
+                            isLoading = false,
+                            availableQualities = listOf(fixedOpt),
+                            currentQuality = fixedOpt
+                        )
+                    }
+                }
         }
         // Auto-play next video when current finishes, if setting is enabled
         viewModelScope.launch {
@@ -532,6 +604,84 @@ class PlayerViewModel(
         hwdecEverActiveForCurrentVideo = false
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
+
+        val urlString = uri.toString()
+        val sType = if (isNetworkStream.value) {
+            StreamQualityHelper.classifyUrl(urlString)
+        } else {
+            StreamType.UNKNOWN
+        }
+
+        when (sType) {
+            StreamType.PLATFORM_URL -> {
+                val defaultAuto = VideoQualityOption(
+                    id = "auto",
+                    label = "Auto (Recommended)",
+                    isAuto = true,
+                    isSelected = true
+                )
+                _streamQualityState.value = StreamQualityState(
+                    streamType = StreamType.PLATFORM_URL,
+                    isLoading = true,
+                    availableQualities = listOf(defaultAuto),
+                    currentQuality = defaultAuto
+                )
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        val probed = StreamQualityHelper.probePlatformQualities(getApplication(), urlString)
+                        withContext(Dispatchers.Main) {
+                            if (_currentUri.value == uri) {
+                                val prefQuality = settingsRepo.playbackSettingsFlow.value.ytdlQuality
+                                val updated = probed.map { opt ->
+                                    val isMatch = if (prefQuality == -1) opt.isAuto else opt.height == prefQuality
+                                    opt.copy(isSelected = isMatch)
+                                }
+                                val selected = updated.firstOrNull { it.isSelected }
+                                    ?: updated.firstOrNull { it.isAuto }
+                                    ?: updated.firstOrNull()
+                                _streamQualityState.value = StreamQualityState(
+                                    streamType = StreamType.PLATFORM_URL,
+                                    isLoading = false,
+                                    availableQualities = updated,
+                                    currentQuality = selected
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("PlayerViewModel", "Error in async quality probing: ${e.message}")
+                        withContext(Dispatchers.Main) {
+                            if (_currentUri.value == uri) {
+                                val fallback = listOf(defaultAuto)
+                                _streamQualityState.value = StreamQualityState(
+                                    streamType = StreamType.PLATFORM_URL,
+                                    isLoading = false,
+                                    availableQualities = fallback,
+                                    currentQuality = fallback[0]
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            StreamType.ADAPTIVE_MANIFEST -> {
+                _streamQualityState.value = StreamQualityState(
+                    streamType = StreamType.ADAPTIVE_MANIFEST,
+                    isLoading = true
+                )
+            }
+            StreamType.DIRECT_FILE -> {
+                _streamQualityState.value = StreamQualityState(
+                    streamType = StreamType.DIRECT_FILE,
+                    isLoading = false
+                )
+            }
+            StreamType.UNKNOWN -> {
+                _streamQualityState.value = StreamQualityState(
+                    streamType = StreamType.UNKNOWN,
+                    isLoading = false
+                )
+            }
+        }
 
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
@@ -1043,46 +1193,42 @@ class PlayerViewModel(
         playerEngine.selectChapter(index)
     }
 
-    fun changeYtdlQuality(quality: Int) {
-        viewModelScope.launch {
-            settingsRepo.updateYtdlQuality(quality)
-            val updatedSettings = settingsRepo.playbackSettingsFlow.value.copy(ytdlQuality = quality)
-            
-            val uri = _currentUri.value
-            if (uri != null && isNetworkStream.value) {
-                val currentPos = playerEngine.currentPosition.value
-                val isPlayingBefore = playerEngine.isPlaying.value
-                
-                Log.d("PlayerViewModel", "Reloading stream with new quality: $quality at pos: $currentPos")
-                
-                // Save progress to watch history first so it is restored on reload
-                withContext(Dispatchers.IO) {
-                    val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-                    val existing = dao.getHistory(uri.toString())
-                    dao.insert(
-                        WatchHistoryEntity(
-                            uri = uri.toString(),
-                            lastPositionMs = currentPos,
-                            lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
-                            videoTitle = existing?.videoTitle ?: mediaTitle.value
-                        )
-                    )
-                }
-                
-                isPositionRestored = false
-                
-                // Re-apply options in the running MPV engine
-                YtdlpManager.setupMpvOptions(getApplication(), updatedSettings)
-                
-                // Force reload of the video
-                playerEngine.loadVideo(uri)
-                
-                if (isPlayingBefore) {
-                    playerEngine.play()
-                }
-            }
+    fun selectQuality(option: VideoQualityOption) {
+        val uri = _currentUri.value ?: return
+        val currentState = _streamQualityState.value
+        val url = uri.toString()
+
+        val updatedQualities = currentState.availableQualities.map { opt ->
+            val isCurrent = (opt.id == option.id && opt.height == option.height && opt.isAuto == option.isAuto)
+            opt.copy(isSelected = isCurrent)
         }
+        val selectedOption = updatedQualities.firstOrNull { it.isSelected } ?: option.copy(isSelected = true)
+
+        _streamQualityState.value = currentState.copy(
+            availableQualities = updatedQualities,
+            currentQuality = selectedOption
+        )
+
+        val targetHeight = if (selectedOption.isAuto) -1 else selectedOption.height
+        viewModelScope.launch {
+            settingsRepo.updateYtdlQuality(targetHeight)
+        }
+
+        playerEngine.changeStreamQuality(selectedOption, url, currentState.streamType)
+
+        val hudLabel = if (selectedOption.isAuto) "Auto" else "${selectedOption.height}p"
+        _qualityHudMessage.value = "Quality set to $hudLabel"
+    }
+
+    fun changeYtdlQuality(quality: Int) {
+        val currentQualities = _streamQualityState.value.availableQualities
+        val matchingOption = if (quality == -1) {
+            currentQualities.firstOrNull { it.isAuto } ?: VideoQualityOption(id = "auto", label = "Auto", isAuto = true)
+        } else {
+            currentQualities.firstOrNull { it.height == quality }
+                ?: VideoQualityOption(id = "${quality}p", label = "${quality}p", height = quality)
+        }
+        selectQuality(matchingOption)
     }
 
     fun toggleDataSaver(enabled: Boolean) {

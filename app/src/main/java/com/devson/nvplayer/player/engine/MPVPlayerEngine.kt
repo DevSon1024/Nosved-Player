@@ -11,6 +11,9 @@ import com.devson.nvplayer.player.model.TrackInfo
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
+import com.devson.nvplayer.data.model.StreamType
+import com.devson.nvplayer.data.model.VideoQualityOption
+import com.devson.nvplayer.util.StreamQualityHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -890,6 +893,150 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    private var pendingRestoreSid: String? = null
+    private var pendingRestoreAid: String? = null
+
+    override fun getAdaptiveTracks(): List<VideoQualityOption> {
+        val list = mutableListOf<VideoQualityOption>()
+        try {
+            val count = MPVLib.getPropertyInt("track-list/count") ?: 0
+            val currentVid = try { MPVLib.getPropertyString("vid") } catch (_: Exception) { "auto" }
+
+            list.add(
+                VideoQualityOption(
+                    id = "auto",
+                    label = "Auto (Recommended)",
+                    isAuto = true,
+                    isSelected = (currentVid == "auto" || currentVid.isNullOrBlank())
+                )
+            )
+
+            val videoTracks = mutableListOf<VideoQualityOption>()
+            for (i in 0 until count) {
+                val type = MPVLib.getPropertyString("track-list/$i/type") ?: ""
+                if (type != "video") continue
+
+                val id = MPVLib.getPropertyInt("track-list/$i/id") ?: (i + 1)
+                val h = MPVLib.getPropertyInt("track-list/$i/demux-h") ?: 0
+                val w = MPVLib.getPropertyInt("track-list/$i/demux-w") ?: 0
+                val fps = MPVLib.getPropertyDouble("track-list/$i/demux-fps")?.toInt()
+                    ?: MPVLib.getPropertyInt("track-list/$i/demux-fps") ?: 0
+                val bitrate = MPVLib.getPropertyLong("track-list/$i/demux-bitrate")
+                    ?: (MPVLib.getPropertyInt("track-list/$i/demux-bitrate")?.toLong() ?: 0L)
+                val isSelected = MPVLib.getPropertyBoolean("track-list/$i/selected") ?: false
+
+                if (h > 0) {
+                    videoTracks.add(
+                        VideoQualityOption(
+                            id = id.toString(),
+                            label = StreamQualityHelper.formatResolutionLabel(h, w, fps),
+                            height = h,
+                            width = w,
+                            bitrate = bitrate,
+                            fps = fps,
+                            isSelected = isSelected || (currentVid == id.toString())
+                        )
+                    )
+                }
+            }
+
+            val distinctTracks = videoTracks
+                .groupBy { it.height }
+                .map { (_, options) ->
+                    options.maxByOrNull { it.bitrate } ?: options.first()
+                }
+                .sortedByDescending { it.height }
+
+            list.addAll(distinctTracks)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to extract adaptive tracks", e)
+        }
+        return list
+    }
+
+    override fun changeStreamQuality(
+        quality: VideoQualityOption,
+        streamUrl: String,
+        streamType: StreamType
+    ) {
+        when (streamType) {
+            StreamType.ADAPTIVE_MANIFEST -> {
+                try {
+                    if (quality.isAuto) {
+                        MPVLib.setPropertyString("vid", "auto")
+                    } else {
+                        val trackId = quality.id.toIntOrNull()
+                        if (trackId != null) {
+                            MPVLib.setPropertyInt("vid", trackId)
+                        } else {
+                            MPVLib.setPropertyString("vid", quality.id)
+                        }
+                    }
+                    updateTracks()
+                } catch (e: Exception) {
+                    Log.e("MPVPlayerEngine", "Failed to change adaptive stream quality", e)
+                }
+            }
+            StreamType.PLATFORM_URL -> {
+                try {
+                    val currentPos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+                    val currentSid = MPVLib.getPropertyString("sid") ?: "no"
+                    val currentAid = MPVLib.getPropertyString("aid") ?: "auto"
+
+                    pendingRestoreSid = currentSid
+                    pendingRestoreAid = currentAid
+
+                    val formatString = if (quality.isAuto) {
+                        "bestvideo+bestaudio/best"
+                    } else {
+                        "bestvideo[height<=?${quality.height}]+bestaudio/best[height<=?${quality.height}]"
+                    }
+
+                    MPVLib.setPropertyString("ytdl-format", formatString)
+
+                    val options = buildList {
+                        add("start=$currentPos")
+                        if (currentSid.isNotBlank() && currentSid != "no") add("sid=$currentSid")
+                        if (currentAid.isNotBlank() && currentAid != "auto") add("aid=$currentAid")
+                    }.joinToString(",")
+
+                    Log.d("MPVPlayerEngine", "Reloading platform stream at pos $currentPos with format: $formatString, options: $options")
+                    MPVLib.command("loadfile", streamUrl, "replace", options)
+                } catch (e: Exception) {
+                    Log.e("MPVPlayerEngine", "Failed to change platform stream quality", e)
+                }
+            }
+            StreamType.DIRECT_FILE, StreamType.UNKNOWN -> {
+                // Progressive single-quality files cannot be switched
+            }
+        }
+    }
+
+    private fun restorePendingQualityTracks() {
+        try {
+            val sid = pendingRestoreSid
+            if (!sid.isNullOrBlank()) {
+                Log.d("MPVPlayerEngine", "Restoring subtitle track after quality reload: $sid")
+                MPVLib.setPropertyString("sid", sid)
+                if (sid == "no") {
+                    MPVLib.setPropertyString("sub-visibility", "no")
+                    _currentSubtitleText.value = ""
+                } else {
+                    MPVLib.setPropertyString("sub-visibility", "yes")
+                }
+                pendingRestoreSid = null
+            }
+            val aid = pendingRestoreAid
+            if (!aid.isNullOrBlank()) {
+                Log.d("MPVPlayerEngine", "Restoring audio track after quality reload: $aid")
+                MPVLib.setPropertyString("aid", aid)
+                pendingRestoreAid = null
+            }
+        } catch (e: Exception) {
+            Log.w("MPVPlayerEngine", "Failed to restore tracks after quality reload", e)
+        }
+    }
+
     override fun release() {
         Log.d("MPVPlayerEngine", "Releasing MPVPlayerEngine resources")
         activeInstance = null
@@ -999,6 +1146,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _isPlaying.value = true
                 updateTracks()
                 applyDefaultLanguagePreferences()
+                restorePendingQualityTracks()
                 updateChapters()
                 togglePerformanceOverlayFromConf()
                 val settings = settingsRepo.playbackSettingsFlow.value

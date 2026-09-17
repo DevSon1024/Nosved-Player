@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material3.*
@@ -30,12 +31,29 @@ import kotlinx.coroutines.launch
 fun NetworkHistoryScreen(
     homeViewModel: HomeViewModel,
     onBack: () -> Unit,
-    onPlayStream: (Uri) -> Unit
+    onPlayStream: (Uri) -> Unit,
+    onNavigateToYtdlpSettings: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val streams by homeViewModel.networkHistory.collectAsState(initial = emptyList())
     var showClearDialog by remember { mutableStateOf(false) }
+    var showNetworkDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    if (showNetworkDialog) {
+        NetworkStreamDialog(
+            onDismiss = { showNetworkDialog = false },
+            onPlay = { uri ->
+                showNetworkDialog = false
+                onPlayStream(uri)
+            },
+            onHistoryClick = { showNetworkDialog = false },
+            onNavigateToYtdlpSettings = {
+                showNetworkDialog = false
+                onNavigateToYtdlpSettings()
+            }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -48,6 +66,13 @@ fun NetworkHistoryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showNetworkDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Language,
+                            contentDescription = "Play Network Stream",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     if (streams.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
                             Icon(
@@ -64,6 +89,18 @@ fun NetworkHistoryScreen(
                     navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onBackground
                 )
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { showNetworkDialog = true },
+                shape = RoundedCornerShape(16.dp),
+                icon = {
+                    Icon(Icons.Rounded.Language, contentDescription = null)
+                },
+                text = {
+                    Text("Play Stream")
+                }
             )
         }
     ) { padding ->
@@ -90,6 +127,19 @@ fun NetworkHistoryScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { showNetworkDialog = true },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Language,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Play Network Stream")
+                    }
                 }
             }
         } else {

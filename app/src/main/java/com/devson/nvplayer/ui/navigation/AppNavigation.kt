@@ -330,6 +330,11 @@ fun AppNavigation(
                     navController.navigate("player") {
                         launchSingleTop = true
                     }
+                },
+                onNavigateToYtdlpSettings = {
+                    navController.navigate("ytdlp_settings") {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -392,6 +397,11 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToYtdlpSettings = {
+                    navController.navigate("ytdlp_settings") {
+                        launchSingleTop = true
+                    }
+                },
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel,
                 vaultGalleryViewModel = vaultGalleryViewModel,
@@ -424,7 +434,35 @@ fun AppNavigation(
                     }
                 },
                 onBack = safePopBackStack,
-                homeViewModel = homeViewModel
+                homeViewModel = homeViewModel,
+                onPlayStream = { uri ->
+                    val playerVm = playerViewModel()
+                    val dummyVideo = Video(
+                        uri = uri.toString(),
+                        title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
+                        duration = 0L,
+                        folderName = "",
+                        path = uri.path ?: "",
+                        size = 0L,
+                        width = 0,
+                        height = 0
+                    )
+                    playerVm.setQueue(listOf(dummyVideo))
+                    playerVm.prepareVideo(uri, listOf(uri))
+                    navController.navigate("player") {
+                        launchSingleTop = true
+                    }
+                },
+                onNetworkHistoryClick = {
+                    navController.navigate("network_history") {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToYtdlpSettings = {
+                    navController.navigate("ytdlp_settings") {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
@@ -763,6 +801,11 @@ fun AppNavigation(
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToYtdlpSettings = {
+                    navController.navigate("ytdlp_settings") {
                         launchSingleTop = true
                     }
                 }
