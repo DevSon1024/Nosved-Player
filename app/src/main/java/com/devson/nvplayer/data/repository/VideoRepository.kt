@@ -14,6 +14,9 @@ class VideoRepository(
 ) {
     private val settingsRepo = PlaybackSettingsRepository(context)
     val videoMetadataDao = com.devson.nvplayer.data.database.AppDatabase.getDatabase(context).videoMetadataDao()
+    val watchHistoryRepository: WatchHistoryRepository by lazy {
+        WatchHistoryRepository(context)
+    }
 
     suspend fun scanCommonDirectories() = withContext(Dispatchers.IO) {
         val pathsToScan = mutableListOf<String>()
@@ -74,7 +77,14 @@ class VideoRepository(
 
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
-        mediaStoreHelper.getAllVideos(blacklisted)
+        val videos = mediaStoreHelper.getAllVideos(blacklisted)
+        watchHistoryRepository.syncWatchHistoryFileStatus(videos)
+        videos
+    }
+
+    suspend fun syncWatchHistory(scannedVideos: List<VideoItem>? = null) = withContext(Dispatchers.IO) {
+        val videos = scannedVideos ?: getAllVideos()
+        watchHistoryRepository.syncWatchHistoryFileStatus(videos)
     }
 
     suspend fun getFolders(): List<FolderItem> = withContext(Dispatchers.IO) {

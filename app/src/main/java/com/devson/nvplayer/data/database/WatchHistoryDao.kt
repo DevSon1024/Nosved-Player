@@ -73,6 +73,12 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_history WHERE historyId = :historyId LIMIT 1")
     suspend fun getByHistoryId(historyId: String): WatchHistoryEntity?
 
+    @Query("SELECT * FROM watch_history WHERE originalPath = :path LIMIT 1")
+    suspend fun getHistoryByPath(path: String): WatchHistoryEntity?
+
+    @Query("SELECT * FROM watch_history WHERE isNetworkStream = 0")
+    suspend fun getLocalHistorySync(): List<WatchHistoryEntity>
+
     @Query("UPDATE watch_history SET isDeleted = :isDeleted WHERE uri = :uri")
     suspend fun setDeletedStatus(uri: String, isDeleted: Boolean)
 
