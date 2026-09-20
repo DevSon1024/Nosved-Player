@@ -468,7 +468,7 @@ fun StreakRulesCard(modifier: Modifier = Modifier) {
 
             RuleBulletItem(
                 number = "1",
-                text = "Watch at least 10% of any video's duration to qualify for the day."
+                text = "Watch at least 10% (or 30 seconds for videos 1 minute or longer) to qualify for the day."
             )
             RuleBulletItem(
                 number = "2",

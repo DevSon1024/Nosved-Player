@@ -39,6 +39,28 @@ class WatchTracker(
         private const val TAG = "WatchTracker"
         const val THROTTLE_INTERVAL_MS = 5000L
         const val SEEK_TOLERANCE_MS = 500L
+        const val ONE_MINUTE_MS = 60_000L
+        const val FIXED_THRESHOLD_MS = 30_000L
+
+        /**
+         * Calculates required actual watch time in milliseconds to qualify for daily streak progress.
+         *
+         * Hybrid rule:
+         * - If duration is invalid or unknown (<= 0), returns Long.MAX_VALUE (cannot qualify).
+         * - If duration < 60 seconds (60,000 ms):
+         *       required actual watch time = 10% of video duration: (durationMs * 10) / 100
+         * - If duration >= 60 seconds (60,000 ms):
+         *       required actual watch time = 30 seconds (30,000 ms)
+         * - Very short videos (> 0 ms) have a minimum threshold of at least 1 ms to prevent zero/negative thresholds.
+         */
+        fun requiredWatchTimeMs(durationMs: Long): Long {
+            if (durationMs <= 0L) return Long.MAX_VALUE
+            return if (durationMs < ONE_MINUTE_MS) {
+                maxOf(1L, (durationMs * 10L) / 100L)
+            } else {
+                FIXED_THRESHOLD_MS
+            }
+        }
     }
 
     var currentUri: String? = null
@@ -65,10 +87,9 @@ class WatchTracker(
     private var lastSaveWallClockTimeMs: Long = 0L
     private var isSeeking: Boolean = false
 
-    fun calculateThreshold(duration: Long): Long {
-        if (duration <= 0L) return Long.MAX_VALUE
-        return (duration * 0.10).toLong()
-    }
+    fun requiredWatchTimeMs(durationMs: Long): Long = Companion.requiredWatchTimeMs(durationMs)
+
+    fun calculateThreshold(duration: Long): Long = requiredWatchTimeMs(duration)
 
     fun onVideoChanged(
         uri: String,
@@ -100,8 +121,9 @@ class WatchTracker(
                 val existing = watchHistoryDao.getHistory(uri)
                 if (existing != null) {
                     accumulatedWatchedMs = existing.totalPlaybackTimeMs
-                    val threshold = calculateThreshold(if (durationMs > 0L) durationMs else existing.durationMs)
-                    if (threshold > 0L && accumulatedWatchedMs >= threshold) {
+                    val effectiveDuration = if (durationMs > 0L) durationMs else existing.durationMs
+                    val threshold = requiredWatchTimeMs(effectiveDuration)
+                    if (effectiveDuration > 0L && threshold != Long.MAX_VALUE && accumulatedWatchedMs >= threshold) {
                         hasQualified = true
                     }
                 }
@@ -172,6 +194,13 @@ class WatchTracker(
             return
         }
 
+        if (deltaWall > 3000L) {
+            // Gap in ticks (e.g. backgrounding, sleep, or thread freeze): do not credit discontinuous time
+            lastPositionMs = positionMs
+            lastWallClockTimeMs = wallClockMs
+            return
+        }
+
         if (deltaPos <= 0L) {
             // Seek backwards, loop restart, or buffering at same position
             lastPositionMs = positionMs
@@ -196,9 +225,9 @@ class WatchTracker(
         lastPositionMs = positionMs
         lastWallClockTimeMs = wallClockMs
 
-        // Check if 10% qualification threshold reached
-        val threshold = calculateThreshold(this.durationMs)
-        if (!hasQualified && this.durationMs > 0L && accumulatedWatchedMs >= threshold) {
+        // Check if qualification threshold reached
+        val threshold = requiredWatchTimeMs(this.durationMs)
+        if (!hasQualified && this.durationMs > 0L && threshold != Long.MAX_VALUE && accumulatedWatchedMs >= threshold) {
             hasQualified = true
             scope.launch {
                 handleQualification(positionMs)

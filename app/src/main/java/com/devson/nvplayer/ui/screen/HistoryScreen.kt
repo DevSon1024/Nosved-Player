@@ -281,7 +281,7 @@ fun HistoryScreen(
 
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .weight(1f)
                 ) {
                     if (!isGridView) {
