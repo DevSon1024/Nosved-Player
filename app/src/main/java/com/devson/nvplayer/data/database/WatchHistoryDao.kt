@@ -57,4 +57,62 @@ interface WatchHistoryDao {
         )
         insertStream(entity)
     }
+
+    @Query("SELECT * FROM watch_history WHERE isDeleted = 0 ORDER BY lastPlayedAt DESC")
+    fun getActiveHistoryFlow(): Flow<List<WatchHistoryEntity>>
+
+    @Query("SELECT * FROM watch_history WHERE isDeleted = 0 ORDER BY lastPlayedAt DESC")
+    suspend fun getActiveHistorySync(): List<WatchHistoryEntity>
+
+    @Query("SELECT * FROM watch_history WHERE isDeleted = 1 ORDER BY lastPlayedAt DESC")
+    fun getDeletedHistoryFlow(): Flow<List<WatchHistoryEntity>>
+
+    @Query("SELECT * FROM watch_history WHERE isDeleted = 1 ORDER BY lastPlayedAt DESC")
+    suspend fun getDeletedHistorySync(): List<WatchHistoryEntity>
+
+    @Query("SELECT * FROM watch_history WHERE historyId = :historyId LIMIT 1")
+    suspend fun getByHistoryId(historyId: String): WatchHistoryEntity?
+
+    @Query("UPDATE watch_history SET isDeleted = :isDeleted WHERE uri = :uri")
+    suspend fun setDeletedStatus(uri: String, isDeleted: Boolean)
+
+    @Query("UPDATE watch_history SET isDeleted = 1 WHERE uri = :uri")
+    suspend fun markAsDeleted(uri: String)
+
+    @Query("UPDATE watch_history SET isDeleted = 0 WHERE uri = :uri")
+    suspend fun restoreHistory(uri: String)
+
+    @Query("SELECT * FROM watch_history WHERE watchDate = :watchDate ORDER BY lastPlayedAt DESC")
+    suspend fun getHistoryForDate(watchDate: String): List<WatchHistoryEntity>
+
+    @Query("SELECT * FROM watch_history WHERE watchDate = :watchDate ORDER BY lastPlayedAt DESC")
+    fun getHistoryForDateFlow(watchDate: String): Flow<List<WatchHistoryEntity>>
+
+    @Query("SELECT * FROM watch_history WHERE watchDate BETWEEN :startDate AND :endDate ORDER BY watchDate ASC, lastPlayedAt DESC")
+    suspend fun getHistoryBetweenDates(startDate: String, endDate: String): List<WatchHistoryEntity>
+
+    @Query("SELECT * FROM watch_history WHERE isCompleted = 1 ORDER BY lastPlayedAt DESC")
+    fun getCompletedVideosFlow(): Flow<List<WatchHistoryEntity>>
+
+    @Query(
+        """
+        UPDATE watch_history 
+        SET lastPositionMs = :positionMs, 
+            playbackProgress = :progress, 
+            isCompleted = :isCompleted, 
+            totalPlaybackTimeMs = :totalPlaybackTimeMs, 
+            lastPlayedAt = :lastPlayedAt, 
+            watchDate = :watchDate 
+        WHERE uri = :uri
+        """
+    )
+    suspend fun updatePlaybackProgress(
+        uri: String,
+        positionMs: Long,
+        progress: Float,
+        isCompleted: Boolean,
+        totalPlaybackTimeMs: Long,
+        lastPlayedAt: Long,
+        watchDate: String
+    )
 }
