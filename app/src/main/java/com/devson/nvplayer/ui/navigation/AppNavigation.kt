@@ -23,6 +23,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavController
 import androidx.lifecycle.Lifecycle
 import com.devson.nvplayer.ui.screen.HistoryScreen
+import com.devson.nvplayer.ui.screen.StreakScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
@@ -50,6 +51,7 @@ import com.devson.nvplayer.viewmodel.VaultAuthViewModel
 import com.devson.nvplayer.viewmodel.VaultGalleryViewModel
 import com.devson.nvplayer.viewmodel.LibraryViewModel
 import com.devson.nvplayer.viewmodel.HomeViewModel
+import com.devson.nvplayer.viewmodel.WatchHistoryViewModel
 import com.devson.nvplayer.viewmodel.PlayerViewModel
 import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 import com.devson.nvplayer.viewmodel.SettingsViewModel
@@ -434,6 +436,11 @@ fun AppNavigation(
                     }
                 },
                 onBack = safePopBackStack,
+                onNavigateToStreak = {
+                    navController.navigate("streak") {
+                        launchSingleTop = true
+                    }
+                },
                 homeViewModel = homeViewModel,
                 onPlayStream = { uri ->
                     val playerVm = playerViewModel()
@@ -463,6 +470,16 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+
+        composable("streak") {
+            val watchHistoryViewModel: WatchHistoryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = WatchHistoryViewModel.Factory(context)
+            )
+            StreakScreen(
+                watchHistoryViewModel = watchHistoryViewModel,
+                onBack = safePopBackStack
             )
         }
 
