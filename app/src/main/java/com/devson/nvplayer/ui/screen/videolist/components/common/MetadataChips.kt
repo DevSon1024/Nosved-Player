@@ -39,6 +39,27 @@ data class MetaToken(
     val type: MetaChipType = MetaChipType.DEFAULT
 )
 
+fun getSubtitleTokens(video: Video): List<MetaToken> = buildList {
+    // Embedded Subtitles in Green color (MX Player style)
+    video.embeddedSubtitles
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .forEach { sub ->
+            val label = if (sub.equals("SUB", ignoreCase = true)) "SUB" else sub.uppercase(Locale.ROOT)
+            add(MetaToken(label, MetaChipType.EMBEDDED_SUBTITLE))
+        }
+
+    // External Subtitles in Blue color (MX Player style)
+    video.externalSubtitles
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .forEach { sub ->
+            add(MetaToken(sub.uppercase(Locale.ROOT), MetaChipType.EXTERNAL_SUBTITLE))
+        }
+}
+
 @Composable
 fun VideoMetadataRow(
     video: Video,
@@ -79,25 +100,12 @@ fun VideoMetadataChips(
             add(MetaToken(formatDate(video.dateAdded)))
     }.filter { it.text.isNotBlank() }
 
-    val subtitleTokens = buildList {
-        // Embedded Subtitles in Green color (MX Player style)
-        video.embeddedSubtitles.distinct().forEach { sub ->
-            val label = if (sub.isBlank() || sub.equals("SUB", ignoreCase = true)) "SUB" else sub.uppercase(Locale.ROOT)
-            add(MetaToken(label, MetaChipType.EMBEDDED_SUBTITLE))
-        }
-
-        // External Subtitles in Blue color (MX Player style)
-        video.externalSubtitles.distinct().forEach { sub ->
-            add(MetaToken(sub.uppercase(Locale.ROOT), MetaChipType.EXTERNAL_SUBTITLE))
-        }
-    }.filter { it.text.isNotBlank() }
+    val subtitleTokens = getSubtitleTokens(video)
 
     val visibleTokens = if (isGrid) {
-        val std = standardTokens.take(1)
-        val subs = subtitleTokens.take(2)
-        if (subs.isEmpty()) standardTokens.take(2) else std + subs
+        standardTokens.take(2)
     } else {
-        standardTokens.take(3) + subtitleTokens.take(3)
+        subtitleTokens.take(2) + standardTokens.take(3)
     }
 
     if (visibleTokens.isEmpty()) return
@@ -114,17 +122,47 @@ fun VideoMetadataChips(
 }
 
 @Composable
+fun SubtitleBadge(
+    token: MetaToken,
+    isGrid: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val (bgColor, textColor) = when (token.type) {
+        MetaChipType.EXTERNAL_SUBTITLE -> Color(0xFF1976D2) to Color.White
+        else -> Color(0xFF2E7D32) to Color.White
+    }
+    Box(
+        modifier = modifier
+            .background(
+                color = bgColor,
+                shape = RoundedCornerShape(5.dp)
+            )
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = token.text,
+            color = textColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            fontSize = if (isGrid) 11.sp else 10.sp,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
 fun MetadataChip(token: MetaToken, isGrid: Boolean = false) {
     val (bgColor, textColor, fontWeight) = when (token.type) {
         MetaChipType.EMBEDDED_SUBTITLE -> Triple(
-            Color(0xFF2E7D32).copy(alpha = 0.22f),
-            Color(0xFF4CAF50),
-            FontWeight.SemiBold
+            Color(0xFF2E7D32),
+            Color.White,
+            FontWeight.Bold
         )
         MetaChipType.EXTERNAL_SUBTITLE -> Triple(
-            Color(0xFF1976D2).copy(alpha = 0.22f),
-            Color(0xFF2196F3),
-            FontWeight.SemiBold
+            Color(0xFF1976D2),
+            Color.White,
+            FontWeight.Bold
         )
         MetaChipType.PRIMARY -> Triple(
             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),

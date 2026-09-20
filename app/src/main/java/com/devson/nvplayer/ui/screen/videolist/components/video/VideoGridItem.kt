@@ -119,9 +119,10 @@ fun VideoGridItem(
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
                         }
                     }
-                    if (!isSelected) WatchStateBadge(watchState, isLarge = true)
-                    if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
-                        DurationBadge(video.duration, isGrid = true)
+                    if (!isSelected) {
+                        WatchStateBadge(watchState, isLarge = true)
+                        VideoThumbnailBadges(video, settings, isGrid = true)
+                    }
                     WatchProgressBar(lastPositionMs, video.duration)
                     ThumbnailSelectionOverlay(isSelected)
                 }
@@ -148,7 +149,7 @@ fun VideoGridItem(
                             }
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        VideoMetadataChips(video, settings, lastPositionMs)
+                        VideoMetadataChips(video, settings, lastPositionMs, isGrid = true)
                     }
                 }
             }
@@ -203,11 +204,10 @@ fun VideoGridItem(
                     }
                 }
 
-                if (!isSelected) WatchStateBadge(watchState, isLarge = settings.gridColumns <= 2)
-
-                // Duration badge
-                if (settings.showLength && settings.displayLengthOverThumbnail && !isSelected)
-                    DurationBadge(video.duration, isGrid = true)
+                if (!isSelected) {
+                    WatchStateBadge(watchState, isLarge = settings.gridColumns <= 2)
+                    VideoThumbnailBadges(video, settings, isGrid = true)
+                }
  
                 // Watch-progress bar
                 WatchProgressBar(lastPositionMs, video.duration)

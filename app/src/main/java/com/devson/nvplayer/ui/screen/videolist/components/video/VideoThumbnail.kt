@@ -37,6 +37,10 @@ import com.devson.nvplayer.util.formatDuration
 
 import androidx.compose.material.icons.filled.MovieFilter
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.domain.model.ViewSettings
+import com.devson.nvplayer.ui.screen.videolist.components.common.SubtitleBadge
+import com.devson.nvplayer.ui.screen.videolist.components.common.getSubtitleTokens
 
 /**
  * A branded Material Design 3 placeholder displayed while video thumbnails load.
@@ -170,16 +174,14 @@ fun ThumbnailSelectionOverlay(isSelected: Boolean, isDense: Boolean = false) {
 }
 
 @Composable
-fun BoxScope.DurationBadge(
+fun DurationPill(
     duration: Long,
-    isGrid: Boolean,
-    alignment: Alignment
+    isGrid: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val formattedDuration = remember(duration) { formatDuration(duration) }
     Box(
-        modifier = Modifier
-            .align(alignment)
-            .padding(if (isGrid) 6.dp else 4.dp)
+        modifier = modifier
             .background(
                 color = Color.Black.copy(alpha = 0.72f),
                 shape = RoundedCornerShape(5.dp)
@@ -194,6 +196,53 @@ fun BoxScope.DurationBadge(
             fontSize = if (isGrid) 11.sp else 10.sp
         )
     }
+}
+
+@Composable
+fun BoxScope.VideoThumbnailBadges(
+    video: Video,
+    settings: ViewSettings,
+    isGrid: Boolean = true
+) {
+    val subtitleTokens = remember(video.embeddedSubtitles, video.externalSubtitles) {
+        getSubtitleTokens(video)
+    }
+    val showDuration = settings.showLength && settings.displayLengthOverThumbnail
+    val showSubtitle = isGrid && subtitleTokens.isNotEmpty()
+
+    if (showDuration || showSubtitle) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(if (isGrid) 6.dp else 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showSubtitle) {
+                subtitleTokens.take(1).forEach { token ->
+                    SubtitleBadge(token = token, isGrid = isGrid)
+                }
+            }
+            if (showDuration) {
+                DurationPill(duration = video.duration, isGrid = isGrid)
+            }
+        }
+    }
+}
+
+@Composable
+fun BoxScope.DurationBadge(
+    duration: Long,
+    isGrid: Boolean,
+    alignment: Alignment
+) {
+    DurationPill(
+        duration = duration,
+        isGrid = isGrid,
+        modifier = Modifier
+            .align(alignment)
+            .padding(if (isGrid) 6.dp else 4.dp)
+    )
 }
 
 @Composable
