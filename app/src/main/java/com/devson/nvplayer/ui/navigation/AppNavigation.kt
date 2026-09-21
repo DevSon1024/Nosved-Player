@@ -709,6 +709,11 @@ fun AppNavigation(
                 onVaultClick = {
                     navController.popBackStack("profile", inclusive = true)
                     navigateToTopLevel("vault")
+                },
+                onStreakClick = {
+                    navController.navigate("streak") {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -823,6 +828,11 @@ fun AppNavigation(
                 },
                 onNavigateToYtdlpSettings = {
                     navController.navigate("ytdlp_settings") {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToStreak = {
+                    navController.navigate("streak") {
                         launchSingleTop = true
                     }
                 }

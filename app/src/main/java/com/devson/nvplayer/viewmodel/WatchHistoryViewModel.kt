@@ -127,9 +127,10 @@ class WatchHistoryViewModel(
 
     val streakUiState: StateFlow<StreakUiState> = combine(
         streakEntityFlow,
-        dailyWatchesFlow
-    ) { streakEntity, dailyWatches ->
-        calculateStreakUiState(streakEntity, dailyWatches)
+        dailyWatchesFlow,
+        historyItems
+    ) { streakEntity, dailyWatches, historyList ->
+        calculateStreakUiState(streakEntity, dailyWatches, historyList)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -138,7 +139,8 @@ class WatchHistoryViewModel(
 
     fun calculateStreakUiState(
         streakEntity: StreakStateEntity?,
-        dailyWatches: List<DailyWatchEntity>
+        dailyWatches: List<DailyWatchEntity>,
+        historyList: List<VideoHistoryItem> = emptyList()
     ): StreakUiState {
         val todayStr = dateProvider()
         val todayDate = runCatching { LocalDate.parse(todayStr) }.getOrElse { LocalDate.now() }
@@ -150,7 +152,7 @@ class WatchHistoryViewModel(
         val rawCurrent = streakEntity?.currentStreak ?: 0
         val lastDateStr = streakEntity?.lastQualifyingWatchDate
 
-        val effectiveCurrentStreak = if (rawCurrent <= 0 || lastDateStr.isNullOrBlank()) {
+        val rawCurrentStreakFromEntity = if (rawCurrent <= 0 || lastDateStr.isNullOrBlank()) {
             0
         } else {
             val lastDate = runCatching { LocalDate.parse(lastDateStr) }.getOrNull()
@@ -167,22 +169,45 @@ class WatchHistoryViewModel(
             }
         }
 
-        val longestStreak = maxOf(streakEntity?.longestStreak ?: 0, effectiveCurrentStreak)
-
-        val todayStatus = when {
-            isQualifiedToday -> TodayStreakStatus.COMPLETED
-            effectiveCurrentStreak > 0 -> TodayStreakStatus.PENDING
-            else -> TodayStreakStatus.NOT_STARTED
-        }
-
         val qualifyingDateSet = HashSet<String>()
         for (watch in dailyWatches) {
             if (watch.qualifyingVideoCount > 0) {
                 qualifyingDateSet.add(watch.date)
             }
         }
+        for (item in historyList) {
+            if (item.watchedDate.isNotBlank()) {
+                qualifyingDateSet.add(item.watchedDate)
+            } else if (item.lastPlayedAt > 0L) {
+                val itemDate = runCatching {
+                    java.time.Instant.ofEpochMilli(item.lastPlayedAt)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDate()
+                        .format(DateTimeFormatter.ISO_LOCAL_DATE)
+                }.getOrNull()
+                if (itemDate != null) {
+                    qualifyingDateSet.add(itemDate)
+                }
+            }
+        }
         if (isQualifiedToday) {
             qualifyingDateSet.add(todayStr)
+        }
+
+        var consecutiveDays = 0
+        var checkDate = if (isQualifiedToday) todayDate else todayDate.minusDays(1)
+        while (qualifyingDateSet.contains(checkDate.format(DateTimeFormatter.ISO_LOCAL_DATE))) {
+            consecutiveDays++
+            checkDate = checkDate.minusDays(1)
+        }
+
+        val effectiveCurrentStreak = maxOf(rawCurrentStreakFromEntity, consecutiveDays)
+        val longestStreak = maxOf(streakEntity?.longestStreak ?: 0, effectiveCurrentStreak)
+
+        val todayStatus = when {
+            isQualifiedToday -> TodayStreakStatus.COMPLETED
+            effectiveCurrentStreak > 0 -> TodayStreakStatus.PENDING
+            else -> TodayStreakStatus.NOT_STARTED
         }
 
         val recentDays = (6 downTo 0).map { offset ->
@@ -201,7 +226,7 @@ class WatchHistoryViewModel(
         return StreakUiState(
             currentStreak = effectiveCurrentStreak,
             longestStreak = longestStreak,
-            lastQualifyingDate = lastDateStr,
+            lastQualifyingDate = if (isQualifiedToday) todayStr else (if (consecutiveDays > 0) todayDate.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE) else lastDateStr),
             isQualifiedToday = isQualifiedToday,
             todayStatus = todayStatus,
             recentDays = recentDays

@@ -251,32 +251,43 @@ class WatchTracker(
             // Check streak status
             val streak = streakDao.getStreak() ?: StreakStateEntity(id = 1)
             val lastDateStr = streak.lastQualifyingWatchDate
+            val yesterday = try {
+                LocalDate.parse(today).minusDays(1).toString()
+            } catch (_: Exception) {
+                null
+            }
 
             if (lastDateStr != today) {
                 val isConsecutive = try {
-                    if (lastDateStr.isNullOrBlank()) {
-                        false
+                    if (!lastDateStr.isNullOrBlank() && LocalDate.parse(lastDateStr).plusDays(1) == LocalDate.parse(today)) {
+                        true
+                    } else if (yesterday != null) {
+                        val yesterdayWatch = dailyWatchDao.getDailyWatch(yesterday)
+                        val yesterdayHistory = watchHistoryDao.getHistoryForDate(yesterday)
+                        (yesterdayWatch != null && yesterdayWatch.qualifyingVideoCount > 0) ||
+                                yesterdayHistory.isNotEmpty()
                     } else {
-                        val lastDate = LocalDate.parse(lastDateStr)
-                        val currentDate = LocalDate.parse(today)
-                        lastDate.plusDays(1) == currentDate
+                        false
                     }
                 } catch (_: Exception) {
                     false
                 }
 
                 val newCurrentStreak = if (isConsecutive) {
-                    streak.currentStreak + 1
+                    maxOf(streak.currentStreak, 1) + 1
                 } else {
                     1
                 }
                 val newLongestStreak = maxOf(streak.longestStreak, newCurrentStreak)
 
-                streakDao.updateStreak(
-                    currentStreak = newCurrentStreak,
-                    longestStreak = newLongestStreak,
-                    lastQualifyingDate = today,
-                    timestamp = clock()
+                streakDao.insertOrUpdate(
+                    StreakStateEntity(
+                        id = 1,
+                        currentStreak = newCurrentStreak,
+                        longestStreak = newLongestStreak,
+                        lastQualifyingWatchDate = today,
+                        lastUpdatedTimestamp = clock()
+                    )
                 )
             }
 
