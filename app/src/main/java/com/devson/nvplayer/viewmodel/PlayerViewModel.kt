@@ -596,7 +596,8 @@ class PlayerViewModel(
      * Prepares media Uri and SAF permissions in advance before loading file in the native engine.
      */
     fun prepareVideo(uri: Uri, playlistUris: List<Uri> = emptyList()) {
-        Log.d("PlayerViewModel", "Preparing video URI: $uri, playlist size: ${playlistUris.size}")
+        val prepStartTime = System.currentTimeMillis()
+        Log.d("PlayerViewModel", "[TIMING] prepareVideo started for URI: $uri, playlist size: ${playlistUris.size} at $prepStartTime")
         _currentUri.value = uri
         _playlist.value = playlistUris
         
@@ -775,32 +776,36 @@ class PlayerViewModel(
     fun loadVideoIfNeeded() {
         val uri = _currentUri.value
         if (uri != null && !isVideoLoaded) {
-            Log.d("PlayerViewModel", "Loading prepared video into engine: $uri")
-            playerEngine.loadVideo(uri)
-            isVideoLoaded = true
-            
-            // Set playback speed to customPlaybackSpeed preference value
+            val loadStart = System.currentTimeMillis()
+            Log.d("PlayerViewModel", "[TIMING] loadVideoIfNeeded started for: $uri at $loadStart")
+
+            // 1. Apply saved decoder setting BEFORE loadfile to prevent decoder teardown and re-creation
+            playerEngine.setDecoder(playbackSettings.value.decoderMode)
+
+            // 2. Set playback speed to customPlaybackSpeed preference value
             val customSpeed = settingsRepo.playbackSettingsFlow.value.customPlaybackSpeed
             setPlaybackSpeed(customSpeed)
 
-            // Apply saved audio boost
+            // 3. Apply saved audio boost / volume
             if (_audioBoosterEnabled.value) {
                 playerEngine.setMpvVolume(_audioBoostVolume.value.toDouble())
             } else {
                 playerEngine.setMpvVolume(100.0)
             }
 
-            // Apply saved decoder setting
-            playerEngine.setDecoder(playbackSettings.value.decoderMode)
-
-            // Apply saved aspect mode
+            // 4. Apply saved aspect mode
             playerEngine.setAspectMode(playbackSettings.value.aspectMode)
 
-            // Apply smart enhance settings
+            // 5. Apply smart enhance settings
             applyEnhanceSettings(playbackSettings.value)
 
-            // Apply saved subtitle settings
+            // 6. Apply saved subtitle settings
             playerEngine.applySubtitleSettings(playbackSettings.value)
+
+            // 7. Load prepared video into engine
+            playerEngine.loadVideo(uri)
+            isVideoLoaded = true
+            Log.d("PlayerViewModel", "[TIMING] loadVideoIfNeeded pre-configuration dispatched in ${System.currentTimeMillis() - loadStart}ms")
         }
     }
 

@@ -28,9 +28,39 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
         @Volatile
         var activeInstance: MPVPlayerEngine? = null
+
+        fun isAviPathOrName(pathOrUriString: String): Boolean {
+            val lower = pathOrUriString.lowercase()
+            return lower.endsWith(".avi") ||
+                   lower.contains(".avi?") ||
+                   lower.contains(".avi#") ||
+                   lower.contains(".avi/") ||
+                   lower.contains(".avi&")
+        }
+
+        fun isAviHeader(headerBytes: ByteArray): Boolean {
+            if (headerBytes.size < 12) return false
+            val isRiff = headerBytes[0] == 'R'.code.toByte() &&
+                         headerBytes[1] == 'I'.code.toByte() &&
+                         headerBytes[2] == 'F'.code.toByte() &&
+                         headerBytes[3] == 'F'.code.toByte()
+            val isAvi = headerBytes[8] == 'A'.code.toByte() &&
+                        headerBytes[9] == 'V'.code.toByte() &&
+                        headerBytes[10] == 'I'.code.toByte() &&
+                        headerBytes[11] == ' '.code.toByte()
+            return isRiff && isAvi
+        }
     }
 
     private val settingsRepo = PlaybackSettingsRepository(context)
+
+    private var baseProbeInfo: String = "auto"
+    private var baseAnalyzeDuration: String = "0"
+    private var baseProbeSize: String = "0"
+    private var showPerformanceOverlayFromConf: Boolean = false
+    private var loadStartTimeMs: Long = 0L
+    private var currentLoadingUri: String = ""
+
 
     private val _isPlaying = MutableStateFlow(false)
     override val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -158,6 +188,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                                 val key = trimmed.substring(0, eqIdx).trim()
                                 val value = trimmed.substring(eqIdx + 1).trim()
                                 if (key.isNotEmpty()) {
+                                    if (key == "demuxer-lavf-probe-info") {
+                                        baseProbeInfo = value
+                                    } else if (key == "demuxer-lavf-analyzeduration") {
+                                        baseAnalyzeDuration = value
+                                    } else if (key == "demuxer-lavf-probesize") {
+                                        baseProbeSize = value
+                                    } else if (key == "stats-ring" && value == "yes") {
+                                        showPerformanceOverlayFromConf = true
+                                    }
                                     Log.d("MPVPlayerEngine", "Applying custom mpv option from mpv.conf: $key = $value")
                                     try {
                                         MPVLib.setOptionString(key, value)
@@ -167,6 +206,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                                 }
                             } else {
                                 val key = trimmed
+                                if (key == "stats-ring") {
+                                    showPerformanceOverlayFromConf = true
+                                }
                                 Log.d("MPVPlayerEngine", "Applying custom mpv flag option from mpv.conf: $key")
                                 try {
                                     MPVLib.setOptionString(key, "yes")
@@ -230,7 +272,62 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    fun isAviMedia(uri: Uri): Boolean {
+        val uriStr = uri.toString()
+        if (isAviPathOrName(uriStr)) {
+            return true
+        }
+        val path = uri.path
+        if (path != null && isAviPathOrName(path)) {
+            return true
+        }
+        val lastSegment = uri.lastPathSegment
+        if (lastSegment != null && isAviPathOrName(lastSegment)) {
+            return true
+        }
+
+        if (uri.scheme == "content") {
+            try {
+                val mime = context.contentResolver.getType(uri)?.lowercase()
+                if (mime != null && (mime.contains("avi") || mime.contains("msvideo"))) {
+                    return true
+                }
+            } catch (_: Exception) {}
+
+            try {
+                val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (nameIndex >= 0) {
+                            val displayName = cursor.getString(nameIndex)
+                            if (displayName != null && isAviPathOrName(displayName)) {
+                                return true
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            try {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val header = ByteArray(12)
+                    val bytesRead = stream.read(header, 0, 12)
+                    if (bytesRead == 12 && isAviHeader(header)) {
+                        return true
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
     override fun loadVideo(uri: Uri) {
+        loadStartTimeMs = System.currentTimeMillis()
+        val uriString = uri.toString()
+        currentLoadingUri = uriString
+        Log.d("MPVPlayerEngine", "[TIMING] loadVideo started for: $uriString at $loadStartTimeMs")
+
         _playbackState.value = PlayerState.Loading
         _mediaTitle.value = ""
         _currentPosition.value = 0L
@@ -243,17 +340,26 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _bufferDurationSeconds.value = 0.0
         _bufferedPosition.value = 0L
 
-        applyMpvConfOptions()
+        val isAvi = isAviMedia(uri)
+        if (isAvi) {
+            Log.d("MPVPlayerEngine", "Enabling optimized fast path for AVI container: probe-info=no, analyzeduration=0, probesize=32768")
+            try { MPVLib.setPropertyString("demuxer-lavf-probe-info", "no") } catch (e: Exception) { Log.w("MPVPlayerEngine", "Failed to set demuxer-lavf-probe-info", e) }
+            try { MPVLib.setPropertyString("demuxer-lavf-analyzeduration", "0") } catch (e: Exception) { Log.w("MPVPlayerEngine", "Failed to set demuxer-lavf-analyzeduration", e) }
+            try { MPVLib.setPropertyString("demuxer-lavf-probesize", "32768") } catch (e: Exception) { Log.w("MPVPlayerEngine", "Failed to set demuxer-lavf-probesize", e) }
+        } else {
+            try { MPVLib.setPropertyString("demuxer-lavf-probe-info", baseProbeInfo) } catch (_: Exception) {}
+            try { MPVLib.setPropertyString("demuxer-lavf-analyzeduration", baseAnalyzeDuration) } catch (_: Exception) {}
+            try { MPVLib.setPropertyString("demuxer-lavf-probesize", baseProbeSize) } catch (_: Exception) {}
+        }
 
-        val uriString = uri.toString()
-        Log.d("MPVPlayerEngine", "Loading media file: $uriString")
         try {
             try { MPVLib.command("stop") } catch (_: Exception) {}
+            val loadfileStart = System.currentTimeMillis()
             MPVLib.command("loadfile", uriString)
+            Log.d("MPVPlayerEngine", "[TIMING] loadfile command dispatched in ${System.currentTimeMillis() - loadfileStart}ms")
             MPVLib.setPropertyBoolean("pause", false) // Auto-play the loaded media file
             MPVLib.setPropertyString("secondary-sid", "no")
             val settings = settingsRepo.playbackSettingsFlow.value
-            applySubtitleSettings(settings)
             setAmbientMode(settings.isAmbientModeEnabled, settings.ambientBlurStyle)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to load file via MPVLib", e)
@@ -1139,9 +1245,12 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         Log.d("MPVPlayerEngine", "Event received from MPV: $eventId")
         when (eventId) {
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
+                Log.d("MPVPlayerEngine", "[TIMING] MPV_EVENT_START_FILE at ${System.currentTimeMillis() - loadStartTimeMs}ms from loadVideo")
                 _playbackState.value = PlayerState.Loading
             }
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                val elapsed = System.currentTimeMillis() - loadStartTimeMs
+                Log.d("MPVPlayerEngine", "[TIMING] MPV_EVENT_FILE_LOADED: Media ready and playing in ${elapsed}ms for $currentLoadingUri")
                 _playbackState.value = PlayerState.Playing
                 _isPlaying.value = true
                 updateTracks()
@@ -1164,11 +1273,12 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
-    private fun applyMpvConfOptions() {
+    fun reloadMpvConfig() {
         val mpvConfFile = File(context.filesDir, "mpv.conf")
         if (!mpvConfFile.exists()) return
-        Log.d("MPVPlayerEngine", "Reading mpv.conf options for dynamic application in loadVideo")
+        Log.d("MPVPlayerEngine", "Reloading mpv.conf options")
         try {
+            showPerformanceOverlayFromConf = false
             mpvConfFile.forEachLine { line ->
                 val trimmed = line.trim()
                 if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
@@ -1177,58 +1287,44 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                         val key = trimmed.substring(0, eqIdx).trim()
                         val value = trimmed.substring(eqIdx + 1).trim()
                         if (key.isNotEmpty()) {
+                            if (key == "demuxer-lavf-probe-info") baseProbeInfo = value
+                            if (key == "demuxer-lavf-analyzeduration") baseAnalyzeDuration = value
+                            if (key == "demuxer-lavf-probesize") baseProbeSize = value
+                            if (key == "stats-ring" && value == "yes") showPerformanceOverlayFromConf = true
                             try {
                                 MPVLib.setPropertyString(key, value)
-                                Log.d("MPVPlayerEngine", "Dynamic setPropertyString: $key = $value")
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 try {
                                     MPVLib.setOptionString(key, value)
-                                    Log.d("MPVPlayerEngine", "Dynamic setOptionString: $key = $value")
-                                } catch (ex: Exception) {
-                                    Log.e("MPVPlayerEngine", "Failed to dynamically set property/option: $key = $value", ex)
-                                }
+                                } catch (_: Exception) {}
                             }
                         }
                     } else {
                         val key = trimmed
+                        if (key == "stats-ring") showPerformanceOverlayFromConf = true
                         try {
                             MPVLib.setPropertyString(key, "yes")
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             try {
-                                MPVLib.setPropertyString(key, "")
-                            } catch (ex: Exception) {
-                                try {
-                                    MPVLib.setOptionString(key, "yes")
-                                } catch (ex2: Exception) {
-                                    Log.e("MPVPlayerEngine", "Failed to dynamically set flag: $key", ex2)
-                                }
-                            }
+                                MPVLib.setOptionString(key, "yes")
+                            } catch (_: Exception) {}
                         }
                     }
                 }
             }
         } catch (e: Exception) {
-            Log.e("MPVPlayerEngine", "Error dynamically applying mpv.conf in loadVideo", e)
+            Log.e("MPVPlayerEngine", "Error reloading mpv.conf", e)
         }
     }
 
     private fun togglePerformanceOverlayFromConf() {
-        val mpvConfFile = File(context.filesDir, "mpv.conf")
-        if (!mpvConfFile.exists()) return
-        try {
-            var showStats = false
-            mpvConfFile.forEachLine { line ->
-                val trimmed = line.trim()
-                if (trimmed.startsWith("stats-ring=yes")) {
-                    showStats = true
-                }
-            }
-            if (showStats) {
+        if (showPerformanceOverlayFromConf) {
+            try {
                 MPVLib.command("script-binding", "stats/display-stats")
                 Log.d("MPVPlayerEngine", "Performance overlay displayed via script-binding")
+            } catch (e: Exception) {
+                Log.e("MPVPlayerEngine", "Failed to toggle performance overlay", e)
             }
-        } catch (e: Exception) {
-            Log.e("MPVPlayerEngine", "Failed to toggle performance overlay", e)
         }
     }
 

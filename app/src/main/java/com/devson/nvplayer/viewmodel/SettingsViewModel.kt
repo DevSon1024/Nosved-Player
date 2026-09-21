@@ -456,6 +456,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val success = MpvConfigRepository.saveMpvConfig(getApplication(), content)
             if (success) {
                 _mpvConfigFlow.value = content
+                com.devson.nvplayer.player.engine.MPVPlayerEngine.activeInstance?.reloadMpvConfig()
             }
             onResult(success)
         }

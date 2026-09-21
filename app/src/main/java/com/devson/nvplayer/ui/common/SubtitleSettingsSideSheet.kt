@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.List
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -194,7 +195,7 @@ fun SubtitleSettingsSideSheet(
                             selected = selectedTabIndex == 0,
                             onClick = { selectedTabIndex = 0 },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                            icon = { Icon(Icons.Rounded.List, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            icon = { Icon(Icons.AutoMirrored.Rounded.List, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         ) {
                             Text("Tracks", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
