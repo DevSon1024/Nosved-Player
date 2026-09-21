@@ -96,7 +96,7 @@ fun DecoderSideSheet(
                     modifier = Modifier
                         .fillMaxSize()
                         .systemBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                        .padding(start = 20.dp, end = 20.dp, top = 18.dp)
                 ) {
                     // Header Card
                     Row(
@@ -241,8 +241,14 @@ fun DecoderSideSheet(
                                                     )
                                                 }
 
+                                                val titleText = when (mode) {
+                                                    DecoderMode.AUTO -> "Auto (Recommended)"
+                                                    DecoderMode.HW -> "Hardware"
+                                                    DecoderMode.HW_PLUS -> "Hardware+"
+                                                    DecoderMode.SW -> "Software"
+                                                }
                                                 Text(
-                                                    text = mode.displayName,
+                                                    text = titleText,
                                                     style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
                                                     color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
