@@ -61,7 +61,10 @@ data class PreFetchedVideoMetadata(
 @kotlin.OptIn(kotlinx.coroutines.FlowPreview::class)
 class PlayerViewModel(
     application: Application,
-    private val playerEngine: PlayerEngine
+    private val playerEngine: PlayerEngine,
+    val watchTracker: com.devson.nvplayer.player.tracker.WatchTracker = com.devson.nvplayer.player.tracker.WatchTracker(
+        AppDatabase.getDatabase(application)
+    )
 ) : AndroidViewModel(application) {
 
     // Expose flows from the MPV player engine
@@ -221,12 +224,36 @@ class PlayerViewModel(
                 .collectLatest { title ->
                     val uri = _currentUri.value
                     if (uri != null && !title.isNullOrBlank() && isNetworkStream.value) {
+                        watchTracker.updateVideoMetadata(title = title, folderName = null, durationMs = duration.value)
                         withContext(Dispatchers.IO) {
                             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
                             dao.insertOrUpdateStream(uri.toString(), title)
                         }
                     }
                 }
+        }
+
+        // Observe playback position and progress to feed the watch tracker
+        viewModelScope.launch {
+            combine(currentPosition, duration, isPlaying) { pos, dur, playing ->
+                Triple(pos, dur, playing)
+            }.collect { (pos, dur, playing) ->
+                watchTracker.onPlaybackTick(
+                    positionMs = pos,
+                    durationMs = dur,
+                    isPlaying = playing,
+                    playbackSpeed = _playbackSpeed.value
+                )
+            }
+        }
+
+        // Observe duration changes to ensure watchTracker always has accurate video duration
+        viewModelScope.launch {
+            duration.collect { dur ->
+                if (dur > 0L) {
+                    watchTracker.updateVideoMetadata(title = null, folderName = null, durationMs = dur, path = null)
+                }
+            }
         }
 
         // Observe Ambient Mode setting and style changes and pass to native MPV engine
@@ -605,6 +632,21 @@ class PlayerViewModel(
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
 
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        val resolvedTitle = matchedVideo?.title ?: uri.lastPathSegment?.substringBeforeLast('.')
+        val resolvedDuration = if ((matchedVideo?.duration ?: 0L) > 0L) (matchedVideo?.duration ?: 0L) else duration.value
+        val resolvedPath = matchedVideo?.path ?: uri.path
+        val resolvedFolder = matchedVideo?.folderName
+
+        watchTracker.onVideoChanged(
+            uri = uri.toString(),
+            title = resolvedTitle,
+            folderName = resolvedFolder,
+            durationMs = resolvedDuration,
+            isNetworkStream = isNetworkStream.value,
+            originalPath = resolvedPath
+        )
+
         val urlString = uri.toString()
         val sType = if (isNetworkStream.value) {
             StreamQualityHelper.classifyUrl(urlString)
@@ -687,7 +729,7 @@ class PlayerViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
             if (isNetworkStream.value) {
-                dao.insertOrUpdateStream(uri.toString(), null)
+                dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
             } else {
                 val existing = dao.getHistory(uri.toString())
                 if (existing == null) {
@@ -696,17 +738,21 @@ class PlayerViewModel(
                             uri = uri.toString(),
                             lastPositionMs = 0L,
                             lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = false
+                            isNetworkStream = false,
+                            videoTitle = resolvedTitle,
+                            originalPath = resolvedPath,
+                            folderName = resolvedFolder,
+                            durationMs = resolvedDuration
                         )
                     )
                 } else {
                     dao.insert(
-                        WatchHistoryEntity(
-                            uri = uri.toString(),
-                            lastPositionMs = existing.lastPositionMs,
+                        existing.copy(
                             lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = existing.isNetworkStream,
-                            videoTitle = existing.videoTitle
+                            videoTitle = existing.videoTitle ?: resolvedTitle,
+                            originalPath = existing.originalPath ?: resolvedPath,
+                            folderName = existing.folderName ?: resolvedFolder,
+                            durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
                         )
                     )
                 }
@@ -810,11 +856,26 @@ class PlayerViewModel(
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
 
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        val resolvedTitle = matchedVideo?.title ?: mediaTitle.value.ifBlank { null } ?: uri.lastPathSegment?.substringBeforeLast('.')
+        val resolvedDuration = if ((matchedVideo?.duration ?: 0L) > 0L) (matchedVideo?.duration ?: 0L) else duration.value
+        val resolvedPath = matchedVideo?.path ?: uri.path
+        val resolvedFolder = matchedVideo?.folderName
+
+        watchTracker.onVideoChanged(
+            uri = uri.toString(),
+            title = resolvedTitle,
+            folderName = resolvedFolder,
+            durationMs = resolvedDuration,
+            isNetworkStream = isNetworkStream.value,
+            originalPath = resolvedPath
+        )
+
         // Save progress as 0 if not already present, and update timestamp
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
             if (isNetworkStream.value) {
-                dao.insertOrUpdateStream(uri.toString(), null)
+                dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
             } else {
                 val existing = dao.getHistory(uri.toString())
                 if (existing == null) {
@@ -823,17 +884,21 @@ class PlayerViewModel(
                             uri = uri.toString(),
                             lastPositionMs = 0L,
                             lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = false
+                            isNetworkStream = false,
+                            videoTitle = resolvedTitle,
+                            originalPath = resolvedPath,
+                            folderName = resolvedFolder,
+                            durationMs = resolvedDuration
                         )
                     )
                 } else {
                     dao.insert(
-                        WatchHistoryEntity(
-                            uri = uri.toString(),
-                            lastPositionMs = existing.lastPositionMs,
+                        existing.copy(
                             lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = existing.isNetworkStream,
-                            videoTitle = existing.videoTitle
+                            videoTitle = existing.videoTitle ?: resolvedTitle,
+                            originalPath = existing.originalPath ?: resolvedPath,
+                            folderName = existing.folderName ?: resolvedFolder,
+                            durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
                         )
                     )
                 }
@@ -882,15 +947,15 @@ class PlayerViewModel(
             viewModelScope.launch(Dispatchers.IO) {
                 val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
                 val existing = dao.getHistory(uri.toString())
-                dao.insert(
-                    WatchHistoryEntity(
-                        uri = uri.toString(),
-                        lastPositionMs = pos,
-                        lastPlayedAt = System.currentTimeMillis(),
-                        isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
-                        videoTitle = existing?.videoTitle ?: mediaTitle.value
-                    )
+                val updated = (existing ?: WatchHistoryEntity(uri = uri.toString())).copy(
+                    lastPositionMs = pos,
+                    lastPlayedAt = System.currentTimeMillis(),
+                    isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
+                    videoTitle = mediaTitle.value.ifBlank { existing?.videoTitle },
+                    durationMs = if (dur > 0L) dur else (existing?.durationMs ?: 0L),
+                    playbackProgress = if (dur > 0L) (pos.toFloat() / dur).coerceIn(0f, 1f) else (existing?.playbackProgress ?: 0f)
                 )
+                dao.insert(updated)
                 Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
             }
         }
@@ -913,13 +978,25 @@ class PlayerViewModel(
                 )
 
                 val existing = dao.getHistory(video.uri)
+                watchTracker.updateVideoMetadata(
+                    title = video.title,
+                    folderName = video.folderName,
+                    durationMs = video.duration,
+                    path = video.path
+                )
                 dao.insert(
-                    WatchHistoryEntity(
-                        uri = video.uri,
+                    (existing ?: WatchHistoryEntity(uri = video.uri)).copy(
                         lastPositionMs = existing?.lastPositionMs ?: 0L,
                         lastPlayedAt = System.currentTimeMillis(),
                         isNetworkStream = false,
-                        videoTitle = video.title
+                        videoTitle = video.title,
+                        historyId = video.uri,
+                        originalPath = video.path,
+                        folderName = video.folderName,
+                        durationMs = video.duration,
+                        totalPlaybackTimeMs = existing?.totalPlaybackTimeMs ?: 0L,
+                        firstWatchedAt = existing?.firstWatchedAt ?: System.currentTimeMillis(),
+                        watchDate = existing?.watchDate ?: ""
                     )
                 )
             } catch (e: Exception) {
@@ -932,7 +1009,20 @@ class PlayerViewModel(
         val uri = _currentUri.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            dao.deleteHistory(uri.toString())
+            val existing = dao.getHistory(uri.toString())
+            if (existing != null) {
+                dao.updatePlaybackProgress(
+                    uri = uri.toString(),
+                    positionMs = 0L,
+                    progress = 1.0f,
+                    isCompleted = true,
+                    totalPlaybackTimeMs = existing.totalPlaybackTimeMs,
+                    lastPlayedAt = existing.lastPlayedAt,
+                    watchDate = existing.watchDate
+                )
+            } else {
+                dao.deleteHistory(uri.toString())
+            }
             Log.d("PlayerViewModel", "Cleared watch progress for URI: $uri")
         }
     }
@@ -940,6 +1030,7 @@ class PlayerViewModel(
     fun pause() {
         playerEngine.pause()
         savePlaybackProgress()
+        watchTracker.onPause(currentPosition.value)
     }
 
     fun togglePlayback() {
@@ -952,6 +1043,7 @@ class PlayerViewModel(
     }
 
     fun seekTo(position: Long, precise: Boolean = true) {
+        watchTracker.onSeek(position)
         playerEngine.seekTo(position, precise)
     }
 
@@ -1668,6 +1760,7 @@ class PlayerViewModel(
     }
 
     override fun onCleared() {
+        watchTracker.flush(currentPosition.value)
         savePlaybackProgress()
         super.onCleared()
         Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")

@@ -74,7 +74,8 @@ fun ProfileScreen(
     onFeedClick: () -> Unit,
     onSeeMoreHistoryClick: () -> Unit,
     onStorageAnalyzerClick: () -> Unit = {},
-    onVaultClick: () -> Unit = {}
+    onVaultClick: () -> Unit = {},
+    onStreakClick: () -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
@@ -171,6 +172,25 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onStreakClick,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Whatshot,
+                            contentDescription = "Watch Streak",
+                            tint = Color(0xFFFF6D00)
+                        )
+                    }
                     IconButton(
                         onClick = onCustomizeClick,
                         colors = IconButtonDefaults.iconButtonColors(
@@ -358,6 +378,21 @@ fun ProfileScreen(
                                         iconColor = MaterialTheme.colorScheme.primary,
                                         onClick = onStorageAnalyzerClick,
                                         modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    QuickActionCardBentoSmall(
+                                        title = "Watch Streak",
+                                        subtitle = "Daily goals & activity",
+                                        icon = Icons.Default.Whatshot,
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        iconColor = Color(0xFFFF6D00),
+                                        onClick = onStreakClick,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }

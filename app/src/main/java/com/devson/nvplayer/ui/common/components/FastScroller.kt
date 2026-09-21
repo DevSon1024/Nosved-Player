@@ -129,6 +129,11 @@ fun FastScrollerOverlay(
             .fillMaxSize()
             .alpha(thumbAlpha)
     ) {
+        val minRequiredHeight = topPadding + bottomPadding + thumbHeight
+        if (maxHeight <= 0.dp || maxHeight < minRequiredHeight) {
+            return@BoxWithConstraints
+        }
+
         val totalHeightPx = with(density) { maxHeight.toPx() }
         val topPaddingPx = with(density) { topPadding.toPx() }
         val bottomPaddingPx = with(density) { bottomPadding.toPx() }
@@ -137,6 +142,13 @@ fun FastScrollerOverlay(
         val trackHeightPx = (totalHeightPx - topPaddingPx - bottomPaddingPx - thumbHeightPx).coerceAtLeast(1f)
         val thumbOffsetPx = topPaddingPx + (trackHeightPx * scrollFraction)
         val thumbOffsetDp = with(density) { thumbOffsetPx.toDp() }
+
+        val maxThumbY = (maxHeight - bottomPadding - thumbHeight).coerceAtLeast(topPadding)
+        val safeThumbOffsetDp = thumbOffsetDp.coerceIn(topPadding, maxThumbY)
+
+        val minBubbleY = topPadding + 4.dp
+        val maxBubbleY = (maxHeight - bottomPadding - 56.dp).coerceAtLeast(minBubbleY)
+        val bubbleOffsetY = (safeThumbOffsetDp - 8.dp).coerceIn(minBubbleY, maxBubbleY)
 
         // Section Bubble Popup
         AnimatedVisibility(
@@ -147,10 +159,7 @@ fun FastScrollerOverlay(
                 .align(Alignment.TopEnd)
                 .offset(
                     x = (-44).dp,
-                    y = (thumbOffsetDp - 8.dp).coerceIn(
-                        topPadding + 4.dp,
-                        maxHeight - bottomPadding - 56.dp
-                    )
+                    y = bubbleOffsetY
                 )
         ) {
             Surface(
@@ -225,7 +234,7 @@ fun FastScrollerOverlay(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(end = 4.dp)
-                    .offset(y = thumbOffsetDp)
+                    .offset(y = safeThumbOffsetDp)
                     .size(width = thumbWidth, height = thumbHeight)
                     .clip(CircleShape)
                     .background(

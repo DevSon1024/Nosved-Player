@@ -17,9 +17,11 @@ import androidx.room.TypeConverters
         SeasonEntity::class,
         EpisodeEntity::class,
         MovieEntity::class,
-        VaultEntity::class
+        VaultEntity::class,
+        DailyWatchEntity::class,
+        StreakStateEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(VaultConverters::class)
@@ -28,6 +30,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun videoMetadataDao(): VideoMetadataDao
     abstract fun mediaLibraryDao(): MediaLibraryDao
     abstract fun vaultDao(): VaultDao
+    abstract fun dailyWatchDao(): DailyWatchDao
+    abstract fun streakDao(): StreakDao
 
     companion object {
         @Volatile
@@ -166,6 +170,65 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add persistent history columns to watch_history
+                addColumnIfNotExists(db, "watch_history", "historyId", "TEXT NOT NULL DEFAULT ''")
+                addColumnIfNotExists(db, "watch_history", "originalPath", "TEXT")
+                addColumnIfNotExists(db, "watch_history", "folderName", "TEXT")
+                addColumnIfNotExists(db, "watch_history", "durationMs", "INTEGER NOT NULL DEFAULT 0")
+                addColumnIfNotExists(db, "watch_history", "totalPlaybackTimeMs", "INTEGER NOT NULL DEFAULT 0")
+                addColumnIfNotExists(db, "watch_history", "firstWatchedAt", "INTEGER NOT NULL DEFAULT 0")
+                addColumnIfNotExists(db, "watch_history", "watchDate", "TEXT NOT NULL DEFAULT ''")
+                addColumnIfNotExists(db, "watch_history", "isDeleted", "INTEGER NOT NULL DEFAULT 0")
+                addColumnIfNotExists(db, "watch_history", "isCompleted", "INTEGER NOT NULL DEFAULT 0")
+                addColumnIfNotExists(db, "watch_history", "playbackProgress", "REAL NOT NULL DEFAULT 0")
+
+                // Backfill existing rows so historyId matches uri and firstWatchedAt matches lastPlayedAt
+                db.execSQL("UPDATE `watch_history` SET `historyId` = `uri` WHERE `historyId` = ''")
+                db.execSQL("UPDATE `watch_history` SET `firstWatchedAt` = `lastPlayedAt` WHERE `firstWatchedAt` = 0")
+
+                // Create indices for watch_history
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watch_history_watchDate` ON `watch_history` (`watchDate`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watch_history_lastPlayedAt` ON `watch_history` (`lastPlayedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_watch_history_isDeleted` ON `watch_history` (`isDeleted`)")
+
+                // Create daily_watch_records table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `daily_watch_records` (
+                        `date` TEXT NOT NULL,
+                        `qualifyingVideoCount` INTEGER NOT NULL DEFAULT 0,
+                        `qualifyingVideoUris` TEXT NOT NULL DEFAULT '',
+                        PRIMARY KEY(`date`)
+                    )
+                    """.trimIndent()
+                )
+
+                // Create streak_state table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `streak_state` (
+                        `id` INTEGER NOT NULL,
+                        `currentStreak` INTEGER NOT NULL DEFAULT 0,
+                        `longestStreak` INTEGER NOT NULL DEFAULT 0,
+                        `lastQualifyingWatchDate` TEXT,
+                        `lastUpdatedTimestamp` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+
+                // Initialize singleton streak state row
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO `streak_state` (`id`, `currentStreak`, `longestStreak`, `lastQualifyingWatchDate`, `lastUpdatedTimestamp`)
+                    VALUES (1, 0, 0, NULL, 0)
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -173,7 +236,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

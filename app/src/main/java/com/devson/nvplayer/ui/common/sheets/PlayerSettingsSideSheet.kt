@@ -165,6 +165,12 @@ fun PlayerSettingsSideSheet(
             )
         }
 
+        val sheetShape = if (isLandscape) {
+            RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+        } else {
+            RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        }
+
         AnimatedVisibility(
             visible = visible,
             enter = enterAnim,
@@ -179,15 +185,14 @@ fun PlayerSettingsSideSheet(
                     .wrapContentHeight(Alignment.Bottom)
             }
         ) {
-            Box(
+            Surface(
                 modifier = if (isLandscape) {
                     Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f))
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            shape = sheetShape
                         )
                 } else {
                     Modifier
@@ -195,16 +200,15 @@ fun PlayerSettingsSideSheet(
                         .wrapContentHeight()
                         .heightIn(max = (configuration.screenHeightDp * 0.9f).dp)
                         .animateContentSize(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                        .background(
-                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                        )
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                            shape = sheetShape
                         )
-                }
+                },
+                shape = sheetShape,
+                color = MaterialTheme.colorScheme.background.copy(alpha = if (isLandscape) 0.92f else 0.95f),
+                tonalElevation = 8.dp
             ) {
                 Column(
                     modifier = if (isLandscape) {

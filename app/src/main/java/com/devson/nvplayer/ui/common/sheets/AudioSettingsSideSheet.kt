@@ -107,7 +107,7 @@ fun AudioSettingsSideSheet(
                     modifier = Modifier
                         .fillMaxSize()
                         .systemBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                        .padding(start = 20.dp, end = 20.dp, top = 18.dp)
                 ) {
                     // Header
                     Row(

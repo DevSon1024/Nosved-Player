@@ -12,14 +12,6 @@ sealed class ParsedMediaInfo {
         val year: Int? = null
     ) : ParsedMediaInfo()
 
-    data class Anime(
-        override val rawTitle: String,
-        override val cleanedTitle: String,
-        val episodeNumber: Int,
-        val releaseGroup: String? = null,
-        val seasonNumber: Int? = null,
-        val year: Int? = null
-    ) : ParsedMediaInfo()
 
     data class Movie(
         override val rawTitle: String,

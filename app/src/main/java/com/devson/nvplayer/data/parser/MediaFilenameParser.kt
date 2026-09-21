@@ -4,8 +4,8 @@ package com.devson.nvplayer.data.parser
  * Pure Kotlin parser utility for extracting structured media metadata from local filenames.
  *
  * Supports:
- * - Standard and complex TV / Anime formats (SxxExx, 1x05, Season X Episode Y) with scene tags.
- * - Absolute Episode Anime formats (e.g. AnimePahe, SubsPlease, hyphenated numbering).
+ * - Standard and complex TV Show formats (SxxExx, 1x05, Season X Episode Y) with scene tags.
+ * - Absolute Episode Show formats (e.g. release group prefixes, hyphenated episode numbering).
  * - Movies with release year and scene tags, guarded by a minimum duration threshold of 45 mins.
  */
 object MediaFilenameParser {
@@ -27,7 +27,7 @@ object MediaFilenameParser {
     )
 
     /**
-     * TV / Anime SxxExx Regex:
+     * TV Show SxxExx Regex:
      * Capture Group 1: Leading release group prefix (e.g. "[Vegamovies.To]")
      * Capture Group 2: Raw Title (e.g. "My Hero Academia", "Rick.and.Morty", "Vinland.Saga")
      * Capture Group 3: Optional 4-digit Year (e.g. "2021")
@@ -64,34 +64,34 @@ object MediaFilenameParser {
     )
 
     /**
-     * Anime Format with Release Group & Absolute Episode:
+     * Show Format with Release Group & Absolute Episode:
      * Capture Group 1: Release group in brackets [Fansub]
      * Capture Group 2: Release group in parentheses (Fansub)
-     * Capture Group 3: Anime Title
+     * Capture Group 3: Show Title
      * Capture Group 4: Optional Season indicator
      * Capture Group 5: Absolute Episode Number (e.g. "04", "102")
      */
-    private val ANIME_GROUP_EPISODE_REGEX = Regex(
+    private val SHOW_GROUP_EPISODE_REGEX = Regex(
         """^(?:\[([^\]]+)\]|\(([^\)]+)\))\s*(.+?)(?:[._\s-]+[Ss](\d{1,2})|[._\s-]+Season\s*(\d{1,2}))?\s*-\s*(\d{1,4}(?:\.\d+)?)(?:v\d+)?(?:\s*\[|\s*\(|\s*$)""",
         RegexOption.IGNORE_CASE
     )
 
     /**
-     * Anime Absolute Episode with Delimited Dash (e.g. AnimePahe_Show_Title_-_04_720p or Show Title - 04 [1080p]):
-     * Capture Group 1: Anime Title
+     * Show Absolute Episode with Delimited Dash (e.g. AnimePahe_Show_Title_-_04_720p or Show Title - 04 [1080p]):
+     * Capture Group 1: Show Title
      * Capture Group 2: Absolute Episode Number
      */
-    private val ANIME_ABSOLUTE_DASH_REGEX = Regex(
+    private val SHOW_ABSOLUTE_DASH_REGEX = Regex(
         """^(?:\[[^\]]*\]|\([^\)]*\)|AnimePahe_)?[._\s-]*(.+?)[._\s]+(?:-|–|—)[._\s]+(\d{1,4}(?:\.\d+)?)(?:v\d+)?[._\s]*(?:.*)$""",
         RegexOption.IGNORE_CASE
     )
 
     /**
-     * Anime Absolute Episode with Trailing Quality Tag (e.g. kyonyuu-ga-futari-inai-2-720p-h1x):
-     * Capture Group 1: Anime Title
+     * Show Absolute Episode with Trailing Quality Tag (e.g. Title-2-720p-h1x):
+     * Capture Group 1: Show Title
      * Capture Group 2: Absolute Episode Number
      */
-    private val ANIME_ABSOLUTE_QUALITY_REGEX = Regex(
+    private val SHOW_ABSOLUTE_QUALITY_REGEX = Regex(
         """^(?:\[[^\]]*\]|\([^\)]*\)|AnimePahe_)?[._\s-]*(.+?)[._\s-]+(\d{1,4})[._\s-]+(?:(?:1080|720|480|2160)p|4k|8k|hd|web|bdrip|brrip|dvdrip|bluray|x264|x265|hevc|h1x|subs|dual).*$""",
         RegexOption.IGNORE_CASE
     )
@@ -140,27 +140,27 @@ object MediaFilenameParser {
      */
     private const val MIN_MOVIE_DURATION_MILLIS = 45 * 60 * 1000L // 2,700,000 ms
 
-    data class AnimeTitleAndSeason(
+    data class ShowTitleAndSeason(
         val title: String,
         val seasonNumber: Int?
     )
 
-    private val ANIME_SEASON_EXPLICIT_REGEX = Regex(
+    private val SHOW_SEASON_EXPLICIT_REGEX = Regex(
         """^(.*?)[._\s-]+(?:[Ss]eason|S)[._\s-]*(\d{1,2})$""",
         RegexOption.IGNORE_CASE
     )
 
-    private val ANIME_SEASON_ORDINAL_REGEX = Regex(
+    private val SHOW_SEASON_ORDINAL_REGEX = Regex(
         """^(.*?)[._\s-]+(\d{1,2})(?:st|nd|rd|th)[._\s-]*(?:[Ss]eason)?$""",
         RegexOption.IGNORE_CASE
     )
 
-    private val ANIME_SEASON_ROMAN_REGEX = Regex(
+    private val SHOW_SEASON_ROMAN_REGEX = Regex(
         """^(.*?)[._\s-]+(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$""",
         RegexOption.IGNORE_CASE
     )
 
-    private val ANIME_SEASON_NUMBER_REGEX = Regex(
+    private val SHOW_SEASON_NUMBER_REGEX = Regex(
         """^(.*?)[._\s-]+(\d{1,2})$""",
         RegexOption.IGNORE_CASE
     )
@@ -175,46 +175,46 @@ object MediaFilenameParser {
     }
 
     /**
-     * Extracts an anime season number from the tail of the title string
+     * Extracts a show season number from the tail of the title string
      * (e.g. "Title_2", "Title_II", "Title_Season_2", "Title_2nd_Season").
      */
-    fun extractAnimeSeason(rawTitle: String): AnimeTitleAndSeason {
+    fun extractShowSeason(rawTitle: String): ShowTitleAndSeason {
         val trimmed = rawTitle.trim()
 
         // 1. Explicit Season: e.g. "Title_Season_2" or "Title_S2"
-        val explicitMatch = ANIME_SEASON_EXPLICIT_REGEX.find(trimmed)
+        val explicitMatch = SHOW_SEASON_EXPLICIT_REGEX.find(trimmed)
         if (explicitMatch != null && explicitMatch.groupValues[1].isNotBlank()) {
             val base = explicitMatch.groupValues[1]
             val season = explicitMatch.groupValues[2].toIntOrNull()
-            if (season != null) return AnimeTitleAndSeason(base, season)
+            if (season != null) return ShowTitleAndSeason(base, season)
         }
 
         // 2. Ordinal Season: e.g. "Title_2nd_Season" or "Title_2nd"
-        val ordinalMatch = ANIME_SEASON_ORDINAL_REGEX.find(trimmed)
+        val ordinalMatch = SHOW_SEASON_ORDINAL_REGEX.find(trimmed)
         if (ordinalMatch != null && ordinalMatch.groupValues[1].isNotBlank()) {
             val base = ordinalMatch.groupValues[1]
             val season = ordinalMatch.groupValues[2].toIntOrNull()
-            if (season != null) return AnimeTitleAndSeason(base, season)
+            if (season != null) return ShowTitleAndSeason(base, season)
         }
 
         // 3. Roman Numeral Season: e.g. "Title_II", "Title_IV"
-        val romanMatch = ANIME_SEASON_ROMAN_REGEX.find(trimmed)
+        val romanMatch = SHOW_SEASON_ROMAN_REGEX.find(trimmed)
         if (romanMatch != null && romanMatch.groupValues[1].isNotBlank()) {
             val base = romanMatch.groupValues[1]
             val roman = romanMatch.groupValues[2]
             val season = romanToInt(roman)
-            if (season != null) return AnimeTitleAndSeason(base, season)
+            if (season != null) return ShowTitleAndSeason(base, season)
         }
 
         // 4. Trailing number season: e.g. "Title_2" (not a year)
-        val numberMatch = ANIME_SEASON_NUMBER_REGEX.find(trimmed)
+        val numberMatch = SHOW_SEASON_NUMBER_REGEX.find(trimmed)
         if (numberMatch != null && numberMatch.groupValues[1].isNotBlank()) {
             val base = numberMatch.groupValues[1]
             val num = numberMatch.groupValues[2].toIntOrNull()
-            if (num != null && num in 1..20) return AnimeTitleAndSeason(base, num)
+            if (num != null && num in 1..20) return ShowTitleAndSeason(base, num)
         }
 
-        return AnimeTitleAndSeason(trimmed, null)
+        return ShowTitleAndSeason(trimmed, null)
     }
 
     /**
@@ -222,7 +222,7 @@ object MediaFilenameParser {
      *
      * @param rawName The file name (with or without directory path and extension).
      * @param durationMillis Optional media duration in milliseconds for movie validation.
-     * @return [ParsedMediaInfo.TvShow], [ParsedMediaInfo.Anime], [ParsedMediaInfo.Movie], or [ParsedMediaInfo.Unclassified].
+     * @return [ParsedMediaInfo.TvShow], [ParsedMediaInfo.Movie], or [ParsedMediaInfo.Unclassified].
      */
     fun parse(rawName: String, durationMillis: Long = 0L): ParsedMediaInfo {
         val baseName = rawName.substringAfterLast('/').substringAfterLast('\\').trim()
@@ -283,44 +283,41 @@ object MediaFilenameParser {
             )
         }
 
-        // 4. Check for Anime format with release group [Fansub] Title - 04 [1080p]
-        val animeGroupMatch = ANIME_GROUP_EPISODE_REGEX.find(nameWithoutExt)
-        if (animeGroupMatch != null) {
-            val releaseGroup = animeGroupMatch.groupValues[1].ifEmpty { animeGroupMatch.groupValues[2] }
-            val rawTitle = animeGroupMatch.groupValues[3]
-            val seasonStr = animeGroupMatch.groupValues[4].ifEmpty { animeGroupMatch.groupValues[5] }
-            val epStr = animeGroupMatch.groupValues[6]
+        // 4. Check for Show format with release group [Fansub] Title - 04 [1080p]
+        val showGroupMatch = SHOW_GROUP_EPISODE_REGEX.find(nameWithoutExt)
+        if (showGroupMatch != null) {
+            val rawTitle = showGroupMatch.groupValues[3]
+            val seasonStr = showGroupMatch.groupValues[4].ifEmpty { showGroupMatch.groupValues[5] }
+            val epStr = showGroupMatch.groupValues[6]
             val parsedSeason = seasonStr.toIntOrNull()
             val epNumber = epStr.toDoubleOrNull()?.toInt() ?: 1
 
-            val seasonInfo = extractAnimeSeason(rawTitle)
+            val seasonInfo = extractShowSeason(rawTitle)
             val finalSeason = parsedSeason ?: seasonInfo.seasonNumber ?: 1
 
-            return ParsedMediaInfo.Anime(
+            return ParsedMediaInfo.TvShow(
                 rawTitle = rawTitle.trim(),
                 cleanedTitle = cleanTitle(seasonInfo.title),
-                episodeNumber = epNumber,
-                releaseGroup = releaseGroup.ifBlank { null },
-                seasonNumber = finalSeason
+                seasonNumber = finalSeason,
+                episodeNumber = epNumber
             )
         }
 
-        // 5. Check for Anime absolute episode with dash (e.g. AnimePahe_Gaikotsu_Kishi-sama_Tadaima_Isekai_e_Odekakechuu_II_-_04_720p_SubsPlease)
-        val animeDashMatch = ANIME_ABSOLUTE_DASH_REGEX.find(nameWithoutExt)
-        if (animeDashMatch != null && animeDashMatch.groupValues[1].isNotBlank()) {
-            val rawTitle = animeDashMatch.groupValues[1]
-            val epNumber = animeDashMatch.groupValues[2].toDoubleOrNull()?.toInt() ?: 1
+        // 5. Check for Show absolute episode with dash (e.g. Title - 04 [720p])
+        val showDashMatch = SHOW_ABSOLUTE_DASH_REGEX.find(nameWithoutExt)
+        if (showDashMatch != null && showDashMatch.groupValues[1].isNotBlank()) {
+            val rawTitle = showDashMatch.groupValues[1]
+            val epNumber = showDashMatch.groupValues[2].toDoubleOrNull()?.toInt() ?: 1
 
             if (epNumber !in 1900..2099 && !rawTitle.matches(Regex("""^(19|20)\d{2}$"""))) {
-                val seasonInfo = extractAnimeSeason(rawTitle)
+                val seasonInfo = extractShowSeason(rawTitle)
                 val finalSeason = seasonInfo.seasonNumber ?: 1
 
-                return ParsedMediaInfo.Anime(
+                return ParsedMediaInfo.TvShow(
                     rawTitle = rawTitle.trim(),
                     cleanedTitle = cleanTitle(seasonInfo.title),
-                    episodeNumber = epNumber,
-                    releaseGroup = null,
-                    seasonNumber = finalSeason
+                    seasonNumber = finalSeason,
+                    episodeNumber = epNumber
                 )
             }
         }
@@ -366,22 +363,21 @@ object MediaFilenameParser {
             }
         }
 
-        // 8. Check for Anime absolute episode with quality suffix (e.g. kyonyuu-ga-futari-inai-2-720p-h1x)
-        val animeQualityMatch = ANIME_ABSOLUTE_QUALITY_REGEX.find(nameWithoutExt)
-        if (animeQualityMatch != null && animeQualityMatch.groupValues[1].isNotBlank()) {
-            val rawTitle = animeQualityMatch.groupValues[1]
-            val epNumber = animeQualityMatch.groupValues[2].toIntOrNull() ?: 1
+        // 8. Check for Show absolute episode with quality suffix (e.g. Title-2-720p-h1x)
+        val showQualityMatch = SHOW_ABSOLUTE_QUALITY_REGEX.find(nameWithoutExt)
+        if (showQualityMatch != null && showQualityMatch.groupValues[1].isNotBlank()) {
+            val rawTitle = showQualityMatch.groupValues[1]
+            val epNumber = showQualityMatch.groupValues[2].toIntOrNull() ?: 1
 
             if (epNumber !in 1900..2099 && !rawTitle.matches(Regex("""^(19|20)\d{2}$"""))) {
-                val seasonInfo = extractAnimeSeason(rawTitle)
+                val seasonInfo = extractShowSeason(rawTitle)
                 val finalSeason = seasonInfo.seasonNumber ?: 1
 
-                return ParsedMediaInfo.Anime(
+                return ParsedMediaInfo.TvShow(
                     rawTitle = rawTitle.trim(),
                     cleanedTitle = cleanTitle(seasonInfo.title),
-                    episodeNumber = epNumber,
-                    releaseGroup = null,
-                    seasonNumber = finalSeason
+                    seasonNumber = finalSeason,
+                    episodeNumber = epNumber
                 )
             }
         }

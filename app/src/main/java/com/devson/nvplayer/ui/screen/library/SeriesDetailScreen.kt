@@ -1,9 +1,12 @@
 package com.devson.nvplayer.ui.screen.library
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +26,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,10 +80,40 @@ fun SeriesDetailScreen(
     val currentEpisodes = currentSeason?.episodes ?: emptyList()
     val firstEpisodeUri = currentEpisodes.firstOrNull()?.fileUri
 
-    val scrollOffset by remember {
+    val isScrolledPastBackdrop by remember {
         derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 1f
-            else (listState.firstVisibleItemScrollOffset / 500f).coerceIn(0f, 1f)
+            listState.firstVisibleItemIndex >= 1
+        }
+    }
+
+    val showTopBarTitle by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 1 ||
+                (listState.firstVisibleItemIndex == 1 && listState.firstVisibleItemScrollOffset > 80)
+        }
+    }
+
+    val topBarColor by animateColorAsState(
+        targetValue = if (isScrolledPastBackdrop) {
+            MaterialTheme.colorScheme.background
+        } else {
+            Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "topBarColor"
+    )
+
+    val view = LocalView.current
+    val isDarkTheme = isSystemInDarkTheme()
+    DisposableEffect(view, isScrolledPastBackdrop, isDarkTheme) {
+        val window = (view.context as? android.app.Activity)?.window
+        val controller = window?.let { WindowInsetsControllerCompat(it, view) }
+        val originalLightStatusBars = controller?.isAppearanceLightStatusBars ?: !isDarkTheme
+
+        controller?.isAppearanceLightStatusBars = if (isScrolledPastBackdrop) !isDarkTheme else false
+
+        onDispose {
+            controller?.isAppearanceLightStatusBars = originalLightStatusBars
         }
     }
 
@@ -109,7 +144,10 @@ fun SeriesDetailScreen(
                         .fillMaxWidth()
                         .height(300.dp)
                         .graphicsLayer {
-                            alpha = 1f - (scrollOffset * 0.7f)
+                            val fade = if (listState.firstVisibleItemIndex == 0) {
+                                (1f - (listState.firstVisibleItemScrollOffset / 600f)).coerceIn(0.2f, 1f)
+                            } else 0f
+                            alpha = fade
                             translationY = -listState.firstVisibleItemScrollOffset * 0.3f
                         }
                 ) {
@@ -185,7 +223,7 @@ fun SeriesDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val typeName = if (detail.type == LibraryMediaType.ANIME) "Anime" else "TV Series"
+                        val typeName = "Series"
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             shape = RoundedCornerShape(6.dp)
@@ -318,41 +356,73 @@ fun SeriesDetailScreen(
             }
         }
 
-        // Top App Bar with back button
+        // Top App Bar with back button covering status bar
         Surface(
-            color = MaterialTheme.colorScheme.background.copy(alpha = scrollOffset),
+            color = topBarColor,
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                .align(Alignment.TopCenter)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(
+                        if (!isScrolledPastBackdrop) {
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.5f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                        } else Modifier
+                    )
+                    .statusBarsPadding()
                     .height(56.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 8.dp)
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = scrollOffset > 0.6f,
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = detail.series.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
+                    FilledIconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(40.dp),
+                        shape = CircleShape,
+                        colors = if (isScrolledPastBackdrop) {
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        } else {
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = Color.Black.copy(alpha = 0.45f),
+                                contentColor = Color.White
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showTopBarTitle,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Text(
+                            text = detail.series.title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
                 }
             }
         }

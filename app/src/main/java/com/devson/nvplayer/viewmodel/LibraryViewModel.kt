@@ -59,8 +59,7 @@ class LibraryViewModel(
             val filteredItems = when (category) {
                 LibraryCategory.ALL -> items
                 LibraryCategory.MOVIES -> items.filter { it.type == LibraryMediaType.MOVIE }
-                LibraryCategory.TV_SHOWS -> items.filter { it.type == LibraryMediaType.TV_SHOW }
-                LibraryCategory.ANIME -> items.filter { it.type == LibraryMediaType.ANIME }
+                LibraryCategory.SHOWS -> items.filter { it.type == LibraryMediaType.TV_SHOW }
             }
 
             val continueWatching = items
@@ -71,11 +70,9 @@ class LibraryViewModel(
             val recentlyAdded = filteredItems
                 .take(15)
 
-            val heroItems = if (filteredItems.isNotEmpty()) {
-                filteredItems.take(5)
-            } else {
-                items.take(5)
-            }
+            val heroItems = items
+                .filter { it.type == LibraryMediaType.MOVIE || it.type == LibraryMediaType.TV_SHOW }
+                .take(5)
 
             LibraryUiState.Success(
                 heroItems = heroItems,
@@ -174,7 +171,7 @@ class LibraryViewModel(
                             )
                         )
                     }
-                    is ParsedMediaInfo.TvShow, is ParsedMediaInfo.Anime -> {
+                    is ParsedMediaInfo.TvShow -> {
                         seriesMap.getOrPut(parsed.cleanedTitle) { mutableListOf() }.add(video to parsed)
                     }
                     is ParsedMediaInfo.Unclassified -> {
@@ -195,24 +192,18 @@ class LibraryViewModel(
                 }
             }
 
-            // Process Series / Anime groups
+            // Process Series / Shows groups
             for ((title, episodes) in seriesMap) {
                 val firstPair = episodes.firstOrNull() ?: continue
-                val isAnime = episodes.any { it.second is ParsedMediaInfo.Anime }
-                val mediaType = if (isAnime) LibraryMediaType.ANIME else LibraryMediaType.TV_SHOW
                 val seasons = episodes.mapNotNull {
-                    when (val info = it.second) {
-                        is ParsedMediaInfo.TvShow -> info.seasonNumber
-                        is ParsedMediaInfo.Anime -> info.seasonNumber ?: 1
-                        else -> 1
-                    }
+                    (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
                 }.distinct()
 
                 var seriesEntity = existingSeriesMap[title]
                 if (seriesEntity == null) {
                     val toInsert = SeriesEntity(
                         title = title,
-                        synopsis = if (isAnime) "Anime Series with ${episodes.size} episodes." else "TV Show with ${episodes.size} episodes across ${seasons.size} seasons."
+                        synopsis = if (seasons.size > 1) "Show with ${episodes.size} episodes across ${seasons.size} seasons." else "Show with ${episodes.size} episodes."
                     )
                     try {
                         val sId = mediaLibraryDao.insertSeries(toInsert)
@@ -233,7 +224,7 @@ class LibraryViewModel(
                     videoUri = latestVideo.uri,
                     posterUri = latestVideo.thumbnailUri ?: latestVideo.uri,
                     backdropUri = latestVideo.thumbnailUri ?: latestVideo.uri,
-                    type = mediaType,
+                    type = LibraryMediaType.TV_SHOW,
                     seasonCount = seasons.size.coerceAtLeast(1),
                     episodeCount = episodes.size,
                     durationMs = latestVideo.duration,
@@ -263,11 +254,7 @@ class LibraryViewModel(
                     for ((title, episodes) in seriesMap) {
                         val seriesEntity = existingSeriesMap[title] ?: continue
                         val seasons = episodes.mapNotNull {
-                            when (val info = it.second) {
-                                is ParsedMediaInfo.TvShow -> info.seasonNumber
-                                is ParsedMediaInfo.Anime -> info.seasonNumber ?: 1
-                                else -> 1
-                            }
+                            (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
                         }.distinct()
 
                         val seriesSeasons = (allExistingSeasons[seriesEntity.id] ?: emptyList()).associateBy { it.seasonNumber }.toMutableMap()
@@ -285,11 +272,7 @@ class LibraryViewModel(
                             }
 
                             val seasonEpisodes = episodes.filter { pair ->
-                                val sNum = when (val info = pair.second) {
-                                    is ParsedMediaInfo.TvShow -> info.seasonNumber
-                                    is ParsedMediaInfo.Anime -> info.seasonNumber ?: 1
-                                    else -> 1
-                                }
+                                val sNum = (pair.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
                                 sNum == seasonNum
                             }
 
@@ -298,11 +281,7 @@ class LibraryViewModel(
                                 if (allExistingEpisodes.containsKey(epVideo.uri)) continue
 
                                 val epInfo = epPair.second
-                                val epNum = when (epInfo) {
-                                    is ParsedMediaInfo.TvShow -> epInfo.episodeNumber
-                                    is ParsedMediaInfo.Anime -> epInfo.episodeNumber
-                                    else -> 1
-                                }
+                                val epNum = (epInfo as? ParsedMediaInfo.TvShow)?.episodeNumber ?: 1
                                 val epHistory = historyMap[epVideo.uri]
                                 val epPos = epHistory?.lastPositionMs ?: 0L
                                 val epWatched = epVideo.duration > 0 && epPos > (epVideo.duration * 0.9)
@@ -349,7 +328,7 @@ class LibraryViewModel(
             series = series,
             seasonsWithEpisodes = seasonsWithEpisodes,
             totalEpisodes = totalEpisodes,
-            type = if (series.synopsis?.contains("Anime", ignoreCase = true) == true) LibraryMediaType.ANIME else LibraryMediaType.TV_SHOW
+            type = LibraryMediaType.TV_SHOW
         )
     }
 

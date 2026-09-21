@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Movie
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -57,6 +59,7 @@ fun LibraryHomeScreen(
     onPlayStream: (Uri) -> Unit = {},
     onNetworkHistoryClick: () -> Unit = {},
     onNavigateToYtdlpSettings: () -> Unit = {},
+    onNavigateToStreak: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -116,6 +119,13 @@ fun LibraryHomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToStreak) {
+                        Icon(
+                            imageVector = Icons.Filled.Whatshot,
+                            contentDescription = "Watch Streak",
+                            tint = Color(0xFFFF6D00)
+                        )
+                    }
                     IconButton(onClick = { showNetworkDialog = true }) {
                         Icon(
                             imageVector = Icons.Filled.Language,
@@ -178,7 +188,7 @@ fun LibraryHomeScreen(
                             onValueChange = { searchQuery = it },
                             placeholder = {
                                 Text(
-                                    text = "Search movies, series, anime, streams...",
+                                    text = "Search movies, shows, streams...",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -260,7 +270,7 @@ fun LibraryHomeScreen(
                                         MediaHeroCarousel(
                                             items = state.heroItems,
                                             onItemClick = { item ->
-                                                if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
+                                                if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
                                                     onSeriesClick(item.seriesId)
                                                 } else {
                                                     onMediaClick(item)
@@ -278,8 +288,14 @@ fun LibraryHomeScreen(
                                     )
                                 }
 
-                                // 3. Network Stream Quick Banner (when in All category)
+                                // 3. Streak & Network Stream Quick Banners (when in All category)
                                 if (selectedCategory == LibraryCategory.ALL) {
+                                    item(key = "streak_card") {
+                                        LibraryStreakCard(
+                                            onClick = onNavigateToStreak,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+                                    }
                                     item(key = "network_stream_card") {
                                         NetworkStreamCard(
                                             onClick = { showNetworkDialog = true },
@@ -313,12 +329,11 @@ fun LibraryHomeScreen(
                                                 title = when (selectedCategory) {
                                                     LibraryCategory.ALL -> "Recently Added"
                                                     LibraryCategory.MOVIES -> "Latest Movies"
-                                                    LibraryCategory.TV_SHOWS -> "Popular TV Shows"
-                                                    LibraryCategory.ANIME -> "Trending Anime"
+                                                    LibraryCategory.SHOWS -> "Popular Shows"
                                                 },
                                                 items = state.recentlyAdded,
                                                 onItemClick = { item ->
-                                                    if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
+                                                    if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
                                                         onSeriesClick(item.seriesId)
                                                     } else {
                                                         onMediaClick(item)
@@ -328,44 +343,46 @@ fun LibraryHomeScreen(
                                         }
                                     }
 
-                                    // 6. Categorized Section: All Parsed Media Items
-                                    item(key = "all_media_header") {
-                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                            Text(
-                                                text = if (selectedCategory == LibraryCategory.ALL) "All" else "All ${selectedCategory.displayName}",
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-
-                                    // Grid-like chunked rows for performance
-                                    val chunkedItems = state.allItems.chunked(3)
-                                    items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            for (item in rowItems) {
-                                                MediaPosterCard(
-                                                    item = item,
-                                                    onClick = {
-                                                        if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
-                                                            onSeriesClick(item.seriesId)
-                                                        } else {
-                                                            onMediaClick(item)
-                                                        }
-                                                    },
-                                                    modifier = Modifier.weight(1f)
+                                    // 6. Categorized Section: Only shown when filtering by specific category (Movies, Shows)
+                                    if (selectedCategory != LibraryCategory.ALL) {
+                                        item(key = "all_media_header") {
+                                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                                Text(
+                                                    text = "All ${selectedCategory.displayName}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 18.sp
+                                                    ),
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
-                                            repeat(3 - rowItems.size) {
-                                                Spacer(modifier = Modifier.weight(1f))
+                                        }
+
+                                        // Grid-like chunked rows for performance
+                                        val chunkedItems = state.allItems.chunked(3)
+                                        items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                for (item in rowItems) {
+                                                    MediaPosterCard(
+                                                        item = item,
+                                                        onClick = {
+                                                            if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
+                                                                onSeriesClick(item.seriesId)
+                                                            } else {
+                                                                onMediaClick(item)
+                                                            }
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                repeat(3 - rowItems.size) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
                                             }
                                         }
                                     }
@@ -373,6 +390,75 @@ fun LibraryHomeScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryStreakCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp,
+        border = BorderStroke(1.dp, Color(0xFFFF6D00).copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFF6D00).copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Whatshot,
+                    contentDescription = null,
+                    tint = Color(0xFFFF6D00),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Watch Streak & Goals",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Track daily watch milestones and maintain your streak",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFFFF6D00).copy(alpha = 0.15f),
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Open Streak",
+                        tint = Color(0xFFFF6D00),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -540,8 +626,7 @@ private fun CategoryEmptyState(
                 Icon(
                     imageVector = when (category) {
                         LibraryCategory.MOVIES -> Icons.Filled.Movie
-                        LibraryCategory.TV_SHOWS -> Icons.Filled.Tv
-                        LibraryCategory.ANIME -> Icons.Filled.MovieFilter
+                        LibraryCategory.SHOWS -> Icons.Filled.Tv
                         else -> Icons.Filled.VideoLibrary
                     },
                     contentDescription = null,
