@@ -68,8 +68,7 @@ fun MediaPosterCard(
                         .padding(6.dp)
                 ) {
                     val badgeText = when (item.type) {
-                        LibraryMediaType.ANIME -> "ANIME"
-                        LibraryMediaType.TV_SHOW -> "TV"
+                        LibraryMediaType.TV_SHOW -> "SHOW"
                         LibraryMediaType.MOVIE -> item.year?.toString() ?: "MOVIE"
                         LibraryMediaType.UNCLASSIFIED -> "VIDEO"
                     }
@@ -122,7 +121,7 @@ fun MediaPosterCard(
         Spacer(modifier = Modifier.height(2.dp))
 
         val subtext = when (item.type) {
-            LibraryMediaType.TV_SHOW, LibraryMediaType.ANIME -> {
+            LibraryMediaType.TV_SHOW -> {
                 if (item.seasonCount > 1) "${item.seasonCount} Seasons" else "${item.episodeCount} Ep"
             }
             LibraryMediaType.MOVIE -> item.year?.toString() ?: "Movie"

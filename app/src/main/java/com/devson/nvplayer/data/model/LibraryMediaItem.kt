@@ -8,15 +8,13 @@ import com.devson.nvplayer.data.database.SeriesEntity
 enum class LibraryMediaType {
     MOVIE,
     TV_SHOW,
-    ANIME,
     UNCLASSIFIED
 }
 
 enum class LibraryCategory(val displayName: String) {
     ALL("All"),
     MOVIES("Movies"),
-    TV_SHOWS("TV Shows"),
-    ANIME("Anime")
+    SHOWS("Shows")
 }
 
 @Immutable

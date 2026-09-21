@@ -188,7 +188,7 @@ fun LibraryHomeScreen(
                             onValueChange = { searchQuery = it },
                             placeholder = {
                                 Text(
-                                    text = "Search movies, series, anime, streams...",
+                                    text = "Search movies, shows, streams...",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -270,7 +270,7 @@ fun LibraryHomeScreen(
                                         MediaHeroCarousel(
                                             items = state.heroItems,
                                             onItemClick = { item ->
-                                                if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
+                                                if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
                                                     onSeriesClick(item.seriesId)
                                                 } else {
                                                     onMediaClick(item)
@@ -329,12 +329,11 @@ fun LibraryHomeScreen(
                                                 title = when (selectedCategory) {
                                                     LibraryCategory.ALL -> "Recently Added"
                                                     LibraryCategory.MOVIES -> "Latest Movies"
-                                                    LibraryCategory.TV_SHOWS -> "Popular TV Shows"
-                                                    LibraryCategory.ANIME -> "Trending Anime"
+                                                    LibraryCategory.SHOWS -> "Popular Shows"
                                                 },
                                                 items = state.recentlyAdded,
                                                 onItemClick = { item ->
-                                                    if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
+                                                    if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
                                                         onSeriesClick(item.seriesId)
                                                     } else {
                                                         onMediaClick(item)
@@ -344,44 +343,46 @@ fun LibraryHomeScreen(
                                         }
                                     }
 
-                                    // 6. Categorized Section: All Parsed Media Items
-                                    item(key = "all_media_header") {
-                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                            Text(
-                                                text = if (selectedCategory == LibraryCategory.ALL) "All" else "All ${selectedCategory.displayName}",
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp
-                                                ),
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-
-                                    // Grid-like chunked rows for performance
-                                    val chunkedItems = state.allItems.chunked(3)
-                                    items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            for (item in rowItems) {
-                                                MediaPosterCard(
-                                                    item = item,
-                                                    onClick = {
-                                                        if (item.seriesId != null && (item.type == LibraryMediaType.TV_SHOW || item.type == LibraryMediaType.ANIME)) {
-                                                            onSeriesClick(item.seriesId)
-                                                        } else {
-                                                            onMediaClick(item)
-                                                        }
-                                                    },
-                                                    modifier = Modifier.weight(1f)
+                                    // 6. Categorized Section: Only shown when filtering by specific category (Movies, Shows)
+                                    if (selectedCategory != LibraryCategory.ALL) {
+                                        item(key = "all_media_header") {
+                                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                                Text(
+                                                    text = "All ${selectedCategory.displayName}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 18.sp
+                                                    ),
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
-                                            repeat(3 - rowItems.size) {
-                                                Spacer(modifier = Modifier.weight(1f))
+                                        }
+
+                                        // Grid-like chunked rows for performance
+                                        val chunkedItems = state.allItems.chunked(3)
+                                        items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                for (item in rowItems) {
+                                                    MediaPosterCard(
+                                                        item = item,
+                                                        onClick = {
+                                                            if (item.seriesId != null && item.type == LibraryMediaType.TV_SHOW) {
+                                                                onSeriesClick(item.seriesId)
+                                                            } else {
+                                                                onMediaClick(item)
+                                                            }
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                repeat(3 - rowItems.size) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
                                             }
                                         }
                                     }
@@ -625,8 +626,7 @@ private fun CategoryEmptyState(
                 Icon(
                     imageVector = when (category) {
                         LibraryCategory.MOVIES -> Icons.Filled.Movie
-                        LibraryCategory.TV_SHOWS -> Icons.Filled.Tv
-                        LibraryCategory.ANIME -> Icons.Filled.MovieFilter
+                        LibraryCategory.SHOWS -> Icons.Filled.Tv
                         else -> Icons.Filled.VideoLibrary
                     },
                     contentDescription = null,

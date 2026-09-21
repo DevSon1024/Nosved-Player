@@ -185,7 +185,7 @@ fun SeriesDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val typeName = if (detail.type == LibraryMediaType.ANIME) "Anime" else "TV Series"
+                        val typeName = "Series"
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             shape = RoundedCornerShape(6.dp)

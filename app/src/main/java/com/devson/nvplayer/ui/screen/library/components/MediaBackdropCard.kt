@@ -57,7 +57,6 @@ fun MediaBackdropCard(
     Column(
         modifier = modifier
             .width(220.dp)
-            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
     ) {
         Card(
@@ -103,6 +102,26 @@ fun MediaBackdropCard(
                     }
                 }
 
+                // High-contrast duration badge safely positioned away from card edge
+                val durationText = if (remainingMs > 0) "${formatDuration(remainingMs)} left" else formatDuration(item.durationMs)
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.Black.copy(alpha = 0.75f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 10.dp)
+                ) {
+                    Text(
+                        text = durationText,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
                 // Progress Bar at Bottom
                 if (progress > 0f) {
                     LinearProgressIndicator(
@@ -118,25 +137,31 @@ fun MediaBackdropCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = item.title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 4.dp)
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = if (remainingMs > 0) "${formatDuration(remainingMs)} left" else formatDuration(item.durationMs),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
 
             if (item.seasonNumber != null && item.episodeNumber != null) {
@@ -146,7 +171,8 @@ fun MediaBackdropCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     ),
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 6.dp)
                 )
             }
         }
