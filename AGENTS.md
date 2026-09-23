@@ -48,4 +48,4 @@ You must actively maintain the project's changelog. After every completed task, 
 ## 5. Version Control (Git) Protocol
 
 - **Do not commit or push** any changes to the repository until explicitly being asked to do so by the developer.
-- **Do not Change .gitignore** never make changes automatically in any of the .gitignore, i will make changes in it manually.
+- **Do not Change .gitignore** never make changes automatically in any of the .gitignore, i will make changes in it manually. let app/.gitignore as it is

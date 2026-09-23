@@ -18,6 +18,9 @@ class VideoRepository(
         WatchHistoryRepository(context)
     }
 
+    @Volatile
+    private var hasSyncedWatchHistoryOnce = false
+
     suspend fun scanCommonDirectories() = withContext(Dispatchers.IO) {
         val pathsToScan = mutableListOf<String>()
         val commonDirs = arrayOf(
@@ -26,11 +29,12 @@ class VideoRepository(
             android.os.Environment.DIRECTORY_DCIM
         )
         val internalRoot = android.os.Environment.getExternalStorageDirectory()
+        val recentCutoff = System.currentTimeMillis() - 10 * 60 * 1000L
         for (dir in commonDirs) {
             val file = java.io.File(internalRoot, dir)
             if (file.exists() && file.isDirectory) {
                 file.walkTopDown().maxDepth(3).forEach { f ->
-                    if (f.isFile && isVideoFile(f)) {
+                    if (pathsToScan.size < 50 && f.isFile && f.lastModified() > recentCutoff && isVideoFile(f)) {
                         pathsToScan.add(f.absolutePath)
                     }
                 }
@@ -78,7 +82,10 @@ class VideoRepository(
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
         val videos = mediaStoreHelper.getAllVideos(blacklisted)
-        watchHistoryRepository.syncWatchHistoryFileStatus(videos)
+        if (!hasSyncedWatchHistoryOnce) {
+            hasSyncedWatchHistoryOnce = true
+            watchHistoryRepository.syncWatchHistoryFileStatus(videos)
+        }
         videos
     }
 

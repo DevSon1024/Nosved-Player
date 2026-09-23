@@ -942,27 +942,13 @@ class PlayerViewModel(
             return
         }
         
-        var shouldSave = pos > 0
         if (dur > 0 && pos > dur * 0.95) {
             pos = 0L
-            shouldSave = true
         }
         
-        if (shouldSave) {
-            viewModelScope.launch(Dispatchers.IO) {
-                val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-                val existing = dao.getHistory(uri.toString())
-                val updated = (existing ?: WatchHistoryEntity(uri = uri.toString())).copy(
-                    lastPositionMs = pos,
-                    lastPlayedAt = System.currentTimeMillis(),
-                    isNetworkStream = existing?.isNetworkStream ?: isNetworkStream.value,
-                    videoTitle = mediaTitle.value.ifBlank { existing?.videoTitle },
-                    durationMs = if (dur > 0L) dur else (existing?.durationMs ?: 0L),
-                    playbackProgress = if (dur > 0L) (pos.toFloat() / dur).coerceIn(0f, 1f) else (existing?.playbackProgress ?: 0f)
-                )
-                dao.insert(updated)
-                Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
-            }
+        if (pos >= 0L) {
+            watchTracker.flush(pos)
+            Log.d("PlayerViewModel", "Saved progress: $pos for URI: $uri")
         }
     }
 
@@ -1013,9 +999,13 @@ class PlayerViewModel(
     fun clearPlaybackProgress() {
         val uri = _currentUri.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+            val db = AppDatabase.getDatabase(getApplication())
+            val dao = db.watchHistoryDao()
+            val dailyDao = db.dailyWatchDao()
             val existing = dao.getHistory(uri.toString())
+            val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
             if (existing != null) {
+                val finalWatchDate = existing.watchDate.ifBlank { today }
                 dao.updatePlaybackProgress(
                     uri = uri.toString(),
                     positionMs = 0L,
@@ -1023,8 +1013,9 @@ class PlayerViewModel(
                     isCompleted = true,
                     totalPlaybackTimeMs = existing.totalPlaybackTimeMs,
                     lastPlayedAt = existing.lastPlayedAt,
-                    watchDate = existing.watchDate
+                    watchDate = finalWatchDate
                 )
+                dailyDao.recordQualifyingWatch(today, uri.toString())
             } else {
                 dao.deleteHistory(uri.toString())
             }

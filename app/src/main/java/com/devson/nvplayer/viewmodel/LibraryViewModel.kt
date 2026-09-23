@@ -26,11 +26,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@kotlinx.coroutines.FlowPreview
 class LibraryViewModel(
     application: Application,
     private val videoListViewModel: VideoListViewModel
@@ -88,7 +90,9 @@ class LibraryViewModel(
 
     init {
         viewModelScope.launch {
-            videoListViewModel.videosFlat.collectLatest { videos ->
+            videoListViewModel.videosFlat
+                .debounce(300L)
+                .collectLatest { videos ->
                 if (videos.isEmpty()) {
                     if (_parsedItems.value.isNotEmpty()) {
                         _parsedItems.value = emptyList()

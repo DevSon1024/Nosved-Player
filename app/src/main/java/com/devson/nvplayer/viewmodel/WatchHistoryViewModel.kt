@@ -75,7 +75,11 @@ class WatchHistoryViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val appContext = context.applicationContext
             val db = AppDatabase.getDatabase(appContext)
-            val repo = WatchHistoryRepository(appContext)
+            val repo = runCatching {
+                WatchHistoryRepository(appContext)
+            }.getOrElse {
+                WatchHistoryRepository(context = appContext, watchHistoryDao = db.watchHistoryDao())
+            }
             return WatchHistoryViewModel(
                 watchHistoryRepository = repo,
                 watchHistoryDao = db.watchHistoryDao(),
@@ -130,24 +134,101 @@ class WatchHistoryViewModel(
         dailyWatchesFlow,
         historyItems
     ) { streakEntity, dailyWatches, historyList ->
-        calculateStreakUiState(streakEntity, dailyWatches, historyList)
+        calculateStreakUiState(streakEntity, dailyWatches, historyList, healDatabase = true)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = StreakUiState()
     )
 
+    private fun triggerStreakSelfHealing(
+        todayStr: String,
+        effectiveCurrentStreak: Int,
+        longestStreak: Int,
+        streakEntity: StreakStateEntity?,
+        todayWatch: DailyWatchEntity?,
+        qualifyingUri: String?
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (todayWatch == null || todayWatch.qualifyingVideoCount <= 0) {
+                    val uri = qualifyingUri ?: "nosved://qualified_video"
+                    dailyWatchDao.recordQualifyingWatch(todayStr, uri)
+                }
+                if (streakEntity?.lastQualifyingWatchDate != todayStr) {
+                    val updatedLongest = maxOf(longestStreak, effectiveCurrentStreak)
+                    streakDao.insertOrUpdate(
+                        StreakStateEntity(
+                            id = 1,
+                            currentStreak = effectiveCurrentStreak,
+                            longestStreak = updatedLongest,
+                            lastQualifyingWatchDate = todayStr,
+                            lastUpdatedTimestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // Ignore Room concurrency conflicts during self-healing
+            }
+        }
+    }
+
     fun calculateStreakUiState(
         streakEntity: StreakStateEntity?,
         dailyWatches: List<DailyWatchEntity>,
-        historyList: List<VideoHistoryItem> = emptyList()
+        historyList: List<VideoHistoryItem> = emptyList(),
+        healDatabase: Boolean = false
     ): StreakUiState {
         val todayStr = dateProvider()
         val todayDate = runCatching { LocalDate.parse(todayStr) }.getOrElse { LocalDate.now() }
 
+        val qualifyingDateSet = HashSet<String>()
+        var todayQualifyingUri: String? = null
+
+        for (watch in dailyWatches) {
+            if (watch.qualifyingVideoCount > 0) {
+                qualifyingDateSet.add(watch.date)
+                if (watch.date == todayStr && todayQualifyingUri == null) {
+                    todayQualifyingUri = watch.getWatchedUrisSet().firstOrNull()
+                }
+            }
+        }
+
+        for (item in historyList) {
+            val duration = item.durationMs
+            val watched = item.totalPlaybackTimeMs
+            val threshold = com.devson.nvplayer.player.tracker.WatchTracker.requiredWatchTimeMs(duration)
+            val isQualified = item.isCompleted || item.progress >= 0.10f ||
+                (duration > 0L && threshold != Long.MAX_VALUE && (watched >= threshold || item.lastPositionMs >= threshold))
+            if (isQualified) {
+                val candidateDate = if (item.watchedDate.isNotBlank()) {
+                    item.watchedDate
+                } else if (item.lastPlayedAt > 0L) {
+                    runCatching {
+                        java.time.Instant.ofEpochMilli(item.lastPlayedAt)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                            .format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    }.getOrNull()
+                } else null
+
+                if (candidateDate != null) {
+                    qualifyingDateSet.add(candidateDate)
+                    if (candidateDate == todayStr && todayQualifyingUri == null) {
+                        todayQualifyingUri = item.uri
+                    }
+                }
+            }
+        }
+
         val todayWatch = dailyWatches.find { it.date == todayStr }
-        val isQualifiedToday = (todayWatch != null && todayWatch.qualifyingVideoCount > 0) ||
+        val isQualifiedToday = qualifyingDateSet.contains(todayStr) ||
+                (todayWatch != null && todayWatch.qualifyingVideoCount > 0) ||
                 (streakEntity?.lastQualifyingWatchDate == todayStr)
+
+        if (isQualifiedToday) {
+            qualifyingDateSet.add(todayStr)
+        }
 
         val rawCurrent = streakEntity?.currentStreak ?: 0
         val lastDateStr = streakEntity?.lastQualifyingWatchDate
@@ -169,31 +250,6 @@ class WatchHistoryViewModel(
             }
         }
 
-        val qualifyingDateSet = HashSet<String>()
-        for (watch in dailyWatches) {
-            if (watch.qualifyingVideoCount > 0) {
-                qualifyingDateSet.add(watch.date)
-            }
-        }
-        for (item in historyList) {
-            if (item.watchedDate.isNotBlank()) {
-                qualifyingDateSet.add(item.watchedDate)
-            } else if (item.lastPlayedAt > 0L) {
-                val itemDate = runCatching {
-                    java.time.Instant.ofEpochMilli(item.lastPlayedAt)
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .toLocalDate()
-                        .format(DateTimeFormatter.ISO_LOCAL_DATE)
-                }.getOrNull()
-                if (itemDate != null) {
-                    qualifyingDateSet.add(itemDate)
-                }
-            }
-        }
-        if (isQualifiedToday) {
-            qualifyingDateSet.add(todayStr)
-        }
-
         var consecutiveDays = 0
         var checkDate = if (isQualifiedToday) todayDate else todayDate.minusDays(1)
         while (qualifyingDateSet.contains(checkDate.format(DateTimeFormatter.ISO_LOCAL_DATE))) {
@@ -201,7 +257,11 @@ class WatchHistoryViewModel(
             checkDate = checkDate.minusDays(1)
         }
 
-        val effectiveCurrentStreak = maxOf(rawCurrentStreakFromEntity, consecutiveDays)
+        val effectiveCurrentStreak = if (isQualifiedToday) {
+            maxOf(rawCurrentStreakFromEntity, consecutiveDays, 1)
+        } else {
+            maxOf(rawCurrentStreakFromEntity, consecutiveDays)
+        }
         val longestStreak = maxOf(streakEntity?.longestStreak ?: 0, effectiveCurrentStreak)
 
         val todayStatus = when {
@@ -223,10 +283,21 @@ class WatchHistoryViewModel(
             )
         }
 
+        if (healDatabase && isQualifiedToday && (streakEntity?.lastQualifyingWatchDate != todayStr || todayWatch == null || todayWatch.qualifyingVideoCount <= 0)) {
+            triggerStreakSelfHealing(
+                todayStr = todayStr,
+                effectiveCurrentStreak = effectiveCurrentStreak,
+                longestStreak = longestStreak,
+                streakEntity = streakEntity,
+                todayWatch = todayWatch,
+                qualifyingUri = todayQualifyingUri
+            )
+        }
+
         return StreakUiState(
             currentStreak = effectiveCurrentStreak,
             longestStreak = longestStreak,
-            lastQualifyingDate = if (isQualifiedToday) todayStr else (if (consecutiveDays > 0) todayDate.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE) else lastDateStr),
+            lastQualifyingDate = if (isQualifiedToday) todayStr else (if (consecutiveDays > 0) todayDate.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE) else lastDateStr?.takeIf { it.isNotBlank() }),
             isQualifiedToday = isQualifiedToday,
             todayStatus = todayStatus,
             recentDays = recentDays

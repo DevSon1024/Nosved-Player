@@ -475,7 +475,7 @@ fun AppNavigation(
 
         composable("streak") {
             val watchHistoryViewModel: WatchHistoryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                factory = WatchHistoryViewModel.Factory(context)
+                factory = WatchHistoryViewModel.Factory(context.applicationContext)
             )
             StreakScreen(
                 watchHistoryViewModel = watchHistoryViewModel,

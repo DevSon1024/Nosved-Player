@@ -2,7 +2,7 @@
 
 <br>
 
-<img src="Screenshots/NosvedPlayer Logo.png" alt="Nosved Player" width="280" />
+<img src="Screenshots/NosvedPlayer Logo.png" alt="Nosved Player" width="160" />
 
 <br>
 

@@ -134,4 +134,14 @@
 -keep class javax.annotation.** { *; }
 -dontwarn com.google.crypto.tink.**
 -keep class com.google.crypto.tink.** { *; }
+
+# -----------------------------------------------------------------------------
+# 10. REPOSITORY, DOMAIN MODELS & STREAK TRACKER
+# -----------------------------------------------------------------------------
+-keep class com.devson.nvplayer.data.repository.** { *; }
+-keep class com.devson.nvplayer.data.model.** { *; }
+-keep class com.devson.nvplayer.domain.model.** { *; }
+-keep class com.devson.nvplayer.viewmodel.WatchHistoryViewModel* { *; }
+-keep class com.devson.nvplayer.player.tracker.** { *; }
+
 

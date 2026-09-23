@@ -105,8 +105,8 @@ fun MediaHeroCarousel(
                         // Category Pill Badge
                         val categoryBadge = when (item.type) {
                             LibraryMediaType.MOVIE -> "FEATURED MOVIE"
-                            LibraryMediaType.TV_SHOW -> "FEATURED TV SHOW"
-                            else -> "FEATURED TV SHOW"
+                            LibraryMediaType.TV_SHOW -> "FEATURED SHOW"
+                            else -> "FEATURED SHOW"
                         }
 
                         Surface(

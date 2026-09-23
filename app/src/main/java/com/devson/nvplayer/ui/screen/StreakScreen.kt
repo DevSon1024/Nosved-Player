@@ -391,7 +391,7 @@ fun StreakStatsGrid(
             icon = Icons.Default.CalendarToday,
             iconTint = MaterialTheme.colorScheme.primary,
             title = "Last Watch",
-            value = streakUiState.lastQualifyingDate?.takeLast(5) ?: "None"
+            value = streakUiState.lastQualifyingDate?.takeIf { it.isNotBlank() }?.takeLast(5) ?: "None"
         )
     }
 }

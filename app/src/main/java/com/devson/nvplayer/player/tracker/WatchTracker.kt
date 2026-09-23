@@ -63,23 +63,36 @@ class WatchTracker(
         }
     }
 
+    @Volatile
     var currentUri: String? = null
         private set
+    @Volatile
     var currentTitle: String? = null
         private set
+    @Volatile
     var currentFolderName: String? = null
         private set
+    @Volatile
     var currentOriginalPath: String? = null
         private set
+    @Volatile
     var durationMs: Long = 0L
         private set
+    @Volatile
     var isNetworkStream: Boolean = false
         private set
 
+    @Volatile
     var accumulatedWatchedMs: Long = 0L
         private set
+    @Volatile
     var hasQualified: Boolean = false
         private set
+
+    @Volatile
+    private var todayWatchedMs: Long = 0L
+    @Volatile
+    private var sessionWatchedMs: Long = 0L
 
     private var lastPositionMs: Long = -1L
     private var lastWallClockTimeMs: Long = -1L
@@ -101,30 +114,55 @@ class WatchTracker(
     ) {
         flush()
 
-        currentUri = uri
-        currentTitle = title
-        currentFolderName = folderName
-        currentOriginalPath = originalPath
-        this.durationMs = durationMs
-        this.isNetworkStream = isNetworkStream
-        accumulatedWatchedMs = 0L
-        hasQualified = false
-        lastPositionMs = -1L
-        lastWallClockTimeMs = -1L
-        lastSavedPositionMs = 0L
-        lastSaveWallClockTimeMs = clock()
-        isSeeking = false
+        synchronized(this) {
+            currentUri = uri
+            currentTitle = title
+            currentFolderName = folderName
+            currentOriginalPath = originalPath
+            this.durationMs = durationMs
+            this.isNetworkStream = isNetworkStream
+            accumulatedWatchedMs = 0L
+            todayWatchedMs = 0L
+            sessionWatchedMs = 0L
+            hasQualified = false
+            lastPositionMs = -1L
+            lastWallClockTimeMs = -1L
+            lastSavedPositionMs = 0L
+            lastSaveWallClockTimeMs = clock()
+            isSeeking = false
+        }
 
-        // Load any existing record on Dispatchers.IO to preserve progress across recreation
+        // Load existing record and verify qualification status on Dispatchers.IO
         scope.launch {
             try {
                 val existing = watchHistoryDao.getHistory(uri)
-                if (existing != null) {
-                    accumulatedWatchedMs = existing.totalPlaybackTimeMs
-                    val effectiveDuration = if (durationMs > 0L) durationMs else existing.durationMs
-                    val threshold = requiredWatchTimeMs(effectiveDuration)
-                    if (effectiveDuration > 0L && threshold != Long.MAX_VALUE && accumulatedWatchedMs >= threshold) {
-                        hasQualified = true
+                val today = dateProvider()
+                val todayWatch = dailyWatchDao.getDailyWatch(today)
+                val alreadyQualifiedToday = todayWatch?.getWatchedUrisSet()?.contains(uri) == true
+
+                synchronized(this@WatchTracker) {
+                    if (currentUri == uri) {
+                        if (existing != null) {
+                            accumulatedWatchedMs = maxOf(accumulatedWatchedMs, existing.totalPlaybackTimeMs)
+                            if (existing.watchDate == today) {
+                                todayWatchedMs = maxOf(todayWatchedMs, existing.totalPlaybackTimeMs)
+                            }
+                        }
+                        if (alreadyQualifiedToday) {
+                            hasQualified = true
+                        } else {
+                            val effectiveDuration = if (durationMs > 0L) durationMs else (existing?.durationMs ?: 0L)
+                            val threshold = requiredWatchTimeMs(effectiveDuration)
+                            if (effectiveDuration > 0L && threshold != Long.MAX_VALUE) {
+                                val currentWatched = maxOf(todayWatchedMs, sessionWatchedMs)
+                                if (currentWatched >= threshold) {
+                                    hasQualified = true
+                                    val effectivePos = existing?.lastPositionMs ?: 0L
+                                    val posToPass = if (lastPositionMs >= 0L) lastPositionMs else effectivePos
+                                    scope.launch { handleQualification(posToPass) }
+                                }
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -221,14 +259,29 @@ class WatchTracker(
 
         // Legitimate continuous playback advancement
         val actualDelta = minOf(deltaPos, (deltaWall * speedFactor).toLong() + 50L)
-        accumulatedWatchedMs += actualDelta
-        lastPositionMs = positionMs
-        lastWallClockTimeMs = wallClockMs
-
-        // Check if qualification threshold reached
         val threshold = requiredWatchTimeMs(this.durationMs)
-        if (!hasQualified && this.durationMs > 0L && threshold != Long.MAX_VALUE && accumulatedWatchedMs >= threshold) {
-            hasQualified = true
+
+        val shouldQualify = synchronized(this) {
+            accumulatedWatchedMs += actualDelta
+            todayWatchedMs += actualDelta
+            sessionWatchedMs += actualDelta
+            lastPositionMs = positionMs
+            lastWallClockTimeMs = wallClockMs
+
+            if (!hasQualified && this.durationMs > 0L && threshold != Long.MAX_VALUE) {
+                val currentWatched = maxOf(todayWatchedMs, sessionWatchedMs)
+                if (currentWatched >= threshold) {
+                    hasQualified = true
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+
+        if (shouldQualify) {
             scope.launch {
                 handleQualification(positionMs)
             }
@@ -245,6 +298,9 @@ class WatchTracker(
         val today = dateProvider()
 
         try {
+            val existing = watchHistoryDao.getHistory(uri)
+            val validPosition = if (positionMs >= 0L) positionMs else (existing?.lastPositionMs ?: 0L)
+
             // Record in daily watch records (idempotently avoids duplicate counting)
             dailyWatchDao.recordQualifyingWatch(today, uri)
 
@@ -265,7 +321,11 @@ class WatchTracker(
                         val yesterdayWatch = dailyWatchDao.getDailyWatch(yesterday)
                         val yesterdayHistory = watchHistoryDao.getHistoryForDate(yesterday)
                         (yesterdayWatch != null && yesterdayWatch.qualifyingVideoCount > 0) ||
-                                yesterdayHistory.isNotEmpty()
+                                yesterdayHistory.any {
+                                    val d = it.durationMs
+                                    val t = requiredWatchTimeMs(d)
+                                    it.isCompleted || it.playbackProgress >= 0.10f || (d > 0L && t != Long.MAX_VALUE && (it.totalPlaybackTimeMs >= t || it.lastPositionMs >= t))
+                                }
                     } else {
                         false
                     }
@@ -291,7 +351,7 @@ class WatchTracker(
                 )
             }
 
-            saveProgressInternal(positionMs, isQualifiedNow = true)
+            saveProgressInternal(validPosition, isQualifiedNow = true)
         } catch (e: Exception) {
             Log.e(TAG, "Error handling video qualification", e)
         }
@@ -301,14 +361,16 @@ class WatchTracker(
         val uri = currentUri ?: return
         try {
             val existing = watchHistoryDao.getHistory(uri)
+            val effectivePos = if (positionMs >= 0L) positionMs else (existing?.lastPositionMs ?: 0L)
             val today = dateProvider()
             val dur = if (durationMs > 0L) durationMs else (existing?.durationMs ?: 0L)
-            val progress = if (dur > 0L) (positionMs.toFloat() / dur).coerceIn(0f, 1f) else 0f
-            val isCompleted = dur > 0L && (positionMs > dur * 0.95f || dur - positionMs < 5000L)
+            val progress = if (dur > 0L) (effectivePos.toFloat() / dur).coerceIn(0f, 1f) else (existing?.playbackProgress ?: 0f)
+            val isCompleted = dur > 0L && (effectivePos > dur * 0.95f || (dur > 10000L && dur - effectivePos < 5000L))
+            val effectiveWatchedMs = maxOf(accumulatedWatchedMs, existing?.totalPlaybackTimeMs ?: 0L)
 
             val entity = WatchHistoryEntity(
                 uri = uri,
-                lastPositionMs = positionMs,
+                lastPositionMs = effectivePos,
                 lastPlayedAt = clock(),
                 isNetworkStream = isNetworkStream,
                 videoTitle = currentTitle ?: existing?.videoTitle,
@@ -316,7 +378,7 @@ class WatchTracker(
                 originalPath = currentOriginalPath ?: existing?.originalPath,
                 folderName = currentFolderName ?: existing?.folderName,
                 durationMs = dur,
-                totalPlaybackTimeMs = accumulatedWatchedMs,
+                totalPlaybackTimeMs = effectiveWatchedMs,
                 firstWatchedAt = existing?.firstWatchedAt?.takeIf { it > 0L } ?: clock(),
                 watchDate = today,
                 isDeleted = false,
@@ -324,7 +386,7 @@ class WatchTracker(
                 playbackProgress = progress
             )
             watchHistoryDao.insert(entity)
-            lastSavedPositionMs = positionMs
+            lastSavedPositionMs = effectivePos
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save watch progress", e)
         }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -83,7 +84,7 @@ fun LanguageSettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 LangGroupCard {
                     LangPreferenceRow(
-                        icon = Icons.Default.VolumeUp,
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
                         title = "Default Audio Language",
                         subtitle = "Automatically select this audio track when available",
                         currentSelection = defaultAudioLang,
