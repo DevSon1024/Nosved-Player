@@ -55,10 +55,10 @@ fun MediaHeroCarousel(
             val imageRequest = remember(item.backdropUri ?: item.videoUri) {
                 ImageRequest.Builder(context)
                     .data(item.backdropUri ?: item.videoUri)
-                    .size(1080, 720)
+                    .size(640, 360)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(400)
+                    .crossfade(300)
                     .build()
             }
 

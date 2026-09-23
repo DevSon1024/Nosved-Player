@@ -78,6 +78,7 @@ import com.devson.nvplayer.player.service.MediaPlaybackService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 import com.devson.nvplayer.ui.common.formatTime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.data.repository.DoubleTapAction
@@ -136,47 +137,9 @@ fun PlayerScreen(
     onToggleAudioBooster: (Boolean) -> Unit = {},
     onSetAudioBoostVolume: (Int) -> Unit = {},
     playbackSettings: PlaybackSettings = PlaybackSettings(),
-    onSelectSubtitleTrack: (Int) -> Unit = {},
-    onSelectAudioTrack: (Int) -> Unit = {},
-    onSetSubtitleDelay: (Long) -> Unit = {},
-    onSeekNextSubtitle: () -> Unit = {},
-    onSeekPrevSubtitle: () -> Unit = {},
-    onUpdateUseSystemCaptionStyle: (Boolean) -> Unit = {},
-    onUpdateSubtitleFont: (SubtitleFont) -> Unit = {},
-    onUpdateIsSubtitleBold: (Boolean) -> Unit = {},
-    onUpdateForceAssSubtitleOverride: (Boolean) -> Unit = {},
-    onUpdateSubtitleTextSizeScale: (Float) -> Unit = {},
-    onUpdateSubtitleBgStyle: (Int) -> Unit = {},
-    onUpdateSubtitleDelay: (Long) -> Unit = {},
-    onUpdateSubtitleVerticalOffset: (Float) -> Unit = {},
-    onUpdateSubtitleGesturesEnabled: (Boolean) -> Unit = {},
-    onUpdateCustomPlaybackSpeed: (Float) -> Unit = {},
-    onUpdateTapAndHoldSpeed: (Float) -> Unit = {},
-    onUpdateDoubleTapSeekDuration: (Long) -> Unit = {},
-    onUpdateLongPressEnabled: (Boolean) -> Unit = {},
-    onUpdateLongPressSpeed: (Float) -> Unit = {},
-    onUpdateDoubleTapAction: (DoubleTapAction) -> Unit = {},
-    onUpdateTwoFingerAction: (MultiFingerAction) -> Unit = {},
-    onUpdateThreeFingerAction: (MultiFingerAction) -> Unit = {},
-    onUpdateOrientationMode: (OrientationMode) -> Unit = {},
-    onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
-    onUpdateAspectMode: (AspectMode) -> Unit = {},
-    onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
-    onUpdateControlIconSize: (String) -> Unit = {},
-    onUpdateSeekBarStyle: (String) -> Unit = {},
-    onUpdateAutoPlayEnabled: (Boolean) -> Unit = {},
-    onUpdateShowSeekButtons: (Boolean) -> Unit = {},
-    onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
-    onUpdateShowRemainingTime: (Boolean) -> Unit = {},
-    onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
-    onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
-    onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
-    onUpdateEnhanceMode: (EnhanceMode) -> Unit = {},
-    onUpdateEnhanceSaturation: (Int) -> Unit = {},
-    onUpdateEnhanceContrast: (Int) -> Unit = {},
-    onUpdateEnhanceBrightness: (Int) -> Unit = {},
-    onUpdateEnhanceGamma: (Int) -> Unit = {},
-    onUpdateEnhanceHue: (Int) -> Unit = {},
+    settingsActions: PlayerSettingsActions = PlayerSettingsActions(),
+    subtitleActions: PlayerSubtitleActions = PlayerSubtitleActions(),
+    enhanceActions: PlayerEnhanceActions = PlayerEnhanceActions(),
     chapters: List<ChapterInfo> = emptyList(),
     onSelectChapter: (Int) -> Unit = {},
     currentDecoder: String = "AUTO",
@@ -186,13 +149,6 @@ fun PlayerScreen(
     onCycleAspectMode: () -> Unit = {},
     isInPipMode: Boolean = false,
     onEnterPip: () -> Unit = {},
-    onUpdateBackgroundPlayEnabled: (Boolean) -> Unit = {},
-    onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
-    onUpdateShowControlGradients: (Boolean) -> Unit = {},
-    onUpdateShowUpNextQueue: (Boolean) -> Unit = {},
-    onUpdateIsAmbientModeEnabled: (Boolean) -> Unit = {},
-    onUpdateAmbientBlurStyle: (com.devson.nvplayer.data.repository.AmbientBlurStyle) -> Unit = {},
-    onUpdateSaveBrightnessLevel: (Boolean) -> Unit = {},
     networkSpeedBytesPerSec: Long = 0L,
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
@@ -761,7 +717,7 @@ fun PlayerScreen(
                             onSetAudioBoostVolume = onSetAudioBoostVolume,
                             isDynamicSpeedActive = isDynamicSpeedActive,
                             onSetDynamicSpeedActive = onSetDynamicSpeedActive,
-                            onSaveTapAndHoldSpeed = onUpdateTapAndHoldSpeed
+                            onSaveTapAndHoldSpeed = settingsActions.onUpdateTapAndHoldSpeed
                         )
                     }
                 }
@@ -867,7 +823,7 @@ fun PlayerScreen(
                             isBackgroundPlayEnabled = playbackSettings.backgroundPlayEnabled,
                             onBackgroundPlayClick = {
                                 val newVal = !playbackSettings.backgroundPlayEnabled
-                                onUpdateBackgroundPlayEnabled(newVal)
+                                settingsActions.onUpdateBackgroundPlayEnabled(newVal)
                                 Toast.makeText(
                                     context,
                                     if (newVal) "Background play enabled" else "Background play disabled",
@@ -1020,157 +976,45 @@ fun PlayerScreen(
             }
         }
 
-        SubtitleSettingsSideSheet(
-            visible = showSubtitleSettingsSideSheet,
-            playbackSettings = playbackSettings,
-            subtitleTracks = subtitleTracks,
-            onSelectSubtitleTrack = onSelectSubtitleTrack,
-            onSetSubtitleDelay = onSetSubtitleDelay,
-            onUpdateSubtitleFont = onUpdateSubtitleFont,
-            onUpdateIsSubtitleBold = onUpdateIsSubtitleBold,
-            onUpdateForceAssSubtitleOverride = onUpdateForceAssSubtitleOverride,
-            onUpdateSubtitleTextSizeScale = onUpdateSubtitleTextSizeScale,
-            onUpdateSubtitleBgStyle = onUpdateSubtitleBgStyle,
-            onUpdateSubtitleDelay = onUpdateSubtitleDelay,
-            onUpdateSubtitleVerticalOffset = onUpdateSubtitleVerticalOffset,
-            onUpdateSubtitleGesturesEnabled = onUpdateSubtitleGesturesEnabled,
-            onDismiss = { showSubtitleSettingsSideSheet = false },
-            onImportSubtitleClick = {
+        PlayerSideSheets(
+            visibleSubtitleSheet = showSubtitleSettingsSideSheet,
+            onDismissSubtitleSheet = { showSubtitleSettingsSideSheet = false },
+            onOpenImportSubtitleDialog = {
                 showImportSubtitleDialog = true
                 showSubtitleSettingsSideSheet = false
-            }
-        )
-
-        if (showImportSubtitleDialog) {
-            androidx.compose.ui.window.Dialog(
-                onDismissRequest = { showImportSubtitleDialog = false },
-                properties = androidx.compose.ui.window.DialogProperties(
-                    usePlatformDefaultWidth = false
-                )
-            ) {
-                Surface(
-                    modifier = Modifier
-                        .widthIn(max = 600.dp)
-                        .fillMaxWidth(0.9f)
-                        .heightIn(max = 500.dp)
-                        .fillMaxHeight(0.85f)
-                        .clip(RoundedCornerShape(16.dp)),
-                    color = MaterialTheme.colorScheme.background,
-                    tonalElevation = 4.dp
-                ) {
-                    StorageExplorerScreen(
-                        operationType = "SELECT_FILE",
-                        allowedExtensions = listOf(".srt", ".vtt", ".ssa", ".ass", ".ttml", ".sub", ".pgs", ".sbv", ".smi"),
-                        onFileSelected = { file ->
-                            showImportSubtitleDialog = false
-                            activeViewModel?.importSubtitle(Uri.fromFile(file))
-                        },
-                        onOpenSystemPicker = {
-                            showImportSubtitleDialog = false
-                            safSubtitlePickerLauncher.launch(
-                                arrayOf(
-                                    "text/*",
-                                    "application/x-subrip",
-                                    "application/octet-stream",
-                                    "*/*"
-                                )
-                            )
-                        },
-                        onCancel = { showImportSubtitleDialog = false }
-                    )
-                }
-            }
-        }
-
-        QualitySettingsSideSheet(
-            visible = showQualitySideSheet,
-            qualityState = streamQualityState,
-            playbackSettings = playbackSettings,
-            onSelectQuality = { option ->
-                activeViewModel?.selectQuality(option)
             },
-            onDataSaverToggled = { enabled ->
-                activeViewModel?.toggleDataSaver(enabled)
-            },
-            onDismiss = {
-                showQualitySideSheet = false
-                activeViewModel?.closeQualitySelector()
-            }
-        )
-
-        AudioSettingsSideSheet(
-            visible = showAudioSettingsSideSheet,
-            audioTracks = audioTracks,
-            audioBoosterEnabled = audioBoosterEnabled,
-            onToggleAudioBooster = onToggleAudioBooster,
-            onSelectAudioTrack = onSelectAudioTrack,
-            onDismiss = { showAudioSettingsSideSheet = false }
-        )
-
-        PlayerSettingsSideSheet(
-            visible = showPlayerSettingsSideSheet,
-            currentSpeed = playbackSpeed,
+            showImportSubtitleDialog = showImportSubtitleDialog,
+            onDismissImportSubtitleDialog = { showImportSubtitleDialog = false },
+            visibleQualitySheet = showQualitySideSheet,
+            onDismissQualitySheet = { showQualitySideSheet = false },
+            visibleAudioSheet = showAudioSettingsSideSheet,
+            onDismissAudioSheet = { showAudioSettingsSideSheet = false },
+            visibleSettingsSheet = showPlayerSettingsSideSheet,
+            onDismissSettingsSheet = { showPlayerSettingsSideSheet = false },
+            visibleChaptersSheet = showChaptersSideSheet,
+            onDismissChaptersSheet = { showChaptersSideSheet = false },
+            visibleDecoderSheet = showDecoderSideSheet,
+            onDismissDecoderSheet = { showDecoderSideSheet = false },
+            visibleEnhanceSheet = showEnhanceSettingsSideSheet,
+            onDismissEnhanceSheet = { showEnhanceSettingsSideSheet = false },
             playbackSettings = playbackSettings,
             currentVideo = currentVideo,
-            onSpeedSelected = { speed ->
-                onUpdateCustomPlaybackSpeed(speed)
-            },
-            onUpdateDoubleTapAction = onUpdateDoubleTapAction,
-            onUpdateDoubleTapSeekDuration = onUpdateDoubleTapSeekDuration,
-            onUpdateTwoFingerAction = onUpdateTwoFingerAction,
-            onUpdateThreeFingerAction = onUpdateThreeFingerAction,
-            onUpdateLongPressEnabled = onUpdateLongPressEnabled,
-            onUpdateTapAndHoldSpeed = onUpdateTapAndHoldSpeed,
-            onUpdateLongPressSpeed = onUpdateLongPressSpeed,
-            onUpdateOrientationMode = onUpdateOrientationMode,
-            onUpdateFullScreenMode = onUpdateFullScreenMode,
-            onUpdateAspectMode = onUpdateAspectMode,
-            onUpdateSoftButtonMode = onUpdateSoftButtonMode,
-            onUpdateControlIconSize = onUpdateControlIconSize,
-            onUpdateSeekBarStyle = onUpdateSeekBarStyle,
-            onUpdateAutoPlayEnabled = onUpdateAutoPlayEnabled,
-            onUpdateShowSeekButtons = onUpdateShowSeekButtons,
-            onUpdateShowNextPrevButtons = onUpdateShowNextPrevButtons,
-            onUpdateShowRemainingTime = onUpdateShowRemainingTime,
-            onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay,
-            onUpdatePauseWhenObstructed = onUpdatePauseWhenObstructed,
-            onUpdateKeepAwakeAlways = onUpdateKeepAwakeAlways,
-            onUpdateIsBottomLayoutEnabled = onUpdateIsBottomLayoutEnabled,
-            onUpdateShowControlGradients = onUpdateShowControlGradients,
-            onUpdateShowUpNextQueue = onUpdateShowUpNextQueue,
-            onUpdateIsAmbientModeEnabled = onUpdateIsAmbientModeEnabled,
-            onUpdateAmbientBlurStyle = onUpdateAmbientBlurStyle,
-            onUpdateSaveBrightnessLevel = onUpdateSaveBrightnessLevel,
-            onDismiss = { showPlayerSettingsSideSheet = false }
-        )
-
-        ChaptersSideSheet(
-            visible = showChaptersSideSheet,
+            playbackSpeed = playbackSpeed,
+            currentPosition = currentPosition,
+            isHwSupported = isHwSupported,
+            subtitleTracks = subtitleTracks,
+            audioTracks = audioTracks,
+            audioBoosterEnabled = audioBoosterEnabled,
             chapters = chapters,
-            currentPositionMs = currentPosition,
+            streamQualityState = streamQualityState,
+            settingsActions = settingsActions,
+            subtitleActions = subtitleActions,
+            enhanceActions = enhanceActions,
+            onToggleAudioBooster = onToggleAudioBooster,
             onSelectChapter = onSelectChapter,
-            onDismiss = { showChaptersSideSheet = false }
-        )
-
-        DecoderSideSheet(
-            visible = showDecoderSideSheet,
-            currentMode = if (!isHwSupported) DecoderMode.SW else playbackSettings.decoderMode,
-            onSelectMode = { mode ->
-                onUpdateDecoderMode(mode)
-            },
-            onDismiss = { showDecoderSideSheet = false }
-        )
-
-        EnhanceSettingsSideSheet(
-            visible = showEnhanceSettingsSideSheet,
-            playbackSettings = playbackSettings,
-            onUpdateEnhanceMode = onUpdateEnhanceMode,
-            onUpdateEnhanceSaturation = onUpdateEnhanceSaturation,
-            onUpdateEnhanceContrast = onUpdateEnhanceContrast,
-            onUpdateEnhanceBrightness = onUpdateEnhanceBrightness,
-            onUpdateEnhanceGamma = onUpdateEnhanceGamma,
-            onUpdateEnhanceHue = onUpdateEnhanceHue,
-            onDismiss = { showEnhanceSettingsSideSheet = false }
+            onUpdateDecoderMode = onUpdateDecoderMode,
+            activeViewModel = activeViewModel,
+            safSubtitlePickerLauncher = safSubtitlePickerLauncher
         )
 
         if (isLocked) {
@@ -1222,206 +1066,16 @@ fun PlayerScreen(
         }
 
         if (!isInPipMode && !isLocked && queueList.isNotEmpty() && playbackSettings.showUpNextQueue) {
-            val density = LocalDensity.current
-            val configuration = LocalConfiguration.current
-            val queueLayoutMode = playbackSettings.queueLayoutMode
-            val panelHeight = if (queueLayoutMode == LayoutMode.LIST) {
-                configuration.screenHeightDp.dp
-            } else {
-                240.dp
-            }
-            val panelHeightPx = with(density) { panelHeight.toPx() }
-            var dragOffsetY by remember { mutableStateOf(0f) }
-            val offsetY by animateFloatAsState(
-                targetValue = if (isQueueVisible) 0f else panelHeightPx,
-                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                label = "QueuePanelOffset"
+            PlayerUpNextQueuePanel(
+                isQueueVisible = isQueueVisible,
+                queueLayoutMode = playbackSettings.queueLayoutMode,
+                queueList = queueList,
+                currentVideoId = currentVideoId,
+                onQueueVisibleChange = onQueueVisibleChange,
+                onUpdateQueueLayoutMode = onUpdateQueueLayoutMode,
+                onQueueVideoClick = onQueueVideoClick,
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
-            val totalOffsetY = (offsetY + dragOffsetY).coerceAtLeast(0f)
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(panelHeight)
-                    .graphicsLayer {
-                        translationY = totalOffsetY
-                    }
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.85f),
-                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = Color.White.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                    )
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures(
-                                    onDragEnd = {
-                                        if (dragOffsetY > 80f) {
-                                            onQueueVisibleChange(false)
-                                        }
-                                        dragOffsetY = 0f
-                                    },
-                                    onDragCancel = { dragOffsetY = 0f },
-                                    onVerticalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
-                                    }
-                                )
-                            }
-                            .padding(top = 10.dp, bottom = 6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 40.dp, height = 4.dp)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
-                                .align(Alignment.CenterHorizontally)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Rounded.VideoLibrary,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Up Next Queue",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "${queueList.size}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { onUpdateQueueLayoutMode(LayoutMode.LIST) },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.ViewList,
-                                        contentDescription = "List View",
-                                        tint = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { onUpdateQueueLayoutMode(LayoutMode.GRID) },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.ViewCarousel,
-                                        contentDescription = "Grid/Carousel View",
-                                        tint = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                IconButton(
-                                    onClick = { onQueueVisibleChange(false) },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = Color.Transparent
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                                        contentDescription = "Hide Queue",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                        thickness = 1.dp
-                    )
-                    val listState = rememberLazyListState()
-                    val activeIndex = remember(queueList, currentVideoId) {
-                        queueList.indexOfFirst { it.uri == currentVideoId }
-                    }
-                    LaunchedEffect(isQueueVisible, queueLayoutMode) {
-                        if (isQueueVisible && activeIndex >= 0 && queueLayoutMode == LayoutMode.LIST) {
-                            listState.animateScrollToItem(activeIndex)
-                        }
-                    }
-                    if (queueLayoutMode == LayoutMode.LIST) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 16.dp)
-                        ) {
-                            itemsIndexed(
-                                items = queueList,
-                                key = { _, video -> video.uri }
-                            ) { index, video ->
-                                val isPlaying = video.uri == currentVideoId
-                                QueueVideoItem(
-                                    video = video,
-                                    isPlaying = isPlaying,
-                                    onClick = { onQueueVideoClick(video) }
-                                )
-                            }
-                        }
-                    } else {
-                        val rowState = rememberLazyListState()
-                        LaunchedEffect(isQueueVisible, queueLayoutMode) {
-                            if (isQueueVisible && queueLayoutMode == LayoutMode.GRID && activeIndex >= 0) {
-                                rowState.animateScrollToItem(activeIndex)
-                            }
-                        }
-                        LazyRow(
-                            state = rowState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp)
-                        ) {
-                            itemsIndexed(
-                                items = queueList,
-                                key = { _, video -> video.uri }
-                            ) { index, video ->
-                                val isPlaying = video.uri == currentVideoId
-                                QueueVideoGridItem(
-                                    video = video,
-                                    isPlaying = isPlaying,
-                                    onClick = { onQueueVideoClick(video) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -1925,4 +1579,381 @@ private fun QueueVideoGridItem(
         }
     }
 }
+
+@Composable
+private fun PlayerSideSheets(
+    visibleSubtitleSheet: Boolean,
+    onDismissSubtitleSheet: () -> Unit,
+    onOpenImportSubtitleDialog: () -> Unit,
+    showImportSubtitleDialog: Boolean,
+    onDismissImportSubtitleDialog: () -> Unit,
+    visibleQualitySheet: Boolean,
+    onDismissQualitySheet: () -> Unit,
+    visibleAudioSheet: Boolean,
+    onDismissAudioSheet: () -> Unit,
+    visibleSettingsSheet: Boolean,
+    onDismissSettingsSheet: () -> Unit,
+    visibleChaptersSheet: Boolean,
+    onDismissChaptersSheet: () -> Unit,
+    visibleDecoderSheet: Boolean,
+    onDismissDecoderSheet: () -> Unit,
+    visibleEnhanceSheet: Boolean,
+    onDismissEnhanceSheet: () -> Unit,
+    playbackSettings: PlaybackSettings,
+    currentVideo: Video?,
+    playbackSpeed: Float,
+    currentPosition: Long,
+    isHwSupported: Boolean,
+    subtitleTracks: List<TrackInfo>,
+    audioTracks: List<TrackInfo>,
+    audioBoosterEnabled: Boolean,
+    chapters: List<ChapterInfo>,
+    streamQualityState: com.devson.nvplayer.data.model.StreamQualityState,
+    settingsActions: PlayerSettingsActions,
+    subtitleActions: PlayerSubtitleActions,
+    enhanceActions: PlayerEnhanceActions,
+    onToggleAudioBooster: (Boolean) -> Unit,
+    onSelectChapter: (Int) -> Unit,
+    onUpdateDecoderMode: (DecoderMode) -> Unit,
+    activeViewModel: com.devson.nvplayer.viewmodel.PlayerViewModel?,
+    safSubtitlePickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>
+) {
+    SubtitleSettingsSideSheet(
+        visible = visibleSubtitleSheet,
+        playbackSettings = playbackSettings,
+        subtitleTracks = subtitleTracks,
+        onSelectSubtitleTrack = subtitleActions.onSelectSubtitleTrack,
+        onSetSubtitleDelay = subtitleActions.onSetSubtitleDelay,
+        onUpdateSubtitleFont = subtitleActions.onUpdateSubtitleFont,
+        onUpdateIsSubtitleBold = subtitleActions.onUpdateIsSubtitleBold,
+        onUpdateForceAssSubtitleOverride = subtitleActions.onUpdateForceAssSubtitleOverride,
+        onUpdateSubtitleTextSizeScale = subtitleActions.onUpdateSubtitleTextSizeScale,
+        onUpdateSubtitleBgStyle = subtitleActions.onUpdateSubtitleBgStyle,
+        onUpdateSubtitleDelay = subtitleActions.onUpdateSubtitleDelay,
+        onUpdateSubtitleVerticalOffset = subtitleActions.onUpdateSubtitleVerticalOffset,
+        onUpdateSubtitleGesturesEnabled = subtitleActions.onUpdateSubtitleGesturesEnabled,
+        onDismiss = onDismissSubtitleSheet,
+        onImportSubtitleClick = onOpenImportSubtitleDialog
+    )
+
+    if (showImportSubtitleDialog) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = onDismissImportSubtitleDialog,
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 600.dp)
+                    .fillMaxWidth(0.9f)
+                    .heightIn(max = 500.dp)
+                    .fillMaxHeight(0.85f)
+                    .clip(RoundedCornerShape(16.dp)),
+                color = MaterialTheme.colorScheme.background,
+                tonalElevation = 4.dp
+            ) {
+                StorageExplorerScreen(
+                    operationType = "SELECT_FILE",
+                    allowedExtensions = listOf(".srt", ".vtt", ".ssa", ".ass", ".ttml", ".sub", ".pgs", ".sbv", ".smi"),
+                    onFileSelected = { file ->
+                        onDismissImportSubtitleDialog()
+                        activeViewModel?.importSubtitle(Uri.fromFile(file))
+                    },
+                    onOpenSystemPicker = {
+                        onDismissImportSubtitleDialog()
+                        safSubtitlePickerLauncher.launch(
+                            arrayOf(
+                                "text/*",
+                                "application/x-subrip",
+                                "application/octet-stream",
+                                "*/*"
+                            )
+                        )
+                    },
+                    onCancel = onDismissImportSubtitleDialog
+                )
+            }
+        }
+    }
+
+    QualitySettingsSideSheet(
+        visible = visibleQualitySheet,
+        qualityState = streamQualityState,
+        playbackSettings = playbackSettings,
+        onSelectQuality = { option ->
+            activeViewModel?.selectQuality(option)
+        },
+        onDataSaverToggled = { enabled ->
+            activeViewModel?.toggleDataSaver(enabled)
+        },
+        onDismiss = {
+            onDismissQualitySheet()
+            activeViewModel?.closeQualitySelector()
+        }
+    )
+
+    AudioSettingsSideSheet(
+        visible = visibleAudioSheet,
+        audioTracks = audioTracks,
+        audioBoosterEnabled = audioBoosterEnabled,
+        onToggleAudioBooster = onToggleAudioBooster,
+        onSelectAudioTrack = { activeViewModel?.selectAudioTrack(it) },
+        onDismiss = onDismissAudioSheet
+    )
+
+    PlayerSettingsSideSheet(
+        visible = visibleSettingsSheet,
+        currentSpeed = playbackSpeed,
+        playbackSettings = playbackSettings,
+        currentVideo = currentVideo,
+        actions = settingsActions,
+        onDismiss = onDismissSettingsSheet
+    )
+
+    ChaptersSideSheet(
+        visible = visibleChaptersSheet,
+        chapters = chapters,
+        currentPositionMs = currentPosition,
+        onSelectChapter = onSelectChapter,
+        onDismiss = onDismissChaptersSheet
+    )
+
+    DecoderSideSheet(
+        visible = visibleDecoderSheet,
+        currentMode = if (!isHwSupported) DecoderMode.SW else playbackSettings.decoderMode,
+        onSelectMode = { mode ->
+            onUpdateDecoderMode(mode)
+        },
+        onDismiss = onDismissDecoderSheet
+    )
+
+    EnhanceSettingsSideSheet(
+        visible = visibleEnhanceSheet,
+        playbackSettings = playbackSettings,
+        onUpdateEnhanceMode = enhanceActions.onUpdateEnhanceMode,
+        onUpdateEnhanceSaturation = enhanceActions.onUpdateEnhanceSaturation,
+        onUpdateEnhanceContrast = enhanceActions.onUpdateEnhanceContrast,
+        onUpdateEnhanceBrightness = enhanceActions.onUpdateEnhanceBrightness,
+        onUpdateEnhanceGamma = enhanceActions.onUpdateEnhanceGamma,
+        onUpdateEnhanceHue = enhanceActions.onUpdateEnhanceHue,
+        onDismiss = onDismissEnhanceSheet
+    )
+}
+
+@Composable
+private fun PlayerUpNextQueuePanel(
+    isQueueVisible: Boolean,
+    queueLayoutMode: LayoutMode,
+    queueList: List<Video>,
+    currentVideoId: String?,
+    onQueueVisibleChange: (Boolean) -> Unit,
+    onUpdateQueueLayoutMode: (LayoutMode) -> Unit,
+    onQueueVideoClick: (Video) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val panelHeight = if (queueLayoutMode == LayoutMode.LIST) {
+        configuration.screenHeightDp.dp
+    } else {
+        240.dp
+    }
+    val panelHeightPx = with(density) { panelHeight.toPx() }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    val offsetY by animateFloatAsState(
+        targetValue = if (isQueueVisible) 0f else panelHeightPx,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "QueuePanelOffset"
+    )
+    val totalOffsetY = (offsetY + dragOffsetY).coerceAtLeast(0f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(panelHeight)
+            .offset { IntOffset(x = 0, y = totalOffsetY.roundToInt()) }
+            .pointerInput(queueLayoutMode) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (dragOffsetY > 100f) {
+                            onQueueVisibleChange(false)
+                        }
+                        dragOffsetY = 0f
+                    },
+                    onDragCancel = {
+                        dragOffsetY = 0f
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        val newOffset = dragOffsetY + dragAmount
+                        if (newOffset >= 0f) {
+                            dragOffsetY = newOffset
+                        }
+                    }
+                )
+            }
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            )
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
+            }
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.VideoLibrary,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Up Next Queue",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${queueList.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onUpdateQueueLayoutMode(LayoutMode.LIST) },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ViewList,
+                                contentDescription = "List View",
+                                tint = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = { onUpdateQueueLayoutMode(LayoutMode.GRID) },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ViewCarousel,
+                                contentDescription = "Grid/Carousel View",
+                                tint = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = { onQueueVisibleChange(false) },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Transparent
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardArrowDown,
+                                contentDescription = "Hide Queue",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                thickness = 1.dp
+            )
+            val listState = rememberLazyListState()
+            val activeIndex = remember(queueList, currentVideoId) {
+                queueList.indexOfFirst { it.uri == currentVideoId }
+            }
+            LaunchedEffect(isQueueVisible, queueLayoutMode) {
+                if (isQueueVisible && activeIndex >= 0 && queueLayoutMode == LayoutMode.LIST) {
+                    listState.animateScrollToItem(activeIndex)
+                }
+            }
+            if (queueLayoutMode == LayoutMode.LIST) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    itemsIndexed(
+                        items = queueList,
+                        key = { _, video -> video.uri }
+                    ) { index, video ->
+                        val isPlaying = video.uri == currentVideoId
+                        QueueVideoItem(
+                            video = video,
+                            isPlaying = isPlaying,
+                            onClick = { onQueueVideoClick(video) }
+                        )
+                    }
+                }
+            } else {
+                val rowState = rememberLazyListState()
+                LaunchedEffect(isQueueVisible, queueLayoutMode) {
+                    if (isQueueVisible && queueLayoutMode == LayoutMode.GRID && activeIndex >= 0) {
+                        rowState.animateScrollToItem(activeIndex)
+                    }
+                }
+                LazyRow(
+                    state = rowState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) {
+                    itemsIndexed(
+                        items = queueList,
+                        key = { _, video -> video.uri }
+                    ) { index, video ->
+                        val isPlaying = video.uri == currentVideoId
+                        QueueVideoGridItem(
+                            video = video,
+                            isPlaying = isPlaying,
+                            onClick = { onQueueVideoClick(video) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 

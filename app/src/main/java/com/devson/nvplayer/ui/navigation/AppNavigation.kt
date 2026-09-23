@@ -25,6 +25,9 @@ import androidx.lifecycle.Lifecycle
 import com.devson.nvplayer.ui.screen.HistoryScreen
 import com.devson.nvplayer.ui.screen.StreakScreen
 import com.devson.nvplayer.ui.screen.PlayerScreen
+import com.devson.nvplayer.ui.screen.PlayerSettingsActions
+import com.devson.nvplayer.ui.screen.PlayerSubtitleActions
+import com.devson.nvplayer.ui.screen.PlayerEnhanceActions
 import com.devson.nvplayer.ui.screen.SearchResultsScreen
 import com.devson.nvplayer.ui.screen.SettingsScreen
 import com.devson.nvplayer.ui.screen.ProfileScreen
@@ -1006,6 +1009,68 @@ fun AppNavigation(
             val currentVideoId by playerVm.currentVideoId.collectAsStateWithLifecycle()
             val isQueueVisible by playerVm.isQueueVisible.collectAsStateWithLifecycle()
 
+            val settingsActions = remember(playerVm, settingsViewModel) {
+                PlayerSettingsActions(
+                    onSpeedSelected = { playerVm.updateCustomPlaybackSpeed(it) },
+                    onUpdateDoubleTapAction = { settingsViewModel.updateDoubleTapAction(it) },
+                    onUpdateDoubleTapSeekDuration = { playerVm.updateDoubleTapSeekDuration(it) },
+                    onUpdateTwoFingerAction = { settingsViewModel.updateTwoFingerAction(it) },
+                    onUpdateThreeFingerAction = { settingsViewModel.updateThreeFingerAction(it) },
+                    onUpdateLongPressEnabled = { settingsViewModel.updateLongPressEnabled(it) },
+                    onUpdateTapAndHoldSpeed = { playerVm.updateTapAndHoldSpeed(it) },
+                    onUpdateLongPressSpeed = { settingsViewModel.updateLongPressSpeed(it) },
+                    onUpdateOrientationMode = { settingsViewModel.updateOrientationMode(it) },
+                    onUpdateFullScreenMode = { settingsViewModel.updateFullScreenMode(it) },
+                    onUpdateAspectMode = { settingsViewModel.updateAspectMode(it) },
+                    onUpdateSoftButtonMode = { settingsViewModel.updateSoftButtonMode(it) },
+                    onUpdateControlIconSize = { settingsViewModel.updateControlIconSize(it) },
+                    onUpdateSeekBarStyle = { settingsViewModel.updateSeekBarStyle(it) },
+                    onUpdateAutoPlayEnabled = { settingsViewModel.updateAutoPlayEnabled(it) },
+                    onUpdateShowSeekButtons = { settingsViewModel.updateShowSeekButtons(it) },
+                    onUpdateShowNextPrevButtons = { settingsViewModel.updateShowNextPrevButtons(it) },
+                    onUpdateShowRemainingTime = { settingsViewModel.updateShowRemainingTime(it) },
+                    onUpdateShowBatteryClockOverlay = { settingsViewModel.updateShowBatteryClockOverlay(it) },
+                    onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
+                    onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
+                    onUpdateIsBottomLayoutEnabled = { settingsViewModel.updateIsBottomLayoutEnabled(it) },
+                    onUpdateShowControlGradients = { settingsViewModel.updateShowControlGradients(it) },
+                    onUpdateShowUpNextQueue = { settingsViewModel.updateShowUpNextQueue(it) },
+                    onUpdateIsAmbientModeEnabled = { settingsViewModel.updateIsAmbientModeEnabled(it) },
+                    onUpdateAmbientBlurStyle = { settingsViewModel.updateAmbientBlurStyle(it) },
+                    onUpdateSaveBrightnessLevel = { settingsViewModel.updateSaveBrightnessLevel(it) },
+                    onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) }
+                )
+            }
+
+            val subtitleActions = remember(playerVm, settingsViewModel) {
+                PlayerSubtitleActions(
+                    onSelectSubtitleTrack = { playerVm.selectSubtitleTrack(it) },
+                    onSetSubtitleDelay = { playerVm.setSubtitleDelay(it) },
+                    onSeekNextSubtitle = { playerVm.seekNextSubtitle() },
+                    onSeekPrevSubtitle = { playerVm.seekPrevSubtitle() },
+                    onUpdateUseSystemCaptionStyle = { settingsViewModel.updateUseSystemCaptionStyle(it) },
+                    onUpdateSubtitleFont = { settingsViewModel.updateSubtitleFont(it) },
+                    onUpdateIsSubtitleBold = { settingsViewModel.updateIsSubtitleBold(it) },
+                    onUpdateForceAssSubtitleOverride = { settingsViewModel.updateForceAssSubtitleOverride(it) },
+                    onUpdateSubtitleTextSizeScale = { settingsViewModel.updateSubtitleTextSizeScale(it) },
+                    onUpdateSubtitleBgStyle = { settingsViewModel.updateSubtitleBgStyle(it) },
+                    onUpdateSubtitleDelay = { settingsViewModel.updateSubtitleDelay(it) },
+                    onUpdateSubtitleVerticalOffset = { settingsViewModel.updateSubtitleVerticalOffset(it) },
+                    onUpdateSubtitleGesturesEnabled = { settingsViewModel.updateSubtitleGesturesEnabled(it) }
+                )
+            }
+
+            val enhanceActions = remember(playerVm) {
+                PlayerEnhanceActions(
+                    onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
+                    onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
+                    onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },
+                    onUpdateEnhanceBrightness = { playerVm.updateEnhanceBrightness(it) },
+                    onUpdateEnhanceGamma = { playerVm.updateEnhanceGamma(it) },
+                    onUpdateEnhanceHue = { playerVm.updateEnhanceHue(it) }
+                )
+            }
+
             PlayerScreen(
                 isDynamicSpeedActive = isDynamicSpeedActive,
                 onSetDynamicSpeedActive = { playerVm.setDynamicSpeedActive(it) },
@@ -1050,53 +1115,9 @@ fun AppNavigation(
                 audioBoosterEnabled = audioBoosterEnabled,
                 onToggleAudioBooster = { playerVm.toggleAudioBooster(it) },
                 playbackSettings = playbackSettings,
-                onSelectSubtitleTrack = { playerVm.selectSubtitleTrack(it) },
-                onSelectAudioTrack = { playerVm.selectAudioTrack(it) },
-                onSetSubtitleDelay = { playerVm.setSubtitleDelay(it) },
-                onSeekNextSubtitle = { playerVm.seekNextSubtitle() },
-                onSeekPrevSubtitle = { playerVm.seekPrevSubtitle() },
-                onUpdateUseSystemCaptionStyle = { settingsViewModel.updateUseSystemCaptionStyle(it) },
-                onUpdateSubtitleFont = { settingsViewModel.updateSubtitleFont(it) },
-                onUpdateIsSubtitleBold = { settingsViewModel.updateIsSubtitleBold(it) },
-                onUpdateForceAssSubtitleOverride = { settingsViewModel.updateForceAssSubtitleOverride(it) },
-                onUpdateSubtitleTextSizeScale = { settingsViewModel.updateSubtitleTextSizeScale(it) },
-                onUpdateSubtitleBgStyle = { settingsViewModel.updateSubtitleBgStyle(it) },
-                onUpdateSubtitleDelay = { settingsViewModel.updateSubtitleDelay(it) },
-                onUpdateSubtitleVerticalOffset = { settingsViewModel.updateSubtitleVerticalOffset(it) },
-                onUpdateSubtitleGesturesEnabled = { settingsViewModel.updateSubtitleGesturesEnabled(it) },
-                onUpdateCustomPlaybackSpeed = { playerVm.updateCustomPlaybackSpeed(it) },
-                onUpdateTapAndHoldSpeed = { playerVm.updateTapAndHoldSpeed(it) },
-                onUpdateDoubleTapSeekDuration = { playerVm.updateDoubleTapSeekDuration(it) },
-                onUpdateLongPressEnabled = { settingsViewModel.updateLongPressEnabled(it) },
-                onUpdateLongPressSpeed = { settingsViewModel.updateLongPressSpeed(it) },
-                onUpdateDoubleTapAction = { settingsViewModel.updateDoubleTapAction(it) },
-                onUpdateTwoFingerAction = { settingsViewModel.updateTwoFingerAction(it) },
-                onUpdateThreeFingerAction = { settingsViewModel.updateThreeFingerAction(it) },
-                onUpdateOrientationMode = { settingsViewModel.updateOrientationMode(it) },
-                onUpdateFullScreenMode = { settingsViewModel.updateFullScreenMode(it) },
-                onUpdateAspectMode = { settingsViewModel.updateAspectMode(it) },
-                onUpdateSoftButtonMode = { settingsViewModel.updateSoftButtonMode(it) },
-                onUpdateControlIconSize = { settingsViewModel.updateControlIconSize(it) },
-                onUpdateSeekBarStyle = { settingsViewModel.updateSeekBarStyle(it) },
-                onUpdateAutoPlayEnabled = { settingsViewModel.updateAutoPlayEnabled(it) },
-                onUpdateShowSeekButtons = { settingsViewModel.updateShowSeekButtons(it) },
-                onUpdateShowNextPrevButtons = { settingsViewModel.updateShowNextPrevButtons(it) },
-                onUpdateShowRemainingTime = { settingsViewModel.updateShowRemainingTime(it) },
-                onUpdateShowBatteryClockOverlay = { settingsViewModel.updateShowBatteryClockOverlay(it) },
-                onUpdatePauseWhenObstructed = { settingsViewModel.updatePauseWhenObstructed(it) },
-                onUpdateKeepAwakeAlways = { settingsViewModel.updateKeepAwakeAlways(it) },
-                onUpdateIsBottomLayoutEnabled = { settingsViewModel.updateIsBottomLayoutEnabled(it) },
-                onUpdateShowControlGradients = { settingsViewModel.updateShowControlGradients(it) },
-                onUpdateShowUpNextQueue = { settingsViewModel.updateShowUpNextQueue(it) },
-                onUpdateIsAmbientModeEnabled = { settingsViewModel.updateIsAmbientModeEnabled(it) },
-                onUpdateAmbientBlurStyle = { settingsViewModel.updateAmbientBlurStyle(it) },
-                onUpdateSaveBrightnessLevel = { settingsViewModel.updateSaveBrightnessLevel(it) },
-                onUpdateEnhanceMode = { playerVm.updateEnhanceMode(it) },
-                onUpdateEnhanceSaturation = { playerVm.updateEnhanceSaturation(it) },
-                onUpdateEnhanceContrast = { playerVm.updateEnhanceContrast(it) },
-                onUpdateEnhanceBrightness = { playerVm.updateEnhanceBrightness(it) },
-                onUpdateEnhanceGamma = { playerVm.updateEnhanceGamma(it) },
-                onUpdateEnhanceHue = { playerVm.updateEnhanceHue(it) },
+                settingsActions = settingsActions,
+                subtitleActions = subtitleActions,
+                enhanceActions = enhanceActions,
                 onTakeVideoScreenshot = { playerVm.takeVideoScreenshot() },
                 chapters = chapters,
                 onSelectChapter = { playerVm.selectChapter(it) },
@@ -1106,7 +1127,6 @@ fun AppNavigation(
                 onCycleAspectMode = { playerVm.cycleAspectMode() },
                 isInPipMode = isInPipMode,
                 onEnterPip = onEnterPip,
-                onUpdateBackgroundPlayEnabled = { settingsViewModel.updateBackgroundPlayEnabled(it) },
                 queueList = queueList,
                 currentVideoId = currentVideoId,
                 isQueueVisible = isQueueVisible,

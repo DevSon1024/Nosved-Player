@@ -67,35 +67,37 @@ fun PlayerSettingsSideSheet(
     currentSpeed: Float,
     playbackSettings: PlaybackSettings,
     currentVideo: Video? = null,
-    onSpeedSelected: (Float) -> Unit,
-    onUpdateDoubleTapAction: (DoubleTapAction) -> Unit = {},
-    onUpdateDoubleTapSeekDuration: (Long) -> Unit = {},
-    onUpdateLongPressEnabled: (Boolean) -> Unit = {},
-    onUpdateTapAndHoldSpeed: (Float) -> Unit = {},
-    onUpdateLongPressSpeed: (Float) -> Unit = {},
-    onUpdateOrientationMode: (OrientationMode) -> Unit = {},
-    onUpdateFullScreenMode: (FullScreenMode) -> Unit = {},
-    onUpdateAspectMode: (AspectMode) -> Unit = {},
-    onUpdateTwoFingerAction: (MultiFingerAction) -> Unit = {},
-    onUpdateThreeFingerAction: (MultiFingerAction) -> Unit = {},
-    onUpdateSoftButtonMode: (SoftButtonMode) -> Unit = {},
-    onUpdateControlIconSize: (String) -> Unit = {},
-    onUpdateSeekBarStyle: (String) -> Unit = {},
-    onUpdateAutoPlayEnabled: (Boolean) -> Unit = {},
-    onUpdateShowSeekButtons: (Boolean) -> Unit = {},
-    onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
-    onUpdateShowRemainingTime: (Boolean) -> Unit = {},
-    onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
-    onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
-    onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
-    onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},
-    onUpdateShowControlGradients: (Boolean) -> Unit = {},
-    onUpdateShowUpNextQueue: (Boolean) -> Unit = {},
-    onUpdateIsAmbientModeEnabled: (Boolean) -> Unit = {},
-    onUpdateAmbientBlurStyle: (com.devson.nvplayer.data.repository.AmbientBlurStyle) -> Unit = {},
-    onUpdateSaveBrightnessLevel: (Boolean) -> Unit = {},
+    actions: com.devson.nvplayer.ui.screen.PlayerSettingsActions = com.devson.nvplayer.ui.screen.PlayerSettingsActions(),
     onDismiss: () -> Unit
 ) {
+    val onSpeedSelected = actions.onSpeedSelected
+    val onUpdateDoubleTapAction = actions.onUpdateDoubleTapAction
+    val onUpdateDoubleTapSeekDuration = actions.onUpdateDoubleTapSeekDuration
+    val onUpdateLongPressEnabled = actions.onUpdateLongPressEnabled
+    val onUpdateTapAndHoldSpeed = actions.onUpdateTapAndHoldSpeed
+    val onUpdateLongPressSpeed = actions.onUpdateLongPressSpeed
+    val onUpdateOrientationMode = actions.onUpdateOrientationMode
+    val onUpdateFullScreenMode = actions.onUpdateFullScreenMode
+    val onUpdateAspectMode = actions.onUpdateAspectMode
+    val onUpdateTwoFingerAction = actions.onUpdateTwoFingerAction
+    val onUpdateThreeFingerAction = actions.onUpdateThreeFingerAction
+    val onUpdateSoftButtonMode = actions.onUpdateSoftButtonMode
+    val onUpdateControlIconSize = actions.onUpdateControlIconSize
+    val onUpdateSeekBarStyle = actions.onUpdateSeekBarStyle
+    val onUpdateAutoPlayEnabled = actions.onUpdateAutoPlayEnabled
+    val onUpdateShowSeekButtons = actions.onUpdateShowSeekButtons
+    val onUpdateShowNextPrevButtons = actions.onUpdateShowNextPrevButtons
+    val onUpdateShowRemainingTime = actions.onUpdateShowRemainingTime
+    val onUpdateShowBatteryClockOverlay = actions.onUpdateShowBatteryClockOverlay
+    val onUpdatePauseWhenObstructed = actions.onUpdatePauseWhenObstructed
+    val onUpdateKeepAwakeAlways = actions.onUpdateKeepAwakeAlways
+    val onUpdateIsBottomLayoutEnabled = actions.onUpdateIsBottomLayoutEnabled
+    val onUpdateShowControlGradients = actions.onUpdateShowControlGradients
+    val onUpdateShowUpNextQueue = actions.onUpdateShowUpNextQueue
+    val onUpdateIsAmbientModeEnabled = actions.onUpdateIsAmbientModeEnabled
+    val onUpdateAmbientBlurStyle = actions.onUpdateAmbientBlurStyle
+    val onUpdateSaveBrightnessLevel = actions.onUpdateSaveBrightnessLevel
+
     val configuration = LocalConfiguration.current
     val currentOnUpdateDoubleTapAction by rememberUpdatedState(onUpdateDoubleTapAction)
     val currentOnUpdateDoubleTapSeekDuration by rememberUpdatedState(onUpdateDoubleTapSeekDuration)

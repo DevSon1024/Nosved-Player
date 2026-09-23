@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -87,18 +88,29 @@ class LibraryViewModel(
     }.stateIn(viewModelScope, SharingStarted.Lazily, LibraryUiState.Loading)
 
     private var lastProcessedSignature: String? = null
+    private val parsedInfoCache = java.util.concurrent.ConcurrentHashMap<String, ParsedMediaInfo>()
 
     init {
+        // 1. Instant Room cache hydration on startup (~15ms)
+        viewModelScope.launch(Dispatchers.IO) {
+            loadCachedLibraryFromDb()
+        }
+
+        // 2. Background MediaStore sync with parallel parsing
         viewModelScope.launch {
-            videoListViewModel.videosFlat
-                .debounce(300L)
-                .collectLatest { videos ->
+            var isFirstEmission = true
+            videoListViewModel.videosFlat.collectLatest { videos ->
                 if (videos.isEmpty()) {
                     if (_parsedItems.value.isNotEmpty()) {
                         _parsedItems.value = emptyList()
                     }
                     return@collectLatest
                 }
+                if (!isFirstEmission) {
+                    kotlinx.coroutines.delay(200L)
+                }
+                isFirstEmission = false
+
                 val signature = "${videos.size}_${videos.firstOrNull()?.uri}_${videos.lastOrNull()?.uri}_${videos.firstOrNull()?.dateModified}"
                 if (signature == lastProcessedSignature && _parsedItems.value.isNotEmpty()) {
                     return@collectLatest
@@ -106,6 +118,98 @@ class LibraryViewModel(
                 lastProcessedSignature = signature
                 processVideos(videos)
             }
+        }
+    }
+
+    private suspend fun loadCachedLibraryFromDb() = withContext(Dispatchers.IO) {
+        try {
+            val movies = mediaLibraryDao.getAllMoviesSync()
+            val series = mediaLibraryDao.getAllSeriesSync()
+            if (movies.isEmpty() && series.isEmpty()) return@withContext
+
+            val historyMap = try {
+                watchHistoryDao.getAllHistorySync().associateBy { it.uri }
+            } catch (_: Exception) {
+                emptyMap()
+            }
+
+            val allSeasons = try {
+                mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
+            } catch (_: Exception) {
+                emptyMap()
+            }
+
+            val allEpisodes = try {
+                mediaLibraryDao.getAllEpisodesSync().groupBy { it.seasonId }
+            } catch (_: Exception) {
+                emptyMap()
+            }
+
+            val items = ArrayList<LibraryMediaItem>(movies.size + series.size)
+
+            for (movie in movies) {
+                val history = historyMap[movie.fileUri]
+                val pos = history?.lastPositionMs ?: movie.lastPlaybackPosition
+                val isWatched = movie.durationMillis > 0 && pos > (movie.durationMillis * 0.9)
+                items.add(
+                    LibraryMediaItem(
+                        id = movie.fileUri,
+                        title = movie.title,
+                        cleanedTitle = movie.title,
+                        videoUri = movie.fileUri,
+                        posterUri = movie.fileUri,
+                        backdropUri = movie.fileUri,
+                        type = LibraryMediaType.MOVIE,
+                        year = movie.year,
+                        durationMs = movie.durationMillis,
+                        playbackPositionMs = pos,
+                        isWatched = isWatched,
+                        synopsis = "Local movie file in high definition."
+                    )
+                )
+            }
+
+            for (s in series) {
+                val seasons = allSeasons[s.id] ?: emptyList()
+                var totalEpisodes = 0
+                var firstEpUri: String? = null
+                var firstEpDuration = 0L
+                for (season in seasons) {
+                    val eps = allEpisodes[season.id] ?: emptyList()
+                    totalEpisodes += eps.size
+                    if (firstEpUri == null && eps.isNotEmpty()) {
+                        firstEpUri = eps.first().fileUri
+                        firstEpDuration = eps.first().durationMillis
+                    }
+                }
+
+                val fallbackUri = firstEpUri ?: s.posterUri ?: ""
+                val history = if (firstEpUri != null) historyMap[firstEpUri] else null
+
+                items.add(
+                    LibraryMediaItem(
+                        id = s.id.toString(),
+                        title = s.title,
+                        cleanedTitle = s.title,
+                        videoUri = fallbackUri,
+                        posterUri = s.posterUri ?: fallbackUri,
+                        backdropUri = s.posterUri ?: fallbackUri,
+                        type = LibraryMediaType.TV_SHOW,
+                        seasonCount = seasons.size.coerceAtLeast(1),
+                        episodeCount = totalEpisodes,
+                        durationMs = firstEpDuration,
+                        playbackPositionMs = history?.lastPositionMs ?: 0L,
+                        seriesId = s.id,
+                        synopsis = s.synopsis
+                    )
+                )
+            }
+
+            if (_parsedItems.value.isEmpty() && items.isNotEmpty()) {
+                _parsedItems.value = items
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LibraryViewModel", "Error loading cached library", e)
         }
     }
 
@@ -128,6 +232,23 @@ class LibraryViewModel(
         }
 
         try {
+            // 1. Parallelize filename parsing across Dispatchers.Default for any uncached videos
+            val unparsed = videos.filter { !parsedInfoCache.containsKey("${it.title}_${it.duration}") }
+            if (unparsed.isNotEmpty()) {
+                withContext(Dispatchers.Default) {
+                    val chunks = unparsed.chunked(64)
+                    val jobs = chunks.map { chunk ->
+                        async {
+                            for (v in chunk) {
+                                parsedInfoCache["${v.title}_${v.duration}"] =
+                                    MediaFilenameParser.parse(v.title, durationMillis = v.duration)
+                            }
+                        }
+                    }
+                    jobs.forEach { it.await() }
+                }
+            }
+
             val historyList = watchHistoryDao.getAllHistorySync()
             val historyMap = historyList.associateBy { it.uri }
 
@@ -142,7 +263,8 @@ class LibraryViewModel(
             val newMovies = mutableListOf<MovieEntity>()
 
             for (video in videos) {
-                val parsed = MediaFilenameParser.parse(video.title, durationMillis = video.duration)
+                val parsed = parsedInfoCache["${video.title}_${video.duration}"]
+                    ?: MediaFilenameParser.parse(video.title, durationMillis = video.duration)
                 val history = historyMap[video.uri]
                 val positionMs = history?.lastPositionMs ?: 0L
                 val isWatched = video.duration > 0 && positionMs > (video.duration * 0.9)
@@ -196,6 +318,31 @@ class LibraryViewModel(
                 }
             }
 
+            // Batch insert missing Series
+            val newSeriesToInsert = mutableListOf<SeriesEntity>()
+            for ((title, episodes) in seriesMap) {
+                if (!existingSeriesMap.containsKey(title)) {
+                    val seasons = episodes.mapNotNull {
+                        (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
+                    }.distinct()
+                    newSeriesToInsert.add(
+                        SeriesEntity(
+                            title = title,
+                            synopsis = if (seasons.size > 1) "Show with ${episodes.size} episodes across ${seasons.size} seasons." else "Show with ${episodes.size} episodes."
+                        )
+                    )
+                }
+            }
+            if (newSeriesToInsert.isNotEmpty()) {
+                try {
+                    val ids = mediaLibraryDao.insertSeriesList(newSeriesToInsert)
+                    newSeriesToInsert.forEachIndexed { idx, sEntity ->
+                        val id = ids.getOrNull(idx) ?: 0L
+                        existingSeriesMap[sEntity.title] = sEntity.copy(id = id)
+                    }
+                } catch (_: Exception) {}
+            }
+
             // Process Series / Shows groups
             for ((title, episodes) in seriesMap) {
                 val firstPair = episodes.firstOrNull() ?: continue
@@ -203,21 +350,7 @@ class LibraryViewModel(
                     (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
                 }.distinct()
 
-                var seriesEntity = existingSeriesMap[title]
-                if (seriesEntity == null) {
-                    val toInsert = SeriesEntity(
-                        title = title,
-                        synopsis = if (seasons.size > 1) "Show with ${episodes.size} episodes across ${seasons.size} seasons." else "Show with ${episodes.size} episodes."
-                    )
-                    try {
-                        val sId = mediaLibraryDao.insertSeries(toInsert)
-                        seriesEntity = toInsert.copy(id = sId)
-                        existingSeriesMap[title] = seriesEntity
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-
+                val seriesEntity = existingSeriesMap[title]
                 val latestVideo = episodes.first().first
                 val latestHistory = historyMap[latestVideo.uri]
 
@@ -253,55 +386,56 @@ class LibraryViewModel(
 
                     val allExistingSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
                     val allExistingEpisodes = mediaLibraryDao.getAllEpisodesSync().associateBy { it.fileUri }
-                    val newEpisodes = mutableListOf<EpisodeEntity>()
 
+                    // Batch insert missing seasons
+                    val seasonsToInsert = mutableListOf<SeasonEntity>()
                     for ((title, episodes) in seriesMap) {
                         val seriesEntity = existingSeriesMap[title] ?: continue
                         val seasons = episodes.mapNotNull {
                             (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
                         }.distinct()
-
-                        val seriesSeasons = (allExistingSeasons[seriesEntity.id] ?: emptyList()).associateBy { it.seasonNumber }.toMutableMap()
+                        val seriesSeasons = (allExistingSeasons[seriesEntity.id] ?: emptyList()).associateBy { it.seasonNumber }
                         for (seasonNum in seasons) {
-                            var sEntity = seriesSeasons[seasonNum]
-                            if (sEntity == null) {
-                                val sId = mediaLibraryDao.insertSeason(
-                                    SeasonEntity(
-                                        seriesId = seriesEntity.id,
-                                        seasonNumber = seasonNum
-                                    )
+                            if (!seriesSeasons.containsKey(seasonNum)) {
+                                seasonsToInsert.add(SeasonEntity(seriesId = seriesEntity.id, seasonNumber = seasonNum))
+                            }
+                        }
+                    }
+                    if (seasonsToInsert.isNotEmpty()) {
+                        mediaLibraryDao.insertSeasons(seasonsToInsert)
+                    }
+
+                    // Reload seasons mapping with newly inserted seasons
+                    val updatedSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
+                    val newEpisodes = mutableListOf<EpisodeEntity>()
+
+                    for ((title, episodes) in seriesMap) {
+                        val seriesEntity = existingSeriesMap[title] ?: continue
+                        val seriesSeasons = (updatedSeasons[seriesEntity.id] ?: emptyList()).associateBy { it.seasonNumber }
+
+                        for (epPair in episodes) {
+                            val epVideo = epPair.first
+                            if (allExistingEpisodes.containsKey(epVideo.uri)) continue
+
+                            val epInfo = epPair.second
+                            val sNum = (epInfo as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
+                            val sEntity = seriesSeasons[sNum] ?: continue
+                            val epNum = (epInfo as? ParsedMediaInfo.TvShow)?.episodeNumber ?: 1
+                            val epHistory = historyMap[epVideo.uri]
+                            val epPos = epHistory?.lastPositionMs ?: 0L
+                            val epWatched = epVideo.duration > 0 && epPos > (epVideo.duration * 0.9)
+
+                            newEpisodes.add(
+                                EpisodeEntity(
+                                    seasonId = sEntity.id,
+                                    episodeNumber = epNum,
+                                    title = epVideo.title,
+                                    fileUri = epVideo.uri,
+                                    durationMillis = epVideo.duration,
+                                    lastPlaybackPosition = epPos,
+                                    isWatched = epWatched
                                 )
-                                sEntity = SeasonEntity(id = sId, seriesId = seriesEntity.id, seasonNumber = seasonNum)
-                                seriesSeasons[seasonNum] = sEntity
-                            }
-
-                            val seasonEpisodes = episodes.filter { pair ->
-                                val sNum = (pair.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
-                                sNum == seasonNum
-                            }
-
-                            for (epPair in seasonEpisodes) {
-                                val epVideo = epPair.first
-                                if (allExistingEpisodes.containsKey(epVideo.uri)) continue
-
-                                val epInfo = epPair.second
-                                val epNum = (epInfo as? ParsedMediaInfo.TvShow)?.episodeNumber ?: 1
-                                val epHistory = historyMap[epVideo.uri]
-                                val epPos = epHistory?.lastPositionMs ?: 0L
-                                val epWatched = epVideo.duration > 0 && epPos > (epVideo.duration * 0.9)
-
-                                newEpisodes.add(
-                                    EpisodeEntity(
-                                        seasonId = sEntity.id,
-                                        episodeNumber = epNum,
-                                        title = epVideo.title,
-                                        fileUri = epVideo.uri,
-                                        durationMillis = epVideo.duration,
-                                        lastPlaybackPosition = epPos,
-                                        isWatched = epWatched
-                                    )
-                                )
-                            }
+                            )
                         }
                     }
                     if (newEpisodes.isNotEmpty()) {
