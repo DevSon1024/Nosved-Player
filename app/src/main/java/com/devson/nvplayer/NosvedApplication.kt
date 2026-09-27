@@ -19,10 +19,7 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val cacheDir = cacheDir.resolve("video_thumbnails_cache")
-        val freeBytes = cacheDir.parentFile?.freeSpace ?: (200L * 1024 * 1024)
-        val cacheSizeBytes = (freeBytes * 0.10)
-            .toLong()
-            .coerceIn(50L * 1024 * 1024, 500L * 1024 * 1024)
+        val cacheSizeBytes = 250L * 1024 * 1024 // 250 MB fast dedicated thumbnail cache
 
         val viewSettingsRepo = ViewSettingsRepository.getInstance(context)
 

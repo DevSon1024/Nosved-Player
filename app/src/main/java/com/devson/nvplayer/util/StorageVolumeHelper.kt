@@ -47,9 +47,9 @@ fun getAvailableStorageVolumes(context: Context): List<StorageVolumeInfo> {
         }
     }
 
-    // Fallback 1: ContextCompat.getExternalFilesDirs
+    // Fallback 1: context.getExternalFilesDirs
     try {
-        val externalDirs = ContextCompat.getExternalFilesDirs(context, null)
+        val externalDirs = context.getExternalFilesDirs(null)
         for (dir in externalDirs) {
             if (dir != null) {
                 val fullPath = dir.absolutePath

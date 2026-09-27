@@ -56,17 +56,21 @@ class CoilVideoThumbnailDecoder(
     @OptIn(ExperimentalCoilApi::class)
     override suspend fun decode(): DecodeResult {
         readFromDiskCache()?.use { snapshot ->
+            val decodeOptions = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
             val cachedBitmap =
                 snapshot.data
                     .toFile()
                     .inputStream()
-                    .use(BitmapFactory::decodeStream)
+                    .use { stream ->
+                        BitmapFactory.decodeStream(stream, null, decodeOptions)
+                    }
 
             if (cachedBitmap != null) {
-                val sampledBitmap = cachedBitmap.scaleToThumbnailMax()
                 return DecodeResult(
-                    image = sampledBitmap.toDrawable(options.context.resources).asImage(),
-                    isSampled = sampledBitmap !== cachedBitmap,
+                    image = cachedBitmap.toDrawable(options.context.resources).asImage(),
+                    isSampled = false,
                 )
             }
         }
@@ -472,21 +476,9 @@ class CoilVideoThumbnailDecoder(
         val editor = diskCache.value?.openEditor(diskCacheKey) ?: return inBitmap
         try {
             editor.data.toFile().outputStream().use { output ->
-                inBitmap.compress(Bitmap.CompressFormat.JPEG, 90, output)
+                inBitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
             }
-            editor.commitAndOpenSnapshot()?.use { snapshot ->
-                val outBitmap =
-                    snapshot.data
-                        .toFile()
-                        .inputStream()
-                        .use(BitmapFactory::decodeStream)
-                if (outBitmap != null) {
-                    if (outBitmap != inBitmap) {
-                        inBitmap.recycle()
-                    }
-                    return outBitmap
-                }
-            }
+            editor.commit()
         } catch (_: Exception) {
             runCatching { editor.abort() }
         }

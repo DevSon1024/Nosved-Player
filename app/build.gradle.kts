@@ -33,8 +33,8 @@ android {
         applicationId = "com.devson.nvplayer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 121
-        versionName = "1.2.1"
+        versionCode = 130
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -111,9 +111,6 @@ android {
         viewBinding = true
         resValues = true
         buildConfig = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
     }
     externalNativeBuild {
         cmake {
@@ -201,4 +198,8 @@ androidComponents {
             )
         }
     }
+}
+
+composeCompiler {
+    stabilityConfigurationFile.set(rootProject.file("compose_stability.conf"))
 }

@@ -259,6 +259,7 @@ fun LibraryHomeScreen(
                                 onStreamClick = { showNetworkDialog = true }
                             )
                         } else {
+                            val chunkedItems = remember(state.allItems) { state.allItems.chunked(3) }
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(top = 8.dp, bottom = 128.dp),
@@ -359,7 +360,6 @@ fun LibraryHomeScreen(
                                         }
 
                                         // Grid-like chunked rows for performance
-                                        val chunkedItems = state.allItems.chunked(3)
                                         items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
                                             Row(
                                                 modifier = Modifier

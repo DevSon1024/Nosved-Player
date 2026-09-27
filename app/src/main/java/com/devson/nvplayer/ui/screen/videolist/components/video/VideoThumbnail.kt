@@ -18,6 +18,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -74,26 +76,29 @@ fun VideoThumbnail(
     showPlayIcon: Boolean = true
 ) {
     val context = LocalContext.current
+    var isLoaded by remember(uri) { mutableStateOf(false) }
     val imageRequest = remember(uri) {
         ImageRequest.Builder(context)
             .data(uri)
-            .size(512, 384)
+            .size(480, 270)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(300)
+            .crossfade(150)
             .build()
     }
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        // Branded M3 watermark placeholder visible during loading
-        BrandedThumbnailPlaceholder()
+        if (!isLoaded) {
+            BrandedThumbnailPlaceholder()
+        }
 
         AsyncImage(
             model = imageRequest,
             contentDescription = "Video Thumbnail",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            onSuccess = { isLoaded = true }
         )
         if (showPlayIcon) {
             // Gradient scrim so icon is legible over any thumbnail color

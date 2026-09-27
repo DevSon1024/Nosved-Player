@@ -10,6 +10,7 @@ local.properties
 keystore.properties
 nosvedplayer-keystore
 /*.txt
+/*.json
 *.log
 *.aar
 *.sh

@@ -137,7 +137,8 @@ class VideoListViewModel(
                 }
                 FolderFilterMode.NONE -> storageFiltered
             }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.flowOn(Dispatchers.Default)
+         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     /**
      * Master-filtered folder map: storage+folder-mode filtered, then hidden-path and search filtered.
@@ -167,7 +168,8 @@ class VideoListViewModel(
                     matchesStorage && matchesPath && matchesSearch && matchesFilter
                 }
             }.filterValues { it.isNotEmpty() }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
+        }.flowOn(Dispatchers.Default)
+         .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val videosFlat: StateFlow<List<Video>> =
         combine(_activeVideosFlat, _searchQuery) { activeFlat, query ->
@@ -176,7 +178,8 @@ class VideoListViewModel(
                 val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
                 matchesPath && matchesSearch
             }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.flowOn(Dispatchers.Default)
+         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val navContext: StateFlow<Triple<ViewMode, VideoFolder?, String?>> = combine(
         viewSettingsRepo.viewSettingsFlow,
@@ -308,14 +311,15 @@ class VideoListViewModel(
 
                 // Group by parent folder absolute path
                 val groupedByPath = videoItems.groupBy { item ->
-                    File(item.path).parentFile?.absolutePath ?: item.folderName
+                    val lastSlash = item.path.lastIndexOf('/')
+                    if (lastSlash > 0) item.path.substring(0, lastSlash) else item.folderName
                 }
 
                 val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
                 val uncachedVideos = mutableListOf<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
 
                 for ((parentPath, items) in groupedByPath) {
-                    val folderName = File(parentPath).name.ifEmpty { parentPath }
+                    val folderName = parentPath.substringAfterLast('/').ifEmpty { parentPath }
                     val videos = items.map { item ->
                         val uriStr = item.uri.toString()
                         val cached = cachedMap[uriStr]

@@ -91,16 +91,14 @@ fun VideoListContent(
                     contentType = { "video_item" }
                 ) { video ->
                     val isRecentlyPlayed = mostRecentHistoryUri != null && video.uri == mostRecentHistoryUri
-                    val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
-                    val onLongClick = remember(video) { { _: Video -> currentOnVideoLongClick(video) } }
                     VideoGridItem(
                         video = video,
                         settings = settings,
                         isSelected = video in selectedVideos,
                         isRecentlyPlayed = isRecentlyPlayed,
                         lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                        onClick = onClick,
-                        onLongClick = onLongClick
+                        onClick = currentOnVideoClick,
+                        onLongClick = currentOnVideoLongClick
                     )
                 }
             }
@@ -119,9 +117,7 @@ fun VideoListContent(
                     contentType = { "video_item" }
                 ) { video ->
                     val isRecentlyPlayed = mostRecentHistoryUri != null && video.uri == mostRecentHistoryUri
-                    val onClick = remember(video) { { _: Video -> currentOnVideoClick(video) } }
-                    val onLongClick = remember(video) { { _: Video -> currentOnVideoLongClick(video) } }
-                    val onInfo = remember(video) {
+                    val onInfo = remember(video, currentOnInfoClick) {
                         if (onInfoClick != null) {
                             {
                                 currentOnInfoClick?.invoke(video)
@@ -137,8 +133,8 @@ fun VideoListContent(
                         isSelected = video in selectedVideos,
                         isRecentlyPlayed = isRecentlyPlayed,
                         lastPositionMs = historyMap[video.uri]?.lastPositionMs ?: 0L,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
+                        onClick = currentOnVideoClick,
+                        onLongClick = currentOnVideoLongClick,
                         onInfoClick = onInfo
                     )
                 }
