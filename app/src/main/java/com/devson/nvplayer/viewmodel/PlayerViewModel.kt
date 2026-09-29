@@ -595,16 +595,33 @@ class PlayerViewModel(
     /**
      * Prepares media Uri and SAF permissions in advance before loading file in the native engine.
      */
-    fun prepareVideo(uri: Uri, playlistUris: List<Uri> = emptyList()) {
+    fun prepareVideo(
+        uri: Uri,
+        playlistUris: List<Uri> = emptyList(),
+        initialWidth: Int = 0,
+        initialHeight: Int = 0,
+        initialRotation: Int = 0
+    ) {
         val prepStartTime = System.currentTimeMillis()
         Log.d("PlayerViewModel", "[TIMING] prepareVideo started for URI: $uri, playlist size: ${playlistUris.size} at $prepStartTime")
         _currentUri.value = uri
         _playlist.value = playlistUris
         
-        _preFetchedMetadata.value = null
+        val initialMatchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        val effectiveWidth = if (initialWidth > 0) initialWidth else (initialMatchedVideo?.width ?: 0)
+        val effectiveHeight = if (initialHeight > 0) initialHeight else (initialMatchedVideo?.height ?: 0)
+
+        if (effectiveWidth > 0 && effectiveHeight > 0) {
+            _preFetchedMetadata.value = PreFetchedVideoMetadata(effectiveWidth, effectiveHeight, initialRotation)
+        } else {
+            _preFetchedMetadata.value = null
+        }
+
         viewModelScope.launch {
             val meta = preFetchVideoMetadata(getApplication(), uri)
-            _preFetchedMetadata.value = meta
+            if (meta.width > 0 && meta.height > 0) {
+                _preFetchedMetadata.value = meta
+            }
             Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
         }
 
@@ -846,10 +863,17 @@ class PlayerViewModel(
         Log.d("PlayerViewModel", "Changing video to: $uri")
         _currentUri.value = uri
         
-        _preFetchedMetadata.value = null
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        if (matchedVideo != null && matchedVideo.width > 0 && matchedVideo.height > 0) {
+            _preFetchedMetadata.value = PreFetchedVideoMetadata(matchedVideo.width, matchedVideo.height, 0)
+        } else {
+            _preFetchedMetadata.value = null
+        }
         viewModelScope.launch {
             val meta = preFetchVideoMetadata(getApplication(), uri)
-            _preFetchedMetadata.value = meta
+            if (meta.width > 0 && meta.height > 0) {
+                _preFetchedMetadata.value = meta
+            }
             Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
         }
 
@@ -861,7 +885,6 @@ class PlayerViewModel(
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
 
-        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
         val resolvedTitle = matchedVideo?.title ?: mediaTitle.value.ifBlank { null } ?: uri.lastPathSegment?.substringBeforeLast('.')
         val resolvedDuration = if ((matchedVideo?.duration ?: 0L) > 0L) (matchedVideo?.duration ?: 0L) else duration.value
         val resolvedPath = matchedVideo?.path ?: uri.path

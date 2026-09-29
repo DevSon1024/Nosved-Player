@@ -1,5 +1,7 @@
 package com.devson.nvplayer.ui.navigation
 
+import android.content.Context
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -7,6 +9,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.devson.nvplayer.domain.model.DefaultScreen
+import com.devson.nvplayer.data.repository.OrientationMode
+import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.util.findActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -141,6 +146,68 @@ fun AppNavigation(
     val topLevelRoutes = setOf("library", "video_list", "vault", "settings")
     val topLevelOrder = remember { listOf("library", "video_list", "vault", "settings") }
     val showBottomBar = currentRoute in topLevelRoutes && !isSelectionActive
+    val playbackSettings by settingsViewModel.playbackSettings.collectAsStateWithLifecycle()
+
+    val onNavigateToPlayer: (Video, List<Video>) -> Unit = { video, queue ->
+        val isLandscape = when (playbackSettings.orientationMode) {
+            OrientationMode.LANDSCAPE, OrientationMode.AUTO -> true
+            OrientationMode.PORTRAIT -> false
+            OrientationMode.SYSTEM_DEFAULT -> {
+                video.width > 0 && video.height > 0 && video.width > video.height
+            }
+        }
+
+        context.findActivity()?.let { act ->
+            val target = if (isLandscape) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+            if (act.requestedOrientation != target) {
+                act.requestedOrientation = target
+            }
+        }
+
+        val playerVm = playerViewModel()
+        playerVm.setQueue(queue)
+        playerVm.prepareVideo(
+            uri = Uri.parse(video.uri),
+            playlistUris = queue.map { Uri.parse(it.uri) },
+            initialWidth = video.width,
+            initialHeight = video.height
+        )
+        navController.navigate("player") {
+            launchSingleTop = true
+        }
+    }
+
+    val onNavigateToPlayerStream: (Uri, List<Video>) -> Unit = { uri, queue ->
+        if (playbackSettings.orientationMode == OrientationMode.LANDSCAPE ||
+            playbackSettings.orientationMode == OrientationMode.AUTO
+        ) {
+            context.findActivity()?.let { act ->
+                if (act.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+            }
+        } else if (playbackSettings.orientationMode == OrientationMode.PORTRAIT) {
+            context.findActivity()?.let { act ->
+                if (act.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                    act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+            }
+        }
+
+        val playerVm = playerViewModel()
+        playerVm.setQueue(queue)
+        playerVm.prepareVideo(
+            uri = uri,
+            playlistUris = queue.map { Uri.parse(it.uri) }
+        )
+        navController.navigate("player") {
+            launchSingleTop = true
+        }
+    }
 
     val initialScreen = remember { settingsViewModel.getInitialDefaultScreen() }
     val startDestination = remember(initialScreen) {
@@ -187,7 +254,6 @@ fun AppNavigation(
 
     LaunchedEffect(initialUri) {
         if (initialUri != null) {
-            val playerVm = playerViewModel()
             val flatVideos = videoListViewModel.videosFlat.value
             val foundVideo = flatVideos.find { it.uri == initialUri.toString() }
             val dummyVideo = foundVideo ?: Video(
@@ -208,11 +274,7 @@ fun AppNavigation(
                 sortField = videoListViewModel.viewSettings.value.sortField,
                 sortDirection = videoListViewModel.viewSettings.value.sortDirection
             )
-            playerVm.setQueue(queueVideos)
-            playerVm.prepareVideo(initialUri, queueVideos.map { Uri.parse(it.uri) })
-            navController.navigate("player") {
-                launchSingleTop = true
-            }
+            onNavigateToPlayer(dummyVideo, queueVideos)
             onDeepLinkHandled()
         }
     }
@@ -238,80 +300,96 @@ fun AppNavigation(
             startDestination = startDestination,
             modifier = Modifier.fillMaxSize(),
         enterTransition = {
-            val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            val initialIndex = topLevelOrder.indexOf(initialRoute)
-            val targetIndex = topLevelOrder.indexOf(targetRoute)
-            val towards = if (initialIndex != -1 && targetIndex != -1) {
-                if (targetIndex > initialIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Left
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.Right
-                }
+            if (targetState.destination.route == "player" || initialState.destination.route == "player") {
+                fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing))
             } else {
-                AnimatedContentTransitionScope.SlideDirection.Left
+                val initialRoute = initialState.destination.route
+                val targetRoute = targetState.destination.route
+                val initialIndex = topLevelOrder.indexOf(initialRoute)
+                val targetIndex = topLevelOrder.indexOf(targetRoute)
+                val towards = if (initialIndex != -1 && targetIndex != -1) {
+                    if (targetIndex > initialIndex) {
+                        AnimatedContentTransitionScope.SlideDirection.Left
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.Right
+                    }
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.Left
+                }
+                slideIntoContainer(
+                    towards = towards,
+                    animationSpec = tween(400, easing = EaseOutCubic)
+                ) + fadeIn(animationSpec = tween(300))
             }
-            slideIntoContainer(
-                towards = towards,
-                animationSpec = tween(400, easing = EaseOutCubic)
-            ) + fadeIn(animationSpec = tween(300))
         },
         exitTransition = {
-            val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            val initialIndex = topLevelOrder.indexOf(initialRoute)
-            val targetIndex = topLevelOrder.indexOf(targetRoute)
-            val towards = if (initialIndex != -1 && targetIndex != -1) {
-                if (targetIndex > initialIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Left
-                } else {
-                    AnimatedContentTransitionScope.SlideDirection.Right
-                }
+            if (targetState.destination.route == "player" || initialState.destination.route == "player") {
+                fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
             } else {
-                AnimatedContentTransitionScope.SlideDirection.Left
+                val initialRoute = initialState.destination.route
+                val targetRoute = targetState.destination.route
+                val initialIndex = topLevelOrder.indexOf(initialRoute)
+                val targetIndex = topLevelOrder.indexOf(targetRoute)
+                val towards = if (initialIndex != -1 && targetIndex != -1) {
+                    if (targetIndex > initialIndex) {
+                        AnimatedContentTransitionScope.SlideDirection.Left
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.Right
+                    }
+                } else {
+                    AnimatedContentTransitionScope.SlideDirection.Left
+                }
+                slideOutOfContainer(
+                    towards = towards,
+                    animationSpec = tween(400, easing = EaseInCubic)
+                ) + fadeOut(animationSpec = tween(300))
             }
-            slideOutOfContainer(
-                towards = towards,
-                animationSpec = tween(400, easing = EaseInCubic)
-            ) + fadeOut(animationSpec = tween(300))
         },
         popEnterTransition = {
-            val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            val initialIndex = topLevelOrder.indexOf(initialRoute)
-            val targetIndex = topLevelOrder.indexOf(targetRoute)
-            val towards = if (initialIndex != -1 && targetIndex != -1) {
-                if (targetIndex > initialIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Left
+            if (initialState.destination.route == "player" || targetState.destination.route == "player") {
+                fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing))
+            } else {
+                val initialRoute = initialState.destination.route
+                val targetRoute = targetState.destination.route
+                val initialIndex = topLevelOrder.indexOf(initialRoute)
+                val targetIndex = topLevelOrder.indexOf(targetRoute)
+                val towards = if (initialIndex != -1 && targetIndex != -1) {
+                    if (targetIndex > initialIndex) {
+                        AnimatedContentTransitionScope.SlideDirection.Left
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.Right
+                    }
                 } else {
                     AnimatedContentTransitionScope.SlideDirection.Right
                 }
-            } else {
-                AnimatedContentTransitionScope.SlideDirection.Right
+                slideIntoContainer(
+                    towards = towards,
+                    animationSpec = tween(400, easing = EaseOutCubic)
+                ) + fadeIn(animationSpec = tween(300))
             }
-            slideIntoContainer(
-                towards = towards,
-                animationSpec = tween(400, easing = EaseOutCubic)
-            ) + fadeIn(animationSpec = tween(300))
         },
         popExitTransition = {
-            val initialRoute = initialState.destination.route
-            val targetRoute = targetState.destination.route
-            val initialIndex = topLevelOrder.indexOf(initialRoute)
-            val targetIndex = topLevelOrder.indexOf(targetRoute)
-            val towards = if (initialIndex != -1 && targetIndex != -1) {
-                if (targetIndex > initialIndex) {
-                    AnimatedContentTransitionScope.SlideDirection.Left
+            if (initialState.destination.route == "player" || targetState.destination.route == "player") {
+                fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+            } else {
+                val initialRoute = initialState.destination.route
+                val targetRoute = targetState.destination.route
+                val initialIndex = topLevelOrder.indexOf(initialRoute)
+                val targetIndex = topLevelOrder.indexOf(targetRoute)
+                val towards = if (initialIndex != -1 && targetIndex != -1) {
+                    if (targetIndex > initialIndex) {
+                        AnimatedContentTransitionScope.SlideDirection.Left
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.Right
+                    }
                 } else {
                     AnimatedContentTransitionScope.SlideDirection.Right
                 }
-            } else {
-                AnimatedContentTransitionScope.SlideDirection.Right
+                slideOutOfContainer(
+                    towards = towards,
+                    animationSpec = tween(400, easing = EaseInCubic)
+                ) + fadeOut(animationSpec = tween(300))
             }
-            slideOutOfContainer(
-                towards = towards,
-                animationSpec = tween(400, easing = EaseInCubic)
-            ) + fadeOut(animationSpec = tween(300))
         }
     ) {
         composable("network_history") {
@@ -319,7 +397,6 @@ fun AppNavigation(
                 homeViewModel = homeViewModel,
                 onBack = safePopBackStack,
                 onPlayStream = { uri ->
-                    val playerVm = playerViewModel()
                     val dummyVideo = Video(
                         uri = uri.toString(),
                         title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
@@ -330,11 +407,7 @@ fun AppNavigation(
                         width = 0,
                         height = 0
                     )
-                    playerVm.setQueue(listOf(dummyVideo))
-                    playerVm.prepareVideo(uri, listOf(uri))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayerStream(uri, listOf(dummyVideo))
                 },
                 onNavigateToYtdlpSettings = {
                     navController.navigate("ytdlp_settings") {
@@ -347,7 +420,6 @@ fun AppNavigation(
         composable("video_list") {
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val queueVideos = getLogicalQueue(
                         video = video,
@@ -357,11 +429,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(video, queueVideos)
                 },
                 onNavigateToSettings = {
                     navigateToTopLevel("settings")
@@ -380,7 +448,6 @@ fun AppNavigation(
                     }
                 },
                 onPlayStream = { uri ->
-                    val playerVm = playerViewModel()
                     val dummyVideo = Video(
                         uri = uri.toString(),
                         title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
@@ -391,11 +458,7 @@ fun AppNavigation(
                         width = 0,
                         height = 0
                     )
-                    playerVm.setQueue(listOf(dummyVideo))
-                    playerVm.prepareVideo(uri, listOf(uri))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayerStream(uri, listOf(dummyVideo))
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
@@ -422,7 +485,6 @@ fun AppNavigation(
             HistoryScreen(
                 allVideos = allVideos,
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val queueVideos = getLogicalQueue(
                         video = video,
@@ -432,11 +494,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(video, queueVideos)
                 },
                 onBack = safePopBackStack,
                 onNavigateToStreak = {
@@ -446,7 +504,6 @@ fun AppNavigation(
                 },
                 homeViewModel = homeViewModel,
                 onPlayStream = { uri ->
-                    val playerVm = playerViewModel()
                     val dummyVideo = Video(
                         uri = uri.toString(),
                         title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
@@ -457,11 +514,7 @@ fun AppNavigation(
                         width = 0,
                         height = 0
                     )
-                    playerVm.setQueue(listOf(dummyVideo))
-                    playerVm.prepareVideo(uri, listOf(uri))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayerStream(uri, listOf(dummyVideo))
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
@@ -641,7 +694,6 @@ fun AppNavigation(
                     navigateToTopLevel("video_list")
                 },
                 onVideoClick = { uri, playlist ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val currentVideo = flatVideos.find { it.uri == uri.toString() } ?: Video(
                         uri = uri.toString(),
@@ -673,11 +725,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(uri, queueVideos.map { Uri.parse(it.uri) })
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(currentVideo, queueVideos)
                 },
                 onRecycleBinClick = {
                     navController.navigate("recycle_bin") {
@@ -745,7 +793,6 @@ fun AppNavigation(
                     }
                 },
                 onVideoClick = { uri, playlist ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val currentVideo = flatVideos.find { it.uri == uri.toString() } ?: Video(
                         uri = uri.toString(),
@@ -765,11 +812,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(uri, playlist)
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(currentVideo, queueVideos)
                 }
             )
         }
@@ -778,7 +821,6 @@ fun AppNavigation(
             LibraryHomeScreen(
                 viewModel = libraryViewModel,
                 onMediaClick = { item ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val currentVideo = flatVideos.find { it.uri == item.videoUri } ?: Video(
                         uri = item.videoUri,
@@ -790,11 +832,7 @@ fun AppNavigation(
                         width = 0,
                         height = 0
                     )
-                    playerVm.setQueue(listOf(currentVideo))
-                    playerVm.prepareVideo(Uri.parse(item.videoUri), listOf(Uri.parse(item.videoUri)))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(currentVideo, listOf(currentVideo))
                 },
                 onSeriesClick = { seriesId ->
                     navController.navigate("series_detail/$seriesId") {
@@ -807,7 +845,6 @@ fun AppNavigation(
                     }
                 },
                 onPlayStream = { uri ->
-                    val playerVm = playerViewModel()
                     val dummyVideo = Video(
                         uri = uri.toString(),
                         title = uri.lastPathSegment?.substringBeforeLast('.') ?: "Stream",
@@ -818,11 +855,7 @@ fun AppNavigation(
                         width = 0,
                         height = 0
                     )
-                    playerVm.setQueue(listOf(dummyVideo))
-                    playerVm.prepareVideo(uri, listOf(uri))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayerStream(uri, listOf(dummyVideo))
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
@@ -851,7 +884,6 @@ fun AppNavigation(
                 seriesId = seriesId,
                 viewModel = libraryViewModel,
                 onEpisodeSelected = { episode, episodeList ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val currentVideo = flatVideos.find { it.uri == episode.fileUri } ?: Video(
                         uri = episode.fileUri,
@@ -875,11 +907,7 @@ fun AppNavigation(
                             height = 0
                         )
                     }
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(Uri.parse(episode.fileUri), queueVideos.map { Uri.parse(it.uri) })
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    onNavigateToPlayer(currentVideo, queueVideos)
                 },
                 onBack = safePopBackStack
             )
@@ -890,12 +918,8 @@ fun AppNavigation(
                 authViewModel = vaultAuthViewModel,
                 galleryViewModel = vaultGalleryViewModel,
                 onPlayMedia = { entity, file, video ->
-                    val playerVm = playerViewModel()
-                    playerVm.setQueue(listOf(video))
-                    playerVm.prepareVideo(Uri.fromFile(file), listOf(Uri.fromFile(file)))
-                    navController.navigate("player") {
-                        launchSingleTop = true
-                    }
+                    val targetVideo = video.copy(uri = Uri.fromFile(file).toString())
+                    onNavigateToPlayer(targetVideo, listOf(targetVideo))
                 }
             )
         }
@@ -937,10 +961,7 @@ fun AppNavigation(
                 engine     = playerEngine(),
                 onBack     = safePopBackStack,
                 onPlayVideoInPlayer = { video, playlist ->
-                    val playerVm = playerViewModel()
-                    playerVm.setQueue(playlist)
-                    playerVm.prepareVideo(Uri.parse(video.uri), playlist.map { Uri.parse(it.uri) })
-                    navController.navigate("player") { launchSingleTop = true }
+                    onNavigateToPlayer(video, playlist)
                 }
             )
         }
@@ -955,7 +976,6 @@ fun AppNavigation(
                 viewModel = videoListViewModel,
                 homeViewModel = homeViewModel,
                 onVideoSelected = { video, playlist, lastPositionMs ->
-                    val playerVm = playerViewModel()
                     val flatVideos = videoListViewModel.videosFlat.value
                     val queueVideos = getLogicalQueue(
                         video = video,
@@ -965,15 +985,19 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    playerVm.setQueue(queueVideos)
-                    playerVm.prepareVideo(Uri.parse(video.uri), queueVideos.map { Uri.parse(it.uri) })
-                    navController.navigate("player") { launchSingleTop = true }
+                    onNavigateToPlayer(video, queueVideos)
                 },
                 onBack = safePopBackStack
             )
         }
 
-        composable("player") {
+        composable(
+            route = "player",
+            enterTransition = { fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) },
+            exitTransition = { fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) },
+            popExitTransition = { fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing)) }
+        ) {
             val playerVm = playerViewModel()
             val playbackState by playerVm.playbackState.collectAsStateWithLifecycle()
             val isPlaying by playerVm.isPlaying.collectAsStateWithLifecycle()

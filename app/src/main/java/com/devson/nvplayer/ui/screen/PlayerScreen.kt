@@ -595,7 +595,9 @@ fun PlayerScreen(
     }
 
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
         val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
 
@@ -626,18 +628,14 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
-                                    MaterialTheme.colorScheme.background
-                                ),
-                                radius = 2200f
-                            )
-                        ),
+                        .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 4.dp,
+                        modifier = Modifier.size(52.dp)
+                    )
                 }
             }
 

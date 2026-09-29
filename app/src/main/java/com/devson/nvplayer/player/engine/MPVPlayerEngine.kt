@@ -522,62 +522,184 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    private fun safeSetPropertyString(property: String, value: String) {
+        try {
+            MPVLib.setPropertyString(property, value)
+        } catch (e: Exception) {
+            Log.w("MPVPlayerEngine", "Failed to set MPV property string $property = $value: ${e.message}")
+        }
+    }
+
+    private fun safeSetPropertyDouble(property: String, value: Double) {
+        try {
+            MPVLib.setPropertyDouble(property, value)
+        } catch (e: Exception) {
+            Log.w("MPVPlayerEngine", "Failed to set MPV property double $property = $value: ${e.message}")
+        }
+    }
+
+    private fun safeSetPropertyInt(property: String, value: Int) {
+        try {
+            MPVLib.setPropertyInt(property, value)
+        } catch (e: Exception) {
+            Log.w("MPVPlayerEngine", "Failed to set MPV property int $property = $value: ${e.message}")
+        }
+    }
+
+    private val systemFontFiles: Set<String> by lazy {
+        try {
+            File("/system/fonts").list()?.toSet() ?: emptySet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
+
+    private fun resolveSystemFontName(font: com.devson.nvplayer.data.repository.SubtitleFont): String {
+        return when (font) {
+            com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT -> ""
+            com.devson.nvplayer.data.repository.SubtitleFont.SANS_SERIF -> {
+                when {
+                    systemFontFiles.contains("Roboto-Regular.ttf") -> "Roboto"
+                    else -> "sans-serif"
+                }
+            }
+            com.devson.nvplayer.data.repository.SubtitleFont.SERIF -> {
+                when {
+                    systemFontFiles.contains("NotoSerif-Regular.ttf") -> "Noto Serif"
+                    systemFontFiles.contains("DroidSerif-Regular.ttf") -> "Droid Serif"
+                    else -> "serif"
+                }
+            }
+            com.devson.nvplayer.data.repository.SubtitleFont.MONOSPACE -> {
+                when {
+                    systemFontFiles.contains("DroidSansMono.ttf") -> "Droid Sans Mono"
+                    systemFontFiles.contains("CutiveMono.ttf") -> "Cutive Mono"
+                    else -> "monospace"
+                }
+            }
+        }
+    }
+
     override fun applySubtitleSettings(settings: com.devson.nvplayer.data.repository.PlaybackSettings) {
         Log.d("MPVPlayerEngine", "Applying subtitle settings to native MPV engine: $settings")
         try {
             // Subtitle size scaling
-            MPVLib.setPropertyDouble("sub-scale", settings.subtitleTextSizeScale.toDouble())
-            MPVLib.setPropertyDouble("sub-font-size", 55.0)
+            safeSetPropertyDouble("sub-scale", settings.subtitleTextSizeScale.toDouble())
+            safeSetPropertyDouble("sub-font-size", 55.0)
 
             // Subtitle delay
-            MPVLib.setPropertyDouble("sub-delay", settings.subtitleDelayMs / 1000.0)
+            safeSetPropertyDouble("sub-delay", settings.subtitleDelayMs / 1000.0)
 
             // Subtitle vertical position (0.0 = bottom (100%), 0.85 = top (15%))
             val pos = (100 - (settings.subtitleVerticalOffset * 100).toInt()).coerceIn(0, 100)
-            MPVLib.setPropertyInt("sub-pos", pos)
+            safeSetPropertyInt("sub-pos", pos)
 
-            // Subtitle font family (empty string lets libass fall back to subfont.ttf)
-            val fontName = when (settings.subtitleFont) {
-                com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT -> ""
-                com.devson.nvplayer.data.repository.SubtitleFont.MONOSPACE -> "monospace"
-                com.devson.nvplayer.data.repository.SubtitleFont.SANS_SERIF -> ""
-                com.devson.nvplayer.data.repository.SubtitleFont.SERIF -> "serif"
+            // Subtitle font family
+            val fontName = resolveSystemFontName(settings.subtitleFont)
+            if (fontName.isNotEmpty()) {
+                safeSetPropertyString("sub-font", fontName)
+            } else {
+                safeSetPropertyString("sub-font", "sans-serif")
             }
-            MPVLib.setPropertyString("sub-font", fontName)
 
             // Subtitle bold weight
-            MPVLib.setPropertyString("sub-bold", if (settings.isSubtitleBold) "yes" else "no")
+            safeSetPropertyString("sub-bold", if (settings.isSubtitleBold) "yes" else "no")
 
-            // Subtitle force ASS / SSA override
-            MPVLib.setPropertyString("sub-ass-override", if (settings.forceAssSubtitleOverride) "force" else "scale")
+            // Subtitle text color (White)
+            safeSetPropertyString("sub-color", "#FFFFFFFF")
 
-            // Subtitle background and border styling
+            // Subtitle background and border styling for plain text / mpv native renderer
             when (settings.subtitleBgStyle) {
                 0 -> {
                     // None (transparent background with standard outline & shadow)
-                    MPVLib.setPropertyString("sub-color", "#FFFFFFFF")
-                    MPVLib.setPropertyString("sub-border-color", "#FF000000")
-                    MPVLib.setPropertyDouble("sub-border-size", 2.5)
-                    MPVLib.setPropertyDouble("sub-shadow-offset", 1.0)
-                    MPVLib.setPropertyString("sub-shadow-color", "#80000000")
-                    MPVLib.setPropertyString("sub-back-color", "#00000000")
+                    safeSetPropertyString("sub-border-style", "outline-and-shadow")
+                    safeSetPropertyString("sub-back-color", "#00000000")
+                    safeSetPropertyString("sub-border-color", "#FF000000")
+                    safeSetPropertyString("sub-outline-color", "#FF000000")
+                    safeSetPropertyDouble("sub-border-size", 2.5)
+                    safeSetPropertyDouble("sub-outline-size", 2.5)
+                    safeSetPropertyDouble("sub-shadow-offset", 1.0)
+                    safeSetPropertyString("sub-shadow-color", "#80000000")
                 }
                 1 -> {
-                    // Glass / Translucent black background box
-                    MPVLib.setPropertyString("sub-color", "#FFFFFFFF")
-                    MPVLib.setPropertyString("sub-border-color", "#FF000000")
-                    MPVLib.setPropertyDouble("sub-border-size", 1.5)
-                    MPVLib.setPropertyDouble("sub-shadow-offset", 0.0)
-                    MPVLib.setPropertyString("sub-back-color", "#80000000")
+                    // Glass / Translucent black background box (~55% opacity)
+                    try {
+                        MPVLib.command("apply-profile", "sub-box")
+                    } catch (_: Exception) {}
+                    safeSetPropertyString("sub-border-style", "background-box")
+                    safeSetPropertyString("sub-back-color", "#8C000000")
+                    safeSetPropertyDouble("sub-shadow-offset", 3.0)
+                    safeSetPropertyDouble("sub-border-size", 0.0)
+                    safeSetPropertyDouble("sub-outline-size", 0.0)
+                    safeSetPropertyString("sub-border-color", "#00000000")
+                    safeSetPropertyString("sub-outline-color", "#00000000")
                 }
                 2 -> {
-                    // Solid black background box
-                    MPVLib.setPropertyString("sub-color", "#FFFFFFFF")
-                    MPVLib.setPropertyString("sub-border-color", "#00000000")
-                    MPVLib.setPropertyDouble("sub-border-size", 0.0)
-                    MPVLib.setPropertyDouble("sub-shadow-offset", 0.0)
-                    MPVLib.setPropertyString("sub-back-color", "#FF000000")
+                    // Solid black background box (100% opacity)
+                    try {
+                        MPVLib.command("apply-profile", "sub-box")
+                    } catch (_: Exception) {}
+                    safeSetPropertyString("sub-border-style", "background-box")
+                    safeSetPropertyString("sub-back-color", "#FF000000")
+                    safeSetPropertyDouble("sub-shadow-offset", 3.0)
+                    safeSetPropertyDouble("sub-border-size", 0.0)
+                    safeSetPropertyDouble("sub-outline-size", 0.0)
+                    safeSetPropertyString("sub-border-color", "#00000000")
+                    safeSetPropertyString("sub-outline-color", "#00000000")
                 }
+            }
+
+            // ASS style overrides for SSA/ASS and converted subtitles
+            // Note: In ASS format &HAABBGGRR, Alpha is inverted: &H00 is fully opaque, &HFF is fully transparent.
+            val forceStyleList = mutableListOf<String>()
+            if (fontName.isNotEmpty()) {
+                forceStyleList.add("FontName=$fontName")
+            }
+            forceStyleList.add("Bold=${if (settings.isSubtitleBold) 1 else 0}")
+            forceStyleList.add("PrimaryColour=&H00FFFFFF")
+
+            when (settings.subtitleBgStyle) {
+                0 -> {
+                    forceStyleList.add("BorderStyle=1")
+                    forceStyleList.add("Outline=2")
+                    forceStyleList.add("Shadow=1")
+                    forceStyleList.add("OutlineColour=&H00000000")
+                    forceStyleList.add("BackColour=&H80000000")
+                }
+                1 -> {
+                    // In ASS BorderStyle=3, OutlineColour acts as the box color and Outline defines box padding
+                    forceStyleList.add("BorderStyle=3")
+                    forceStyleList.add("Outline=3")
+                    forceStyleList.add("Shadow=0")
+                    forceStyleList.add("OutlineColour=&H73000000") // ~55% dark translucent box
+                    forceStyleList.add("BackColour=&H73000000")
+                }
+                2 -> {
+                    forceStyleList.add("BorderStyle=3")
+                    forceStyleList.add("Outline=3")
+                    forceStyleList.add("Shadow=0")
+                    forceStyleList.add("OutlineColour=&H00000000") // 100% opaque black box
+                    forceStyleList.add("BackColour=&H00000000")
+                }
+            }
+
+            val styleOverrideString = forceStyleList.joinToString(",")
+            safeSetPropertyString("sub-ass-force-style", styleOverrideString)
+            safeSetPropertyString("sub-ass-style-overrides", styleOverrideString)
+
+            // Subtitle force ASS / SSA override
+            val shouldOverride = settings.forceAssSubtitleOverride ||
+                settings.subtitleBgStyle != 0 ||
+                settings.subtitleFont != com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT ||
+                settings.isSubtitleBold
+
+            safeSetPropertyString("sub-ass-override", if (shouldOverride) "force" else "scale")
+
+            // Reload subtitle rendering so background style change takes effect immediately on screen
+            try {
+                MPVLib.command("sub-reload")
+            } catch (e: Exception) {
+                Log.d("MPVPlayerEngine", "sub-reload not applicable: ${e.message}")
             }
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to apply subtitle settings to MPVLib", e)
