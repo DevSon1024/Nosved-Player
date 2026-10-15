@@ -44,7 +44,13 @@ class MPVSurfaceView @JvmOverloads constructor(
             try {
                 setActiveSurface(holder.surface)
                 MPVLib.attachSurface(holder.surface)
-                MPVLib.setOptionString("force-window", "yes")
+                try {
+                    MPVLib.setPropertyString("force-window", "yes")
+                } catch (_: Exception) {
+                    try {
+                        MPVLib.setOptionString("force-window", "yes")
+                    } catch (_: Exception) {}
+                }
                 MPVLib.setPropertyString("vo", "gpu")
                 onSurfaceCreatedListener?.invoke()
             } catch (e: Exception) {

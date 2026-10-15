@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -392,5 +393,16 @@ class MediaPlaybackService : Service() {
             return lastSegment
         }
         return null
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+            level == ComponentCallbacks2.TRIM_MEMORY_MODERATE ||
+            level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+        ) {
+            Log.w("MediaPlaybackService", "onTrimMemory received: level=$level. Flushing MPV caches.")
+            MPVPlayerEngine.activeInstance?.trimMemory(level)
+        }
     }
 }

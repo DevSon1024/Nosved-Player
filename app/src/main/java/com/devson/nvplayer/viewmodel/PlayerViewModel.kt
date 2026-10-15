@@ -1750,11 +1750,7 @@ class PlayerViewModel(
         }
         try {
             Log.d("PlayerViewModel", "Applying enhance settings: mode=${settings.enhanceMode}, sat=$sat, con=$con, bright=$bright, gam=$gam, hue=$hue")
-            `is`.xyz.mpv.MPVLib.setPropertyInt("saturation", sat)
-            `is`.xyz.mpv.MPVLib.setPropertyInt("contrast", con)
-            `is`.xyz.mpv.MPVLib.setPropertyInt("brightness", bright)
-            `is`.xyz.mpv.MPVLib.setPropertyInt("gamma", gam)
-            `is`.xyz.mpv.MPVLib.setPropertyInt("hue", hue)
+            playerEngine.setSmartEnhance(sat, con, bright, gam, hue)
         } catch (e: Exception) {
             Log.e("PlayerViewModel", "Failed to apply enhance settings", e)
         }

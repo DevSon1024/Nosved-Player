@@ -1,8 +1,10 @@
 package com.devson.nvplayer.player.engine
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.devson.nvplayer.util.DeviceCapabilityHelper
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.ChapterInfo
@@ -134,8 +136,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("force-window", "yes")
 
-            // Prioritize hardware decoding with auto-safe fallback and use fast profile
-            MPVLib.setOptionString("hwdec", "auto-safe")
+            val isLowRam = DeviceCapabilityHelper.isLowRamDevice(context)
+            Log.d("MPVPlayerEngine", "Device capability detected: isLowRam=$isLowRam")
+
+            // Default to zero-copy mediacodec instead of mediacodec-copy to avoid GPU-to-CPU copy overhead
+            MPVLib.setOptionString("hwdec", "mediacodec")
             MPVLib.setOptionString("profile", "fast")
 
             // Subtitle rendering options: render natively on MPV surface and disable secondary-sid mirroring
@@ -162,17 +167,18 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Enable cache
             MPVLib.setOptionString("cache", "yes")
 
-            // Configure cache sizes and read-ahead thresholds based on Data Saver state
-            if (settings.isDataSaverEnabled) {
-                MPVLib.setOptionString("demuxer-max-bytes", "${50 * 1024 * 1024}")
-                MPVLib.setOptionString("demuxer-readahead-secs", "60")
+            // Hardware-aware demuxer buffer and decoder thread configuration
+            if (isLowRam) {
+                MPVLib.setOptionString("demuxer-max-bytes", "16MiB")
+                MPVLib.setOptionString("demuxer-max-back-bytes", "8MiB")
+                MPVLib.setOptionString("vd-lavc-threads", "2")
+                MPVLib.setOptionString("hr-seek", "no")
+                MPVLib.setOptionString("demuxer-readahead-secs", "30")
             } else {
-                MPVLib.setOptionString("demuxer-max-bytes", "${400 * 1024 * 1024}")
-                MPVLib.setOptionString("demuxer-readahead-secs", "300")
+                MPVLib.setOptionString("demuxer-max-bytes", "64MiB")
+                MPVLib.setOptionString("demuxer-max-back-bytes", "32MiB")
+                MPVLib.setOptionString("demuxer-readahead-secs", "120")
             }
-
-            // Keep a healthy back-buffer (for rewinding)
-            MPVLib.setOptionString("demuxer-max-back-bytes", "${50 * 1024 * 1024}")
 
             YtdlpManager.setupMpvOptions(context, settings)
 
@@ -352,6 +358,21 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             try { MPVLib.setPropertyString("demuxer-lavf-probesize", baseProbeSize) } catch (_: Exception) {}
         }
 
+        val isLowRam = DeviceCapabilityHelper.isLowRamDevice(context)
+        try {
+            if (isLowRam) {
+                MPVLib.setPropertyString("demuxer-max-bytes", "16MiB")
+                MPVLib.setPropertyString("demuxer-max-back-bytes", "8MiB")
+                MPVLib.setPropertyString("hr-seek", "no")
+            } else {
+                MPVLib.setPropertyString("demuxer-max-bytes", "64MiB")
+                MPVLib.setPropertyString("demuxer-max-back-bytes", "32MiB")
+            }
+        } catch (e: Exception) {
+            Log.w("MPVPlayerEngine", "Failed to apply hardware-aware demuxer configuration", e)
+        }
+        applyEffectiveDecoder()
+
         try {
             try { MPVLib.command("stop") } catch (_: Exception) {}
             val loadfileStart = System.currentTimeMillis()
@@ -396,9 +417,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     override fun seekTo(position: Long, precise: Boolean) {
         val seconds = position / 1000.0
-        Log.d("MPVPlayerEngine", "Seeking to position: $position ms ($seconds s), precise: $precise")
+        val isLowRam = DeviceCapabilityHelper.isLowRamDevice(context)
+        val usePrecise = precise && !isLowRam
+        Log.d("MPVPlayerEngine", "Seeking to position: $position ms ($seconds s), precise: $usePrecise (isLowRam=$isLowRam)")
         try {
-            val mode = if (precise) "absolute" else "absolute+keyframes"
+            val mode = if (usePrecise) "absolute" else "absolute+keyframes"
             MPVLib.command("seek", seconds.toString(), mode)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to seek to position", e)
@@ -426,6 +449,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 MPVLib.setPropertyString("sub-visibility", "yes")
             }
             updateTracks()
+            evaluateSubtitleFilterState()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to cycle subtitle", e)
         }
@@ -454,6 +478,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 MPVLib.setPropertyString("sub-visibility", "yes")
             }
             updateTracks()
+            evaluateSubtitleFilterState()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to select subtitle track: $id", e)
         }
@@ -701,6 +726,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             } catch (e: Exception) {
                 Log.d("MPVPlayerEngine", "sub-reload not applicable: ${e.message}")
             }
+            evaluateSubtitleFilterState()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to apply subtitle settings to MPVLib", e)
         }
@@ -740,6 +766,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 val lang = MPVLib.getPropertyString("track-list/$i/lang") ?: ""
                 val selected = MPVLib.getPropertyBoolean("track-list/$i/selected") ?: false
                 val external = MPVLib.getPropertyBoolean("track-list/$i/external") ?: false
+                val codec = MPVLib.getPropertyString("track-list/$i/codec") ?: ""
 
                 val trackName = when {
                     title.isNotEmpty() && lang.isNotEmpty() -> "$title ($lang)"
@@ -749,7 +776,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                     else -> "${type.replaceFirstChar { it.uppercaseChar() }} Track #$id"
                 }
 
-                val track = TrackInfo(id, type, trackName, selected, isExternal = external, lang = lang)
+                val track = TrackInfo(id, type, trackName, selected, isExternal = external, lang = lang, codec = codec)
                 if (type == "sub") {
                     subs.add(track)
                 } else if (type == "audio") {
@@ -767,6 +794,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             _subtitleTracks.value = subs
             _audioTracks.value = audios
             Log.d("MPVPlayerEngine", "Tracks updated. Subs: ${subs.size}, Audios: ${audios.size}")
+            evaluateSubtitleFilterState()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to update track list", e)
         }
@@ -853,12 +881,97 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
+    private var requestedDecoderMode: DecoderMode = DecoderMode.HW
+    private var isSmartEnhanceActive: Boolean = false
+    private var isAmbientShaderActive: Boolean = false
+    private var isSoftwareSubActive: Boolean = false
+    private var areFiltersOrShadersActive: Boolean = false
+
     override fun setDecoder(mode: DecoderMode) {
-        Log.d("MPVPlayerEngine", "Setting decoder to: ${mode.displayName} (${mode.value})")
+        Log.d("MPVPlayerEngine", "Setting decoder mode request: ${mode.displayName} (${mode.value})")
+        requestedDecoderMode = mode
+        applyEffectiveDecoder()
+    }
+
+    override fun setSmartEnhance(saturation: Int, contrast: Int, brightness: Int, gamma: Int, hue: Int) {
+        val isNonNeutral = saturation != 0 || contrast != 0 || brightness != 0 || gamma != 0 || hue != 0
+        isSmartEnhanceActive = isNonNeutral
+        checkAndUpdateFilterState()
         try {
-            MPVLib.setPropertyString("hwdec", mode.value)
+            MPVLib.setPropertyInt("saturation", saturation)
+            MPVLib.setPropertyInt("contrast", contrast)
+            MPVLib.setPropertyInt("brightness", brightness)
+            MPVLib.setPropertyInt("gamma", gamma)
+            MPVLib.setPropertyInt("hue", hue)
         } catch (e: Exception) {
-            Log.e("MPVPlayerEngine", "Failed to set decoder", e)
+            Log.e("MPVPlayerEngine", "Failed to set smart enhance properties", e)
+        }
+    }
+
+    private fun checkAndUpdateFilterState() {
+        val active = isSmartEnhanceActive || isAmbientShaderActive || isSoftwareSubActive
+        if (areFiltersOrShadersActive != active) {
+            areFiltersOrShadersActive = active
+            applyEffectiveDecoder()
+        }
+    }
+
+    private fun applyEffectiveDecoder() {
+        val targetHwdec = when (requestedDecoderMode) {
+            DecoderMode.SW -> "no"
+            DecoderMode.HW_PLUS -> "mediacodec-copy"
+            DecoderMode.HW, DecoderMode.AUTO -> {
+                if (areFiltersOrShadersActive) "mediacodec-copy" else "mediacodec"
+            }
+        }
+        Log.d("MPVPlayerEngine", "Applying effective hwdec: $targetHwdec (requested: ${requestedDecoderMode.displayName}, filtersActive: $areFiltersOrShadersActive)")
+        try {
+            MPVLib.setPropertyString("hwdec", targetHwdec)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set effective hwdec to $targetHwdec", e)
+        }
+    }
+
+    private fun evaluateSubtitleFilterState() {
+        val settings = settingsRepo.playbackSettingsFlow.value
+        val currentSubTrack = _subtitleTracks.value.firstOrNull { it.selected && it.id != -1 }
+        val isSubActive = currentSubTrack != null
+        val codec = currentSubTrack?.codec?.lowercase() ?: ""
+        val isAssOrSoftware = isSubActive && (
+            codec.contains("ass") ||
+            codec.contains("ssa") ||
+            codec.contains("pgs") ||
+            codec.contains("dvb") ||
+            settings.forceAssSubtitleOverride ||
+            settings.subtitleBgStyle != 0 ||
+            settings.subtitleFont != com.devson.nvplayer.data.repository.SubtitleFont.DEFAULT ||
+            settings.isSubtitleBold
+        )
+        isSoftwareSubActive = isAssOrSoftware
+        checkAndUpdateFilterState()
+    }
+
+    override fun trimMemory(level: Int) {
+        if (!isInitialized) return
+        Log.w("MPVPlayerEngine", "trimMemory called with level: $level")
+        try {
+            val isCritical = level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                    level == ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+
+            // 1. Immediately drop backward demuxer cache to free native memory
+            MPVLib.setPropertyString("demuxer-max-back-bytes", "0")
+
+            // 2. Reduce forward demuxer cache size
+            val maxBytes = if (isCritical) "8MiB" else "16MiB"
+            val readaheadSecs = if (isCritical) "10" else "20"
+            MPVLib.setPropertyString("demuxer-max-bytes", maxBytes)
+            MPVLib.setPropertyString("demuxer-readahead-secs", readaheadSecs)
+
+            // 3. Restore small back buffer
+            val restoreBackBytes = if (isCritical) "1MiB" else "4MiB"
+            MPVLib.setPropertyString("demuxer-max-back-bytes", restoreBackBytes)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to trim MPV memory", e)
         }
     }
 
@@ -1009,6 +1122,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     ) {
         isAmbientEnabledInternal = isEnabled
         ambientStyleInternal = style
+        isAmbientShaderActive = isEnabled
+        checkAndUpdateFilterState()
         if (!isEnabled) {
             clearAmbientShader()
         } else {

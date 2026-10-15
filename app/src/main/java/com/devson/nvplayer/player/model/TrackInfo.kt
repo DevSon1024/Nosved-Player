@@ -6,5 +6,6 @@ data class TrackInfo(
     val name: String,     // Friendly display name
     val selected: Boolean,
     val isExternal: Boolean = false,
-    val lang: String = "" // Raw ISO 639 language code from MPV (e.g. "eng", "en", "hin")
+    val lang: String = "", // Raw ISO 639 language code from MPV (e.g. "eng", "en", "hin")
+    val codec: String = "" // Codec name from MPV (e.g. "subrip", "ass", "pgs")
 )

@@ -64,5 +64,7 @@ interface PlayerEngine {
         streamUrl: String,
         streamType: com.devson.nvplayer.data.model.StreamType
     ) {}
+    fun setSmartEnhance(saturation: Int, contrast: Int, brightness: Int, gamma: Int, hue: Int) {}
+    fun trimMemory(level: Int) {}
     fun release()
 }
