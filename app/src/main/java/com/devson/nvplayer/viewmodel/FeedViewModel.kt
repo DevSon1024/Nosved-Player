@@ -120,6 +120,10 @@ class FeedViewModel(
     fun onSurfaceDetached() {
         isSurfaceReady = false
         Log.d(TAG, "Surface detached")
+        pause()
+        try {
+            `is`.xyz.mpv.MPVLib.command("stop")
+        } catch (_: Exception) {}
     }
 
     fun setVideos(list: List<Video>) {
@@ -139,11 +143,20 @@ class FeedViewModel(
             _currentVideoUri.value = null
             _currentIndex.value = -1
             pause()
+            try {
+                `is`.xyz.mpv.MPVLib.command("stop")
+            } catch (_: Exception) {}
             return
         }
         if (index < 0 || index >= list.size) return
         val video = list[index]
         if (_currentVideoUri.value == video.uri) return
+
+        // Immediately release/stop the previous hardware decoder session before initializing the next item
+        pause()
+        try {
+            `is`.xyz.mpv.MPVLib.command("stop")
+        } catch (_: Exception) {}
 
         _currentVideoUri.value = video.uri
         _currentIndex.value = index

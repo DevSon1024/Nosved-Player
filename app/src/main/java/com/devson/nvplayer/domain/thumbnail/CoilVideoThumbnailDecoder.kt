@@ -152,10 +152,19 @@ class CoilVideoThumbnailDecoder(
                 }
             }
 
+        val targetWidth = when (val w = options.size.width) {
+            is coil3.size.Dimension.Pixels -> w.px.coerceIn(96, 512)
+            else -> MAX_THUMBNAIL_SIZE
+        }
+        val targetHeight = when (val h = options.size.height) {
+            is coil3.size.Dimension.Pixels -> h.px.coerceIn(54, 512)
+            else -> MAX_THUMBNAIL_SIZE
+        }
+
         return runCatching {
             options.context.contentResolver.loadThumbnail(
                 uri,
-                Size(MAX_THUMBNAIL_SIZE, MAX_THUMBNAIL_SIZE),
+                Size(targetWidth, targetHeight),
                 null,
             )
         }.getOrNull()
@@ -216,19 +225,28 @@ class CoilVideoThumbnailDecoder(
         }
     }
 
-    private fun MediaMetadataRetriever.getThumbnailFrameAt(timeUs: Long): Bitmap? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+    private fun MediaMetadataRetriever.getThumbnailFrameAt(timeUs: Long): Bitmap? {
+        val targetWidth = when (val w = options.size.width) {
+            is coil3.size.Dimension.Pixels -> w.px.coerceIn(96, 512)
+            else -> MAX_THUMBNAIL_SIZE
+        }
+        val targetHeight = when (val h = options.size.height) {
+            is coil3.size.Dimension.Pixels -> h.px.coerceIn(54, 512)
+            else -> MAX_THUMBNAIL_SIZE
+        }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             runCatching {
                 getScaledFrameAtTime(
                     timeUs,
                     MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                    MAX_THUMBNAIL_SIZE,
-                    MAX_THUMBNAIL_SIZE,
+                    targetWidth,
+                    targetHeight,
                 )
             }.getOrNull() ?: getFrameAtTime(timeUs)
         } else {
             getFrameAtTime(timeUs)
         }
+    }
 
     private fun MediaMetadataRetriever.setDataSource(source: ImageSource) {
         val metadata = source.metadata

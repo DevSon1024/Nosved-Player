@@ -56,6 +56,7 @@ data class SeriesDetail(
 sealed interface LibraryUiState {
     data object Loading : LibraryUiState
 
+    @Immutable
     data class Success(
         val heroItems: List<LibraryMediaItem> = emptyList(),
         val continueWatching: List<LibraryMediaItem> = emptyList(),
@@ -64,5 +65,6 @@ sealed interface LibraryUiState {
         val selectedCategory: LibraryCategory = LibraryCategory.ALL
     ) : LibraryUiState
 
+    @Immutable
     data class Error(val message: String) : LibraryUiState
 }

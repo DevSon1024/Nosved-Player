@@ -3,7 +3,7 @@ package com.devson.nvplayer.domain.thumbnail
 import android.graphics.Bitmap
 import kotlin.math.abs
 
-internal const val MAX_THUMBNAIL_SIZE = 512
+internal const val MAX_THUMBNAIL_SIZE = 360
 
 internal fun calculateThumbnailSampleSize(
     width: Int,

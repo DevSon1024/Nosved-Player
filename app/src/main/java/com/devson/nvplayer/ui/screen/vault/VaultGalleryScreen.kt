@@ -298,7 +298,11 @@ fun VaultGalleryScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(vaultItems, key = { it.id }) { item ->
+                        items(
+                            items = vaultItems,
+                            key = { it.id },
+                            contentType = { "vault_media_card" }
+                        ) { item ->
                             VaultMediaCard(
                                 item = item,
                                 onClick = {
@@ -471,13 +475,20 @@ private fun VaultMediaCard(
                     if (thumbFile?.exists() == true) thumbFile else File(item.vaultPath)
                 }
 
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
+                val context = LocalContext.current
+                val imageRequest = remember(imageModel) {
+                    ImageRequest.Builder(context)
                         .data(imageModel)
-                        .crossfade(true)
+                        .size(320, 180)
+                        .precision(coil3.size.Precision.INEXACT)
+                        .crossfade(false)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.DISABLED)
-                        .build(),
+                        .build()
+                }
+
+                AsyncImage(
+                    model = imageRequest,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

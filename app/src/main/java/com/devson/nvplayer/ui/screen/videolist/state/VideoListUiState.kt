@@ -1,17 +1,23 @@
 package com.devson.nvplayer.ui.screens.videolist.state
 
+import androidx.compose.runtime.Immutable
 import com.devson.nvplayer.domain.model.StorageVolumeInfo
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.ViewSettings
 
+@Immutable
 sealed interface ExplorerItem {
+    @Immutable
     data class FolderItem(val folder: VideoFolder) : ExplorerItem
+    @Immutable
     data class VideoItem(val video: Video) : ExplorerItem
 }
 
+@Immutable
 data class PathSegment(val name: String, val absolutePath: String)
 
+@Immutable
 data class VideoListUiState(
     val videosByFolder: Map<VideoFolder, List<Video>> = emptyMap(),
     val selectedVideos: Set<Video> = emptySet(),

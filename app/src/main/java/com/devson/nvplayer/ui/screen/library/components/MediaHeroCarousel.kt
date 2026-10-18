@@ -56,9 +56,10 @@ fun MediaHeroCarousel(
                 ImageRequest.Builder(context)
                     .data(item.backdropUri ?: item.videoUri)
                     .size(640, 360)
+                    .precision(coil3.size.Precision.INEXACT)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(300)
+                    .crossfade(false)
                     .build()
             }
 

@@ -120,6 +120,9 @@ fun FeedScreen(
         onDispose {
             if (!viewModel.skipPauseOnDispose) {
                 viewModel.pause()
+                try {
+                    `is`.xyz.mpv.MPVLib.command("stop")
+                } catch (_: Exception) {}
             }
         }
     }
@@ -151,6 +154,7 @@ fun FeedScreen(
 
         VerticalPager(
             state    = pagerState,
+            key      = { pageIndex -> filteredVideos.getOrNull(pageIndex)?.uri ?: pageIndex.toString() },
             modifier = Modifier.fillMaxSize()
         ) { pageIndex ->
             val video = filteredVideos.getOrNull(pageIndex)
@@ -408,15 +412,22 @@ private fun FeedPage(
             )
         } else {
             // Lightweight placeholder shown while this page is off-screen.
-            // Coil's coil-video integration decodes a frame from the video URI.
+            // Coil's coil-video integration decodes a frame from the video URI with subsampled sizing.
             val thumbnailData = video.thumbnailUri?.let { android.net.Uri.parse(it) }
                 ?: android.net.Uri.parse(video.uri)
 
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
+            val context = LocalContext.current
+            val imageRequest = remember(thumbnailData) {
+                ImageRequest.Builder(context)
                     .data(thumbnailData)
-                    .crossfade(true)
-                    .build(),
+                    .size(360, 640)
+                    .precision(coil3.size.Precision.INEXACT)
+                    .crossfade(false)
+                    .build()
+            }
+
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = video.title,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()

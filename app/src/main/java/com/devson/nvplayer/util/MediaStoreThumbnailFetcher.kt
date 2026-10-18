@@ -25,10 +25,17 @@ class MediaStoreThumbnailFetcher(
             uri.scheme == ContentResolver.SCHEME_CONTENT
         ) {
             try {
-                // Request a 512x512 thumbnail natively from the OS
+                val targetWidth = when (val w = options.size.width) {
+                    is coil3.size.Dimension.Pixels -> w.px.coerceIn(96, 512)
+                    else -> 320
+                }
+                val targetHeight = when (val h = options.size.height) {
+                    is coil3.size.Dimension.Pixels -> h.px.coerceIn(54, 512)
+                    else -> 180
+                }
                 val bitmap = options.context.contentResolver.loadThumbnail(
                     uri,
-                    Size(512, 512),
+                    Size(targetWidth, targetHeight),
                     null
                 ) ?: return@withContext null
 

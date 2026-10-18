@@ -49,6 +49,7 @@ enum class StorageUnitDisplay(val label: String, val shortName: String) {
     BYTES("Bytes (B)", "Bytes")
 }
 
+@androidx.compose.runtime.Immutable
 data class ExactStorageInfo(
     val totalBytes: Long = 0L,
     val freeBytes: Long = 0L,
@@ -61,6 +62,7 @@ data class ExactStorageInfo(
     val largestVideos: List<Video> = emptyList()
 )
 
+@androidx.compose.runtime.Immutable
 data class FolderStorageItem(
     val name: String,
     val path: String,
@@ -176,7 +178,8 @@ fun StorageAnalyzeScreen(
 
                     items(
                         items = storageInfo.topFolders,
-                        key = { it.name + it.path }
+                        key = { it.name + it.path },
+                        contentType = { "folder_storage_item" }
                     ) { folder ->
                         FolderStorageRowCard(folder = folder)
                     }
@@ -190,7 +193,8 @@ fun StorageAnalyzeScreen(
 
                     items(
                         items = storageInfo.largestVideos,
-                        key = { it.uri }
+                        key = { it.uri },
+                        contentType = { "largest_video_item" }
                     ) { video ->
                         LargestVideoItemCard(
                             video = video,
@@ -633,6 +637,15 @@ private fun LargestVideoItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            val context = LocalContext.current
+            val imageRequest = remember(video.uri) {
+                ImageRequest.Builder(context)
+                    .data(video.uri)
+                    .size(240, 160)
+                    .precision(coil3.size.Precision.INEXACT)
+                    .crossfade(false)
+                    .build()
+            }
             Box(
                 modifier = Modifier
                     .size(width = 88.dp, height = 58.dp)
@@ -640,10 +653,7 @@ private fun LargestVideoItemCard(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .crossfade(true)
-                        .build(),
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

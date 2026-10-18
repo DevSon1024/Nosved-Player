@@ -359,8 +359,11 @@ fun LibraryHomeScreen(
                                             }
                                         }
 
-                                        // Grid-like chunked rows for performance
-                                        items(chunkedItems, key = { row -> row.firstOrNull()?.id ?: "" }) { rowItems ->
+                                        items(
+                                            items = chunkedItems,
+                                            key = { row -> row.firstOrNull()?.id ?: "" },
+                                            contentType = { "poster_row" }
+                                        ) { rowItems ->
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()

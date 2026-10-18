@@ -39,10 +39,11 @@ fun MediaBackdropCard(
     val imageRequest = remember(item.backdropUri ?: item.videoUri) {
         ImageRequest.Builder(context)
             .data(item.backdropUri ?: item.videoUri)
-            .size(480, 270)
+            .size(360, 202)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(300)
+            .crossfade(false)
             .build()
     }
 

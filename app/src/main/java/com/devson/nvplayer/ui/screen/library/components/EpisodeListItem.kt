@@ -39,10 +39,11 @@ fun EpisodeListItem(
     val imageRequest = remember(episode.fileUri) {
         ImageRequest.Builder(context)
             .data(episode.fileUri)
-            .size(360, 200)
+            .size(320, 180)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(250)
+            .crossfade(false)
             .build()
     }
 

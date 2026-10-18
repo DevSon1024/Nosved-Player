@@ -128,10 +128,11 @@ fun SeriesDetailScreen(
     val imageRequest = remember(firstEpisodeUri) {
         ImageRequest.Builder(context)
             .data(firstEpisodeUri)
-            .size(1080, 720)
+            .size(640, 360)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(400)
+            .crossfade(false)
             .build()
     }
 
@@ -351,7 +352,11 @@ fun SeriesDetailScreen(
             }
 
             // 5. Episode List Items
-            items(currentEpisodes, key = { it.id }) { episode ->
+            items(
+                items = currentEpisodes,
+                key = { it.id },
+                contentType = { "episode_item" }
+            ) { episode ->
                 Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     EpisodeListItem(
                         episode = episode,

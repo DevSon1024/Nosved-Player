@@ -45,7 +45,11 @@ fun RecentlyAddedRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(items, key = { it.id }) { item ->
+            items(
+                items = items,
+                key = { it.id },
+                contentType = { "poster_item" }
+            ) { item ->
                 MediaPosterCard(
                     item = item,
                     onClick = { onItemClick(item) },

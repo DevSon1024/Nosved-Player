@@ -515,7 +515,15 @@ private fun TrashedVideoItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Thumbnail container
+            val context = LocalContext.current
+            val imageRequest = remember(video.uri) {
+                ImageRequest.Builder(context)
+                    .data(video.uri)
+                    .size(320, 180)
+                    .precision(coil3.size.Precision.INEXACT)
+                    .crossfade(false)
+                    .build()
+            }
             Box(
                 modifier = Modifier
                     .size(width = 112.dp, height = 74.dp)
@@ -523,10 +531,7 @@ private fun TrashedVideoItem(
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(video.uri)
-                        .crossfade(true)
-                        .build(),
+                    model = imageRequest,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

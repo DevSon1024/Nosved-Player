@@ -298,7 +298,8 @@ fun HistoryScreen(
                         ) {
                             items(
                                 items = historyItems,
-                                key = { it.historyId }
+                                key = { it.historyId },
+                                contentType = { "history_item" }
                             ) { item ->
                                 val isSelected = item.rawUri in selectedUris
 
@@ -351,7 +352,8 @@ fun HistoryScreen(
                         ) {
                             items(
                                 items = historyItems,
-                                key = { it.historyId }
+                                key = { it.historyId },
+                                contentType = { "history_item" }
                             ) { item ->
                                 val isSelected = item.rawUri in selectedUris
 

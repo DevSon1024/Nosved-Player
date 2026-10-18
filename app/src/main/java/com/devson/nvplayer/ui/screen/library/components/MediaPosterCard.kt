@@ -34,10 +34,11 @@ fun MediaPosterCard(
     val imageRequest = remember(item.posterUri ?: item.videoUri) {
         ImageRequest.Builder(context)
             .data(item.posterUri ?: item.videoUri)
-            .size(360, 540)
+            .size(240, 360)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(300)
+            .crossfade(false)
             .build()
     }
 

@@ -80,10 +80,11 @@ fun VideoThumbnail(
     val imageRequest = remember(uri) {
         ImageRequest.Builder(context)
             .data(uri)
-            .size(480, 270)
+            .size(320, 180)
+            .precision(coil3.size.Precision.INEXACT)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(150)
+            .crossfade(false)
             .build()
     }
     Box(

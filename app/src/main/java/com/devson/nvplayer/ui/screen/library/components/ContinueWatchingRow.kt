@@ -44,7 +44,11 @@ fun ContinueWatchingRow(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(items, key = { it.id }) { item ->
+            items(
+                items = items,
+                key = { it.id },
+                contentType = { "backdrop_item" }
+            ) { item ->
                 MediaBackdropCard(
                     item = item,
                     onClick = { onItemClick(item) }

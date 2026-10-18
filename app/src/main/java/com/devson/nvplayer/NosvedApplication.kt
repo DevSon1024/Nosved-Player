@@ -27,8 +27,10 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
 
         val viewSettingsRepo = ViewSettingsRepository.getInstance(context)
         val isLowRam = DeviceCapabilityHelper.isLowRamDevice(context)
+        val thumbnailDispatcher = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(if (isLowRam) 2 else 4)
 
         return ImageLoader.Builder(context)
+            .coroutineContext(thumbnailDispatcher)
             .components {
                 add(
                     CoilVideoThumbnailDecoder.Factory(
@@ -53,7 +55,7 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
                     .maxSizeBytes(cacheSizeBytes)
                     .build()
             }
-            .crossfade(true)
+            .crossfade(false)
             .build()
     }
 
