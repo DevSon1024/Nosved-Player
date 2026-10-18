@@ -19,6 +19,7 @@ import com.devson.nvplayer.data.model.SeriesDetail
 import com.devson.nvplayer.data.parser.MediaFilenameParser
 import com.devson.nvplayer.data.parser.ParsedMediaInfo
 import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.util.SearchUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -46,6 +47,22 @@ class LibraryViewModel(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private val _searchSuggestions = MutableStateFlow<List<String>>(emptyList())
+    val searchSuggestions: StateFlow<List<String>> = _searchSuggestions.asStateFlow()
+
+    fun onSearchQueryChanged(query: String) {
+        if (query.isBlank()) {
+            _searchSuggestions.value = emptyList()
+        } else {
+            val allTitles = _parsedItems.value.map { it.title } + videoListViewModel.rawVideosFlat.value.map { it.title }
+            _searchSuggestions.value = SearchUtils.getSuggestions(allTitles, query, limit = 6)
+        }
+    }
+
+    fun clearSearchSuggestions() {
+        _searchSuggestions.value = emptyList()
+    }
 
     private val _parsedItems = MutableStateFlow<List<LibraryMediaItem>>(emptyList())
 
@@ -224,7 +241,12 @@ class LibraryViewModel(
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            lastProcessedSignature = null
             videoListViewModel.loadVideos(forceRefresh = true)
+            val currentVideos = videoListViewModel.activeVideosFlat.value
+            if (currentVideos.isNotEmpty()) {
+                processVideos(currentVideos)
+            }
             _isRefreshing.value = false
         }
     }

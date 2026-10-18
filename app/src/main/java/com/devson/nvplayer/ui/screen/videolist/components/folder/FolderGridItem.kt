@@ -18,9 +18,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -201,88 +205,136 @@ fun FolderGridItem(
         return
     }
  
+    val isVeryDense = settings.gridColumns >= 4
+
     // 3+ columns: full-bleed thumbnail with overlay label
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clip(FolderShape())
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape     = FolderShape(),
-        colors    = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border    = null
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            FolderMediaPreview(
-                videos = videos,
-                isSelected = false,
-                settings = settings,
-                modifier = Modifier.fillMaxSize()
-            )
-            NewCountBadge(newCount)
- 
-            // Gradient scrim for label legibility
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(FolderShape())
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            shape     = FolderShape(),
+            colors    = CardDefaults.cardColors(containerColor = Color.Transparent),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border    = null
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                FolderMediaPreview(
+                    videos = videos,
+                    isSelected = false,
+                    settings = settings,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Gradient scrim for label legibility
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(FolderShape())
+                        .background(
+                            Brush.verticalGradient(
+                                0.40f to Color.Transparent,
+                                1.0f  to Color.Black.copy(alpha = 0.72f)
+                            )
+                        )
+                )
+
+                // Selected or Recently played highlight conforming to FolderShape
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(FolderShape())
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary, FolderShape())
+                    )
+                } else if (isRecentlyPlayed) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(FolderShape())
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), FolderShape())
+                    )
+                }
+
+                // Label strip at bottom
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isVeryDense) 4.dp else 6.dp, vertical = if (isVeryDense) 3.dp else 5.dp)
+                ) {
+                    Text(
+                        text       = folder.name,
+                        color      = when {
+                            isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                            isRecentlyPlayed -> MaterialTheme.colorScheme.primaryContainer
+                            isHidden -> Color.White.copy(alpha = 0.5f)
+                            else -> Color.White
+                        },
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontSize   = if (isVeryDense) 9.sp else 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text  = stringResource(R.string.folder_videos_count, videos.size),
+                        color = Color.White.copy(alpha = 0.75f),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = if (isVeryDense) 8.sp else 9.5.sp
+                    )
+                }
+            }
+        }
+
+        // Unclipped outer badge layer
+        if (newCount > 0) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clip(FolderShape())
+                    .align(Alignment.TopStart)
+                    .padding(start = if (isVeryDense) 4.dp else 6.dp, top = if (isVeryDense) 4.dp else 6.dp)
                     .background(
-                        Brush.verticalGradient(
-                            0.40f to Color.Transparent,
-                            1.0f  to Color.Black.copy(alpha = 0.72f)
-                        )
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(20.dp)
                     )
-            )
- 
-            // Selected or Recently played highlight conforming to FolderShape
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(FolderShape())
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
-                        .border(1.5.dp, MaterialTheme.colorScheme.primary, FolderShape())
-                )
-            } else if (isRecentlyPlayed) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(FolderShape())
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), FolderShape())
-                )
-            }
- 
-            // Label strip at bottom
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 5.dp)
+                    .padding(
+                        horizontal = if (isVeryDense) 4.dp else 5.dp,
+                        vertical = if (isVeryDense) 1.dp else 2.dp
+                    )
             ) {
                 Text(
-                    text       = folder.name,
-                    color      = when {
-                        isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                        isRecentlyPlayed -> MaterialTheme.colorScheme.primaryContainer
-                        isHidden -> Color.White.copy(alpha = 0.5f)
-                        else -> Color.White
-                    },
+                    text       = stringResource(R.string.folder_new_badge, newCount),
+                    color      = MaterialTheme.colorScheme.onPrimary,
                     style      = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
-                )
-                Text(
-                    text  = stringResource(R.string.folder_videos_count, videos.size),
-                    color = Color.White.copy(alpha = 0.75f),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 9.5.sp
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize   = if (isVeryDense) 7.5.sp else 8.5.sp
                 )
             }
- 
-            SelectionCheckmarkOverlay(visible = isSelected)
+        }
+
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(if (isVeryDense) 3.dp else 5.dp)
+                    .size(if (isVeryDense) 18.dp else 22.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = stringResource(R.string.appearance_selected),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(if (isVeryDense) 11.dp else 13.dp)
+                )
+            }
         }
     }
 }

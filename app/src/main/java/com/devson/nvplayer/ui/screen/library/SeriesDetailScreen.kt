@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.data.database.EpisodeEntity
 import com.devson.nvplayer.data.model.LibraryMediaType
 import com.devson.nvplayer.data.model.SeriesDetail
+import com.devson.nvplayer.ui.common.components.PreviewFloatingActionButton
 import com.devson.nvplayer.ui.screen.library.components.EpisodeListItem
 import com.devson.nvplayer.viewmodel.LibraryViewModel
 
@@ -144,7 +145,7 @@ fun SeriesDetailScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            contentPadding = PaddingValues(bottom = 150.dp)
         ) {
             // 1. Collapsing Backdrop Header with Parallax / Fade
             item(key = "header_backdrop") {
@@ -438,6 +439,31 @@ fun SeriesDetailScreen(
                     }
                 }
             }
+        }
+
+        // Floating Action Button (FAB) padded above bottom navigation capsule
+        val allEpisodes = remember(seasons) { seasons.flatMap { it.episodes } }
+        val resumeEpisode = remember(allEpisodes) {
+            allEpisodes.firstOrNull { it.lastPlaybackPosition > 0L && !it.isWatched }
+                ?: allEpisodes.firstOrNull { !it.isWatched }
+                ?: allEpisodes.firstOrNull()
+        }
+        val viewSettings by viewModel.videoListViewModel.viewSettings.collectAsStateWithLifecycle()
+
+        if (viewSettings.showQuickFab && resumeEpisode != null) {
+            PreviewFloatingActionButton(
+                enablePreview = viewSettings.enableFabPreview,
+                previewUri = resumeEpisode.fileUri,
+                previewTitle = resumeEpisode.title ?: "${detail.series.title} - E${resumeEpisode.episodeNumber}",
+                previewDurationMs = resumeEpisode.durationMillis,
+                previewLastPositionMs = resumeEpisode.lastPlaybackPosition,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 88.dp),
+                onPlay = {
+                    onEpisodeSelected(resumeEpisode, currentEpisodes.ifEmpty { allEpisodes })
+                }
+            )
         }
     }
 }

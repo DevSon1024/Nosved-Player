@@ -215,6 +215,7 @@ fun AppNavigation(
             DefaultScreen.VIDEO_LIST, DefaultScreen.FOLDERS -> "video_list"
             DefaultScreen.VAULT -> "vault"
             DefaultScreen.SETTINGS -> "settings"
+            DefaultScreen.LIBRARY, DefaultScreen.HOME -> "library"
             else -> "library"
         }
     }

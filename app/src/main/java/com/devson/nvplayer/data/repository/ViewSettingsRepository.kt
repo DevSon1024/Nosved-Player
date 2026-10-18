@@ -51,14 +51,14 @@ class ViewSettingsRepository private constructor(context: Context) {
             showStorageTracker = prefs.getBoolean("show_storage_tracker", true),
             showLatestVideos = prefs.getBoolean("show_latest_videos", true),
             defaultScreen = try {
-                DefaultScreen.valueOf(
-                    prefs.getString(
-                        "default_screen",
-                        DefaultScreen.HOME.name
-                    ) ?: DefaultScreen.HOME.name
-                )
+                val raw = prefs.getString("default_screen", DefaultScreen.LIBRARY.name) ?: DefaultScreen.LIBRARY.name
+                when (raw) {
+                    "HOME" -> DefaultScreen.LIBRARY
+                    "FOLDERS" -> DefaultScreen.VIDEO_LIST
+                    else -> DefaultScreen.valueOf(raw)
+                }
             } catch (e: Exception) {
-                DefaultScreen.HOME
+                DefaultScreen.LIBRARY
             },
             layoutMode = try {
                 LayoutMode.valueOf(

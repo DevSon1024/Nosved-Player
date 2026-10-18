@@ -310,17 +310,23 @@ fun AppearanceSettingsScreen(
                         }
 
                         val screens = listOf(
-                            Triple("Folders", DefaultScreen.VIDEO_LIST, Icons.Default.Folder),
                             Triple("Library", DefaultScreen.LIBRARY, Icons.Default.VideoLibrary),
+                            Triple("Folders", DefaultScreen.VIDEO_LIST, Icons.Default.Folder),
                             Triple("Vault", DefaultScreen.VAULT, Icons.Default.Lock)
                         )
+
+                        val effectiveScreen = when (defaultScreen) {
+                            DefaultScreen.HOME -> DefaultScreen.LIBRARY
+                            DefaultScreen.FOLDERS -> DefaultScreen.VIDEO_LIST
+                            else -> defaultScreen
+                        }
 
                         SingleChoiceSegmentedButtonRow(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             screens.forEachIndexed { index, (label, screenEnum, _) ->
                                 SegmentedButton(
-                                    selected = defaultScreen == screenEnum,
+                                    selected = effectiveScreen == screenEnum,
                                     onClick = { settingsViewModel.updateDefaultScreen(screenEnum) },
                                     shape = SegmentedButtonDefaults.itemShape(index = index, count = screens.size)
                                 ) {

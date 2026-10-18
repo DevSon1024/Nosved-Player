@@ -50,10 +50,9 @@ fun SearchResultsScreen(
     var selectedInfoVideo by remember { mutableStateOf<Video?>(null) }
     val sheetState = rememberModalBottomSheetState()
 
-    LaunchedEffect(query, isLoading, viewSettings.sortField, viewSettings.sortDirection, history) {
+    LaunchedEffect(query, isLoading) {
         if (!isLoading) {
             results = viewModel.getSearchResults(query)
-                .applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
         }
     }
 

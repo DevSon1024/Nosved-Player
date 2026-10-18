@@ -7,10 +7,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
@@ -29,6 +31,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +45,8 @@ import com.devson.nvplayer.data.model.LibraryCategory
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.data.model.LibraryMediaType
 import com.devson.nvplayer.data.model.LibraryUiState
+import com.devson.nvplayer.ui.common.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.common.popup.SearchSuggestionsPopup
 import com.devson.nvplayer.ui.screen.NetworkStreamDialog
 import com.devson.nvplayer.ui.screen.library.components.CategoryFilterRow
 import com.devson.nvplayer.ui.screen.library.components.ContinueWatchingRow
@@ -65,10 +71,19 @@ fun LibraryHomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val searchSuggestions by viewModel.searchSuggestions.collectAsStateWithLifecycle()
 
-    var searchQuery by remember { mutableStateOf("") }
+    var searchActive by remember { mutableStateOf(false) }
+    var searchText by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     var showNetworkDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(searchActive) {
+        if (searchActive) {
+            searchFocusRequester.requestFocus()
+        }
+    }
 
     if (showNetworkDialog) {
         NetworkStreamDialog(
@@ -90,63 +105,174 @@ fun LibraryHomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.VideoLibrary,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+            Box(modifier = Modifier.fillMaxWidth()) {
+                TopAppBar(
+                    title = {
+                        if (searchActive) {
+                            OutlinedTextField(
+                                value = searchText,
+                                onValueChange = { query ->
+                                    searchText = query
+                                    viewModel.onSearchQueryChanged(query)
+                                },
+                                placeholder = {
+                                    Text(
+                                        text = "Search movies, shows, streams...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                singleLine = true,
                                 modifier = Modifier
-                                    .padding(6.dp)
-                                    .size(20.dp)
+                                    .fillMaxWidth()
+                                    .focusRequester(searchFocusRequester),
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Search
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onSearch = {
+                                        keyboardController?.hide()
+                                        if (searchText.isNotBlank()) {
+                                            searchActive = false
+                                            val query = searchText.trim()
+                                            searchText = ""
+                                            viewModel.clearSearchSuggestions()
+                                            onNavigateToSearch(query)
+                                        }
+                                    }
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedBorderColor = Color.Transparent
+                                )
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.VideoLibrary,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .padding(6.dp)
+                                            .size(20.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "Smart Library",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 20.sp
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        if (searchActive) {
+                            IconButton(onClick = {
+                                searchActive = false
+                                searchText = ""
+                                viewModel.clearSearchSuggestions()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close Search"
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onNavigateToStreak) {
+                                Icon(
+                                    imageVector = Icons.Filled.Whatshot,
+                                    contentDescription = "Watch Streak",
+                                    tint = Color(0xFFFF6D00)
+                                )
+                            }
+                            IconButton(onClick = { showNetworkDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = "Play Network Stream",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            IconButton(onClick = { searchActive = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "Search"
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+
+                if (searchActive && searchSuggestions.isNotEmpty()) {
+                    SearchSuggestionsPopup(
+                        suggestions = searchSuggestions,
+                        keyboard = keyboardController,
+                        onSuggestionClick = { title ->
+                            searchActive = false
+                            searchText = ""
+                            viewModel.clearSearchSuggestions()
+                            onNavigateToSearch(title)
+                        }
+                    )
+                }
+            }
+        },
+        floatingActionButton = {
+            val quickFabVideo by viewModel.videoListViewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+            val viewSettings by viewModel.videoListViewModel.viewSettings.collectAsStateWithLifecycle()
+
+            val continueWatchingItem = (uiState as? LibraryUiState.Success)?.continueWatching?.firstOrNull()
+
+            val effectiveUri = continueWatchingItem?.videoUri ?: quickFabVideo?.uri
+            val effectiveTitle = continueWatchingItem?.title ?: quickFabVideo?.title
+            val effectiveDuration = continueWatchingItem?.durationMs ?: quickFabVideo?.duration ?: 0L
+            val effectivePosition = continueWatchingItem?.playbackPositionMs ?: 0L
+
+            if (viewSettings.showQuickFab && effectiveUri != null) {
+                PreviewFloatingActionButton(
+                    enablePreview = viewSettings.enableFabPreview,
+                    previewUri = effectiveUri,
+                    previewTitle = effectiveTitle,
+                    previewDurationMs = effectiveDuration,
+                    previewLastPositionMs = effectivePosition,
+                    modifier = Modifier.padding(bottom = 88.dp),
+                    onPlay = {
+                        val currentUiState = uiState
+                        val allItems = if (currentUiState is LibraryUiState.Success) currentUiState.allItems else emptyList()
+                        val matchItem = allItems.find { it.videoUri == effectiveUri }
+                        if (matchItem != null) {
+                            onMediaClick(matchItem)
+                        } else {
+                            onMediaClick(
+                                LibraryMediaItem(
+                                    id = effectiveUri,
+                                    title = effectiveTitle ?: "Video",
+                                    cleanedTitle = effectiveTitle ?: "Video",
+                                    videoUri = effectiveUri,
+                                    type = LibraryMediaType.MOVIE,
+                                    durationMs = effectiveDuration,
+                                    playbackPositionMs = effectivePosition
+                                )
                             )
                         }
-                        Text(
-                            text = "Smart Library",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToStreak) {
-                        Icon(
-                            imageVector = Icons.Filled.Whatshot,
-                            contentDescription = "Watch Streak",
-                            tint = Color(0xFFFF6D00)
-                        )
-                    }
-                    IconButton(onClick = { showNetworkDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Language,
-                            contentDescription = "Play Network Stream",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Refresh Library"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    onNetworkStreamClick = { showNetworkDialog = true }
                 )
-            )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -159,75 +285,7 @@ fun LibraryHomeScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Sleek, modern Material 3 Search Bar
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                    tonalElevation = 2.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = {
-                                Text(
-                                    text = "Search movies, shows, streams...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = MaterialTheme.colorScheme.primary
-                            ),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(
-                                onSearch = {
-                                    if (searchQuery.isNotBlank()) {
-                                        keyboardController?.hide()
-                                        onNavigateToSearch(searchQuery.trim())
-                                    }
-                                }
-                            )
-                        )
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(
-                                onClick = { searchQuery = "" },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                when (val state = uiState) {
+            when (val state = uiState) {
                     is LibraryUiState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -240,6 +298,7 @@ fun LibraryHomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -254,10 +313,17 @@ fun LibraryHomeScreen(
                     is LibraryUiState.Success -> {
                         val isGlobalEmpty = state.allItems.isEmpty() && selectedCategory == LibraryCategory.ALL && state.heroItems.isEmpty() && state.continueWatching.isEmpty()
                         if (isGlobalEmpty) {
-                            LibraryEmptyState(
-                                onRefresh = { viewModel.refresh() },
-                                onStreamClick = { showNetworkDialog = true }
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                LibraryEmptyState(
+                                    onRefresh = { viewModel.refresh() },
+                                    onStreamClick = { showNetworkDialog = true }
+                                )
+                            }
                         } else {
                             val chunkedItems = remember(state.allItems) { state.allItems.chunked(3) }
                             LazyColumn(
@@ -396,7 +462,6 @@ fun LibraryHomeScreen(
                 }
             }
         }
-    }
 }
 
 @Composable

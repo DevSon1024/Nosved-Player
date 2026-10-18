@@ -231,14 +231,11 @@ fun VideoListTopAppBar(
                             Icon(Icons.Filled.Close, contentDescription = "Close Search")
                         }
                     } else {
-                        IconButton(onClick = { onSearchActiveChange(true) }) {
-                            Icon(Icons.Filled.Search, contentDescription = "Search")
-                        }
                         IconButton(onClick = onShowSettings) {
                             Icon(imageVector = Icons.Outlined.Tune, contentDescription = "View Settings")
                         }
-                        IconButton(onClick = onNavigateToSettings) {
-                            Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings")
+                        IconButton(onClick = { onSearchActiveChange(true) }) {
+                            Icon(Icons.Filled.Search, contentDescription = "Search")
                         }
                     }
                 }

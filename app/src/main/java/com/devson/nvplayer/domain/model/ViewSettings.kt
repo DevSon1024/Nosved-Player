@@ -15,7 +15,7 @@ data class ViewSettings(
     val homeSectionOrder: List<HomeSection> = listOf(HomeSection.SHORTCUTS, HomeSection.HISTORY, HomeSection.DETAILS),
     val showStorageTracker: Boolean = true,
     val showLatestVideos: Boolean = true,
-    val defaultScreen: DefaultScreen = DefaultScreen.HOME,
+    val defaultScreen: DefaultScreen = DefaultScreen.LIBRARY,
     
     // New fields for VideoList UI
     val layoutMode: LayoutMode = LayoutMode.LIST,

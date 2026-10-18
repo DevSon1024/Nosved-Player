@@ -17,6 +17,7 @@ import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
 import com.devson.nvplayer.util.getAvailableStorageVolumes
+import com.devson.nvplayer.util.SearchUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -156,7 +157,7 @@ class VideoListViewModel(
                 videos.filter { video ->
                     val matchesStorage = storage == null || video.path.startsWith(storage.rootPath)
                     val matchesPath = !video.path.contains("/.")
-                    val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
+                    val matchesSearch = query.isBlank() || SearchUtils.matches(video.title, query)
                     val matchesFilter = when (settings.folderFilterMode) {
                         FolderFilterMode.WHITELIST -> {
                             val whitelist = settings.whitelistedFolders
@@ -177,7 +178,7 @@ class VideoListViewModel(
         combine(_activeVideosFlat, _searchQuery) { activeFlat, query ->
             activeFlat.filter { video ->
                 val matchesPath = !video.path.contains("/.")
-                val matchesSearch = query.isBlank() || video.title.contains(query, ignoreCase = true)
+                val matchesSearch = query.isBlank() || SearchUtils.matches(video.title, query)
                 matchesPath && matchesSearch
             }
         }.flowOn(Dispatchers.Default)
@@ -475,18 +476,14 @@ class VideoListViewModel(
         if (query.isBlank()) {
             _searchSuggestions.value = emptyList()
         } else {
-            val allVideos = _rawVideosFlat.value
-            val matches = allVideos.filter { it.title.contains(query, ignoreCase = true) }
-                .map { it.title }
-                .distinct()
-                .take(5)
-            _searchSuggestions.value = matches
+            val allTitles = _rawVideosFlat.value.map { it.title }
+            _searchSuggestions.value = SearchUtils.getSuggestions(allTitles, query, limit = 6)
         }
     }
 
     fun getSearchResults(query: String): List<Video> {
         if (query.isBlank()) return emptyList()
-        return _rawVideosFlat.value.filter { it.title.contains(query, ignoreCase = true) }
+        return SearchUtils.filterAndRank(_rawVideosFlat.value, query) { it.title }
     }
 
     // Explorer Path Navigation
