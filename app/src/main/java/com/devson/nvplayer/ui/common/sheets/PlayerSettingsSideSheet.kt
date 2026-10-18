@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common.sheets
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -119,6 +120,10 @@ fun PlayerSettingsSideSheet(
     var showIconSizeDialog by remember { mutableStateOf(false) }
     var showSeekBarStyleDialog by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = visible) {
+        onDismiss()
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = if (isLandscape) Alignment.CenterEnd else Alignment.BottomCenter
@@ -224,6 +229,22 @@ fun PlayerSettingsSideSheet(
                             .statusBarsPadding()
                     }
                 ) {
+                    if (!isLandscape) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp, bottom = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(40.dp)
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                            )
+                        }
+                    }
                     // Tab selector row
                     Row(
                         modifier = Modifier

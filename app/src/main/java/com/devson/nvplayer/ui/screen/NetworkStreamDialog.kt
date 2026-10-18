@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.*
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -369,14 +370,14 @@ private fun NetworkStreamInfoSheet(
     onDismiss: () -> Unit,
     onNavigateToYtdlpSettings: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -402,7 +403,7 @@ private fun NetworkStreamInfoSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = dismissWithAnimation) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close"
@@ -481,7 +482,10 @@ private fun NetworkStreamInfoSheet(
 
             // Action button to yt-dlp settings
             Button(
-                onClick = onNavigateToYtdlpSettings,
+                onClick = {
+                    dismissWithAnimation()
+                    onNavigateToYtdlpSettings()
+                },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {

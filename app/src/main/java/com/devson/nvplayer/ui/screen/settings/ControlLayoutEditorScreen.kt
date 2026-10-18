@@ -35,6 +35,7 @@ import com.devson.nvplayer.domain.model.PlayerButton
 import com.devson.nvplayer.domain.model.allPlayerButtons
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.viewmodel.SettingsViewModel
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 
@@ -484,22 +485,37 @@ fun ControlLayoutEditorScreen(
     }
 
     if (showInfoSheet) {
-        ModalBottomSheet(
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        SmoothModalBottomSheet(
             onDismissRequest = { showInfoSheet = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
+            sheetState = sheetState
+        ) { dismissWithAnimation ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
-                Text(
-                    text = "Control Buttons Reference",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Control Buttons Reference",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = dismissWithAnimation) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 
                 Column(
                     modifier = Modifier

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -164,13 +165,13 @@ private fun LanguagePickerSheet(
         }
     }
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -189,7 +190,7 @@ private fun LanguagePickerSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = dismissWithAnimation) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
@@ -237,7 +238,10 @@ private fun LanguagePickerSheet(
                         code = "",
                         displayName = "None (Default / Off)",
                         isSelected = currentCode.isBlank(),
-                        onClick = { onSelect(null) }
+                        onClick = {
+                            onSelect(null)
+                            dismissWithAnimation()
+                        }
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 8.dp),
@@ -250,7 +254,10 @@ private fun LanguagePickerSheet(
                         code = entry.code,
                         displayName = entry.displayName,
                         isSelected = currentCode.equals(entry.code, ignoreCase = true),
-                        onClick = { onSelect(entry) }
+                        onClick = {
+                            onSelect(entry)
+                            dismissWithAnimation()
+                        }
                     )
                 }
 

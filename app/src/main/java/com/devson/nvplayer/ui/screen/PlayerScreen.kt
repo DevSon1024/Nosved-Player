@@ -47,6 +47,7 @@ import com.devson.nvplayer.ui.common.icons.AspectIcons
 import com.devson.nvplayer.domain.model.PlayerButton
 import com.devson.nvplayer.domain.model.Video
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import android.media.AudioManager
 import android.content.Context
 import com.devson.nvplayer.util.findActivity
@@ -95,7 +96,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.ui.platform.LocalConfiguration
 import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
@@ -418,6 +425,22 @@ fun PlayerScreen(
     BackHandler(enabled = true) {
         if (isLocked) {
             showUnlockButton = true
+        } else if (isQueueVisible) {
+            onQueueVisibleChange(false)
+        } else if (showSubtitleSettingsSideSheet) {
+            showSubtitleSettingsSideSheet = false
+        } else if (showAudioSettingsSideSheet) {
+            showAudioSettingsSideSheet = false
+        } else if (showPlayerSettingsSideSheet) {
+            showPlayerSettingsSideSheet = false
+        } else if (showChaptersSideSheet) {
+            showChaptersSideSheet = false
+        } else if (showDecoderSideSheet) {
+            showDecoderSideSheet = false
+        } else if (showEnhanceSettingsSideSheet) {
+            showEnhanceSettingsSideSheet = false
+        } else if (showQualitySideSheet) {
+            showQualitySideSheet = false
         } else {
             handleBack()
         }
@@ -1080,7 +1103,7 @@ fun PlayerScreen(
                 onQueueVisibleChange = onQueueVisibleChange,
                 onUpdateQueueLayoutMode = onUpdateQueueLayoutMode,
                 onQueueVideoClick = onQueueVideoClick,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
@@ -1777,201 +1800,334 @@ private fun PlayerUpNextQueuePanel(
 ) {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
+    val coroutineScope = rememberCoroutineScope()
     val panelHeight = if (queueLayoutMode == LayoutMode.LIST) {
         configuration.screenHeightDp.dp
     } else {
         240.dp
     }
     val panelHeightPx = with(density) { panelHeight.toPx() }
-    var dragOffsetY by remember { mutableStateOf(0f) }
-    val offsetY by animateFloatAsState(
-        targetValue = if (isQueueVisible) 0f else panelHeightPx,
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-        label = "QueuePanelOffset"
-    )
-    val totalOffsetY = (offsetY + dragOffsetY).coerceAtLeast(0f)
+    val offsetY = remember { Animatable(panelHeightPx) }
+    var isDragging by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(panelHeight)
-            .offset { IntOffset(x = 0, y = totalOffsetY.roundToInt()) }
-            .pointerInput(queueLayoutMode) {
-                detectVerticalDragGestures(
-                    onDragEnd = {
-                        if (dragOffsetY > 100f) {
-                            onQueueVisibleChange(false)
-                        }
-                        dragOffsetY = 0f
-                    },
-                    onDragCancel = {
-                        dragOffsetY = 0f
-                    },
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
-                        val newOffset = dragOffsetY + dragAmount
-                        if (newOffset >= 0f) {
-                            dragOffsetY = newOffset
-                        }
-                    }
+    LaunchedEffect(isQueueVisible, panelHeightPx) {
+        if (!isDragging) {
+            if (isQueueVisible) {
+                offsetY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
+            } else {
+                offsetY.animateTo(
+                    targetValue = panelHeightPx,
+                    animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
                 )
             }
-            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-            .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        }
+    }
+
+    val dismissWithAnimation: () -> Unit = {
+        coroutineScope.launch {
+            offsetY.animateTo(
+                targetValue = panelHeightPx,
+                animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
             )
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+            onQueueVisibleChange(false)
+        }
+    }
+
+    val velocityTracker = remember { VelocityTracker() }
+
+    val dragModifier = Modifier.pointerInput(panelHeightPx) {
+        detectVerticalDragGestures(
+            onDragStart = {
+                isDragging = true
+                velocityTracker.resetTracking()
+            },
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                coroutineScope.launch {
+                    offsetY.snapTo((offsetY.value + dragAmount).coerceAtLeast(0f))
+                }
+            },
+            onDragEnd = {
+                isDragging = false
+                val velocityY = velocityTracker.calculateVelocity().y
+                val draggedFraction = (offsetY.value / panelHeightPx).coerceIn(0f, 1f)
+                coroutineScope.launch {
+                    if (draggedFraction > 0.35f || velocityY > 1400f) {
+                        offsetY.animateTo(
+                            targetValue = panelHeightPx,
+                            animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
+                        )
+                        onQueueVisibleChange(false)
+                    } else {
+                        offsetY.animateTo(
+                            targetValue = 0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        )
+                    }
+                }
+            },
+            onDragCancel = {
+                isDragging = false
+                coroutineScope.launch {
+                    offsetY.animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    val nestedScrollConnection = remember(panelHeightPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (delta < 0 && offsetY.value > 0f) {
+                    val newOffset = (offsetY.value + delta).coerceAtLeast(0f)
+                    val consumed = offsetY.value - newOffset
+                    coroutineScope.launch { offsetY.snapTo(newOffset) }
+                    return Offset(0f, -consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                val delta = available.y
+                if (delta > 0 && available.y > 0) {
+                    val newOffset = (offsetY.value + delta).coerceAtLeast(0f)
+                    val consumedY = newOffset - offsetY.value
+                    coroutineScope.launch { offsetY.snapTo(newOffset) }
+                    return Offset(0f, consumedY)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (offsetY.value > 0f) {
+                    val draggedFraction = (offsetY.value / panelHeightPx).coerceIn(0f, 1f)
+                    if (draggedFraction > 0.35f || available.y > 1400f) {
+                        offsetY.animateTo(
+                            targetValue = panelHeightPx,
+                            animationSpec = tween(durationMillis = 250, easing = FastOutLinearInEasing)
+                        )
+                        onQueueVisibleChange(false)
+                    } else {
+                        offsetY.animateTo(
+                            targetValue = 0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        )
+                    }
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    if (isQueueVisible || offsetY.value < panelHeightPx) {
+        val draggedFraction = (offsetY.value / panelHeightPx).coerceIn(0f, 1f)
+        val scrimAlpha = (1f - draggedFraction) * 0.55f
+
+        Box(
+            modifier = modifier.fillMaxSize()
+        ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                )
-            }
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = dismissWithAnimation
+                    )
+            )
 
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.VideoLibrary,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Up Next Queue",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(panelHeight)
+                    .offset { IntOffset(x = 0, y = offsetY.value.roundToInt()) }
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    .border(
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+                        RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                    )
+                    .then(if (queueLayoutMode == LayoutMode.LIST) Modifier.nestedScroll(nestedScrollConnection) else Modifier)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(dragModifier)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
                             modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "${queueList.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = { onUpdateQueueLayoutMode(LayoutMode.LIST) },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ViewList,
-                                contentDescription = "List View",
-                                tint = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(
-                            onClick = { onUpdateQueueLayoutMode(LayoutMode.GRID) },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ViewCarousel,
-                                contentDescription = "Grid/Carousel View",
-                                tint = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = { onQueueVisibleChange(false) },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Transparent
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = "Hide Queue",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                thickness = 1.dp
-            )
-            val listState = rememberLazyListState()
-            val activeIndex = remember(queueList, currentVideoId) {
-                queueList.indexOfFirst { it.uri == currentVideoId }
-            }
-            LaunchedEffect(isQueueVisible, queueLayoutMode) {
-                if (isQueueVisible && activeIndex >= 0 && queueLayoutMode == LayoutMode.LIST) {
-                    listState.animateScrollToItem(activeIndex)
-                }
-            }
-            if (queueLayoutMode == LayoutMode.LIST) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    itemsIndexed(
-                        items = queueList,
-                        key = { _, video -> video.uri }
-                    ) { index, video ->
-                        val isPlaying = video.uri == currentVideoId
-                        QueueVideoItem(
-                            video = video,
-                            isPlaying = isPlaying,
-                            onClick = { onQueueVideoClick(video) }
+                                .width(40.dp)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                         )
                     }
-                }
-            } else {
-                val rowState = rememberLazyListState()
-                LaunchedEffect(isQueueVisible, queueLayoutMode) {
-                    if (isQueueVisible && queueLayoutMode == LayoutMode.GRID && activeIndex >= 0) {
-                        rowState.animateScrollToItem(activeIndex)
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.VideoLibrary,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Up Next Queue",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${queueList.size}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { onUpdateQueueLayoutMode(LayoutMode.LIST) },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Rounded.ViewList,
+                                        contentDescription = "List View",
+                                        tint = if (queueLayoutMode == LayoutMode.LIST) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onUpdateQueueLayoutMode(LayoutMode.GRID) },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ViewCarousel,
+                                        contentDescription = "Grid/Carousel View",
+                                        tint = if (queueLayoutMode == LayoutMode.GRID) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(
+                                    onClick = dismissWithAnimation,
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = Color.Transparent
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                                        contentDescription = "Hide Queue",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-                LazyRow(
-                    state = rowState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    itemsIndexed(
-                        items = queueList,
-                        key = { _, video -> video.uri }
-                    ) { index, video ->
-                        val isPlaying = video.uri == currentVideoId
-                        QueueVideoGridItem(
-                            video = video,
-                            isPlaying = isPlaying,
-                            onClick = { onQueueVideoClick(video) }
-                        )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        thickness = 1.dp
+                    )
+                    val listState = rememberLazyListState()
+                    val activeIndex = remember(queueList, currentVideoId) {
+                        queueList.indexOfFirst { it.uri == currentVideoId }
+                    }
+                    LaunchedEffect(isQueueVisible, queueLayoutMode) {
+                        if (isQueueVisible && activeIndex >= 0 && queueLayoutMode == LayoutMode.LIST) {
+                            listState.animateScrollToItem(activeIndex)
+                        }
+                    }
+                    if (queueLayoutMode == LayoutMode.LIST) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp)
+                        ) {
+                            itemsIndexed(
+                                items = queueList,
+                                key = { _, video -> video.uri }
+                            ) { index, video ->
+                                val isPlaying = video.uri == currentVideoId
+                                QueueVideoItem(
+                                    video = video,
+                                    isPlaying = isPlaying,
+                                    onClick = { onQueueVideoClick(video) }
+                                )
+                            }
+                        }
+                    } else {
+                        val rowState = rememberLazyListState()
+                        LaunchedEffect(isQueueVisible, queueLayoutMode) {
+                            if (isQueueVisible && queueLayoutMode == LayoutMode.GRID && activeIndex >= 0) {
+                                rowState.animateScrollToItem(activeIndex)
+                            }
+                        }
+                        LazyRow(
+                            state = rowState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp)
+                        ) {
+                            itemsIndexed(
+                                items = queueList,
+                                key = { _, video -> video.uri }
+                            ) { index, video ->
+                                val isPlaying = video.uri == currentVideoId
+                                QueueVideoGridItem(
+                                    video = video,
+                                    isPlaying = isPlaying,
+                                    onClick = { onQueueVideoClick(video) }
+                                )
+                            }
+                        }
                     }
                 }
             }

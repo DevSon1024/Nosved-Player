@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common.sheets
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -79,6 +80,10 @@ fun EnhanceSettingsSideSheet(
         EnhanceMode.OFF -> 0
         EnhanceMode.DEFAULT -> 0
         EnhanceMode.CUSTOM -> playbackSettings.enhanceHue
+    }
+
+    BackHandler(enabled = visible) {
+        onDismiss()
     }
 
     Box(

@@ -37,17 +37,17 @@ fun ViewSettingsBottomSheet(
     onDismiss: () -> Unit,
     viewModel: VideoListViewModel
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var isFieldsExpanded by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
     var showSortWheel by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -69,7 +69,7 @@ fun ViewSettingsBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = dismissWithAnimation, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close",

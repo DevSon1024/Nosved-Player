@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.*
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,13 +50,13 @@ fun SubtitleExtractionBottomSheet(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     LaunchedEffect(video) {
         viewModel.analyzeVideo(context, Uri.parse(video.uri))
     }
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = {
             viewModel.reset()
             onDismissRequest()
@@ -64,7 +65,7 @@ fun SubtitleExtractionBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 6.dp
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -114,10 +115,7 @@ fun SubtitleExtractionBottomSheet(
                 }
 
                 IconButton(
-                    onClick = {
-                        viewModel.reset()
-                        onDismissRequest()
-                    }
+                    onClick = dismissWithAnimation
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,

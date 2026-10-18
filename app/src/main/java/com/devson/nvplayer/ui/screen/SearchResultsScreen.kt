@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.outlined.GridView
@@ -25,6 +26,7 @@ import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.ui.common.sheets.InformationBottomSheet
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import com.devson.nvplayer.ui.common.sheets.IconToggleButton
 import com.devson.nvplayer.ui.common.sheets.SettingsSectionLabel
 import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListContent
@@ -117,23 +119,31 @@ fun SearchResultsScreen(
         }
 
         if (showLayoutSheet) {
-            ModalBottomSheet(
+            SmoothModalBottomSheet(
                 onDismissRequest = { showLayoutSheet = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surface
-            ) {
+            ) { dismissWithAnimation ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 32.dp)
                 ) {
-                    Text(
-                        "Layout Settings",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Layout Settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = dismissWithAnimation) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {

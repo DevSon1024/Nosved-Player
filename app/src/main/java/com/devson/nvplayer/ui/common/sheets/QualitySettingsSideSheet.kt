@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common.sheets
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -43,6 +44,10 @@ fun QualitySettingsSideSheet(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val sheetWidthPercent = if (isLandscape) 0.48f else 1.0f
+
+    BackHandler(enabled = visible) {
+        onDismiss()
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),

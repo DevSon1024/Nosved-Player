@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -72,6 +73,10 @@ fun SubtitleSettingsSideSheet(
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val selectedTrack = remember(subtitleTracks) { subtitleTracks.find { it.selected } }
+
+    BackHandler(enabled = visible) {
+        onDismiss()
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),

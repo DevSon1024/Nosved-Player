@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,9 +106,9 @@ fun FolderPickerBottomSheet(
         if (breadcrumbs.isNotEmpty()) breadcrumbState.animateScrollToItem(breadcrumbs.lastIndex)
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -123,7 +124,7 @@ fun FolderPickerBottomSheet(
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
             )
         }
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -382,14 +383,17 @@ fun FolderPickerBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedButton(
-                            onClick = onDismiss,
+                            onClick = dismissWithAnimation,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Cancel")
                         }
                         Button(
-                            onClick = { onFolderSelected(currentDir.absolutePath) },
+                            onClick = {
+                                onFolderSelected(currentDir.absolutePath)
+                                dismissWithAnimation()
+                            },
                             modifier = Modifier.weight(2f),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(

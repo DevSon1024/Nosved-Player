@@ -165,7 +165,7 @@ fun LibraryHomeScreen(
                                     )
                                 }
                                 Text(
-                                    text = "Smart Library",
+                                    text = "Library",
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 20.sp

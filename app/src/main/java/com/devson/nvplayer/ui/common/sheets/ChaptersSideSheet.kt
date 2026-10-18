@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common.sheets
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -57,6 +58,10 @@ fun ChaptersSideSheet(
     }
     val currentChapter = remember(chapters, currentChapterIndex) {
         if (currentChapterIndex in chapters.indices) chapters[currentChapterIndex] else null
+    }
+
+    BackHandler(enabled = visible) {
+        onDismiss()
     }
 
     Box(

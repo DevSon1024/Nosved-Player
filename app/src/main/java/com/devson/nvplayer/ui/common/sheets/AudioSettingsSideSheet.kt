@@ -1,6 +1,7 @@
 package com.devson.nvplayer.ui.common.sheets
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -52,6 +53,10 @@ fun AudioSettingsSideSheet(
     val sheetWidthPercent = if (isLandscape) 0.48f else 0.85f
 
     val activeTrack = remember(audioTracks) { audioTracks.find { it.selected } }
+
+    BackHandler(enabled = visible) {
+        onDismiss()
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),

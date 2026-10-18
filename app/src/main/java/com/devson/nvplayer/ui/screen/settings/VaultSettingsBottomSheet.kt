@@ -44,7 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ModalBottomSheet
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -100,12 +100,12 @@ fun VaultSettingsBottomSheet(
     var newAnswerText by remember { mutableStateOf("") }
     var questionDropdownExpanded by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    ) { dismissWithAnimation ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,7 +143,7 @@ fun VaultSettingsBottomSheet(
                                 currentFlow = VaultSettingsFlow.UPDATE_SECURITY_QUESTION_VERIFY_PIN
                             },
                             onResetVaultClick = {
-                                onDismissRequest()
+                                dismissWithAnimation()
                                 onRequestVaultReset()
                             }
                         )

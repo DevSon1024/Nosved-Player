@@ -30,7 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
@@ -55,18 +55,19 @@ fun VaultProtectionBottomSheet(
     onModeSelected: (VaultStorageMode) -> Unit,
     onDismissRequest: () -> Unit
 ) {
-    ModalBottomSheet(
+    SmoothModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
+    ) { dismissWithAnimation ->
         VaultProtectionContent(
             currentMode = currentMode,
             onModeSelected = {
                 onModeSelected(it)
+                dismissWithAnimation()
             },
-            onClose = onDismissRequest,
+            onClose = dismissWithAnimation,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
