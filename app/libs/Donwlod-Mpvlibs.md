@@ -1,5 +1,7 @@
-> I excluded the mpv lib from repo as the size is being too massive for cloning
->
-> - for that you can download .aar from the below link :
+# MPV Native Libraries (mpvlibs)
 
-https://github.com/SunnyVishnu3/mpvlibAndroid/releases/latest
+> Prebuilt AAR binaries are excluded from the git repo due to size constraints.
+> Download the latest `.aar` from:
+> https://github.com/SunnyVishnu3/mpvlibAndroid/releases/latest
+
+Place `mpvlib.aar` directly into the `app/libs/` directory.

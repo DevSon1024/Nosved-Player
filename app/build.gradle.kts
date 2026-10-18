@@ -1,4 +1,6 @@
+import java.io.File
 import java.io.FileInputStream
+import java.io.RandomAccessFile
 import java.util.Properties
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -51,6 +53,11 @@ android {
         externalNativeBuild {
             cmake {
                 abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+                arguments += listOf(
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                )
+                cFlags += "-Wl,-z,max-page-size=16384"
+                cppFlags += "-Wl,-z,max-page-size=16384"
             }
         }
     }
@@ -136,7 +143,7 @@ android {
             version = "3.22.1"
         }
     }
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     packaging {
         resources {
@@ -150,7 +157,7 @@ android {
             excludes += "assets/py.*/**"
         }
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = true // false when build the aab file and true when required small size compressed apk file 
             pickFirsts += "**/libc++_shared.so"
             excludes += "**/libpython_bin.so"
         }
@@ -268,5 +275,115 @@ tasks.register("stripPythonStdlib") {
         zipFile.delete()
         tempZip.renameTo(zipFile)
         logger.lifecycle("stripPythonStdlib: removed $removedCount unused modules. ($originalSize bytes -> $newSize bytes)")
+    }
+}
+
+tasks.register("verify16kbAlignment") {
+    group = "verification"
+    description = "Audits and verifies 16KB ELF page size alignment on 64-bit native libraries"
+    doLast {
+        fun readShortLE(raf: RandomAccessFile): Short {
+            val b0 = raf.read() and 0xFF
+            val b1 = raf.read() and 0xFF
+            return ((b1 shl 8) or b0).toShort()
+        }
+
+        fun readIntLE(raf: RandomAccessFile): Int {
+            val b0 = raf.read() and 0xFF
+            val b1 = raf.read() and 0xFF
+            val b2 = raf.read() and 0xFF
+            val b3 = raf.read() and 0xFF
+            return (b3 shl 24) or (b2 shl 16) or (b1 shl 8) or b0
+        }
+
+        fun readLongLE(raf: RandomAccessFile): Long {
+            val b0 = raf.read().toLong() and 0xFF
+            val b1 = raf.read().toLong() and 0xFF
+            val b2 = raf.read().toLong() and 0xFF
+            val b3 = raf.read().toLong() and 0xFF
+            val b4 = raf.read().toLong() and 0xFF
+            val b5 = raf.read().toLong() and 0xFF
+            val b6 = raf.read().toLong() and 0xFF
+            val b7 = raf.read().toLong() and 0xFF
+            return (b7 shl 56) or (b6 shl 48) or (b5 shl 40) or (b4 shl 32) or
+                   (b3 shl 24) or (b2 shl 16) or (b1 shl 8) or b0
+        }
+
+        fun readElfAlignment(file: File): Long {
+            var result = 4096L
+            RandomAccessFile(file, "r").use { raf ->
+                val magic = ByteArray(4)
+                raf.readFully(magic)
+                if (magic[0] != 0x7F.toByte() || magic[1] != 'E'.code.toByte() || magic[2] != 'L'.code.toByte() || magic[3] != 'F'.code.toByte()) {
+                    result = -1L
+                    return@use
+                }
+                val elfClass = raf.readByte().toInt()
+                if (elfClass != 2) {
+                    result = 4096L
+                    return@use
+                }
+
+                raf.seek(32)
+                val phOff = readLongLE(raf)
+                raf.seek(54)
+                val phEntSize = readShortLE(raf).toInt()
+                val phNum = readShortLE(raf).toInt()
+
+                var minAlign = Long.MAX_VALUE
+                for (i in 0 until phNum) {
+                    val entryOffset = phOff + (i * phEntSize)
+                    raf.seek(entryOffset)
+                    val pType = readIntLE(raf)
+                    if (pType == 1) { // PT_LOAD
+                        raf.seek(entryOffset + 48)
+                        val pAlign = readLongLE(raf)
+                        if (pAlign in 1 until minAlign) {
+                            minAlign = pAlign
+                        }
+                    }
+                }
+                result = if (minAlign == Long.MAX_VALUE) 4096L else minAlign
+            }
+            return result
+        }
+
+        val candidateDirs = listOf(
+            file("build/intermediates/merged_native_libs/debug/mergeDebugNativeLibs/out/lib"),
+            file("build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib"),
+            file("src/main/jniLibs")
+        )
+        val targetDirs = candidateDirs.filter { it.exists() }
+        if (targetDirs.isEmpty()) {
+            logger.warn("No native library directories found to verify. Run assembleDebug or mergeDebugNativeLibs first.")
+            return@doLast
+        }
+
+        var failCount = 0
+        var totalAudited = 0
+
+        targetDirs.forEach { baseDir ->
+            baseDir.walkTopDown().filter { it.isFile && it.extension == "so" }.forEach fileLoop@{ soFile ->
+                val abiDir = soFile.parentFile?.name ?: ""
+                val is64Bit = abiDir.contains("64") || soFile.absolutePath.contains("arm64") || soFile.absolutePath.contains("x86_64")
+                if (!is64Bit) return@fileLoop
+
+                totalAudited++
+                val alignment = readElfAlignment(soFile)
+                val isAligned = alignment >= 16384L
+                val hexAlign = "0x" + alignment.toString(16)
+                val status = if (isAligned) "PASS (16KB+)" else "FAIL (4KB)"
+                logger.lifecycle("${soFile.name.padEnd(30)} [$abiDir] -> Align: $hexAlign ($status)")
+                if (!isAligned) {
+                    failCount++
+                }
+            }
+        }
+
+        if (failCount > 0) {
+            throw GradleException("16KB Page Alignment Verification FAILED: $failCount library/libraries have 4KB alignment.")
+        } else {
+            logger.lifecycle("16KB Page Alignment Verification PASSED for all $totalAudited audited 64-bit native libraries.")
+        }
     }
 }
