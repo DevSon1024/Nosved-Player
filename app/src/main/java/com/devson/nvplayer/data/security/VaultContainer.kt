@@ -10,6 +10,8 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
+import javax.crypto.CipherOutputStream
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -47,6 +49,12 @@ interface VaultContainer {
     ): VaultFileHeader
 
     suspend fun openUnencryptedVaultFile(vaultFile: File): InputStream
+
+    suspend fun openDecryptedStream(
+        vaultFile: File,
+        passwordOrPin: String = "",
+        masterKey: SecretKeySpec? = null
+    ): InputStream
 
     suspend fun verifyVaultFileIntegrity(
         vaultFile: File,
@@ -320,9 +328,49 @@ class DefaultVaultContainer : VaultContainer {
     override suspend fun openUnencryptedVaultFile(vaultFile: File): InputStream = withContext(Dispatchers.IO) {
         val header = inspectVaultFile(vaultFile)
         if (header.storageMode != VaultStorageMode.NONE) {
-            throw IllegalStateException("Vault file is encrypted. Use decryptVaultFile to access media payload.")
+            throw IllegalStateException("Vault file is encrypted. Use decryptVaultFile or openDecryptedStream to access media payload.")
         }
         FileInputStream(vaultFile).buffered(BUFFER_SIZE)
+    }
+
+    override suspend fun openDecryptedStream(
+        vaultFile: File,
+        passwordOrPin: String,
+        masterKey: SecretKeySpec?
+    ): InputStream = withContext(Dispatchers.IO) {
+        if (!vaultFile.exists()) {
+            throw VaultCorruptedFileException("Vault file does not exist: ${vaultFile.absolutePath}")
+        }
+
+        val fis = FileInputStream(vaultFile).buffered(BUFFER_SIZE)
+        val (header, headerBytes) = VaultFileFormat.readHeaderWithBytes(fis)
+
+        when (header.storageMode) {
+            VaultStorageMode.NONE -> fis
+            VaultStorageMode.ENCRYPTED -> {
+                val secretKey = if (masterKey != null && (header.kdfAlgorithm == "MASTER_KEY" || header.salt.isEmpty())) {
+                    masterKey
+                } else if (masterKey != null && passwordOrPin.isEmpty()) {
+                    masterKey
+                } else if (passwordOrPin.isNotEmpty() && header.salt.isNotEmpty()) {
+                    VaultKeyDerivation.deriveKey(
+                        passwordOrPin,
+                        header.salt,
+                        header.kdfIterations
+                    )
+                } else if (masterKey != null) {
+                    masterKey
+                } else {
+                    fis.close()
+                    throw VaultAuthenticationException("Password, PIN, or Master Key required to decrypt this vault file")
+                }
+
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(VaultKeyDerivation.GCM_TAG_LENGTH_BITS, header.nonce))
+                cipher.updateAAD(headerBytes)
+                CipherInputStream(fis, cipher)
+            }
+        }
     }
 
     override suspend fun verifyVaultFileIntegrity(

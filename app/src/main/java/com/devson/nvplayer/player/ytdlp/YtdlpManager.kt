@@ -7,11 +7,33 @@ import com.devson.nvplayer.data.repository.PlaybackSettings
 import `is`.xyz.mpv.MPVLib
 import java.io.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 object YtdlpManager {
     private const val TAG = "YtdlpManager"
     private const val YTDL_DIR = "ytdl"
+
+    private val initMutex = Mutex()
+    @Volatile
+    private var isInitialized = false
+
+    suspend fun ensureYtDlpInitialized(context: Context): Boolean = withContext(Dispatchers.IO) {
+        if (isInitialized) return@withContext true
+        initMutex.withLock {
+            if (isInitialized) return@withLock true
+            try {
+                copyAssets(context)
+                isInitialized = true
+                Log.d(TAG, "yt-dlp assets lazily initialized")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to lazily initialize yt-dlp assets", e)
+                false
+            }
+        }
+    }
 
     fun getYtdlDir(context: Context): File {
         return File(context.filesDir, YTDL_DIR).apply { if (!exists()) mkdirs() }
@@ -45,6 +67,7 @@ object YtdlpManager {
 
         // Set executable permission on wrapper (just in case it's used)
         File(ytdlDir, "wrapper").setExecutable(true)
+        isInitialized = true
     }
 
     private fun copyAssetFile(context: Context, assetPath: String, outFile: File): Boolean {

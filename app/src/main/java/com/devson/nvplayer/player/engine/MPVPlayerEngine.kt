@@ -16,6 +16,7 @@ import `is`.xyz.mpv.MPVNode
 import com.devson.nvplayer.data.model.StreamType
 import com.devson.nvplayer.data.model.VideoQualityOption
 import com.devson.nvplayer.util.StreamQualityHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -349,6 +350,22 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _networkSpeedBytesPerSec.value = 0L
         _bufferDurationSeconds.value = 0.0
         _bufferedPosition.value = 0L
+
+        val isNetworkStream = uriString.startsWith("http://", ignoreCase = true) ||
+            uriString.startsWith("https://", ignoreCase = true) ||
+            uriString.startsWith("ytdl://", ignoreCase = true) ||
+            uriString.startsWith("rtmp://", ignoreCase = true) ||
+            uriString.startsWith("rtsp://", ignoreCase = true)
+
+        if (isNetworkStream) {
+            try {
+                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                    YtdlpManager.ensureYtDlpInitialized(context)
+                }
+            } catch (e: Exception) {
+                Log.w("MPVPlayerEngine", "Failed to ensure yt-dlp initialization for network stream", e)
+            }
+        }
 
         val isAvi = isAviMedia(uri)
         if (isAvi) {

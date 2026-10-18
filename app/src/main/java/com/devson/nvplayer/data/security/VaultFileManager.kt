@@ -1103,8 +1103,14 @@ class VaultFileManager(
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(videoFile.absolutePath)
-            val bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                ?: retriever.frameAtTime
+            val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 320, 180)
+                    ?: retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: retriever.frameAtTime
+            } else {
+                retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: retriever.frameAtTime
+            }
             if (bitmap != null) {
                 val thumbFile = File(thumbsDirectory, "$fileId.jpg")
                 FileOutputStream(thumbFile).use { out ->

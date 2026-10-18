@@ -82,6 +82,7 @@ object StreamQualityHelper {
             )
         )
 
+        YtdlpManager.ensureYtDlpInitialized(context)
         val ytdlDir = YtdlpManager.getYtdlDir(context)
         val ytDlpFile = File(ytdlDir, "yt-dlp")
         val pythonBinary = YtdlpManager.getExecutablePath(context)

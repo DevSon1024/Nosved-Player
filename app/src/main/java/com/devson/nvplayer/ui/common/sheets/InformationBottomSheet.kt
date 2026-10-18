@@ -25,7 +25,9 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import android.content.ClipData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,12 @@ private data class InfoSection(
     val name: String,
     val properties: List<Pair<String, String>>
 )
+
+@Composable
+fun MediaInformationBottomSheet(
+    selectedVideos: Set<Video>,
+    onDismiss: () -> Unit
+) = InformationBottomSheet(selectedVideos = selectedVideos, onDismiss = onDismiss)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -187,20 +195,26 @@ fun SingleVideoInformationContent(
 ) {
     val context = LocalContext.current
     var fullMediaInfoText by remember(video.uri) { mutableStateOf<String?>(null) }
+    var parsedSections by remember(video.uri) { mutableStateOf<List<InfoSection>>(emptyList()) }
     var isLoadingInfo by remember(video.uri) { mutableStateOf(false) }
 
     LaunchedEffect(video.uri) {
         isLoadingInfo = true
         val uri = runCatching { Uri.parse(video.uri) }.getOrNull()
         if (uri != null) {
-            MediaInfoOps.generateTextOutput(context, uri, video.title)
-                .onSuccess {
-                    fullMediaInfoText = it
-                    isLoadingInfo = false
+            val result = withContext(Dispatchers.IO) {
+                MediaInfoOps.generateTextOutput(context, uri, video.title)
+            }
+            result.onSuccess { outputText ->
+                fullMediaInfoText = outputText
+                val parsedList = withContext(Dispatchers.Default) {
+                    parseMediaInfoText(outputText)
                 }
-                .onFailure {
-                    isLoadingInfo = false
-                }
+                parsedSections = parsedList
+                isLoadingInfo = false
+            }.onFailure {
+                isLoadingInfo = false
+            }
         } else {
             isLoadingInfo = false
         }
@@ -325,8 +339,12 @@ fun SingleVideoInformationContent(
                     )
                 }
             }
-        } else if (fullMediaInfoText != null) {
-            val sections = remember(fullMediaInfoText) { parseMediaInfoText(fullMediaInfoText!!) }
+        } else if (parsedSections.isNotEmpty() || fullMediaInfoText != null) {
+            val sections = if (parsedSections.isNotEmpty()) {
+                parsedSections
+            } else {
+                fullMediaInfoText?.let { parseMediaInfoText(it) } ?: emptyList()
+            }
 
             val generalSections = remember(sections) { sections.filter { it.name.equals("General", ignoreCase = true) } }
             val videoSections = remember(sections) { sections.filter { it.name.startsWith("Video", ignoreCase = true) } }

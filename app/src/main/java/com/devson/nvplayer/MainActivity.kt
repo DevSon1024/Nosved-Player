@@ -225,15 +225,6 @@ class MainActivity : FragmentActivity() {
             logExternalVideoHistory(uri)
         }
 
-        // Asynchronously copy yt-dlp assets
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                com.devson.nvplayer.player.ytdlp.YtdlpManager.copyAssets(applicationContext)
-                Log.d("MainActivity", "yt-dlp assets copy completed")
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Failed to copy yt-dlp assets at startup", e)
-            }
-        }
 
         // Register PiP action receiver
         val filter = IntentFilter().apply {
