@@ -36,6 +36,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.data.database.EpisodeEntity
 import com.devson.nvplayer.data.model.LibraryMediaType
 import com.devson.nvplayer.data.model.SeriesDetail
@@ -56,9 +57,15 @@ fun SeriesDetailScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    LaunchedEffect(seriesId) {
+    val activeVideos by viewModel.videoListViewModel.activeVideosFlat.collectAsStateWithLifecycle()
+
+    LaunchedEffect(seriesId, activeVideos) {
+        val hadPreviousDetail = seriesDetail != null
         val detail = viewModel.getSeriesDetails(seriesId)
         seriesDetail = detail
+        if (detail == null && hadPreviousDetail) {
+            onBack()
+        }
     }
 
     val detail = seriesDetail
@@ -76,7 +83,8 @@ fun SeriesDetailScreen(
     }
 
     val seasons = detail.seasonsWithEpisodes
-    val currentSeason = seasons.getOrNull(selectedSeasonIndex)
+    val safeSeasonIndex = selectedSeasonIndex.coerceIn(0, (seasons.size - 1).coerceAtLeast(0))
+    val currentSeason = seasons.getOrNull(safeSeasonIndex)
     val currentEpisodes = currentSeason?.episodes ?: emptyList()
     val firstEpisodeUri = currentEpisodes.firstOrNull()?.fileUri
 
@@ -287,14 +295,14 @@ fun SeriesDetailScreen(
             if (seasons.size > 1) {
                 item(key = "season_selector") {
                     ScrollableTabRow(
-                        selectedTabIndex = selectedSeasonIndex.coerceIn(0, seasons.lastIndex),
+                        selectedTabIndex = safeSeasonIndex,
                         edgePadding = 16.dp,
                         containerColor = Color.Transparent,
                         divider = {},
                         indicator = { tabPositions ->
-                            if (selectedSeasonIndex < tabPositions.size) {
+                            if (safeSeasonIndex < tabPositions.size) {
                                 TabRowDefaults.SecondaryIndicator(
-                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedSeasonIndex]),
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[safeSeasonIndex]),
                                     color = MaterialTheme.colorScheme.primary,
                                     height = 3.dp
                                 )
@@ -304,15 +312,15 @@ fun SeriesDetailScreen(
                     ) {
                         seasons.forEachIndexed { index, s ->
                             Tab(
-                                selected = selectedSeasonIndex == index,
+                                selected = safeSeasonIndex == index,
                                 onClick = { selectedSeasonIndex = index },
                                 text = {
                                     Text(
                                         text = "Season ${s.season.seasonNumber}",
                                         style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = if (selectedSeasonIndex == index) FontWeight.Bold else FontWeight.Normal
+                                            fontWeight = if (safeSeasonIndex == index) FontWeight.Bold else FontWeight.Normal
                                         ),
-                                        color = if (selectedSeasonIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (safeSeasonIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             )

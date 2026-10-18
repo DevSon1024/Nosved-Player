@@ -140,6 +140,8 @@ class VideoListViewModel(
         }.flowOn(Dispatchers.Default)
          .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    val activeVideosFlat: StateFlow<List<Video>> = _activeVideosFlat
+
     /**
      * Master-filtered folder map: storage+folder-mode filtered, then hidden-path and search filtered.
      */

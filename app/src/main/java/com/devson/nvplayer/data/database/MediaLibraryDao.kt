@@ -73,6 +73,12 @@ interface MediaLibraryDao {
     @Delete
     suspend fun deleteEpisode(episode: EpisodeEntity)
 
+    @Delete
+    suspend fun deleteEpisodes(episodes: List<EpisodeEntity>)
+
+    @Query("DELETE FROM episodes WHERE fileUri = :fileUri")
+    suspend fun deleteEpisodeByUri(fileUri: String): Int
+
     // --- Movie Operations ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMovie(movie: MovieEntity): Long
@@ -94,4 +100,23 @@ interface MediaLibraryDao {
 
     @Delete
     suspend fun deleteMovie(movie: MovieEntity)
+
+    @Delete
+    suspend fun deleteMovies(movies: List<MovieEntity>)
+
+    // --- Cleanup Operations ---
+    @Delete
+    suspend fun deleteSeasons(seasons: List<SeasonEntity>)
+
+    @Delete
+    suspend fun deleteSeriesList(series: List<SeriesEntity>)
+
+    @Query("DELETE FROM seasons WHERE id NOT IN (SELECT DISTINCT seasonId FROM episodes)")
+    suspend fun deleteOrphanedSeasons(): Int
+
+    @Query("DELETE FROM series WHERE id NOT IN (SELECT DISTINCT seriesId FROM seasons)")
+    suspend fun deleteOrphanedSeries(): Int
+
+    @Query("UPDATE series SET synopsis = :synopsis WHERE id = :id")
+    suspend fun updateSeriesSynopsis(id: Long, synopsis: String)
 }

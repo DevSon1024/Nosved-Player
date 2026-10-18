@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 
 class LibraryViewModel(
     application: Application,
-    private val videoListViewModel: VideoListViewModel
+    val videoListViewModel: VideoListViewModel
 ) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
@@ -97,7 +97,7 @@ class LibraryViewModel(
         // 2. Background MediaStore sync with parallel parsing
         viewModelScope.launch {
             var isFirstEmission = true
-            videoListViewModel.videosFlat.collectLatest { videos ->
+            videoListViewModel.activeVideosFlat.collectLatest { videos ->
                 if (videos.isEmpty()) {
                     if (_parsedItems.value.isNotEmpty()) {
                         _parsedItems.value = emptyList()
@@ -109,7 +109,7 @@ class LibraryViewModel(
                 }
                 isFirstEmission = false
 
-                val signature = "${videos.size}_${videos.firstOrNull()?.uri}_${videos.lastOrNull()?.uri}_${videos.firstOrNull()?.dateModified}"
+                val signature = "${videos.size}_${videos.sumOf { it.size }}_${videos.firstOrNull()?.uri}_${videos.lastOrNull()?.uri}_${videos.firstOrNull()?.dateModified}"
                 if (signature == lastProcessedSignature && _parsedItems.value.isNotEmpty()) {
                     return@collectLatest
                 }
@@ -172,14 +172,20 @@ class LibraryViewModel(
                 var totalEpisodes = 0
                 var firstEpUri: String? = null
                 var firstEpDuration = 0L
+                var validSeasonsCount = 0
                 for (season in seasons) {
                     val eps = allEpisodes[season.id] ?: emptyList()
-                    totalEpisodes += eps.size
-                    if (firstEpUri == null && eps.isNotEmpty()) {
-                        firstEpUri = eps.first().fileUri
-                        firstEpDuration = eps.first().durationMillis
+                    if (eps.isNotEmpty()) {
+                        validSeasonsCount++
+                        totalEpisodes += eps.size
+                        if (firstEpUri == null) {
+                            firstEpUri = eps.first().fileUri
+                            firstEpDuration = eps.first().durationMillis
+                        }
                     }
                 }
+
+                if (totalEpisodes == 0) continue
 
                 val fallbackUri = firstEpUri ?: s.posterUri ?: ""
                 val history = if (firstEpUri != null) historyMap[firstEpUri] else null
@@ -193,7 +199,7 @@ class LibraryViewModel(
                         posterUri = s.posterUri ?: fallbackUri,
                         backdropUri = s.posterUri ?: fallbackUri,
                         type = LibraryMediaType.TV_SHOW,
-                        seasonCount = seasons.size.coerceAtLeast(1),
+                        seasonCount = validSeasonsCount.coerceAtLeast(1),
                         episodeCount = totalEpisodes,
                         durationMs = firstEpDuration,
                         playbackPositionMs = history?.lastPositionMs ?: 0L,
@@ -376,16 +382,51 @@ class LibraryViewModel(
             // Background batch Room sync for detail screens
             launch(Dispatchers.IO) {
                 try {
-                    val existingMovieUris = mediaLibraryDao.getAllMoviesSync().map { it.fileUri }.toSet()
-                    val moviesToInsert = newMovies.filter { !existingMovieUris.contains(it.fileUri) }
+                    val currentVideoUris = videos.map { it.uri }.toSet()
+
+                    // 1. Prune deleted movies
+                    val allMovies = mediaLibraryDao.getAllMoviesSync()
+                    val staleMovies = allMovies.filter { it.fileUri !in currentVideoUris }
+                    if (staleMovies.isNotEmpty()) {
+                        mediaLibraryDao.deleteMovies(staleMovies)
+                    }
+
+                    // 2. Insert missing movies
+                    val remainingMovieUris = (allMovies - staleMovies.toSet()).map { it.fileUri }.toSet()
+                    val moviesToInsert = newMovies.filter { it.fileUri !in remainingMovieUris }
                     if (moviesToInsert.isNotEmpty()) {
                         mediaLibraryDao.insertMovies(moviesToInsert)
                     }
 
-                    val allExistingSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
-                    val allExistingEpisodes = mediaLibraryDao.getAllEpisodesSync().associateBy { it.fileUri }
+                    // 3. Prune deleted episodes
+                    val allEpisodes = mediaLibraryDao.getAllEpisodesSync()
+                    val staleEpisodes = allEpisodes.filter { it.fileUri !in currentVideoUris }
+                    if (staleEpisodes.isNotEmpty()) {
+                        mediaLibraryDao.deleteEpisodes(staleEpisodes)
+                    }
 
-                    // Batch insert missing seasons
+                    // 4. Prune orphaned seasons & series (seasons with no episodes, series with no seasons)
+                    mediaLibraryDao.deleteOrphanedSeasons()
+                    mediaLibraryDao.deleteOrphanedSeries()
+
+                    // 5. Update synopsis of existing series to reflect current episode & season counts
+                    for ((title, episodes) in seriesMap) {
+                        val seriesEntity = existingSeriesMap[title] ?: continue
+                        val seasons = episodes.mapNotNull {
+                            (it.second as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
+                        }.distinct()
+                        val updatedSynopsis = if (seasons.size > 1) {
+                            "Show with ${episodes.size} episodes across ${seasons.size} seasons."
+                        } else {
+                            "Show with ${episodes.size} episodes."
+                        }
+                        if (seriesEntity.synopsis != updatedSynopsis) {
+                            mediaLibraryDao.updateSeriesSynopsis(seriesEntity.id, updatedSynopsis)
+                        }
+                    }
+
+                    // 6. Batch insert missing seasons
+                    val allExistingSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
                     val seasonsToInsert = mutableListOf<SeasonEntity>()
                     for ((title, episodes) in seriesMap) {
                         val seriesEntity = existingSeriesMap[title] ?: continue
@@ -403,8 +444,9 @@ class LibraryViewModel(
                         mediaLibraryDao.insertSeasons(seasonsToInsert)
                     }
 
-                    // Reload seasons mapping with newly inserted seasons
+                    // 7. Batch insert missing episodes
                     val updatedSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
+                    val allRemainingEpisodes = mediaLibraryDao.getAllEpisodesSync().associateBy { it.fileUri }
                     val newEpisodes = mutableListOf<EpisodeEntity>()
 
                     for ((title, episodes) in seriesMap) {
@@ -413,7 +455,7 @@ class LibraryViewModel(
 
                         for (epPair in episodes) {
                             val epVideo = epPair.first
-                            if (allExistingEpisodes.containsKey(epVideo.uri)) continue
+                            if (allRemainingEpisodes.containsKey(epVideo.uri)) continue
 
                             val epInfo = epPair.second
                             val sNum = (epInfo as? ParsedMediaInfo.TvShow)?.seasonNumber ?: 1
@@ -454,11 +496,37 @@ class LibraryViewModel(
         val seasonsWithEpisodes = mutableListOf<SeasonWithEpisodes>()
         var totalEpisodes = 0
 
+        val activeVideos = videoListViewModel.activeVideosFlat.value
+        val activeUris = if (activeVideos.isNotEmpty()) activeVideos.map { it.uri }.toSet() else null
+        val staleEpisodes = mutableListOf<EpisodeEntity>()
+
         for (season in seasons) {
-            val episodes = mediaLibraryDao.getEpisodesForSeason(season.id).firstOrNull() ?: emptyList()
-            seasonsWithEpisodes.add(SeasonWithEpisodes(season, episodes))
-            totalEpisodes += episodes.size
+            val dbEpisodes = mediaLibraryDao.getEpisodesForSeason(season.id).firstOrNull() ?: emptyList()
+            val episodes = if (activeUris != null) {
+                val (valid, stale) = dbEpisodes.partition { it.fileUri in activeUris }
+                if (stale.isNotEmpty()) {
+                    staleEpisodes.addAll(stale)
+                }
+                valid
+            } else {
+                dbEpisodes
+            }
+
+            if (episodes.isNotEmpty()) {
+                seasonsWithEpisodes.add(SeasonWithEpisodes(season, episodes))
+                totalEpisodes += episodes.size
+            }
         }
+
+        if (staleEpisodes.isNotEmpty()) {
+            try {
+                mediaLibraryDao.deleteEpisodes(staleEpisodes)
+                mediaLibraryDao.deleteOrphanedSeasons()
+                mediaLibraryDao.deleteOrphanedSeries()
+            } catch (_: Exception) {}
+        }
+
+        if (seasonsWithEpisodes.isEmpty()) return@withContext null
 
         SeriesDetail(
             series = series,
