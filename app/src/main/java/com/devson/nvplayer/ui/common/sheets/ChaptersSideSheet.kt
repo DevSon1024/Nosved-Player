@@ -41,6 +41,7 @@ fun ChaptersSideSheet(
     visible: Boolean,
     chapters: List<ChapterInfo>,
     currentPositionMs: Long = 0L,
+    currentPositionProvider: (() -> Long)? = null,
     onSelectChapter: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -48,9 +49,11 @@ fun ChaptersSideSheet(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val sheetWidthPercent = if (isLandscape) 0.48f else 0.85f
 
-    val currentChapterIndex = remember(chapters, currentPositionMs) {
-        if (chapters.isEmpty()) -1
-        else chapters.indexOfLast { it.timeMs <= currentPositionMs }
+    val posProvider = currentPositionProvider ?: { currentPositionMs }
+    val effectivePos = if (visible) posProvider() else 0L
+    val currentChapterIndex = remember(chapters, effectivePos) {
+        if (chapters.isEmpty() || !visible) -1
+        else chapters.indexOfLast { it.timeMs <= effectivePos }
     }
     val currentChapter = remember(chapters, currentChapterIndex) {
         if (currentChapterIndex in chapters.indices) chapters[currentChapterIndex] else null

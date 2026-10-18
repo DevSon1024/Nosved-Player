@@ -54,7 +54,7 @@ import kotlin.math.sqrt
 @Composable
 fun GestureOverlay(
     isPlaying: Boolean,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
     duration: Long,
     playbackSpeed: Float,
     savedBrightness: Float,
@@ -79,6 +79,7 @@ fun GestureOverlay(
     isDynamicSpeedActive: Boolean = false,
     onSetDynamicSpeedActive: (Boolean) -> Unit = {},
     onSaveTapAndHoldSpeed: (Float) -> Unit = {},
+    currentPositionProvider: (() -> Long)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -176,7 +177,7 @@ fun GestureOverlay(
 
 
 
-    val currentPositionState = rememberUpdatedState(currentPosition)
+    val posProvider = rememberUpdatedState(currentPositionProvider ?: { currentPosition })
     val durationState = rememberUpdatedState(duration)
     val playbackSpeedState = rememberUpdatedState(playbackSpeed)
     val controlsVisibleState = rememberUpdatedState(controlsVisible)
@@ -390,7 +391,7 @@ fun GestureOverlay(
                                             longPressJob?.cancel()
                                             dragStarted = true
                                             isSeekDrag = true
-                                            seekStartPos = currentPositionState.value
+                                            seekStartPos = posProvider.value()
                                             currentSeekPos = seekStartPos
                                             seekDeltaSeconds = 0
                                             showSeekIndicator = true
@@ -518,7 +519,7 @@ fun GestureOverlay(
                                             val x = tapOffset.x
 
                                             if (!leftRippleActive && !rightRippleActive) {
-                                                targetSeekPos = currentPositionState.value
+                                                targetSeekPos = posProvider.value()
                                             }
 
                                             when (settings.doubleTapAction) {

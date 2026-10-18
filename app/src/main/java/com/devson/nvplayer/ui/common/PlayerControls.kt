@@ -66,8 +66,10 @@ fun PlayerControls(
     title: String,
     isPlaying: Boolean,
     isSmartEnhanceEnabled: Boolean = false,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
     bufferedPosition: Long = 0L,
+    currentPositionProvider: (() -> Long)? = null,
+    bufferedPositionProvider: (() -> Long)? = null,
     isNetworkStream: Boolean = false,
     duration: Long,
     isDragging: Boolean,
@@ -165,20 +167,13 @@ fun PlayerControls(
         )
     } else null
 
-    // Decouple local slider state to stop the visual slider jumping backwards while dragging
+    val posProvider: () -> Long = currentPositionProvider ?: { currentPosition }
+    val bufProvider: () -> Long = bufferedPositionProvider ?: { bufferedPosition }
+
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
-    var sliderPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
     var lastSeekTime by remember { mutableLongStateOf(0L) }
     var draggingJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(currentPosition) {
-        if (!isDragging) {
-            sliderPosition = currentPosition.toFloat()
-        }
-    }
-
-    val safeSliderPos = sliderPosition.coerceIn(0f, safeDuration)
     val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.05f, label = "PlayScale")
 
     Box(
@@ -237,7 +232,6 @@ fun PlayerControls(
                 modifier = Modifier,
                 isPortrait = false,
                 title = title,
-                currentPosition = currentPosition,
                 currentDecoder = currentDecoder,
                 hasChapters = hasChapters,
                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
@@ -401,7 +395,7 @@ fun PlayerControls(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.06f))
                             .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
+                            .clickable { onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -450,7 +444,7 @@ fun PlayerControls(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.06f))
                             .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
+                            .clickable { onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -519,7 +513,6 @@ fun PlayerControls(
                         modifier = if (button == PlayerButton.VIDEO_TITLE) Modifier.weight(1f) else Modifier,
                         isPortrait = isPortrait,
                         title = title,
-                        currentPosition = currentPosition,
                         currentDecoder = currentDecoder,
                         hasChapters = hasChapters,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
@@ -559,7 +552,6 @@ fun PlayerControls(
                         modifier = Modifier,
                         isPortrait = isPortrait,
                         title = title,
-                        currentPosition = currentPosition,
                         currentDecoder = currentDecoder,
                         hasChapters = hasChapters,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
@@ -630,7 +622,7 @@ fun PlayerControls(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.06f))
                             .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((currentPosition - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
+                            .clickable { onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -678,7 +670,7 @@ fun PlayerControls(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.06f))
                             .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((currentPosition + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
+                            .clickable { onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -726,16 +718,10 @@ fun PlayerControls(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val durationText = if (showRemainingTime) {
-                    "-${formatTime((duration - currentPosition).coerceAtLeast(0L))}"
-                } else {
-                    formatTime(duration)
-                }
-                Text(
-                    text = "${formatTime(currentPosition)} / $durationText",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                PlaybackTimerText(
+                    positionProvider = posProvider,
+                    duration = duration,
+                    showRemainingTime = showRemainingTime
                 )
             }
 
@@ -743,10 +729,8 @@ fun PlayerControls(
 
             // mpvRx Custom Seekbar (Standard, Thick, Slim, Wavy)
             CustomSeekbar(
-                position = safeSliderPos,
                 duration = safeDuration,
                 onSeek = { targetPos, isFinished ->
-                    sliderPosition = targetPos
                     if (isFinished) {
                         onSeek(targetPos.toLong(), true)
                         draggingJob = scope.launch {
@@ -767,7 +751,14 @@ fun PlayerControls(
                 },
                 seekbarStyle = seekBarStyle,
                 isPaused = !isPlaying,
-                bufferedDuration = if (isNetworkStream && bufferedPosition > currentPosition) (bufferedPosition - currentPosition).toFloat() else 0f,
+                positionProvider = { posProvider().toFloat() },
+                bufferedDurationProvider = {
+                    if (isNetworkStream) {
+                        val cPos = posProvider()
+                        val bPos = bufProvider()
+                        if (bPos > cPos) (bPos - cPos).toFloat() else 0f
+                    } else 0f
+                },
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             )
 
@@ -833,7 +824,6 @@ fun PlayerControls(
                                 modifier = Modifier,
                                 isPortrait = true,
                                 title = title,
-                                currentPosition = currentPosition,
                                 currentDecoder = currentDecoder,
                                 hasChapters = hasChapters,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
@@ -984,12 +974,34 @@ private fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun PlaybackTimerText(
+    positionProvider: () -> Long,
+    duration: Long,
+    showRemainingTime: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val pos = positionProvider()
+    val durationText = if (showRemainingTime) {
+        "-${formatTime((duration - pos).coerceAtLeast(0L))}"
+    } else {
+        formatTime(duration)
+    }
+    Text(
+        text = "${formatTime(pos)} / $durationText",
+        color = Color.White,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = modifier
+    )
+}
+
+@Composable
 fun RenderPlayerButton(
     button: PlayerButton,
     modifier: Modifier = Modifier,
     isPortrait: Boolean = false,
     title: String,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
     currentDecoder: String,
     hasChapters: Boolean,
     isSmartEnhanceEnabled: Boolean,

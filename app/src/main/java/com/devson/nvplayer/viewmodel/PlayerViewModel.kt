@@ -49,6 +49,7 @@ import com.devson.nvplayer.data.model.StreamType
 import com.devson.nvplayer.data.model.VideoQualityOption
 import com.devson.nvplayer.util.StreamQualityHelper
 
+@androidx.compose.runtime.Immutable
 data class PreFetchedVideoMetadata(
     val width: Int,
     val height: Int,
@@ -1064,6 +1065,10 @@ class PlayerViewModel(
     fun seekTo(position: Long, precise: Boolean = true) {
         watchTracker.onSeek(position)
         playerEngine.seekTo(position, precise)
+    }
+
+    fun setScrubbing(isScrubbing: Boolean) {
+        playerEngine.setScrubbing(isScrubbing)
     }
 
     fun setPlaybackSpeed(speed: Float) {

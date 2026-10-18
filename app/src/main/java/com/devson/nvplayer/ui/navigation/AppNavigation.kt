@@ -1001,7 +1001,6 @@ fun AppNavigation(
             val playerVm = playerViewModel()
             val playbackState by playerVm.playbackState.collectAsStateWithLifecycle()
             val isPlaying by playerVm.isPlaying.collectAsStateWithLifecycle()
-            val currentPosition by playerVm.currentPosition.collectAsStateWithLifecycle()
             val duration by playerVm.duration.collectAsStateWithLifecycle()
             val currentUri by playerVm.currentUri.collectAsStateWithLifecycle()
             val videoWidth by playerVm.videoWidth.collectAsStateWithLifecycle()
@@ -1026,7 +1025,6 @@ fun AppNavigation(
             val networkSpeedBytesPerSec by playerVm.networkSpeedBytesPerSec.collectAsStateWithLifecycle()
             val bufferDurationSeconds by playerVm.bufferDurationSeconds.collectAsStateWithLifecycle()
             val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
-            val bufferedPosition by playerVm.bufferedPosition.collectAsStateWithLifecycle()
 
             val isDynamicSpeedActive by playerVm.isDynamicSpeedActive.collectAsStateWithLifecycle()
             val queueList by playerVm.queueList.collectAsStateWithLifecycle()
@@ -1101,12 +1099,13 @@ fun AppNavigation(
                 networkSpeedBytesPerSec = networkSpeedBytesPerSec,
                 bufferDurationSeconds = bufferDurationSeconds,
                 isNetworkStream = isNetworkStream,
-                bufferedPosition = bufferedPosition,
+                currentPositionProvider = { playerVm.currentPosition.value },
+                bufferedPositionProvider = { playerVm.bufferedPosition.value },
+                viewModel = playerVm,
                 audioBoostVolume = audioBoostVolume,
                 onSetAudioBoostVolume = { playerVm.setAudioBoostVolume(it) },
                 playbackState = playbackState,
                 isPlaying = isPlaying,
-                currentPosition = currentPosition,
                 duration = duration,
                 currentUri = currentUri,
                 videoWidth = videoWidth,

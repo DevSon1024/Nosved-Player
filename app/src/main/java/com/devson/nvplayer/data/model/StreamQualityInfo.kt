@@ -1,5 +1,7 @@
 package com.devson.nvplayer.data.model
 
+import androidx.compose.runtime.Immutable
+
 enum class StreamType {
     DIRECT_FILE,
     ADAPTIVE_MANIFEST,
@@ -7,6 +9,7 @@ enum class StreamType {
     UNKNOWN
 }
 
+@Immutable
 data class VideoQualityOption(
     val id: String,
     val label: String,
@@ -19,6 +22,7 @@ data class VideoQualityOption(
     val isFixed: Boolean = false
 )
 
+@Immutable
 data class StreamQualityState(
     val streamType: StreamType = StreamType.UNKNOWN,
     val isLoading: Boolean = false,

@@ -39,36 +39,43 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CustomSeekbar(
-    position: Float,
+    position: Float = 0f,
     duration: Float,
     onSeek: (Float, Boolean) -> Unit,
     onDraggingChanged: (Boolean) -> Unit,
     seekbarStyle: String = "standard",
     isPaused: Boolean = false,
     bufferedDuration: Float = 0f,
+    positionProvider: (() -> Float)? = null,
+    bufferedDurationProvider: (() -> Float)? = null,
     modifier: Modifier = Modifier
 ) {
     val safeDuration = duration.coerceAtLeast(0.1f)
-    val safePosition = position.coerceIn(0f, safeDuration)
     val primaryColor = MaterialTheme.colorScheme.primary
 
     var isScrubbing by remember { mutableStateOf(false) }
-    var latestInteractionPos by remember { mutableFloatStateOf(safePosition) }
+    var latestInteractionPos by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(position, isScrubbing) {
-        if (!isScrubbing) {
-            latestInteractionPos = safePosition
+    val currentPositionProvider: () -> Float = {
+        if (isScrubbing) {
+            latestInteractionPos
+        } else {
+            val raw = positionProvider?.invoke() ?: position
+            raw.coerceIn(0f, safeDuration)
         }
     }
 
-    val displayPosition = if (isScrubbing) latestInteractionPos else safePosition
+    val currentBufferedDurationProvider: () -> Float = {
+        bufferedDurationProvider?.invoke() ?: bufferedDuration
+    }
+
     val scope = rememberCoroutineScope()
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .pointerInput(Unit) {
+            .pointerInput(safeDuration) {
                 detectTapGestures { offset ->
                     val targetPos = ((offset.x / size.width) * safeDuration).coerceIn(0f, safeDuration)
                     latestInteractionPos = targetPos
@@ -81,7 +88,7 @@ fun CustomSeekbar(
                     }
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(safeDuration) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         val targetPos = ((offset.x / size.width) * safeDuration).coerceIn(0f, safeDuration)
@@ -118,43 +125,43 @@ fun CustomSeekbar(
         when (seekbarStyle.lowercase()) {
             "wavy" -> {
                 SquigglySeekbarCanvas(
-                    position = displayPosition,
+                    positionProvider = currentPositionProvider,
                     duration = safeDuration,
                     isPaused = isPaused,
                     isScrubbing = isScrubbing,
-                    bufferedDuration = bufferedDuration,
+                    bufferedDurationProvider = currentBufferedDurationProvider,
                     primaryColor = primaryColor
                 )
             }
             "thick" -> {
                 StandardOrThickSeekbarCanvas(
-                    position = displayPosition,
+                    positionProvider = currentPositionProvider,
                     duration = safeDuration,
                     isPaused = isPaused,
                     isScrubbing = isScrubbing,
                     isThick = true,
-                    bufferedDuration = bufferedDuration,
+                    bufferedDurationProvider = currentBufferedDurationProvider,
                     primaryColor = primaryColor
                 )
             }
             "slim" -> {
                 SlimSeekbarCanvas(
-                    position = displayPosition,
+                    positionProvider = currentPositionProvider,
                     duration = safeDuration,
                     isPaused = isPaused,
                     isScrubbing = isScrubbing,
-                    bufferedDuration = bufferedDuration,
+                    bufferedDurationProvider = currentBufferedDurationProvider,
                     primaryColor = primaryColor
                 )
             }
             else -> {
                 StandardOrThickSeekbarCanvas(
-                    position = displayPosition,
+                    positionProvider = currentPositionProvider,
                     duration = safeDuration,
                     isPaused = isPaused,
                     isScrubbing = isScrubbing,
                     isThick = false,
-                    bufferedDuration = bufferedDuration,
+                    bufferedDurationProvider = currentBufferedDurationProvider,
                     primaryColor = primaryColor
                 )
             }
@@ -164,11 +171,11 @@ fun CustomSeekbar(
 
 @Composable
 private fun SquigglySeekbarCanvas(
-    position: Float,
+    positionProvider: () -> Float,
     duration: Float,
     isPaused: Boolean,
     isScrubbing: Boolean,
-    bufferedDuration: Float,
+    bufferedDurationProvider: () -> Float,
     primaryColor: Color
 ) {
     var phaseOffset by remember { mutableFloatStateOf(0f) }
@@ -210,7 +217,8 @@ private fun SquigglySeekbarCanvas(
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val strokeWidth = 5.dp.toPx()
-        val progress = (position / duration).coerceIn(0f, 1f)
+        val currentPos = positionProvider()
+        val progress = (currentPos / duration).coerceIn(0f, 1f)
         val totalWidth = size.width
         val totalProgressPx = totalWidth * progress
         val centerY = size.height / 2f
@@ -269,8 +277,9 @@ private fun SquigglySeekbarCanvas(
         drawWavyPath(totalProgressPx, totalWidth, primaryColor.copy(alpha = 0.3f))
 
         // Buffered path
-        if (bufferedDuration > 0f) {
-            val bufferPx = (totalProgressPx + (bufferedDuration / duration) * totalWidth).coerceIn(totalProgressPx, totalWidth)
+        val bufDur = bufferedDurationProvider()
+        if (bufDur > 0f) {
+            val bufferPx = (totalProgressPx + (bufDur / duration) * totalWidth).coerceIn(totalProgressPx, totalWidth)
             drawWavyPath(totalProgressPx, bufferPx, primaryColor.copy(alpha = 0.55f))
         }
 
@@ -299,12 +308,12 @@ private fun SquigglySeekbarCanvas(
 
 @Composable
 private fun StandardOrThickSeekbarCanvas(
-    position: Float,
+    positionProvider: () -> Float,
     duration: Float,
     isPaused: Boolean,
     isScrubbing: Boolean,
     isThick: Boolean,
-    bufferedDuration: Float,
+    bufferedDurationProvider: () -> Float,
     primaryColor: Color
 ) {
     var heightFraction by remember { mutableFloatStateOf(1f) }
@@ -336,12 +345,14 @@ private fun StandardOrThickSeekbarCanvas(
         val centerY = size.height / 2f
         val topY = centerY - trackHeight / 2f
         val totalWidth = size.width
-        val progress = (position / duration).coerceIn(0f, 1f)
+        val currentPos = positionProvider()
+        val progress = (currentPos / duration).coerceIn(0f, 1f)
         val playedPx = totalWidth * progress
         val outerRadius = trackHeight / 2f
 
-        val bufferPx = if (bufferedDuration > 0f) {
-            (playedPx + (bufferedDuration / duration) * totalWidth).coerceIn(playedPx, totalWidth)
+        val bufDur = bufferedDurationProvider()
+        val bufferPx = if (bufDur > 0f) {
+            (playedPx + (bufDur / duration) * totalWidth).coerceIn(playedPx, totalWidth)
         } else playedPx
 
         // 1. Unplayed Track
@@ -389,11 +400,11 @@ private fun StandardOrThickSeekbarCanvas(
 
 @Composable
 private fun SlimSeekbarCanvas(
-    position: Float,
+    positionProvider: () -> Float,
     duration: Float,
     isPaused: Boolean,
     isScrubbing: Boolean,
-    bufferedDuration: Float,
+    bufferedDurationProvider: () -> Float,
     primaryColor: Color
 ) {
     val trackHeight by animateDpAsState(
@@ -407,15 +418,17 @@ private fun SlimSeekbarCanvas(
     )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val progress = (position / duration).coerceIn(0f, 1f)
+        val currentPos = positionProvider()
+        val progress = (currentPos / duration).coerceIn(0f, 1f)
         val totalWidth = size.width
         val playedPx = totalWidth * progress
         val centerY = size.height / 2f
         val height = trackHeight.toPx()
         val outerRadius = height / 2f
 
-        val bufferPx = if (bufferedDuration > 0f) {
-            (playedPx + (bufferedDuration / duration) * totalWidth).coerceIn(playedPx, totalWidth)
+        val bufDur = bufferedDurationProvider()
+        val bufferPx = if (bufDur > 0f) {
+            (playedPx + (bufDur / duration) * totalWidth).coerceIn(playedPx, totalWidth)
         } else playedPx
 
         fun drawSegment(startX: Float, endX: Float, color: Color) {

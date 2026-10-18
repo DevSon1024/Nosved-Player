@@ -1,5 +1,8 @@
 package com.devson.nvplayer.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class SubtitleStreamInfo(
     val index: Int,
     val trackId: Int,

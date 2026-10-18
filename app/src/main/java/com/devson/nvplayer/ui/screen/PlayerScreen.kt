@@ -104,7 +104,7 @@ import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 fun PlayerScreen(
     playbackState: PlayerState,
     isPlaying: Boolean,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
     duration: Long,
     currentUri: Uri?,
     preFetchedMetadata: PreFetchedVideoMetadata? = null,
@@ -153,6 +153,8 @@ fun PlayerScreen(
     bufferDurationSeconds: Double = 0.0,
     isNetworkStream: Boolean = false,
     bufferedPosition: Long = 0L,
+    currentPositionProvider: (() -> Long)? = null,
+    bufferedPositionProvider: (() -> Long)? = null,
     isDynamicSpeedActive: Boolean = false,
     onSetDynamicSpeedActive: (Boolean) -> Unit = {},
     viewModel: com.devson.nvplayer.viewmodel.PlayerViewModel? = null,
@@ -169,7 +171,12 @@ fun PlayerScreen(
         owner?.let { androidx.lifecycle.ViewModelProvider(it)[com.devson.nvplayer.viewmodel.PlayerViewModel::class.java] }
     }
     val activeViewModel = viewModel ?: resolvedViewModel
-    val bufferedPosition by (activeViewModel?.bufferedPosition ?: kotlinx.coroutines.flow.MutableStateFlow(bufferedPosition)).collectAsStateWithLifecycle()
+    val posProvider: () -> Long = currentPositionProvider
+        ?: activeViewModel?.let { vm -> { vm.currentPosition.value } }
+        ?: { currentPosition }
+    val bufProvider: () -> Long = bufferedPositionProvider
+        ?: activeViewModel?.let { vm -> { vm.bufferedPosition.value } }
+        ?: { bufferedPosition }
     val engineMediaTitle by (activeViewModel?.mediaTitle ?: kotlinx.coroutines.flow.MutableStateFlow("")).collectAsStateWithLifecycle()
     val currentUri by (activeViewModel?.currentUri ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsStateWithLifecycle()
     val activeVideoWidth by (activeViewModel?.videoWidth ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
@@ -691,7 +698,8 @@ fun PlayerScreen(
                     if (!isLocked && !isFrameCaptureMode) {
                         GestureOverlay(
                             isPlaying = isPlaying,
-                            currentPosition = currentPosition,
+                            currentPosition = 0L,
+                            currentPositionProvider = posProvider,
                             duration = duration,
                             playbackSpeed = playbackSpeed,
                             savedBrightness = savedBrightness,
@@ -738,7 +746,7 @@ fun PlayerScreen(
                         ) {
                             PersistentTopBar(
                                 duration = duration,
-                                currentPosition = currentPosition,
+                                positionProvider = posProvider,
                                 showRemainingTime = playbackSettings.showRemainingTime,
                                 showBatteryClock = playbackSettings.showBatteryClockOverlay
                             )
@@ -766,8 +774,8 @@ fun PlayerScreen(
                             isBottomLayoutEnabled = playbackSettings.isBottomLayoutEnabled,
                             showControlGradients = playbackSettings.showControlGradients,
                             isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
-                            currentPosition = currentPosition,
-                            bufferedPosition = bufferedPosition,
+                            currentPositionProvider = posProvider,
+                            bufferedPositionProvider = bufProvider,
                             isNetworkStream = isNetworkStream,
                             duration = duration,
                             isDragging = isDragging,
@@ -998,7 +1006,7 @@ fun PlayerScreen(
             playbackSettings = playbackSettings,
             currentVideo = currentVideo,
             playbackSpeed = playbackSpeed,
-            currentPosition = currentPosition,
+            currentPositionProvider = posProvider,
             isHwSupported = isHwSupported,
             subtitleTracks = subtitleTracks,
             audioTracks = audioTracks,
@@ -1079,9 +1087,26 @@ fun PlayerScreen(
 }
 
 @Composable
+private fun RemainingTimeText(
+    positionProvider: () -> Long,
+    duration: Long,
+    modifier: Modifier = Modifier
+) {
+    val remainingMs = (duration - positionProvider()).coerceAtLeast(0L)
+    Text(
+        text = "-${formatTime(remainingMs)}",
+        color = Color.White.copy(alpha = 0.85f),
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = modifier
+    )
+}
+
+@Composable
 private fun PersistentTopBar(
     duration: Long,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
+    positionProvider: (() -> Long)? = null,
     showRemainingTime: Boolean,
     showBatteryClock: Boolean,
     modifier: Modifier = Modifier
@@ -1089,6 +1114,7 @@ private fun PersistentTopBar(
     val context = LocalContext.current
     var batteryPercentage by remember { mutableIntStateOf(100) }
     var currentTime by remember { mutableStateOf("") }
+    val posProvider = positionProvider ?: { currentPosition }
 
     LaunchedEffect(showBatteryClock) {
         if (showBatteryClock) {
@@ -1124,12 +1150,9 @@ private fun PersistentTopBar(
                         tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(12.dp)
                     )
-                    val remainingMs = (duration - currentPosition).coerceAtLeast(0L)
-                    Text(
-                        text = "-${formatTime(remainingMs)}",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                    RemainingTimeText(
+                        positionProvider = posProvider,
+                        duration = duration
                     )
                 }
             }
@@ -1600,7 +1623,8 @@ private fun PlayerSideSheets(
     playbackSettings: PlaybackSettings,
     currentVideo: Video?,
     playbackSpeed: Float,
-    currentPosition: Long,
+    currentPosition: Long = 0L,
+    currentPositionProvider: (() -> Long)? = null,
     isHwSupported: Boolean,
     subtitleTracks: List<TrackInfo>,
     audioTracks: List<TrackInfo>,
@@ -1713,6 +1737,7 @@ private fun PlayerSideSheets(
         visible = visibleChaptersSheet,
         chapters = chapters,
         currentPositionMs = currentPosition,
+        currentPositionProvider = currentPositionProvider,
         onSelectChapter = onSelectChapter,
         onDismiss = onDismissChaptersSheet
     )

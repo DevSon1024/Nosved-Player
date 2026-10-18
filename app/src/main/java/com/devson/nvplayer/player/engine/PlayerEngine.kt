@@ -30,6 +30,7 @@ interface PlayerEngine {
     fun pause()
     fun togglePlayback()
     fun seekTo(position: Long, precise: Boolean = true) // position in milliseconds
+    fun setScrubbing(isScrubbing: Boolean) {}
     fun setPlaybackSpeed(speed: Float)
     fun cycleSubtitle()
     fun cycleAudio()

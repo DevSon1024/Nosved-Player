@@ -112,6 +112,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private val _mediaTitle = MutableStateFlow("")
     override val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
 
+    private var lastTimePosDispatchMs = 0L
+    @Volatile
+    private var isScrubbingOrSeeking = false
+
     init {
         try {
             if (isInitialized) {
@@ -416,6 +420,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     override fun seekTo(position: Long, precise: Boolean) {
+        lastTimePosDispatchMs = android.os.SystemClock.uptimeMillis()
+        _currentPosition.value = position
         val seconds = position / 1000.0
         val isLowRam = DeviceCapabilityHelper.isLowRamDevice(context)
         val usePrecise = precise && !isLowRam
@@ -425,6 +431,13 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.command("seek", seconds.toString(), mode)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to seek to position", e)
+        }
+    }
+
+    override fun setScrubbing(isScrubbing: Boolean) {
+        isScrubbingOrSeeking = isScrubbing
+        if (!isScrubbing) {
+            lastTimePosDispatchMs = 0L // Force immediate update on next incoming tick
         }
     }
 
@@ -1460,16 +1473,27 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "time-pos" -> {
-                _currentPosition.value = (value * 1000).toLong()
+                val now = android.os.SystemClock.uptimeMillis()
+                val targetMs = (value * 1000).toLong()
+                if (isScrubbingOrSeeking || !_isPlaying.value || (now - lastTimePosDispatchMs >= 200L)) {
+                    lastTimePosDispatchMs = now
+                    _currentPosition.value = targetMs
+                }
             }
             "duration" -> {
-                _duration.value = (value * 1000).toLong()
+                val durMs = (value * 1000).toLong()
+                if (_duration.value != durMs) {
+                    _duration.value = durMs
+                }
             }
             "demux-cache-duration" -> {
                 _bufferDurationSeconds.value = value
             }
             "demuxer-cache-duration" -> {
-                _bufferedPosition.value = _currentPosition.value + (value * 1000).toLong()
+                val newBuf = _currentPosition.value + (value * 1000).toLong()
+                if (Math.abs(newBuf - _bufferedPosition.value) >= 500L) {
+                    _bufferedPosition.value = newBuf
+                }
             }
         }
     }

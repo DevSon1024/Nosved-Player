@@ -7,6 +7,7 @@ import com.devson.nvplayer.player.ytdlp.YtdlContainerPreference
 import com.devson.nvplayer.player.ytdlp.YtdlHdrPreference
 import com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode
 import com.devson.nvplayer.domain.model.LayoutMode
+import androidx.compose.runtime.Immutable
 
 enum class OrientationMode {
     SYSTEM_DEFAULT, LANDSCAPE, PORTRAIT, AUTO
@@ -40,6 +41,7 @@ enum class FolderFilterMode {
     NONE, WHITELIST, BLACKLIST
 }
 
+@Immutable
 data class PlaybackSettings(
     val seekDurationSeconds: Int = 10,
     val seekBarStyle: String = "standard",

@@ -9,10 +9,14 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+val keystorePropertiesFile = rootProject.file("keystore.properties").takeIf { it.exists() }
+    ?: project.file("keystore.properties").takeIf { it.exists() }
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile != null && keystorePropertiesFile.canRead()) {
+        keystorePropertiesFile.inputStream().use { stream ->
+            load(stream)
+        }
+    }
 }
 val splitApks = !project.hasProperty("noSplits") && !gradle.startParameter.taskNames.any {
     it.contains("debug", ignoreCase = true)
@@ -49,11 +53,22 @@ android {
     }
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String?
-                keyPassword = keystoreProperties["keyPassword"] as String?
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String?
+            if (keystorePropertiesFile != null) {
+                val storeFilePath = keystoreProperties.getProperty("storeFile")
+                if (!storeFilePath.isNullOrBlank()) {
+                    val candidateAppFile = file(storeFilePath)
+                    val candidateRootFile = rootProject.file(storeFilePath)
+                    storeFile = when {
+                        candidateAppFile.exists() -> candidateAppFile
+                        candidateRootFile.exists() -> candidateRootFile
+                        else -> candidateRootFile
+                    }
+                }
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storePassword = keystoreProperties.getProperty("storePassword")
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }
@@ -75,7 +90,7 @@ android {
                 "proguard-rules.pro"
             )
             resValue("string", "app_name", "Nosved Player")
-            if (keystorePropertiesFile.exists()) {
+            if (keystorePropertiesFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
             ndk {

@@ -1,5 +1,8 @@
 package com.devson.nvplayer.player.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class TrackInfo(
     val id: Int,          // Native track ID from MPV
     val type: String,     // "sub" or "audio" or "video"
