@@ -980,7 +980,16 @@ fun PlaybackTimerText(
     showRemainingTime: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val pos = positionProvider()
+    var pos by remember { mutableLongStateOf(positionProvider()) }
+    LaunchedEffect(positionProvider) {
+        while (true) {
+            val newPos = positionProvider()
+            if (pos != newPos) {
+                pos = newPos
+            }
+            delay(200L)
+        }
+    }
     val durationText = if (showRemainingTime) {
         "-${formatTime((duration - pos).coerceAtLeast(0L))}"
     } else {

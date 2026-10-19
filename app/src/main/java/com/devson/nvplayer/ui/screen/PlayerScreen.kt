@@ -1115,7 +1115,17 @@ private fun RemainingTimeText(
     duration: Long,
     modifier: Modifier = Modifier
 ) {
-    val remainingMs = (duration - positionProvider()).coerceAtLeast(0L)
+    var pos by remember { mutableLongStateOf(positionProvider()) }
+    LaunchedEffect(positionProvider) {
+        while (true) {
+            val newPos = positionProvider()
+            if (pos != newPos) {
+                pos = newPos
+            }
+            delay(500L)
+        }
+    }
+    val remainingMs = (duration - pos).coerceAtLeast(0L)
     Text(
         text = "-${formatTime(remainingMs)}",
         color = Color.White.copy(alpha = 0.85f),

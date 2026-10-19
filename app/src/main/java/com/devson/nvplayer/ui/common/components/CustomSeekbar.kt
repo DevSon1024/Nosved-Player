@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -34,7 +35,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -317,6 +318,7 @@ private fun StandardOrThickSeekbarCanvas(
     primaryColor: Color
 ) {
     var heightFraction by remember { mutableFloatStateOf(1f) }
+    var seekbarTick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(isPaused, isScrubbing) {
         val shouldFlatten = isPaused || isScrubbing
         val targetHeight = if (shouldFlatten) 0.7f else 1f
@@ -326,6 +328,14 @@ private fun StandardOrThickSeekbarCanvas(
             animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f)
         ) {
             heightFraction = value
+        }
+    }
+
+    LaunchedEffect(isPaused, isScrubbing) {
+        if (isPaused || isScrubbing) return@LaunchedEffect
+        while (true) {
+            delay(100L)
+            seekbarTick = System.currentTimeMillis()
         }
     }
 
@@ -340,6 +350,7 @@ private fun StandardOrThickSeekbarCanvas(
     )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
+        if (seekbarTick >= 0L) Unit
         val baseTrackHeight = if (isThick) 14.dp.toPx() else 6.dp.toPx()
         val trackHeight = baseTrackHeight * heightFraction
         val centerY = size.height / 2f
@@ -407,6 +418,15 @@ private fun SlimSeekbarCanvas(
     bufferedDurationProvider: () -> Float,
     primaryColor: Color
 ) {
+    var seekbarTick by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(isPaused, isScrubbing) {
+        if (isPaused || isScrubbing) return@LaunchedEffect
+        while (true) {
+            delay(100L)
+            seekbarTick = System.currentTimeMillis()
+        }
+    }
+
     val trackHeight by animateDpAsState(
         targetValue = when {
             isScrubbing -> 14.dp
@@ -418,6 +438,7 @@ private fun SlimSeekbarCanvas(
     )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
+        if (seekbarTick >= 0L) Unit
         val currentPos = positionProvider()
         val progress = (currentPos / duration).coerceIn(0f, 1f)
         val totalWidth = size.width
