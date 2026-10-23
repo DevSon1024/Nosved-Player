@@ -318,19 +318,7 @@ private fun StandardOrThickSeekbarCanvas(
     bufferedDurationProvider: () -> Float,
     primaryColor: Color
 ) {
-    var heightFraction by remember { mutableFloatStateOf(1f) }
     var seekbarTick by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(isPaused, isScrubbing) {
-        val shouldFlatten = isPaused || isScrubbing
-        val targetHeight = if (shouldFlatten) 0.7f else 1f
-        val animator = Animatable(heightFraction)
-        animator.animateTo(
-            targetValue = targetHeight,
-            animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f)
-        ) {
-            heightFraction = value
-        }
-    }
 
     LaunchedEffect(isPaused, isScrubbing) {
         if (isPaused || isScrubbing) return@LaunchedEffect
@@ -340,20 +328,30 @@ private fun StandardOrThickSeekbarCanvas(
         }
     }
 
-    val thumbWidth by animateDpAsState(
-        targetValue = when {
-            isThick && isScrubbing -> 4.dp
-            isScrubbing -> 4.dp
-            else -> 6.dp
+    val accentBlue = Color(0xFF3B82F6)
+    val animatedTrackHeight by animateDpAsState(
+        targetValue = if (isThick) {
+            if (isScrubbing) 16.dp else 14.dp
+        } else {
+            if (isScrubbing) 10.dp else 6.dp
         },
-        animationSpec = spring(stiffness = 900f, dampingRatio = 0.9f),
-        label = "seekbar_thumb_width"
+        animationSpec = spring(stiffness = 500f, dampingRatio = 0.8f),
+        label = "seekbar_track_height"
+    )
+
+    val animatedThumbHeight by animateDpAsState(
+        targetValue = if (isThick) {
+            if (isScrubbing) 20.dp else 18.dp
+        } else {
+            if (isScrubbing) 24.dp else 18.dp
+        },
+        animationSpec = spring(stiffness = 500f, dampingRatio = 0.8f),
+        label = "seekbar_thumb_height"
     )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         if (seekbarTick >= 0L) Unit
-        val baseTrackHeight = if (isThick) 14.dp.toPx() else 6.dp.toPx()
-        val trackHeight = baseTrackHeight * heightFraction
+        val trackHeight = animatedTrackHeight.toPx()
         val centerY = size.height / 2f
         val topY = centerY - trackHeight / 2f
         val totalWidth = size.width
@@ -367,46 +365,88 @@ private fun StandardOrThickSeekbarCanvas(
             (playedPx + (bufDur / duration) * totalWidth).coerceIn(playedPx, totalWidth)
         } else playedPx
 
-        // 1. Unplayed Track
-        drawRoundRect(
-            color = primaryColor.copy(alpha = 0.3f),
-            topLeft = Offset(0f, topY),
-            size = Size(totalWidth, trackHeight),
-            cornerRadius = CornerRadius(outerRadius)
-        )
-
-        // 2. Buffered Track
-        if (bufferPx > 0f) {
-            drawRoundRect(
-                color = primaryColor.copy(alpha = 0.55f),
-                topLeft = Offset(0f, topY),
-                size = Size(bufferPx, trackHeight),
-                cornerRadius = CornerRadius(outerRadius)
-            )
-        }
-
-        // 3. Played Track
-        if (playedPx > 0f) {
-            drawRoundRect(
-                color = primaryColor,
-                topLeft = Offset(0f, topY),
-                size = Size(playedPx, trackHeight),
-                cornerRadius = CornerRadius(outerRadius)
-            )
-        }
-
-        // 4. Thumb Indicator
-        val thumbW = thumbWidth.toPx()
-        val thumbH = if (isThick) trackHeight + 4.dp.toPx() else 18.dp.toPx()
-        val thumbRadius = if (isThick) 4.dp.toPx() else thumbW / 2f
+        val thumbW = 6.dp.toPx()
+        val thumbH = animatedThumbHeight.toPx()
+        val thumbRadius = thumbW / 2f
         val thumbLeft = (playedPx - thumbW / 2f).coerceIn(0f, totalWidth - thumbW)
+        val thumbRight = thumbLeft + thumbW
 
-        drawRoundRect(
-            color = Color.White,
-            topLeft = Offset(thumbLeft, centerY - thumbH / 2f),
-            size = Size(thumbW, thumbH),
-            cornerRadius = CornerRadius(thumbRadius)
-        )
+        if (isThick) {
+            // Thick seekbar mode
+            drawRoundRect(
+                color = primaryColor.copy(alpha = 0.3f),
+                topLeft = Offset(0f, topY),
+                size = Size(totalWidth, trackHeight),
+                cornerRadius = CornerRadius(outerRadius)
+            )
+            if (bufferPx > 0f) {
+                drawRoundRect(
+                    color = primaryColor.copy(alpha = 0.55f),
+                    topLeft = Offset(0f, topY),
+                    size = Size(bufferPx, trackHeight),
+                    cornerRadius = CornerRadius(outerRadius)
+                )
+            }
+            if (playedPx > 0f) {
+                drawRoundRect(
+                    color = accentBlue,
+                    topLeft = Offset(0f, topY),
+                    size = Size(playedPx, trackHeight),
+                    cornerRadius = CornerRadius(outerRadius)
+                )
+            }
+            drawRoundRect(
+                color = Color.White,
+                topLeft = Offset(thumbLeft, centerY - thumbH / 2f),
+                size = Size(thumbW, thumbH),
+                cornerRadius = CornerRadius(thumbRadius)
+            )
+        } else {
+            // Material 3 Expressive Gapped Slider
+            val gapPx = 6.dp.toPx()
+            val playedEnd = (thumbLeft - gapPx).coerceAtLeast(0f)
+            val unplayedStart = (thumbRight + gapPx).coerceAtMost(totalWidth)
+            val unplayedLength = (totalWidth - unplayedStart).coerceAtLeast(0f)
+
+            // 1. Inactive Unplayed Track with gap
+            if (unplayedLength > 0f) {
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.25f),
+                    topLeft = Offset(unplayedStart, topY),
+                    size = Size(unplayedLength, trackHeight),
+                    cornerRadius = CornerRadius(outerRadius)
+                )
+            }
+
+            // 2. Buffered Track after gap
+            if (bufferPx > unplayedStart) {
+                val bufferLength = (bufferPx - unplayedStart).coerceAtLeast(0f)
+                drawRoundRect(
+                    color = accentBlue.copy(alpha = 0.45f),
+                    topLeft = Offset(unplayedStart, topY),
+                    size = Size(bufferLength, trackHeight),
+                    cornerRadius = CornerRadius(outerRadius)
+                )
+            }
+
+            // 3. Active Played Track before gap
+            if (playedEnd > 0f) {
+                drawRoundRect(
+                    color = accentBlue,
+                    topLeft = Offset(0f, topY),
+                    size = Size(playedEnd, trackHeight),
+                    cornerRadius = CornerRadius(outerRadius)
+                )
+            }
+
+            // 4. Vertical White Pill Thumb (RoundedCornerShape 50)
+            drawRoundRect(
+                color = Color.White,
+                topLeft = Offset(thumbLeft, centerY - thumbH / 2f),
+                size = Size(thumbW, thumbH),
+                cornerRadius = CornerRadius(thumbRadius)
+            )
+        }
     }
 }
 

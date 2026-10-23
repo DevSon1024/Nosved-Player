@@ -9,32 +9,19 @@ import android.os.BatteryManager
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import com.devson.nvplayer.domain.model.PlayerButton
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,9 +31,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,7 +48,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.sin
+
+private val GlassSurface = Color(0xFF121316).copy(alpha = 0.68f)
+private val GlassBorder = Color.White.copy(alpha = 0.14f)
+private val AccentBlue = Color(0xFF3B82F6)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,6 +110,9 @@ fun PlayerControls(
     showControlGradients: Boolean = true,
     onTitleClick: () -> Unit = {},
     onScreenshotClick: () -> Unit = {},
+    resolutionLabel: String? = null,
+    videoCodecLabel: String? = null,
+    fileSizeLabel: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -127,74 +123,51 @@ fun PlayerControls(
     var isLeftExpanded by remember { mutableStateOf(false) }
     var isRightExpanded by remember { mutableStateOf(false) }
 
-    val phaseShiftState = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            var lastTime = withFrameNanos { it }
-            while (true) {
-                withFrameNanos { frameTime ->
-                    val deltaSeconds = (frameTime - lastTime) / 1_000_000_000f
-                    lastTime = frameTime
-                    val deltaPhase = (deltaSeconds / 1.5f) * (2f * Math.PI).toFloat()
-                    phaseShiftState.floatValue = (phaseShiftState.floatValue + deltaPhase) % (2f * Math.PI).toFloat()
-                }
-            }
-        }
-    }
-
-    val glowAlpha by if (isSmartEnhanceEnabled && isPlaying) {
-        val infiniteTransition = rememberInfiniteTransition(label = "glowPulse")
-        infiniteTransition.animateFloat(
-            initialValue = 0.3f,
-            targetValue = 0.9f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1200, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "glowAlpha"
-        )
-    } else {
-        remember { mutableStateOf(if (isSmartEnhanceEnabled) 0.8f else 0f) }
-    }
-
     val themePrimary = MaterialTheme.colorScheme.primary
-    val glowBrush = if (isSmartEnhanceEnabled) {
-        Brush.linearGradient(
-            colors = listOf(
-                themePrimary.copy(alpha = glowAlpha),
-                MaterialTheme.colorScheme.secondary.copy(alpha = glowAlpha)
-            )
-        )
-    } else null
-
     val posProvider: () -> Long = currentPositionProvider ?: { currentPosition }
     val bufProvider: () -> Long = bufferedPositionProvider ?: { bufferedPosition }
-
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
     var lastSeekTime by remember { mutableLongStateOf(0L) }
     var draggingJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
-    val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.05f, label = "PlayScale")
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .then(
-                if (showControlGradients) {
-                    Modifier.background(
+    ) {
+        // 0. Top & Bottom Vertical Gradient Scrims (Non-clickable)
+        if (showControlGradients) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .align(Alignment.TopCenter)
+                    .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.65f),
+                                Color.Black.copy(alpha = 0.8f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(190.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
                                 Color.Transparent,
                                 Color.Black.copy(alpha = 0.8f)
                             )
                         )
                     )
-                } else {
-                    Modifier
-                }
             )
-    ) {
+        }
+
         val filterButtons = { list: List<PlayerButton> ->
             list.filter { button ->
                 if (button == PlayerButton.CHAPTERS && !hasChapters) return@filter false
@@ -203,296 +176,53 @@ fun PlayerControls(
             }
         }
 
-        val sizeKey = controlIconSize.lowercase()
-        val playCircleSize = when (sizeKey) {
-            "small" -> if (isPortrait) 46.dp else 52.dp
-            "large" -> if (isPortrait) 64.dp else 72.dp
-            else    -> if (isPortrait) 54.dp else 60.dp  // "medium" default
-        }
-        val playIconSize = when (sizeKey) {
-            "small" -> if (isPortrait) 22.dp else 26.dp
-            "large" -> if (isPortrait) 36.dp else 42.dp
-            else    -> if (isPortrait) 28.dp else 32.dp
-        }
-        val actionCircleSize = when (sizeKey) {
-            "small" -> if (isPortrait) 40.dp else 46.dp
-            "large" -> if (isPortrait) 54.dp else 60.dp
-            else    -> if (isPortrait) 46.dp else 52.dp
-        }
-        val actionIconSize = when (sizeKey) {
-            "small" -> if (isPortrait) 18.dp else 22.dp
-            "large" -> if (isPortrait) 26.dp else 30.dp
-            else    -> if (isPortrait) 22.dp else 26.dp
-        }
-        val centerSpacing = if (isPortrait) 14.dp else 24.dp
-
-        val controlButton = @Composable { button: PlayerButton ->
-            RenderPlayerButton(
-                button = button,
-                modifier = Modifier,
-                isPortrait = false,
-                title = title,
-                currentDecoder = currentDecoder,
-                hasChapters = hasChapters,
-                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                glowBrush = glowBrush,
-                glowAlpha = glowAlpha,
-                themePrimary = themePrimary,
-                onBackClick = onBackClick,
-                onShowDecoder = onShowDecoder,
-                onShowChapters = onShowChapters,
-                onCycleSubtitle = onCycleSubtitle,
-                onCycleAudio = onCycleAudio,
-                onEnhanceClick = onEnhanceClick,
-                onSpeedClick = onSpeedClick,
-                onLockClick = onLockClick,
-                onAspectClick = onAspectClick,
-                onPipClick = onPipClick,
-                activity = activity,
-                currentAspectMode = currentAspectMode,
-                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                onBackgroundPlayClick = onBackgroundPlayClick,
-                ytdlQuality = ytdlQuality,
-                currentQualityLabel = currentQualityLabel,
-                onShowQuality = onShowQuality,
-                onTitleClick = onTitleClick,
-                onScreenshotClick = onScreenshotClick
-            )
-        }
-
-        val chevronButton = @Composable { icon: ImageVector, onClick: () -> Unit ->
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                    .clickable { onClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = "Toggle Expand",
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        val leftRegion = @Composable { buttons: List<PlayerButton>, isExpanded: Boolean, onExpandedChange: (Boolean) -> Unit ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (!isBottomLayoutEnabled || buttons.size <= 2) {
-                    buttons.forEach { button ->
-                        controlButton(button)
-                    }
-                } else {
-                    if (!isExpanded) {
-                        buttons.take(2).forEach { button ->
-                            controlButton(button)
-                        }
-                        chevronButton(Icons.Rounded.ChevronRight) { onExpandedChange(true) }
-                    } else {
-                        buttons.take(2).forEach { button ->
-                            controlButton(button)
-                        }
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = fadeIn() + expandHorizontally(),
-                            exit = fadeOut() + shrinkHorizontally()
+        val onButtonClick: (PlayerButton) -> Unit = { button ->
+            when (button) {
+                PlayerButton.BACK_ARROW -> onBackClick()
+                PlayerButton.DECODER -> onShowDecoder()
+                PlayerButton.CHAPTERS -> if (hasChapters) onShowChapters() else {}
+                PlayerButton.SUBTITLES -> onCycleSubtitle()
+                PlayerButton.AUDIO_TRACK -> onCycleAudio()
+                PlayerButton.SMART_ENHANCE -> onEnhanceClick()
+                PlayerButton.MORE_OPTIONS -> onSpeedClick()
+                PlayerButton.LOCK_CONTROLS -> onLockClick()
+                PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
+                PlayerButton.ASPECT_RATIO -> onAspectClick()
+                PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
+                PlayerButton.STREAM_QUALITY -> onShowQuality()
+                PlayerButton.SCREENSHOT -> onScreenshotClick()
+                PlayerButton.SCREEN_ROTATION -> {
+                    activity?.let { act ->
+                        val currentOrientation = act.requestedOrientation
+                        if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
+                            currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                buttons.drop(2).forEach { button ->
-                                    controlButton(button)
-                                }
-                            }
+                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        } else {
+                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                         }
-                        chevronButton(Icons.Rounded.ChevronLeft) { onExpandedChange(false) }
                     }
                 }
+                else -> {}
             }
         }
 
-        val rightRegion = @Composable { buttons: List<PlayerButton>, isExpanded: Boolean, onExpandedChange: (Boolean) -> Unit ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (!isBottomLayoutEnabled || buttons.size <= 2) {
-                    buttons.forEach { button ->
-                        controlButton(button)
-                    }
-                } else {
-                    if (!isExpanded) {
-                        chevronButton(Icons.Rounded.ChevronLeft) { onExpandedChange(true) }
-                        buttons.take(2).forEach { button ->
-                            controlButton(button)
-                        }
-                    } else {
-                        chevronButton(Icons.Rounded.ChevronRight) { onExpandedChange(false) }
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = fadeIn() + expandHorizontally(),
-                            exit = fadeOut() + shrinkHorizontally()
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                buttons.drop(2).forEach { button ->
-                                    controlButton(button)
-                                }
-                            }
-                        }
-                        buttons.take(2).forEach { button ->
-                            controlButton(button)
-                        }
-                    }
-                }
-            }
-        }
+        // 1. TOP PANEL
+        val rawTopLeft = filterButtons(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
+        val extraTopLeft = rawTopLeft.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
 
-        val bottomPlaybackControls = @Composable {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Skip Previous
-                if (showNextPrevButtons) {
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
-                            .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
-                            .clickable(enabled = hasPrevious) { onPrevClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous Video",
-                            tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-
-                // Rewind Button
-                if (showSeekButtons) {
-                    val rewindIcon = when (seekDurationSeconds) {
-                        5 -> Icons.Rounded.Replay5
-                        30 -> Icons.Rounded.Replay30
-                        else -> Icons.Rounded.Replay10
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = rewindIcon,
-                            contentDescription = "Rewind ${seekDurationSeconds}s",
-                            tint = Color.White,
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-
-                // Play/Pause Button
-                val playScale by animateFloatAsState(targetValue = if (isPlaying) 1.0f else 1.05f, label = "PlayScale")
-                Box(
-                    modifier = Modifier
-                        .size(playCircleSize)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
-                            )
-                        )
-                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                        .scale(playScale)
-                        .clickable { onPlayPauseToggle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(playIconSize)
-                    )
-                }
-
-                // Forward Button
-                if (showSeekButtons) {
-                    val forwardIcon = when (seekDurationSeconds) {
-                        5 -> Icons.Rounded.Forward5
-                        30 -> Icons.Rounded.Forward30
-                        else -> Icons.Rounded.Forward10
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = forwardIcon,
-                            contentDescription = "Forward ${seekDurationSeconds}s",
-                            tint = Color.White,
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-
-                // Skip Next
-                if (showNextPrevButtons) {
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
-                            .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
-                            .clickable(enabled = hasNext) { onNextClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next Video",
-                            tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 1. TOP PANEL - separate lists for landscape vs portrait orientations
-        val effectiveTopLeft = filterButtons(if (isPortrait) portraitTopLeftButtons else topLeftButtons)
         val rawTopRight = filterButtons(if (isPortrait) portraitTopRightButtons else topRightButtons)
-        
         val allActiveButtons = if (isPortrait) {
             portraitTopLeftButtons + portraitTopRightButtons + portraitBottomButtons
         } else {
             topLeftButtons + topRightButtons + bottomLeftButtons + bottomRightButtons
         }
-
         val effectiveTopRight = if (isNetworkStream && !allActiveButtons.contains(PlayerButton.STREAM_QUALITY)) {
             rawTopRight + PlayerButton.STREAM_QUALITY
         } else {
             rawTopRight
         }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -502,209 +232,128 @@ fun PlayerControls(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Left Group: Back Button + Two-line Title & Metadata + Extra Top-Left Capsule
             Row(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                effectiveTopLeft.forEach { button ->
-                    RenderPlayerButton(
-                        button = button,
-                        modifier = if (button == PlayerButton.VIDEO_TITLE) Modifier.weight(1f) else Modifier,
-                        isPortrait = isPortrait,
-                        title = title,
-                        currentDecoder = currentDecoder,
-                        hasChapters = hasChapters,
-                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                        glowBrush = glowBrush,
-                        glowAlpha = glowAlpha,
-                        themePrimary = themePrimary,
-                        onBackClick = onBackClick,
-                        onShowDecoder = onShowDecoder,
-                        onShowChapters = onShowChapters,
-                        onCycleSubtitle = onCycleSubtitle,
-                        onCycleAudio = onCycleAudio,
-                        onEnhanceClick = onEnhanceClick,
-                        onSpeedClick = onSpeedClick,
-                        onLockClick = onLockClick,
-                        onAspectClick = onAspectClick,
-                        onPipClick = onPipClick,
-                        activity = activity,
-                        currentAspectMode = currentAspectMode,
-                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                        onBackgroundPlayClick = onBackgroundPlayClick,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
-                        onShowQuality = onShowQuality,
-                        onTitleClick = onTitleClick,
-                        onScreenshotClick = onScreenshotClick
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                effectiveTopRight.forEach { button ->
-                    RenderPlayerButton(
-                        button = button,
-                        modifier = Modifier,
-                        isPortrait = isPortrait,
-                        title = title,
-                        currentDecoder = currentDecoder,
-                        hasChapters = hasChapters,
-                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                        glowBrush = glowBrush,
-                        glowAlpha = glowAlpha,
-                        themePrimary = themePrimary,
-                        onBackClick = onBackClick,
-                        onShowDecoder = onShowDecoder,
-                        onShowChapters = onShowChapters,
-                        onCycleSubtitle = onCycleSubtitle,
-                        onCycleAudio = onCycleAudio,
-                        onEnhanceClick = onEnhanceClick,
-                        onSpeedClick = onSpeedClick,
-                        onLockClick = onLockClick,
-                        onAspectClick = onAspectClick,
-                        onPipClick = onPipClick,
-                        activity = activity,
-                        currentAspectMode = currentAspectMode,
-                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                        onBackgroundPlayClick = onBackgroundPlayClick,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
-                        onShowQuality = onShowQuality,
-                        onTitleClick = onTitleClick,
-                        onScreenshotClick = onScreenshotClick
-                    )
-                }
-            }
-        }
-
-        // 2. CENTER PANEL (Playback Actions)
-        if (!isBottomLayoutEnabled) {
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(centerSpacing),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Skip Previous
-                if (showNextPrevButtons) {
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = if (hasPrevious) 0.06f else 0.02f))
-                            .border(1.dp, Color.White.copy(alpha = if (hasPrevious) 0.1f else 0.03f), CircleShape)
-                            .clickable(enabled = hasPrevious) { onPrevClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous Video",
-                            tint = Color.White.copy(alpha = if (hasPrevious) 1f else 0.3f),
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-
-                // Rewind Button
-                if (showSeekButtons) {
-                    val rewindIcon = when (seekDurationSeconds) {
-                        5 -> Icons.Rounded.Replay5
-                        30 -> Icons.Rounded.Replay30
-                        else -> Icons.Rounded.Replay10
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = rewindIcon,
-                            contentDescription = "Rewind ${seekDurationSeconds}s",
-                            tint = Color.White,
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
-                }
-
-                // Modern Play/Pause Circle Button
+                // Back Button (42.dp Circle with glassSurface & glassBorder)
                 Box(
                     modifier = Modifier
-                        .size(playCircleSize)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.05f))
-                            )
-                        )
-                        .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                        .scale(playScale)
-                        .clickable { onPlayPauseToggle() },
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, CircleShape)
+                        .clickable { onBackClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
                         tint = Color.White,
-                        modifier = Modifier.size(playIconSize)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Forward Button
-                if (showSeekButtons) {
-                    val forwardIcon = when (seekDurationSeconds) {
-                        5 -> Icons.Rounded.Forward5
-                        30 -> Icons.Rounded.Forward30
-                        else -> Icons.Rounded.Forward10
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = forwardIcon,
-                            contentDescription = "Forward ${seekDurationSeconds}s",
-                            tint = Color.White,
-                            modifier = Modifier.size(actionIconSize)
+                // Two-Line Title & Dynamic Metadata Column
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onTitleClick() },
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    val metadataSubtitle = listOfNotNull(resolutionLabel, videoCodecLabel, fileSizeLabel)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" • ")
+
+                    if (metadataSubtitle.isNotBlank()) {
+                        Text(
+                            text = metadataSubtitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.68f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Skip Next
-                if (showNextPrevButtons) {
-                    Box(
-                        modifier = Modifier
-                            .size(actionCircleSize)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = if (hasNext) 0.06f else 0.02f))
-                            .border(1.dp, Color.White.copy(alpha = if (hasNext) 0.1f else 0.03f), CircleShape)
-                            .clickable(enabled = hasNext) { onNextClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next Video",
-                            tint = Color.White.copy(alpha = if (hasNext) 1f else 0.3f),
-                            modifier = Modifier.size(actionIconSize)
-                        )
-                    }
+                if (extraTopLeft.isNotEmpty()) {
+                    DynamicControlCapsule(
+                        controls = extraTopLeft,
+                        currentDecoder = currentDecoder,
+                        ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
+                        currentAspectMode = currentAspectMode,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        themePrimary = themePrimary,
+                        onButtonClick = onButtonClick
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Right Group: Battery & Clock Overlay + Top-Right Capsule
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showBatteryClockOverlay) {
+                    BatteryAndClockOverlay()
+                }
+
+                if (effectiveTopRight.isNotEmpty()) {
+                    DynamicControlCapsule(
+                        controls = effectiveTopRight,
+                        currentDecoder = currentDecoder,
+                        ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
+                        currentAspectMode = currentAspectMode,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        themePrimary = themePrimary,
+                        onButtonClick = onButtonClick
+                    )
                 }
             }
         }
 
-        // 3. BOTTOM PANEL (Timers & Seekbar)
+        // 2. CENTER PANEL (Playback Transport Dock in Center if not bottom layout)
+        if (!isBottomLayoutEnabled) {
+            Box(
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                CenterTransportDock(
+                    isPlaying = isPlaying,
+                    onPlayPauseToggle = onPlayPauseToggle,
+                    showSeekButtons = showSeekButtons,
+                    seekDurationSeconds = seekDurationSeconds,
+                    onRewindClick = {
+                        onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
+                    },
+                    onForwardClick = {
+                        onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
+                    },
+                    showNextPrevButtons = showNextPrevButtons,
+                    hasPrevious = hasPrevious,
+                    hasNext = hasNext,
+                    onPrevClick = onPrevClick,
+                    onNextClick = onNextClick
+                )
+            }
+        }
+
+        // 3. BOTTOM PANEL (Timers, Seekbar & Controls)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -712,22 +361,70 @@ fun PlayerControls(
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
         ) {
-            // Timers Row
+            // Balanced Timestamp Row Above Seekbar
+            var trackedPosition by remember { mutableLongStateOf(posProvider()) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    trackedPosition = posProvider()
+                    delay(200L)
+                }
+            }
+
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                PlaybackTimerText(
-                    positionProvider = posProvider,
-                    duration = duration,
-                    showRemainingTime = showRemainingTime
-                )
+                // Left Pill: currentPosition / totalDuration
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${formatTime(trackedPosition)} / ${formatTime(duration)}",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // Right Pill: remaining time and/or current playback speed
+                val remainingTimeText = "-${formatTime((duration - trackedPosition).coerceAtLeast(0L))}"
+                val speedText = if (playbackSpeed != 1.0f) "${playbackSpeed}x" else "1.0x"
+                val rightPillText = if (showRemainingTime) {
+                    "$speedText • $remainingTimeText"
+                } else {
+                    speedText
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = rightPillText,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // mpvRx Custom Seekbar (Standard, Thick, Slim, Wavy)
+            // Material 3 Expressive Gapped Slider
             CustomSeekbar(
                 duration = safeDuration,
                 onSeek = { targetPos, isFinished ->
@@ -746,9 +443,7 @@ fun PlayerControls(
                         }
                     }
                 },
-                onDraggingChanged = { isDragging ->
-                    onDraggingChanged(isDragging)
-                },
+                onDraggingChanged = { onDraggingChanged(it) },
                 seekbarStyle = seekBarStyle,
                 isPaused = !isPlaying,
                 positionProvider = { posProvider().toFloat() },
@@ -759,143 +454,723 @@ fun PlayerControls(
                         if (bPos > cPos) (bPos - cPos).toFloat() else 0f
                     } else 0f
                 },
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Below Seekbar Controls
             if (isPortrait) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val filteredButtons = filterButtons(portraitBottomButtons)
-                    if (isBottomLayoutEnabled) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                filteredButtons.forEach { button ->
-                                    RenderPlayerButton(
-                                        button = button,
-                                        modifier = Modifier,
-                                        isPortrait = true,
-                                        title = title,
-                                        currentPosition = currentPosition,
-                                        currentDecoder = currentDecoder,
-                                        hasChapters = hasChapters,
-                                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                                        glowBrush = glowBrush,
-                                        glowAlpha = glowAlpha,
-                                        themePrimary = themePrimary,
-                                        onBackClick = onBackClick,
-                                        onShowDecoder = onShowDecoder,
-                                        onShowChapters = onShowChapters,
-                                        onCycleSubtitle = onCycleSubtitle,
-                                        onCycleAudio = onCycleAudio,
-                                        onEnhanceClick = onEnhanceClick,
-                                        onSpeedClick = onSpeedClick,
-                                        onLockClick = onLockClick,
-                                        onAspectClick = onAspectClick,
-                                        onPipClick = onPipClick,
-                                        activity = activity,
-                                        currentAspectMode = currentAspectMode,
-                                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                        onBackgroundPlayClick = onBackgroundPlayClick,
-                                        onTitleClick = onTitleClick,
-                                        onScreenshotClick = onScreenshotClick
-                                    )
-                                }
-                            }
-                            bottomPlaybackControls()
-                        }
-                    } else {
-                        filteredButtons.forEach { button ->
-                            RenderPlayerButton(
-                                button = button,
-                                modifier = Modifier,
-                                isPortrait = true,
-                                title = title,
+                val filteredButtons = filterButtons(portraitBottomButtons)
+                if (isBottomLayoutEnabled) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (filteredButtons.isNotEmpty()) {
+                            DynamicControlCapsule(
+                                controls = filteredButtons,
                                 currentDecoder = currentDecoder,
-                                hasChapters = hasChapters,
-                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                                glowBrush = glowBrush,
-                                glowAlpha = glowAlpha,
-                                themePrimary = themePrimary,
-                                onBackClick = onBackClick,
-                                onShowDecoder = onShowDecoder,
-                                onShowChapters = onShowChapters,
-                                onCycleSubtitle = onCycleSubtitle,
-                                onCycleAudio = onCycleAudio,
-                                onEnhanceClick = onEnhanceClick,
-                                onSpeedClick = onSpeedClick,
-                                onLockClick = onLockClick,
-                                onAspectClick = onAspectClick,
-                                onPipClick = onPipClick,
-                                activity = activity,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                                onBackgroundPlayClick = onBackgroundPlayClick,
-                                onTitleClick = onTitleClick,
-                                onScreenshotClick = onScreenshotClick
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
+                            )
+                        }
+
+                        CenterTransportDock(
+                            isPlaying = isPlaying,
+                            onPlayPauseToggle = onPlayPauseToggle,
+                            showSeekButtons = showSeekButtons,
+                            seekDurationSeconds = seekDurationSeconds,
+                            onRewindClick = {
+                                onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
+                            },
+                            onForwardClick = {
+                                onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
+                            },
+                            showNextPrevButtons = showNextPrevButtons,
+                            hasPrevious = hasPrevious,
+                            hasNext = hasNext,
+                            onPrevClick = onPrevClick,
+                            onNextClick = onNextClick
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (filteredButtons.isNotEmpty()) {
+                            DynamicControlCapsule(
+                                controls = filteredButtons,
+                                currentDecoder = currentDecoder,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
+                                currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
                             )
                         }
                     }
                 }
             } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isBottomLayoutEnabled) {
-                        Row(
+                // Landscape Bottom Controls
+                val leftButtons = filterButtons(bottomLeftButtons)
+                val rightButtons = filterButtons(bottomRightButtons)
+
+                if (isBottomLayoutEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Box(
                             modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
+                            contentAlignment = Alignment.BottomStart
                         ) {
-                            leftRegion(filterButtons(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
+                            BottomZoneWithOverflow(
+                                buttons = leftButtons,
+                                isExpanded = isLeftExpanded,
+                                onExpandedChange = { isLeftExpanded = it },
+                                isAlignRight = false,
+                                floatingOverflow = true,
+                                currentDecoder = currentDecoder,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
+                                currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
+                            )
                         }
 
                         Box(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.BottomCenter
                         ) {
-                            bottomPlaybackControls()
+                            CenterTransportDock(
+                                isPlaying = isPlaying,
+                                onPlayPauseToggle = onPlayPauseToggle,
+                                showSeekButtons = showSeekButtons,
+                                seekDurationSeconds = seekDurationSeconds,
+                                onRewindClick = {
+                                    onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
+                                },
+                                onForwardClick = {
+                                    onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
+                                },
+                                showNextPrevButtons = showNextPrevButtons,
+                                hasPrevious = hasPrevious,
+                                hasNext = hasNext,
+                                onPrevClick = onPrevClick,
+                                onNextClick = onNextClick
+                            )
                         }
 
-                        Row(
+                        Box(
                             modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
+                            contentAlignment = Alignment.BottomEnd
                         ) {
-                            rightRegion(filterButtons(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
-                        }
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            leftRegion(filterButtons(bottomLeftButtons), isLeftExpanded) { isLeftExpanded = it }
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            rightRegion(filterButtons(bottomRightButtons), isRightExpanded) { isRightExpanded = it }
+                            BottomZoneWithOverflow(
+                                buttons = rightButtons,
+                                isExpanded = isRightExpanded,
+                                onExpandedChange = { isRightExpanded = it },
+                                isAlignRight = true,
+                                floatingOverflow = true,
+                                currentDecoder = currentDecoder,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
+                                currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
+                            )
                         }
                     }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BottomZoneWithOverflow(
+                            buttons = leftButtons,
+                            isExpanded = isLeftExpanded,
+                            onExpandedChange = { isLeftExpanded = it },
+                            isAlignRight = false,
+                            floatingOverflow = false,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onButtonClick = onButtonClick
+                        )
+
+                        BottomZoneWithOverflow(
+                            buttons = rightButtons,
+                            isExpanded = isRightExpanded,
+                            onExpandedChange = { isRightExpanded = it },
+                            isAlignRight = true,
+                            floatingOverflow = false,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onButtonClick = onButtonClick
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Reusable Dynamic Control Capsule that renders any assigned list of PlayerButtons
+ */
+@Composable
+fun DynamicControlCapsule(
+    controls: List<PlayerButton>,
+    modifier: Modifier = Modifier,
+    currentDecoder: String = "AUTO",
+    ytdlQuality: Int = -1,
+    currentQualityLabel: String = "",
+    currentAspectMode: AspectMode = AspectMode.FIT,
+    isSmartEnhanceEnabled: Boolean = false,
+    isBackgroundPlayEnabled: Boolean = false,
+    themePrimary: Color = MaterialTheme.colorScheme.primary,
+    onButtonClick: (PlayerButton) -> Unit
+) {
+    if (controls.isEmpty()) return
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(GlassSurface)
+            .border(1.dp, GlassBorder, RoundedCornerShape(50))
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        controls.forEach { button ->
+            CapsuleControlItem(
+                button = button,
+                currentDecoder = currentDecoder,
+                ytdlQuality = ytdlQuality,
+                currentQualityLabel = currentQualityLabel,
+                currentAspectMode = currentAspectMode,
+                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                themePrimary = themePrimary,
+                onClick = { onButtonClick(button) }
+            )
+        }
+    }
+}
+
+/**
+ * Individual item inside the capsule:
+ * - Decoder & Quality render as distinct Material 3 Tonal Pills
+ * - Standard controls render as borderless 40.dp IconButtons
+ */
+@Composable
+fun CapsuleControlItem(
+    button: PlayerButton,
+    currentDecoder: String,
+    ytdlQuality: Int,
+    currentQualityLabel: String,
+    currentAspectMode: AspectMode,
+    isSmartEnhanceEnabled: Boolean,
+    isBackgroundPlayEnabled: Boolean,
+    themePrimary: Color,
+    onClick: () -> Unit
+) {
+    if (button == PlayerButton.NONE || button == PlayerButton.VIDEO_TITLE) return
+
+    if (button == PlayerButton.DECODER || button == PlayerButton.STREAM_QUALITY) {
+        val label = if (button == PlayerButton.DECODER) {
+            currentDecoder
+        } else {
+            when {
+                currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
+                ytdlQuality == -1 -> "Auto"
+                else -> "${ytdlQuality}p"
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(50))
+                .background(AccentBlue.copy(alpha = 0.25f))
+                .border(1.dp, AccentBlue.copy(alpha = 0.6f), RoundedCornerShape(50))
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = Color(0xFF93C5FD),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+
+    val icon = if (button == PlayerButton.ASPECT_RATIO) {
+        when (currentAspectMode) {
+            AspectMode.FIT -> AspectIcons.Fit
+            AspectMode.STRETCH -> AspectIcons.Stretch
+            AspectMode.CROP -> AspectIcons.Crop
+            AspectMode.ORIGINAL -> AspectIcons.Original
+        }
+    } else {
+        button.icon
+    }
+
+    val isSmartEnhance = button == PlayerButton.SMART_ENHANCE
+    val isBgPlay = button == PlayerButton.BACKGROUND_PLAY
+    val isActive = (isSmartEnhance && isSmartEnhanceEnabled) || (isBgPlay && isBackgroundPlayEnabled)
+    val tint = if (isActive) AccentBlue else Color.White.copy(alpha = 0.9f)
+
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(40.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = button.displayName,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+/**
+ * Bottom Zone container with Expand/Collapse arrow and Glassmorphic Overflow Tray
+ */
+@Composable
+fun BottomZoneWithOverflow(
+    buttons: List<PlayerButton>,
+    isExpanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    isAlignRight: Boolean = false,
+    floatingOverflow: Boolean = false,
+    currentDecoder: String,
+    ytdlQuality: Int,
+    currentQualityLabel: String,
+    currentAspectMode: AspectMode,
+    isSmartEnhanceEnabled: Boolean,
+    isBackgroundPlayEnabled: Boolean,
+    themePrimary: Color,
+    onButtonClick: (PlayerButton) -> Unit
+) {
+    if (buttons.isEmpty()) return
+
+    if (buttons.size <= 2) {
+        DynamicControlCapsule(
+            controls = buttons,
+            currentDecoder = currentDecoder,
+            ytdlQuality = ytdlQuality,
+            currentQualityLabel = currentQualityLabel,
+            currentAspectMode = currentAspectMode,
+            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+            themePrimary = themePrimary,
+            onButtonClick = onButtonClick
+        )
+        return
+    }
+
+    val primaryButtons = buttons.take(2)
+    val overflowButtons = buttons.drop(2)
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        animationSpec = tween(250),
+        label = "arrowRotation"
+    )
+
+    val expandArrowButton = @Composable {
+        IconButton(
+            onClick = { onExpandedChange(!isExpanded) },
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = if (isAlignRight) Icons.Rounded.ChevronLeft else Icons.Rounded.ChevronRight,
+                contentDescription = if (isExpanded) "Collapse Controls" else "Expand Controls",
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier
+                    .size(20.dp)
+                    .graphicsLayer(rotationZ = rotationAngle)
+            )
+        }
+    }
+
+    if (floatingOverflow) {
+        // Floating pill row above bottom dock - guarantees zero crushing of transport dock
+        Column(
+            horizontalAlignment = if (isAlignRight) Alignment.End else Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn(tween(200)) + expandVertically(expandFrom = Alignment.Bottom),
+                exit = fadeOut(tween(150)) + shrinkVertically(shrinkTowards = Alignment.Bottom)
+            ) {
+                DynamicControlCapsule(
+                    controls = overflowButtons,
+                    currentDecoder = currentDecoder,
+                    ytdlQuality = ytdlQuality,
+                    currentQualityLabel = currentQualityLabel,
+                    currentAspectMode = currentAspectMode,
+                    isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                    isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                    themePrimary = themePrimary,
+                    onButtonClick = onButtonClick
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(GlassSurface)
+                    .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (isAlignRight) {
+                    expandArrowButton()
+                    primaryButtons.forEach { button ->
+                        CapsuleControlItem(
+                            button = button,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onClick = { onButtonClick(button) }
+                        )
+                    }
+                } else {
+                    primaryButtons.forEach { button ->
+                        CapsuleControlItem(
+                            button = button,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onClick = { onButtonClick(button) }
+                        )
+                    }
+                    expandArrowButton()
+                }
+            }
+        }
+    } else {
+        // Inline expansion when plenty of horizontal space exists
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (isAlignRight) {
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = fadeIn(tween(200)) + expandHorizontally(),
+                    exit = fadeOut(tween(150)) + shrinkHorizontally()
+                ) {
+                    DynamicControlCapsule(
+                        controls = overflowButtons,
+                        currentDecoder = currentDecoder,
+                        ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
+                        currentAspectMode = currentAspectMode,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        themePrimary = themePrimary,
+                        onButtonClick = onButtonClick
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    expandArrowButton()
+                    primaryButtons.forEach { button ->
+                        CapsuleControlItem(
+                            button = button,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onClick = { onButtonClick(button) }
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(GlassSurface)
+                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    primaryButtons.forEach { button ->
+                        CapsuleControlItem(
+                            button = button,
+                            currentDecoder = currentDecoder,
+                            ytdlQuality = ytdlQuality,
+                            currentQualityLabel = currentQualityLabel,
+                            currentAspectMode = currentAspectMode,
+                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            themePrimary = themePrimary,
+                            onClick = { onButtonClick(button) }
+                        )
+                    }
+                    expandArrowButton()
+                }
+
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = fadeIn(tween(200)) + expandHorizontally(),
+                    exit = fadeOut(tween(150)) + shrinkHorizontally()
+                ) {
+                    DynamicControlCapsule(
+                        controls = overflowButtons,
+                        currentDecoder = currentDecoder,
+                        ytdlQuality = ytdlQuality,
+                        currentQualityLabel = currentQualityLabel,
+                        currentAspectMode = currentAspectMode,
+                        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        themePrimary = themePrimary,
+                        onButtonClick = onButtonClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Flagship Center Playback Transport Dock Container:
+ * - Floating elevated glassmorphic capsule
+ * - Hero Morphing Play/Pause button (Full Circle 27.dp when paused -> Squircle 16.dp when playing)
+ * - Rewind/Forward 44.dp buttons with tactile press scale
+ * - Skip Prev/Next 40.dp borderless icon buttons
+ */
+@Composable
+fun CenterTransportDock(
+    isPlaying: Boolean,
+    onPlayPauseToggle: () -> Unit,
+    showSeekButtons: Boolean,
+    seekDurationSeconds: Int,
+    onRewindClick: () -> Unit,
+    onForwardClick: () -> Unit,
+    showNextPrevButtons: Boolean,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    onPrevClick: () -> Unit,
+    onNextClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dockShape = RoundedCornerShape(50)
+    val dockBackground = Color(0xFF121316).copy(alpha = 0.78f)
+    val dockBorder = Color.White.copy(alpha = 0.16f)
+
+    Row(
+        modifier = modifier
+            .clip(dockShape)
+            .background(dockBackground)
+            .border(1.dp, dockBorder, dockShape)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 1. Previous Track Button
+        if (showNextPrevButtons) {
+            IconButton(
+                onClick = onPrevClick,
+                enabled = hasPrevious,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipPrevious,
+                    contentDescription = "Previous Track",
+                    tint = Color.White.copy(alpha = if (hasPrevious) 0.9f else 0.38f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // 2. Rewind Button
+        if (showSeekButtons) {
+            val rewindInteraction = remember { MutableInteractionSource() }
+            val isRewindPressed by rewindInteraction.collectIsPressedAsState()
+            val rewindScale by animateFloatAsState(
+                targetValue = if (isRewindPressed) 0.88f else 1.0f,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "rewindScale"
+            )
+            val rewindIcon = when (seekDurationSeconds) {
+                5 -> Icons.Rounded.Replay5
+                30 -> Icons.Rounded.Replay30
+                else -> Icons.Rounded.Replay10
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .scale(rewindScale)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable(
+                        interactionSource = rewindInteraction,
+                        indication = null
+                    ) { onRewindClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = rewindIcon,
+                    contentDescription = "Rewind ${seekDurationSeconds}s",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // 3. Hero Morphing Play/Pause Button (Center)
+        val playInteraction = remember { MutableInteractionSource() }
+        val isPlayPressed by playInteraction.collectIsPressedAsState()
+        val playScale by animateFloatAsState(
+            targetValue = if (isPlayPressed) 0.90f else 1.0f,
+            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+            label = "playPressScale"
+        )
+        val animatedCornerRadius by animateDpAsState(
+            targetValue = if (isPlaying) 16.dp else 27.dp,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            ),
+            label = "heroMorphShape"
+        )
+
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .scale(playScale)
+                .clip(RoundedCornerShape(animatedCornerRadius))
+                .background(Color.White)
+                .clickable(
+                    interactionSource = playInteraction,
+                    indication = null
+                ) { onPlayPauseToggle() },
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = isPlaying,
+                transitionSpec = {
+                    (fadeIn(tween(200)) + scaleIn(initialScale = 0.8f, animationSpec = tween(200)))
+                        .togetherWith(fadeOut(tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150)))
+                },
+                label = "playPauseIcon"
+            ) { playing ->
+                Icon(
+                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (playing) "Pause" else "Play",
+                    tint = Color(0xFF0F172A),
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        }
+
+        // 4. Fast-Forward Button
+        if (showSeekButtons) {
+            val forwardInteraction = remember { MutableInteractionSource() }
+            val isForwardPressed by forwardInteraction.collectIsPressedAsState()
+            val forwardScale by animateFloatAsState(
+                targetValue = if (isForwardPressed) 0.88f else 1.0f,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "forwardScale"
+            )
+            val forwardIcon = when (seekDurationSeconds) {
+                5 -> Icons.Rounded.Forward5
+                30 -> Icons.Rounded.Forward30
+                else -> Icons.Rounded.Forward10
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .scale(forwardScale)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable(
+                        interactionSource = forwardInteraction,
+                        indication = null
+                    ) { onForwardClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = forwardIcon,
+                    contentDescription = "Forward ${seekDurationSeconds}s",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // 5. Next Track Button
+        if (showNextPrevButtons) {
+            IconButton(
+                onClick = onNextClick,
+                enabled = hasNext,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.SkipNext,
+                    contentDescription = "Next Track",
+                    tint = Color.White.copy(alpha = if (hasNext) 0.9f else 0.38f),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
@@ -915,7 +1190,7 @@ fun formatTime(milliseconds: Long): String {
 }
 
 @Composable
-private fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
+fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var batteryPercentage by remember { mutableIntStateOf(100) }
     var currentTime by remember { mutableStateOf("") }
@@ -930,9 +1205,9 @@ private fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
     }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(50))
+            .background(GlassSurface)
+            .border(1.dp, GlassBorder, RoundedCornerShape(50))
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(
@@ -949,12 +1224,13 @@ private fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
                 text = "$batteryPercentage%",
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
             )
             Spacer(
                 modifier = Modifier
                     .width(1.dp)
-                    .height(14.dp)
+                    .height(12.dp)
                     .background(Color.White.copy(alpha = 0.25f))
             )
             Icon(
@@ -967,7 +1243,8 @@ private fun BatteryAndClockOverlay(modifier: Modifier = Modifier) {
                 text = currentTime,
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
             )
         }
     }
@@ -1000,34 +1277,38 @@ fun PlaybackTimerText(
         color = Color.White,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Monospace,
         modifier = modifier
     )
 }
 
+/**
+ * Backward compatibility fallback for any external references to RenderPlayerButton
+ */
 @Composable
 fun RenderPlayerButton(
     button: PlayerButton,
     modifier: Modifier = Modifier,
     isPortrait: Boolean = false,
-    title: String,
+    title: String = "",
     currentPosition: Long = 0L,
-    currentDecoder: String,
-    hasChapters: Boolean,
-    isSmartEnhanceEnabled: Boolean,
-    glowBrush: Brush?,
-    glowAlpha: Float,
-    themePrimary: Color,
-    onBackClick: () -> Unit,
-    onShowDecoder: () -> Unit,
-    onShowChapters: () -> Unit,
-    onCycleSubtitle: () -> Unit,
-    onCycleAudio: () -> Unit,
-    onEnhanceClick: () -> Unit,
-    onSpeedClick: () -> Unit,
-    onLockClick: () -> Unit,
-    onAspectClick: () -> Unit,
-    onPipClick: () -> Unit,
-    activity: Activity?,
+    currentDecoder: String = "AUTO",
+    hasChapters: Boolean = false,
+    isSmartEnhanceEnabled: Boolean = false,
+    glowBrush: Brush? = null,
+    glowAlpha: Float = 0f,
+    themePrimary: Color = MaterialTheme.colorScheme.primary,
+    onBackClick: () -> Unit = {},
+    onShowDecoder: () -> Unit = {},
+    onShowChapters: () -> Unit = {},
+    onCycleSubtitle: () -> Unit = {},
+    onCycleAudio: () -> Unit = {},
+    onEnhanceClick: () -> Unit = {},
+    onSpeedClick: () -> Unit = {},
+    onLockClick: () -> Unit = {},
+    onAspectClick: () -> Unit = {},
+    onPipClick: () -> Unit = {},
+    activity: Activity? = null,
     currentAspectMode: AspectMode = AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
@@ -1038,10 +1319,7 @@ fun RenderPlayerButton(
     onScreenshotClick: () -> Unit = {}
 ) {
     if (button == PlayerButton.VIDEO_TITLE) {
-        Column(
-            modifier = modifier
-                .clickable { onTitleClick() }
-        ) {
+        Column(modifier = modifier.clickable { onTitleClick() }) {
             Text(
                 text = title,
                 color = Color.White,
@@ -1054,11 +1332,7 @@ fun RenderPlayerButton(
         return
     }
 
-    if (button == PlayerButton.NONE) {
-        return
-    }
-
-    val onClick = {
+    val onClick: () -> Unit = {
         when (button) {
             PlayerButton.BACK_ARROW -> onBackClick()
             PlayerButton.DECODER -> onShowDecoder()
@@ -1077,167 +1351,28 @@ fun RenderPlayerButton(
                 activity?.let { act ->
                     val currentOrientation = act.requestedOrientation
                     if (currentOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
-                        currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                        currentOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    ) {
                         act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     } else {
                         act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                     }
                 }
+                Unit
             }
             else -> {}
         }
     }
 
-    val isSmartEnhance = button == PlayerButton.SMART_ENHANCE
-    val isBgPlay = button == PlayerButton.BACKGROUND_PLAY
-
-    if (isPortrait) {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(12.dp))
-                .then(
-                    if (isSmartEnhance && isSmartEnhanceEnabled && glowBrush != null) {
-                        Modifier.background(glowBrush)
-                    } else if (isBgPlay && isBackgroundPlayEnabled) {
-                        Modifier.background(themePrimary.copy(alpha = 0.25f))
-                    } else {
-                        Modifier.background(Color.White.copy(alpha = 0.08f))
-                    }
-                )
-                .then(
-                    if (isSmartEnhance && isSmartEnhanceEnabled) {
-                        Modifier.border(
-                            width = 1.5.dp,
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
-                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
-                                )
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    } else if (isBgPlay && isBackgroundPlayEnabled) {
-                        Modifier.border(1.dp, themePrimary, RoundedCornerShape(12.dp))
-                    } else {
-                        Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                    }
-                )
-                .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (button == PlayerButton.DECODER) {
-                Text(
-                    text = currentDecoder,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            } else if (button == PlayerButton.STREAM_QUALITY) {
-                val label = when {
-                    currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
-                    ytdlQuality == -1 -> "Auto"
-                    else -> "${ytdlQuality}p"
-                }
-                Text(
-                    text = label,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            } else {
-                val icon = if (button == PlayerButton.ASPECT_RATIO) {
-                    when (currentAspectMode) {
-                        AspectMode.FIT -> AspectIcons.Fit
-                        AspectMode.STRETCH -> AspectIcons.Stretch
-                        AspectMode.CROP -> AspectIcons.Crop
-                        AspectMode.ORIGINAL -> AspectIcons.Original
-                    }
-                } else {
-                    button.icon
-                }
-                Icon(
-                    imageVector = icon,
-                    contentDescription = button.displayName,
-                    tint = if ((isSmartEnhance && isSmartEnhanceEnabled) || (isBgPlay && isBackgroundPlayEnabled)) themePrimary else Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    } else {
-        Box(
-            modifier = modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .then(
-                    if (isSmartEnhance && isSmartEnhanceEnabled && glowBrush != null) {
-                        Modifier.background(glowBrush)
-                    } else if (isBgPlay && isBackgroundPlayEnabled) {
-                        Modifier.background(themePrimary.copy(alpha = 0.25f))
-                    } else {
-                        Modifier.background(Color.White.copy(alpha = 0.08f))
-                    }
-                )
-                .then(
-                    if (isSmartEnhance && isSmartEnhanceEnabled) {
-                        Modifier.border(
-                            width = 1.5.dp,
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f)),
-                                    themePrimary.copy(alpha = (glowAlpha + 0.15f).coerceAtMost(1f))
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                    } else if (isBgPlay && isBackgroundPlayEnabled) {
-                        Modifier.border(1.dp, themePrimary, CircleShape)
-                    } else {
-                        Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                    }
-                )
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (button == PlayerButton.DECODER) {
-                Text(
-                    text = currentDecoder,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            } else if (button == PlayerButton.STREAM_QUALITY) {
-                val label = when {
-                    currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
-                    ytdlQuality == -1 -> "Auto"
-                    else -> "${ytdlQuality}p"
-                }
-                Text(
-                    text = label,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            } else {
-                val icon = if (button == PlayerButton.ASPECT_RATIO) {
-                    when (currentAspectMode) {
-                        AspectMode.FIT -> AspectIcons.Fit
-                        AspectMode.STRETCH -> AspectIcons.Stretch
-                        AspectMode.CROP -> AspectIcons.Crop
-                        AspectMode.ORIGINAL -> AspectIcons.Original
-                    }
-                } else {
-                    button.icon
-                }
-                Icon(
-                    imageVector = icon,
-                    contentDescription = button.displayName,
-                    tint = if ((isSmartEnhance && isSmartEnhanceEnabled) || (isBgPlay && isBackgroundPlayEnabled)) themePrimary else Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
+    CapsuleControlItem(
+        button = button,
+        currentDecoder = currentDecoder,
+        ytdlQuality = ytdlQuality,
+        currentQualityLabel = currentQualityLabel,
+        currentAspectMode = currentAspectMode,
+        isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+        isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+        themePrimary = themePrimary,
+        onClick = onClick
+    )
 }

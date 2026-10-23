@@ -406,6 +406,59 @@ fun PlayerScreen(
         if (dot > 0) name.substring(0, dot) else name
     }
 
+    val resolutionLabel = remember(activeVideoWidth, activeVideoHeight, videoWidth, videoHeight, currentVideo) {
+        val h = when {
+            activeVideoHeight > 0 -> activeVideoHeight
+            videoHeight > 0 -> videoHeight
+            (currentVideo?.height ?: 0) > 0 -> (currentVideo?.height ?: 0).toLong()
+            else -> 0L
+        }
+        if (h > 0) {
+            "${h}p"
+        } else {
+            com.devson.nvplayer.util.formatResolutionCompact(currentVideo?.resolution) ?: ""
+        }
+    }
+
+    var videoCodecLabel by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(currentUri, playbackState) {
+        val raw = runCatching {
+            val c = `is`.xyz.mpv.MPVLib.getPropertyString("video-codec")
+            if (!c.isNullOrBlank()) c else `is`.xyz.mpv.MPVLib.getPropertyString("video-format")
+        }.getOrNull()
+        if (!raw.isNullOrBlank()) {
+            videoCodecLabel = when (raw.lowercase()) {
+                "h264", "avc", "avc1" -> "H.264"
+                "hevc", "h265", "hev1", "hvc1" -> "HEVC"
+                "vp9", "vp09" -> "VP9"
+                "vp8" -> "VP8"
+                "av1", "av01" -> "AV1"
+                "mpeg4", "mp4v" -> "MPEG-4"
+                "vc1" -> "VC-1"
+                else -> raw.uppercase()
+            }
+        } else {
+            val name = currentVideo?.title ?: currentUri?.lastPathSegment ?: ""
+            val lower = name.lowercase()
+            videoCodecLabel = when {
+                lower.contains("h264") || lower.contains("x264") || lower.contains("avc") -> "H.264"
+                lower.contains("hevc") || lower.contains("h265") || lower.contains("x265") -> "HEVC"
+                lower.contains("av1") -> "AV1"
+                lower.contains("vp9") -> "VP9"
+                else -> null
+            }
+        }
+    }
+
+    val fileSizeLabel = remember(currentVideo, currentUri) {
+        val size = currentVideo?.size ?: 0L
+        if (size > 0L) {
+            com.devson.nvplayer.util.formatSize(size)
+        } else {
+            ""
+        }
+    }
+
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val activity = remember(context) { context.findActivity() }
 
@@ -870,6 +923,9 @@ fun PlayerScreen(
                              ytdlQuality = playbackSettings.ytdlQuality,
                              currentQualityLabel = streamQualityState.currentQuality?.label ?: if (playbackSettings.ytdlQuality == -1) "Auto" else "${playbackSettings.ytdlQuality}p",
                             onShowQuality = { showQualitySideSheet = true },
+                            resolutionLabel = resolutionLabel,
+                            videoCodecLabel = videoCodecLabel,
+                            fileSizeLabel = fileSizeLabel,
                             modifier = Modifier
                         )
                     }
