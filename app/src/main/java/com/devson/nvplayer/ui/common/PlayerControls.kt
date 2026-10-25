@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.ui.common.icons.AspectIcons
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -73,7 +74,7 @@ fun PlayerControls(
     onEnhanceClick: () -> Unit,
     onShowChapters: () -> Unit = {},
     hasChapters: Boolean = false,
-    currentDecoder: String = "AUTO",
+    currentDecoder: String = "HW",
     onShowDecoder: () -> Unit = {},
     onCycleSubtitle: () -> Unit,
     onCycleAudio: () -> Unit,
@@ -113,6 +114,7 @@ fun PlayerControls(
     resolutionLabel: String? = null,
     videoCodecLabel: String? = null,
     fileSizeLabel: String? = null,
+    hdrType: HdrType = HdrType.NONE,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -263,15 +265,30 @@ fun PlayerControls(
                         .clickable { onTitleClick() },
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
 
-                    val metadataSubtitle = listOfNotNull(resolutionLabel, videoCodecLabel, fileSizeLabel)
+                        if (hdrType != HdrType.NONE) {
+                            HdrIndicatorBadge(hdrType = hdrType)
+                        }
+                    }
+
+                    val metadataSubtitle = listOfNotNull(
+                        resolutionLabel,
+                        videoCodecLabel,
+                        hdrType.badgeText.takeIf { it.isNotBlank() },
+                        fileSizeLabel
+                    )
                         .filter { it.isNotBlank() }
                         .joinToString(" • ")
 
@@ -650,7 +667,7 @@ fun PlayerControls(
 fun DynamicControlCapsule(
     controls: List<PlayerButton>,
     modifier: Modifier = Modifier,
-    currentDecoder: String = "AUTO",
+    currentDecoder: String = "HW",
     ytdlQuality: Int = -1,
     currentQualityLabel: String = "",
     currentAspectMode: AspectMode = AspectMode.FIT,
@@ -683,6 +700,58 @@ fun DynamicControlCapsule(
                 onClick = { onButtonClick(button) }
             )
         }
+    }
+}
+
+/**
+ * UI Indicator badge for HDR / Dolby Vision formats.
+ */
+@Composable
+fun HdrIndicatorBadge(
+    hdrType: HdrType,
+    modifier: Modifier = Modifier
+) {
+    if (hdrType == HdrType.NONE) return
+
+    val (bgColor, borderColor, textColor) = when (hdrType) {
+        HdrType.DOLBY_VISION -> Triple(
+            Color(0xFF2E1065).copy(alpha = 0.85f),
+            Color(0xFFA855F7).copy(alpha = 0.75f),
+            Color(0xFFF5EEFF)
+        )
+        HdrType.HDR10_PLUS -> Triple(
+            Color(0xFF78350F).copy(alpha = 0.85f),
+            Color(0xFFF59E0B).copy(alpha = 0.85f),
+            Color(0xFFFEF3C7)
+        )
+        HdrType.HLG -> Triple(
+            Color(0xFF0C4A6E).copy(alpha = 0.85f),
+            Color(0xFF38BDF8).copy(alpha = 0.8f),
+            Color(0xFFE0F2FE)
+        )
+        else -> Triple(
+            Color(0xFF78350F).copy(alpha = 0.85f),
+            Color(0xFFF59E0B).copy(alpha = 0.8f),
+            Color(0xFFFEF3C7)
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = hdrType.badgeText,
+            color = textColor,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.5.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -1292,7 +1361,7 @@ fun RenderPlayerButton(
     isPortrait: Boolean = false,
     title: String = "",
     currentPosition: Long = 0L,
-    currentDecoder: String = "AUTO",
+    currentDecoder: String = "HW",
     hasChapters: Boolean = false,
     isSmartEnhanceEnabled: Boolean = false,
     glowBrush: Brush? = null,

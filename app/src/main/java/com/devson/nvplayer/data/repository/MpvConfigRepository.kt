@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 data class VisualMpvConfig(
-    val hwdec: DecoderMode = DecoderMode.AUTO,
+    val hwdec: DecoderMode = DecoderMode.HW,
     val isHighQualityProfile: Boolean = false,
     val isInterpolationEnabled: Boolean = false,
     val isDebandingEnabled: Boolean = false,
@@ -77,7 +77,7 @@ object MpvConfigRepository {
         }
 
     fun parseConfig(content: String): VisualMpvConfig {
-        var hwdecVal = "auto"
+        var hwdecVal = "mediacodec"
         var profileVal = "fast"
         var interpolationVal = false
         var debandVal = false
@@ -110,7 +110,7 @@ object MpvConfigRepository {
             "mediacodec" -> DecoderMode.HW
             "mediacodec-copy" -> DecoderMode.HW_PLUS
             "no" -> DecoderMode.SW
-            else -> DecoderMode.AUTO
+            else -> DecoderMode.HW
         }
 
         return VisualMpvConfig(

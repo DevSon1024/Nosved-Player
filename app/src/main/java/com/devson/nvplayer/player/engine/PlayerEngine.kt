@@ -4,6 +4,7 @@ import android.net.Uri
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.player.model.TrackInfo
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,6 +25,9 @@ interface PlayerEngine {
     val bufferDurationSeconds: StateFlow<Double>
     val bufferedPosition: StateFlow<Long>
     val mediaTitle: StateFlow<String>
+    val hdrType: StateFlow<HdrType>
+    val frameDropCount: StateFlow<Long>
+    val decoderFrameDropCount: StateFlow<Long>
 
     fun loadVideo(uri: Uri)
     fun play()

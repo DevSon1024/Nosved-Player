@@ -65,6 +65,7 @@ import com.devson.nvplayer.ui.common.sheets.EnhanceSettingsSideSheet
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.ui.common.sheets.ChaptersSideSheet
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.ui.common.sheets.DecoderSideSheet
 import androidx.activity.compose.BackHandler
 import androidx.core.view.WindowCompat
@@ -149,7 +150,7 @@ fun PlayerScreen(
     enhanceActions: PlayerEnhanceActions = PlayerEnhanceActions(),
     chapters: List<ChapterInfo> = emptyList(),
     onSelectChapter: (Int) -> Unit = {},
-    currentDecoder: String = "AUTO",
+    currentDecoder: String = "HW",
     onUpdateDecoderMode: (DecoderMode) -> Unit = {},
     isHwSupported: Boolean = true,
     onTakeVideoScreenshot: () -> Unit = {},
@@ -170,7 +171,8 @@ fun PlayerScreen(
     isQueueVisible: Boolean = false,
     onQueueVisibleChange: (Boolean) -> Unit = {},
     onQueueVideoClick: (Video) -> Unit = {},
-    onUpdateQueueLayoutMode: (LayoutMode) -> Unit = {}
+    onUpdateQueueLayoutMode: (LayoutMode) -> Unit = {},
+    hdrType: HdrType = HdrType.NONE
 ) {
     val localContext = LocalContext.current
     val owner = localContext.findActivity() as? androidx.lifecycle.ViewModelStoreOwner
@@ -926,6 +928,7 @@ fun PlayerScreen(
                             resolutionLabel = resolutionLabel,
                             videoCodecLabel = videoCodecLabel,
                             fileSizeLabel = fileSizeLabel,
+                            hdrType = hdrType,
                             modifier = Modifier
                         )
                     }

@@ -71,6 +71,7 @@ import com.devson.nvplayer.domain.model.SortField
 import com.devson.nvplayer.domain.model.SortDirection
 import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.data.repository.MultiFingerAction
 import com.devson.nvplayer.player.engine.MPVPlayerEngine
@@ -1026,6 +1027,7 @@ fun AppNavigation(
             val networkSpeedBytesPerSec by playerVm.networkSpeedBytesPerSec.collectAsStateWithLifecycle()
             val bufferDurationSeconds by playerVm.bufferDurationSeconds.collectAsStateWithLifecycle()
             val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
+            val hdrType by playerVm.hdrType.collectAsStateWithLifecycle()
 
             val isDynamicSpeedActive by playerVm.isDynamicSpeedActive.collectAsStateWithLifecycle()
             val queueList by playerVm.queueList.collectAsStateWithLifecycle()
@@ -1156,7 +1158,8 @@ fun AppNavigation(
                 isQueueVisible = isQueueVisible,
                 onQueueVisibleChange = { playerVm.setQueueVisible(it) },
                 onQueueVideoClick = { playerVm.selectQueueVideo(it) },
-                onUpdateQueueLayoutMode = { settingsViewModel.updateQueueLayoutMode(it) }
+                onUpdateQueueLayoutMode = { settingsViewModel.updateQueueLayoutMode(it) },
+                hdrType = hdrType
             )
         }
     }

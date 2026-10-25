@@ -9,6 +9,7 @@ import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.player.model.TrackInfo
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import `is`.xyz.mpv.MPVLib
@@ -112,6 +113,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     private val _mediaTitle = MutableStateFlow("")
     override val mediaTitle: StateFlow<String> = _mediaTitle.asStateFlow()
+
+    private val _hdrType = MutableStateFlow(HdrType.NONE)
+    override val hdrType: StateFlow<HdrType> = _hdrType.asStateFlow()
+
+    private val _frameDropCount = MutableStateFlow(0L)
+    override val frameDropCount: StateFlow<Long> = _frameDropCount.asStateFlow()
+
+    private val _decoderFrameDropCount = MutableStateFlow(0L)
+    override val decoderFrameDropCount: StateFlow<Long> = _decoderFrameDropCount.asStateFlow()
 
     private var lastTimePosDispatchMs = 0L
     @Volatile
@@ -266,6 +276,17 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Observe active hardware decoder changes
             MPVLib.observeProperty("hwdec-current", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
+            // Observe HDR and color properties
+            MPVLib.observeProperty("video-params/gamma", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+            MPVLib.observeProperty("video-params/colormatrix", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+            MPVLib.observeProperty("video-params/primaries", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+            MPVLib.observeProperty("video-params/sig-peak", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
+            MPVLib.observeProperty("video-params/pixelformat", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+
+            // Observe frame drop properties for Auto decoder health monitoring
+            MPVLib.observeProperty("frame-drop-count", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("decoder-frame-drop-count", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+
             // Observe cache and network properties for streaming statistics
             MPVLib.observeProperty("cache-speed", MPVLib.MpvFormat.MPV_FORMAT_INT64)
             MPVLib.observeProperty("demux-cache-duration", MPVLib.MpvFormat.MPV_FORMAT_DOUBLE)
@@ -350,6 +371,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _networkSpeedBytesPerSec.value = 0L
         _bufferDurationSeconds.value = 0.0
         _bufferedPosition.value = 0L
+        _hdrType.value = HdrType.NONE
+        _frameDropCount.value = 0L
+        _decoderFrameDropCount.value = 0L
 
         val isNetworkStream = uriString.startsWith("http://", ignoreCase = true) ||
             uriString.startsWith("https://", ignoreCase = true) ||
@@ -950,7 +974,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         val targetHwdec = when (requestedDecoderMode) {
             DecoderMode.SW -> "no"
             DecoderMode.HW_PLUS -> "mediacodec-copy"
-            DecoderMode.HW, DecoderMode.AUTO -> {
+            DecoderMode.HW -> {
                 if (areFiltersOrShadersActive) "mediacodec-copy" else "mediacodec"
             }
         }
@@ -1449,6 +1473,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             }
             "video-params/rotate" -> _videoRotation.value = value
             "cache-speed" -> _networkSpeedBytesPerSec.value = value
+            "frame-drop-count" -> _frameDropCount.value = value
+            "decoder-frame-drop-count" -> _decoderFrameDropCount.value = value
         }
     }
 
@@ -1481,9 +1507,13 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             _currentSubtitleText.value = safeVal ?: ""
         } else if (property == "media-title") {
             _mediaTitle.value = safeVal ?: ""
+            evaluateHdrType()
         } else if (property == "hwdec-current") {
             _hwdecCurrent.value = safeVal ?: "no"
             Log.d("MPVPlayerEngine", "Active hardware decoder changed: $safeVal")
+        } else if (property == "video-params/gamma" || property == "video-params/colormatrix" ||
+            property == "video-params/primaries" || property == "video-params/pixelformat") {
+            evaluateHdrType()
         }
     }
 
@@ -1512,6 +1542,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                     _bufferedPosition.value = newBuf
                 }
             }
+            "video-params/sig-peak" -> {
+                evaluateHdrType()
+            }
         }
     }
 
@@ -1536,6 +1569,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 restorePendingQualityTracks()
                 updateChapters()
                 togglePerformanceOverlayFromConf()
+                evaluateHdrType()
                 val settings = settingsRepo.playbackSettingsFlow.value
                 setAmbientMode(settings.isAmbientModeEnabled, settings.ambientBlurStyle)
             }
@@ -1627,6 +1661,47 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                     Log.e("MPVPlayerEngine", "Failed to copy asset: $fileName", e)
                 }
             }
+        }
+    }
+
+    private fun evaluateHdrType() {
+        val gamma = runCatching { MPVLib.getPropertyString("video-params/gamma")?.lowercase() }.getOrNull()
+        val colormatrix = runCatching { MPVLib.getPropertyString("video-params/colormatrix")?.lowercase() }.getOrNull()
+        val primaries = runCatching { MPVLib.getPropertyString("video-params/primaries")?.lowercase() }.getOrNull()
+        val sigPeak = runCatching { MPVLib.getPropertyDouble("video-params/sig-peak") ?: 0.0 }.getOrDefault(0.0)
+        val codec = runCatching { MPVLib.getPropertyString("video-codec")?.lowercase() }.getOrNull()
+        val format = runCatching { MPVLib.getPropertyString("video-format")?.lowercase() }.getOrNull()
+        val titleAndUri = ((_mediaTitle.value.ifBlank { "" }) + " " + (currentLoadingUri ?: "")).lowercase()
+
+        val detected = when {
+            // 1. Dolby Vision detection
+            (colormatrix != null && (colormatrix.contains("dolby") || colormatrix.contains("dovi"))) ||
+            (codec != null && (codec.startsWith("dvh") || codec.startsWith("dva") || codec == "dvav" || codec == "dav1")) ||
+            (format != null && (format.startsWith("dvh") || format.startsWith("dva"))) ||
+            Regex("""\b(dovi|dv|dolby[.\s-]?vision)\b""").containsMatchIn(titleAndUri) -> {
+                HdrType.DOLBY_VISION
+            }
+            // 2. HDR10+ detection
+            Regex("""\b(hdr10\+|hdr10plus)\b""").containsMatchIn(titleAndUri) -> {
+                HdrType.HDR10_PLUS
+            }
+            // 3. HLG detection
+            gamma == "hlg" || gamma == "arib-std-b67" || Regex("""\bhlg\b""").containsMatchIn(titleAndUri) -> {
+                HdrType.HLG
+            }
+            // 4. HDR10 detection (PQ transfer curve)
+            gamma == "pq" || gamma == "smpte2084" || Regex("""\bhdr10\b""").containsMatchIn(titleAndUri) -> {
+                HdrType.HDR10
+            }
+            // 5. Generic HDR (BT.2020 WCG or signal peak > 1.0)
+            primaries == "bt.2020" || sigPeak > 1.0 || Regex("""\bhdr\b""").containsMatchIn(titleAndUri) -> {
+                HdrType.HDR
+            }
+            else -> HdrType.NONE
+        }
+
+        if (detected != HdrType.NONE || _hdrType.value == HdrType.NONE) {
+            _hdrType.value = detected
         }
     }
 }
