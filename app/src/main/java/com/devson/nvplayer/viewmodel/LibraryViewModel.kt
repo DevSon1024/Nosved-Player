@@ -251,6 +251,26 @@ class LibraryViewModel(
         }
     }
 
+    fun removeFromHistory(videoUri: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                watchHistoryDao.deleteHistory(videoUri)
+                mediaLibraryDao.updateMoviePlayback(videoUri, 0L, false)
+                mediaLibraryDao.updateEpisodePlayback(videoUri, 0L, false)
+            } catch (e: Exception) {
+                android.util.Log.e("LibraryViewModel", "Error deleting history for $videoUri", e)
+            }
+            val updated = _parsedItems.value.map { item ->
+                if (item.videoUri == videoUri || item.id == videoUri) {
+                    item.copy(playbackPositionMs = 0L)
+                } else {
+                    item
+                }
+            }
+            _parsedItems.value = updated
+        }
+    }
+
     private suspend fun processVideos(videos: List<Video>) = withContext(Dispatchers.IO) {
         if (videos.isEmpty()) {
             _parsedItems.value = emptyList()
