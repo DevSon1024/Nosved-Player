@@ -87,10 +87,11 @@ fun FolderMediaPreview(
     modifier: Modifier = Modifier
 ) {
     val bgColor = MaterialTheme.colorScheme.secondaryContainer
- 
+    val folderShape = remember { FolderShape() }
+
     Box(
         modifier = modifier
-            .clip(FolderShape())
+            .clip(folderShape)
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
@@ -187,12 +188,18 @@ fun FolderListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Folder thumbnail
-                Box(modifier = Modifier.then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)) {
+                val folderShape = remember { FolderShape() }
+                Box(
+                    modifier = Modifier
+                        .size(width = 72.dp, height = 54.dp)
+                        .clip(folderShape)
+                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)
+                ) {
                     FolderMediaPreview(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
+                        modifier = Modifier.fillMaxSize()
                     )
                     NewCountBadge(newCount)
                 }
