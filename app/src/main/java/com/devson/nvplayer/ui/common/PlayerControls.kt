@@ -38,6 +38,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.player.model.AspectMode
@@ -53,6 +55,100 @@ import java.util.Locale
 private val GlassSurface = Color(0xFF121316).copy(alpha = 0.68f)
 private val GlassBorder = Color.White.copy(alpha = 0.14f)
 private val AccentBlue = Color(0xFF3B82F6)
+
+data class ControlSizeSpec(
+    val playButtonSize: Dp,
+    val playIconSize: Dp,
+    val playCornerRadiusPaused: Dp,
+    val playCornerRadiusPlaying: Dp,
+    val seekButtonSize: Dp,
+    val seekIconSize: Dp,
+    val skipButtonSize: Dp,
+    val skipIconSize: Dp,
+    val dockHorizontalPadding: Dp,
+    val dockVerticalPadding: Dp,
+    val dockItemSpacing: Dp,
+    val backButtonSize: Dp,
+    val backIconSize: Dp,
+    val capsuleButtonSize: Dp,
+    val capsuleIconSize: Dp,
+    val capsulePillHorizontalPadding: Dp,
+    val capsulePillVerticalPadding: Dp,
+    val capsulePillFontSize: TextUnit,
+    val dockToTimelineSpacing: Dp,
+    val timelineToControlsSpacing: Dp
+)
+
+fun getControlSizeSpec(size: String): ControlSizeSpec {
+    return when (size.lowercase()) {
+        "small" -> ControlSizeSpec(
+            playButtonSize = 46.dp,
+            playIconSize = 24.dp,
+            playCornerRadiusPaused = 23.dp,
+            playCornerRadiusPlaying = 13.dp,
+            seekButtonSize = 34.dp,
+            seekIconSize = 18.dp,
+            skipButtonSize = 32.dp,
+            skipIconSize = 18.dp,
+            dockHorizontalPadding = 10.dp,
+            dockVerticalPadding = 4.dp,
+            dockItemSpacing = 6.dp,
+            backButtonSize = 34.dp,
+            backIconSize = 18.dp,
+            capsuleButtonSize = 32.dp,
+            capsuleIconSize = 16.dp,
+            capsulePillHorizontalPadding = 7.dp,
+            capsulePillVerticalPadding = 2.dp,
+            capsulePillFontSize = 11.sp,
+            dockToTimelineSpacing = 8.dp,
+            timelineToControlsSpacing = 6.dp
+        )
+        "large" -> ControlSizeSpec(
+            playButtonSize = 64.dp,
+            playIconSize = 34.dp,
+            playCornerRadiusPaused = 32.dp,
+            playCornerRadiusPlaying = 18.dp,
+            seekButtonSize = 46.dp,
+            seekIconSize = 24.dp,
+            skipButtonSize = 42.dp,
+            skipIconSize = 24.dp,
+            dockHorizontalPadding = 14.dp,
+            dockVerticalPadding = 8.dp,
+            dockItemSpacing = 10.dp,
+            backButtonSize = 42.dp,
+            backIconSize = 22.dp,
+            capsuleButtonSize = 40.dp,
+            capsuleIconSize = 20.dp,
+            capsulePillHorizontalPadding = 10.dp,
+            capsulePillVerticalPadding = 4.dp,
+            capsulePillFontSize = 12.sp,
+            dockToTimelineSpacing = 14.dp,
+            timelineToControlsSpacing = 10.dp
+        )
+        else -> ControlSizeSpec( // medium (default)
+            playButtonSize = 54.dp,
+            playIconSize = 28.dp,
+            playCornerRadiusPaused = 27.dp,
+            playCornerRadiusPlaying = 15.dp,
+            seekButtonSize = 40.dp,
+            seekIconSize = 21.dp,
+            skipButtonSize = 38.dp,
+            skipIconSize = 22.dp,
+            dockHorizontalPadding = 12.dp,
+            dockVerticalPadding = 6.dp,
+            dockItemSpacing = 8.dp,
+            backButtonSize = 38.dp,
+            backIconSize = 20.dp,
+            capsuleButtonSize = 36.dp,
+            capsuleIconSize = 18.dp,
+            capsulePillHorizontalPadding = 8.dp,
+            capsulePillVerticalPadding = 3.dp,
+            capsulePillFontSize = 11.5.sp,
+            dockToTimelineSpacing = 11.dp,
+            timelineToControlsSpacing = 8.dp
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,6 +228,7 @@ fun PlayerControls(
     var lastSeekTime by remember { mutableLongStateOf(0L) }
     var draggingJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
+    val sizeSpec = remember(controlIconSize) { getControlSizeSpec(controlIconSize) }
 
     Box(
         modifier = modifier
@@ -157,7 +254,7 @@ fun PlayerControls(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(190.dp)
+                    .height(if (isPortrait) 190.dp else 240.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
@@ -240,10 +337,10 @@ fun PlayerControls(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button (42.dp Circle with glassSurface & glassBorder)
+                // Back Button (Circle with glassSurface & glassBorder)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(sizeSpec.backButtonSize)
                         .clip(CircleShape)
                         .background(GlassSurface)
                         .border(1.dp, GlassBorder, CircleShape)
@@ -254,7 +351,7 @@ fun PlayerControls(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Back",
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(sizeSpec.backIconSize)
                     )
                 }
 
@@ -306,6 +403,7 @@ fun PlayerControls(
                 if (extraTopLeft.isNotEmpty()) {
                     DynamicControlCapsule(
                         controls = extraTopLeft,
+                        sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
                         ytdlQuality = ytdlQuality,
                         currentQualityLabel = currentQualityLabel,
@@ -332,6 +430,7 @@ fun PlayerControls(
                 if (effectiveTopRight.isNotEmpty()) {
                     DynamicControlCapsule(
                         controls = effectiveTopRight,
+                        sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
                         ytdlQuality = ytdlQuality,
                         currentQualityLabel = currentQualityLabel,
@@ -345,151 +444,181 @@ fun PlayerControls(
             }
         }
 
-        // 2. CENTER PANEL (Playback Transport Dock in Center if not bottom layout)
-        if (!isBottomLayoutEnabled) {
-            Box(
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                CenterTransportDock(
-                    isPlaying = isPlaying,
-                    onPlayPauseToggle = onPlayPauseToggle,
-                    showSeekButtons = showSeekButtons,
-                    seekDurationSeconds = seekDurationSeconds,
-                    onRewindClick = {
-                        onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
-                    },
-                    onForwardClick = {
-                        onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
-                    },
-                    showNextPrevButtons = showNextPrevButtons,
-                    hasPrevious = hasPrevious,
-                    hasNext = hasNext,
-                    onPrevClick = onPrevClick,
-                    onNextClick = onNextClick
-                )
+        var scrubPosition by remember { mutableLongStateOf(-1L) }
+        var trackedPosition by remember { mutableLongStateOf(posProvider()) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                trackedPosition = posProvider()
+                delay(200L)
             }
         }
+        var isRemainingToggled by remember { mutableStateOf(false) }
+        val effectiveShowRemaining = if (isRemainingToggled) !showRemainingTime else showRemainingTime
 
-        // 3. BOTTOM PANEL (Timers, Seekbar & Controls)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomStart)
-                .navigationBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
-        ) {
-            // Balanced Timestamp Row Above Seekbar
-            var trackedPosition by remember { mutableLongStateOf(posProvider()) }
-            LaunchedEffect(Unit) {
-                while (true) {
-                    trackedPosition = posProvider()
-                    delay(200L)
+        val displayPosition = if (isDragging && scrubPosition >= 0L) scrubPosition else trackedPosition
+        val hasHours = duration >= 3600_000L
+        val elapsedText = formatTime(displayPosition, forceHours = hasHours)
+        val remainingMs = (duration - displayPosition).coerceAtLeast(0L)
+        val durationText = if (effectiveShowRemaining) {
+            "-${formatTime(remainingMs, forceHours = hasHours)}"
+        } else {
+            formatTime(duration, forceHours = hasHours)
+        }
+        val isCompactLandscape = !isPortrait && configuration.screenHeightDp < 400
+
+        if (isPortrait) {
+            // 2. CENTER PANEL (Playback Transport Dock in Center if not bottom layout)
+            if (!isBottomLayoutEnabled) {
+                Box(
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    CenterTransportDock(
+                        isPlaying = isPlaying,
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        showSeekButtons = showSeekButtons,
+                        seekDurationSeconds = seekDurationSeconds,
+                        onRewindClick = {
+                            onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
+                        },
+                        onForwardClick = {
+                            onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
+                        },
+                        showNextPrevButtons = showNextPrevButtons,
+                        hasPrevious = hasPrevious,
+                        hasNext = hasNext,
+                        onPrevClick = onPrevClick,
+                        onNextClick = onNextClick,
+                        sizeSpec = sizeSpec
+                    )
                 }
             }
 
-            Row(
+            // 3. BOTTOM PANEL for Portrait
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
             ) {
-                // Left Pill: currentPosition / totalDuration
-                Box(
+                // Balanced Timestamp Row Above Seekbar
+                Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(GlassSurface)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+                        .padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "${formatTime(trackedPosition)} / ${formatTime(duration)}",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                // Right Pill: remaining time and/or current playback speed
-                val remainingTimeText = "-${formatTime((duration - trackedPosition).coerceAtLeast(0L))}"
-                val speedText = if (playbackSpeed != 1.0f) "${playbackSpeed}x" else "1.0x"
-                val rightPillText = if (showRemainingTime) {
-                    "$speedText • $remainingTimeText"
-                } else {
-                    speedText
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(GlassSurface)
-                        .border(1.dp, GlassBorder, RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = rightPillText,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Material 3 Expressive Gapped Slider
-            CustomSeekbar(
-                duration = safeDuration,
-                onSeek = { targetPos, isFinished ->
-                    if (isFinished) {
-                        onSeek(targetPos.toLong(), true)
-                        draggingJob = scope.launch {
-                            delay(800)
-                            onDraggingChanged(false)
-                        }
-                    } else {
-                        draggingJob?.cancel()
-                        val now = System.currentTimeMillis()
-                        if (now - lastSeekTime > 120L) {
-                            lastSeekTime = now
-                            onSeek(targetPos.toLong(), false)
-                        }
+                    // Left Pill: currentPosition / totalDuration
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(GlassSurface)
+                            .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${formatTime(displayPosition)} / ${formatTime(duration)}",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
-                },
-                onDraggingChanged = { onDraggingChanged(it) },
-                seekbarStyle = seekBarStyle,
-                isPaused = !isPlaying,
-                positionProvider = { posProvider().toFloat() },
-                bufferedDurationProvider = {
-                    if (isNetworkStream) {
-                        val cPos = posProvider()
-                        val bPos = bufProvider()
-                        if (bPos > cPos) (bPos - cPos).toFloat() else 0f
-                    } else 0f
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    // Right Pill: remaining time and/or current playback speed
+                    val remainingTimeText = "-${formatTime((duration - displayPosition).coerceAtLeast(0L))}"
+                    val speedText = if (playbackSpeed != 1.0f) "${playbackSpeed}x" else "1.0x"
+                    val rightPillText = if (showRemainingTime) {
+                        "$speedText • $remainingTimeText"
+                    } else {
+                        speedText
+                    }
 
-            // Below Seekbar Controls
-            if (isPortrait) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(GlassSurface)
+                            .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = rightPillText,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Material 3 Expressive Gapped Slider
+                CustomSeekbar(
+                    duration = safeDuration,
+                    onSeek = { targetPos, isFinished ->
+                        if (isFinished) {
+                            scrubPosition = -1L
+                            onSeek(targetPos.toLong(), true)
+                            draggingJob = scope.launch {
+                                delay(800)
+                                onDraggingChanged(false)
+                            }
+                        } else {
+                            scrubPosition = targetPos.toLong()
+                            draggingJob?.cancel()
+                            val now = System.currentTimeMillis()
+                            if (now - lastSeekTime > 120L) {
+                                lastSeekTime = now
+                                onSeek(targetPos.toLong(), false)
+                            }
+                        }
+                    },
+                    onDraggingChanged = { isDraggingNow ->
+                        if (!isDraggingNow) {
+                            scrubPosition = -1L
+                        }
+                        onDraggingChanged(isDraggingNow)
+                    },
+                    seekbarStyle = seekBarStyle,
+                    isPaused = !isPlaying,
+                    positionProvider = {
+                        if (isDragging && scrubPosition >= 0L) {
+                            scrubPosition.toFloat()
+                        } else {
+                            posProvider().toFloat()
+                        }
+                    },
+                    bufferedDurationProvider = {
+                        if (isNetworkStream) {
+                            val cPos = posProvider()
+                            val bPos = bufProvider()
+                            if (bPos > cPos) (bPos - cPos).toFloat() else 0f
+                        } else 0f
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                )
+
+                Spacer(modifier = Modifier.height(sizeSpec.timelineToControlsSpacing))
+
+                // Below Seekbar Controls
                 val filteredButtons = filterButtons(portraitBottomButtons)
                 if (isBottomLayoutEnabled) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(sizeSpec.timelineToControlsSpacing)
                     ) {
                         if (filteredButtons.isNotEmpty()) {
                             DynamicControlCapsule(
                                 controls = filteredButtons,
+                                sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
                                 ytdlQuality = ytdlQuality,
                                 currentQualityLabel = currentQualityLabel,
@@ -516,7 +645,8 @@ fun PlayerControls(
                             hasPrevious = hasPrevious,
                             hasNext = hasNext,
                             onPrevClick = onPrevClick,
-                            onNextClick = onNextClick
+                            onNextClick = onNextClick,
+                            sizeSpec = sizeSpec
                         )
                     }
                 } else {
@@ -528,6 +658,7 @@ fun PlayerControls(
                         if (filteredButtons.isNotEmpty()) {
                             DynamicControlCapsule(
                                 controls = filteredButtons,
+                                sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
                                 ytdlQuality = ytdlQuality,
                                 currentQualityLabel = currentQualityLabel,
@@ -540,20 +671,150 @@ fun PlayerControls(
                         }
                     }
                 }
-            } else {
-                // Landscape Bottom Controls
+            }
+        } else {
+            // Fullscreen Landscape Playback Controls Hierarchy:
+            // 1. Centered playback transport controls (if not bottom layout)
+            // 2. Single horizontal timeline row directly below transport dock
+            // 3. Secondary controls below the timeline
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                    .padding(
+                        start = if (configuration.screenWidthDp >= 840) 48.dp else 24.dp,
+                        end = if (configuration.screenWidthDp >= 840) 48.dp else 24.dp,
+                        bottom = if (isCompactLandscape) 12.dp else 16.dp
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (!isBottomLayoutEnabled) {
+                    // 1. Centered Playback Transport Dock
+                    CenterTransportDock(
+                        isPlaying = isPlaying,
+                        onPlayPauseToggle = onPlayPauseToggle,
+                        showSeekButtons = showSeekButtons,
+                        seekDurationSeconds = seekDurationSeconds,
+                        onRewindClick = {
+                            onSeek((posProvider() - seekDurationSeconds * 1000L).coerceAtLeast(0L), true)
+                        },
+                        onForwardClick = {
+                            onSeek((posProvider() + seekDurationSeconds * 1000L).coerceAtMost(duration), true)
+                        },
+                        showNextPrevButtons = showNextPrevButtons,
+                        hasPrevious = hasPrevious,
+                        hasNext = hasNext,
+                        onPrevClick = onPrevClick,
+                        onNextClick = onNextClick,
+                        sizeSpec = sizeSpec
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isCompactLandscape) (sizeSpec.dockToTimelineSpacing - 2.dp).coerceAtLeast(6.dp) else sizeSpec.dockToTimelineSpacing))
+                }
+
+                // 2. Single Horizontal Timeline Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = elapsedText,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    CustomSeekbar(
+                        duration = safeDuration,
+                        onSeek = { targetPos, isFinished ->
+                            if (isFinished) {
+                                scrubPosition = -1L
+                                onSeek(targetPos.toLong(), true)
+                                draggingJob = scope.launch {
+                                    delay(800)
+                                    onDraggingChanged(false)
+                                }
+                            } else {
+                                scrubPosition = targetPos.toLong()
+                                draggingJob?.cancel()
+                                val now = System.currentTimeMillis()
+                                if (now - lastSeekTime > 120L) {
+                                    lastSeekTime = now
+                                    onSeek(targetPos.toLong(), false)
+                                }
+                            }
+                        },
+                        onDraggingChanged = { isDraggingNow ->
+                            if (!isDraggingNow) {
+                                scrubPosition = -1L
+                            }
+                            onDraggingChanged(isDraggingNow)
+                        },
+                        seekbarStyle = seekBarStyle,
+                        isPaused = !isPlaying,
+                        positionProvider = {
+                            if (isDragging && scrubPosition >= 0L) {
+                                scrubPosition.toFloat()
+                            } else {
+                                posProvider().toFloat()
+                            }
+                        },
+                        bufferedDurationProvider = {
+                            if (isNetworkStream) {
+                                val cPos = posProvider()
+                                val bPos = bufProvider()
+                                if (bPos > cPos) (bPos - cPos).toFloat() else 0f
+                            } else 0f
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Text(
+                        text = durationText,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            isRemainingToggled = !isRemainingToggled
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(if (isCompactLandscape) (sizeSpec.timelineToControlsSpacing - 2.dp).coerceAtLeast(4.dp) else sizeSpec.timelineToControlsSpacing))
+
+                // 3. Secondary Controls Below Timeline
                 val leftButtons = filterButtons(bottomLeftButtons)
                 val rightButtons = filterButtons(bottomRightButtons)
 
                 if (isBottomLayoutEnabled) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.BottomStart
+                            contentAlignment = Alignment.CenterStart
                         ) {
                             BottomZoneWithOverflow(
                                 buttons = leftButtons,
@@ -561,6 +822,7 @@ fun PlayerControls(
                                 onExpandedChange = { isLeftExpanded = it },
                                 isAlignRight = false,
                                 floatingOverflow = true,
+                                sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
                                 ytdlQuality = ytdlQuality,
                                 currentQualityLabel = currentQualityLabel,
@@ -574,7 +836,7 @@ fun PlayerControls(
 
                         Box(
                             modifier = Modifier.padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.BottomCenter
+                            contentAlignment = Alignment.Center
                         ) {
                             CenterTransportDock(
                                 isPlaying = isPlaying,
@@ -591,13 +853,14 @@ fun PlayerControls(
                                 hasPrevious = hasPrevious,
                                 hasNext = hasNext,
                                 onPrevClick = onPrevClick,
-                                onNextClick = onNextClick
+                                onNextClick = onNextClick,
+                                sizeSpec = sizeSpec
                             )
                         }
 
                         Box(
                             modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.BottomEnd
+                            contentAlignment = Alignment.CenterEnd
                         ) {
                             BottomZoneWithOverflow(
                                 buttons = rightButtons,
@@ -605,6 +868,7 @@ fun PlayerControls(
                                 onExpandedChange = { isRightExpanded = it },
                                 isAlignRight = true,
                                 floatingOverflow = true,
+                                sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
                                 ytdlQuality = ytdlQuality,
                                 currentQualityLabel = currentQualityLabel,
@@ -618,41 +882,49 @@ fun PlayerControls(
                     }
                 } else {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        BottomZoneWithOverflow(
-                            buttons = leftButtons,
-                            isExpanded = isLeftExpanded,
-                            onExpandedChange = { isLeftExpanded = it },
-                            isAlignRight = false,
-                            floatingOverflow = false,
-                            currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
-                            currentAspectMode = currentAspectMode,
-                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                            themePrimary = themePrimary,
-                            onButtonClick = onButtonClick
-                        )
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            BottomZoneWithOverflow(
+                                buttons = leftButtons,
+                                isExpanded = isLeftExpanded,
+                                onExpandedChange = { isLeftExpanded = it },
+                                isAlignRight = false,
+                                floatingOverflow = false,
+                                sizeSpec = sizeSpec,
+                                currentDecoder = currentDecoder,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
+                                currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
+                            )
+                        }
 
-                        BottomZoneWithOverflow(
-                            buttons = rightButtons,
-                            isExpanded = isRightExpanded,
-                            onExpandedChange = { isRightExpanded = it },
-                            isAlignRight = true,
-                            floatingOverflow = false,
-                            currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
-                            currentAspectMode = currentAspectMode,
-                            isSmartEnhanceEnabled = isSmartEnhanceEnabled,
-                            isBackgroundPlayEnabled = isBackgroundPlayEnabled,
-                            themePrimary = themePrimary,
-                            onButtonClick = onButtonClick
-                        )
+                        Box(contentAlignment = Alignment.CenterEnd) {
+                            BottomZoneWithOverflow(
+                                buttons = rightButtons,
+                                isExpanded = isRightExpanded,
+                                onExpandedChange = { isRightExpanded = it },
+                                isAlignRight = true,
+                                floatingOverflow = false,
+                                sizeSpec = sizeSpec,
+                                currentDecoder = currentDecoder,
+                                ytdlQuality = ytdlQuality,
+                                currentQualityLabel = currentQualityLabel,
+                                currentAspectMode = currentAspectMode,
+                                isSmartEnhanceEnabled = isSmartEnhanceEnabled,
+                                isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                themePrimary = themePrimary,
+                                onButtonClick = onButtonClick
+                            )
+                        }
                     }
                 }
             }
@@ -667,6 +939,7 @@ fun PlayerControls(
 fun DynamicControlCapsule(
     controls: List<PlayerButton>,
     modifier: Modifier = Modifier,
+    sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String = "HW",
     ytdlQuality: Int = -1,
     currentQualityLabel: String = "",
@@ -690,6 +963,7 @@ fun DynamicControlCapsule(
         controls.forEach { button ->
             CapsuleControlItem(
                 button = button,
+                sizeSpec = sizeSpec,
                 currentDecoder = currentDecoder,
                 ytdlQuality = ytdlQuality,
                 currentQualityLabel = currentQualityLabel,
@@ -763,6 +1037,7 @@ fun HdrIndicatorBadge(
 @Composable
 fun CapsuleControlItem(
     button: PlayerButton,
+    sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String,
     ytdlQuality: Int,
     currentQualityLabel: String,
@@ -792,13 +1067,13 @@ fun CapsuleControlItem(
                 .background(AccentBlue.copy(alpha = 0.25f))
                 .border(1.dp, AccentBlue.copy(alpha = 0.6f), RoundedCornerShape(50))
                 .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 4.dp),
+                .padding(horizontal = sizeSpec.capsulePillHorizontalPadding, vertical = sizeSpec.capsulePillVerticalPadding),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = label,
                 color = Color(0xFF93C5FD),
-                fontSize = 12.sp,
+                fontSize = sizeSpec.capsulePillFontSize,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
@@ -824,13 +1099,13 @@ fun CapsuleControlItem(
 
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(40.dp)
+        modifier = Modifier.size(sizeSpec.capsuleButtonSize)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = button.displayName,
             tint = tint,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(sizeSpec.capsuleIconSize)
         )
     }
 }
@@ -845,6 +1120,7 @@ fun BottomZoneWithOverflow(
     onExpandedChange: (Boolean) -> Unit,
     isAlignRight: Boolean = false,
     floatingOverflow: Boolean = false,
+    sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String,
     ytdlQuality: Int,
     currentQualityLabel: String,
@@ -859,6 +1135,7 @@ fun BottomZoneWithOverflow(
     if (buttons.size <= 2) {
         DynamicControlCapsule(
             controls = buttons,
+            sizeSpec = sizeSpec,
             currentDecoder = currentDecoder,
             ytdlQuality = ytdlQuality,
             currentQualityLabel = currentQualityLabel,
@@ -882,14 +1159,14 @@ fun BottomZoneWithOverflow(
     val expandArrowButton = @Composable {
         IconButton(
             onClick = { onExpandedChange(!isExpanded) },
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(sizeSpec.capsuleButtonSize)
         ) {
             Icon(
                 imageVector = if (isAlignRight) Icons.Rounded.ChevronLeft else Icons.Rounded.ChevronRight,
                 contentDescription = if (isExpanded) "Collapse Controls" else "Expand Controls",
                 tint = Color.White.copy(alpha = 0.85f),
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(sizeSpec.capsuleIconSize)
                     .graphicsLayer(rotationZ = rotationAngle)
             )
         }
@@ -908,6 +1185,7 @@ fun BottomZoneWithOverflow(
             ) {
                 DynamicControlCapsule(
                     controls = overflowButtons,
+                    sizeSpec = sizeSpec,
                     currentDecoder = currentDecoder,
                     ytdlQuality = ytdlQuality,
                     currentQualityLabel = currentQualityLabel,
@@ -933,6 +1211,7 @@ fun BottomZoneWithOverflow(
                     primaryButtons.forEach { button ->
                         CapsuleControlItem(
                             button = button,
+                            sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
                             ytdlQuality = ytdlQuality,
                             currentQualityLabel = currentQualityLabel,
@@ -947,6 +1226,7 @@ fun BottomZoneWithOverflow(
                     primaryButtons.forEach { button ->
                         CapsuleControlItem(
                             button = button,
+                            sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
                             ytdlQuality = ytdlQuality,
                             currentQualityLabel = currentQualityLabel,
@@ -975,6 +1255,7 @@ fun BottomZoneWithOverflow(
                 ) {
                     DynamicControlCapsule(
                         controls = overflowButtons,
+                        sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
                         ytdlQuality = ytdlQuality,
                         currentQualityLabel = currentQualityLabel,
@@ -999,6 +1280,7 @@ fun BottomZoneWithOverflow(
                     primaryButtons.forEach { button ->
                         CapsuleControlItem(
                             button = button,
+                            sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
                             ytdlQuality = ytdlQuality,
                             currentQualityLabel = currentQualityLabel,
@@ -1023,6 +1305,7 @@ fun BottomZoneWithOverflow(
                     primaryButtons.forEach { button ->
                         CapsuleControlItem(
                             button = button,
+                            sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
                             ytdlQuality = ytdlQuality,
                             currentQualityLabel = currentQualityLabel,
@@ -1043,6 +1326,7 @@ fun BottomZoneWithOverflow(
                 ) {
                     DynamicControlCapsule(
                         controls = overflowButtons,
+                        sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
                         ytdlQuality = ytdlQuality,
                         currentQualityLabel = currentQualityLabel,
@@ -1078,6 +1362,7 @@ fun CenterTransportDock(
     hasNext: Boolean,
     onPrevClick: () -> Unit,
     onNextClick: () -> Unit,
+    sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     modifier: Modifier = Modifier
 ) {
     val dockShape = RoundedCornerShape(50)
@@ -1089,8 +1374,8 @@ fun CenterTransportDock(
             .clip(dockShape)
             .background(dockBackground)
             .border(1.dp, dockBorder, dockShape)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = sizeSpec.dockHorizontalPadding, vertical = sizeSpec.dockVerticalPadding),
+        horizontalArrangement = Arrangement.spacedBy(sizeSpec.dockItemSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. Previous Track Button
@@ -1098,13 +1383,13 @@ fun CenterTransportDock(
             IconButton(
                 onClick = onPrevClick,
                 enabled = hasPrevious,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(sizeSpec.skipButtonSize)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.SkipPrevious,
                     contentDescription = "Previous Track",
                     tint = Color.White.copy(alpha = if (hasPrevious) 0.9f else 0.38f),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(sizeSpec.skipIconSize)
                 )
             }
         }
@@ -1126,7 +1411,7 @@ fun CenterTransportDock(
 
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(sizeSpec.seekButtonSize)
                     .scale(rewindScale)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.08f))
@@ -1140,7 +1425,7 @@ fun CenterTransportDock(
                     imageVector = rewindIcon,
                     contentDescription = "Rewind ${seekDurationSeconds}s",
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(sizeSpec.seekIconSize)
                 )
             }
         }
@@ -1154,7 +1439,7 @@ fun CenterTransportDock(
             label = "playPressScale"
         )
         val animatedCornerRadius by animateDpAsState(
-            targetValue = if (isPlaying) 16.dp else 27.dp,
+            targetValue = if (isPlaying) sizeSpec.playCornerRadiusPlaying else sizeSpec.playCornerRadiusPaused,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
                 stiffness = Spring.StiffnessLow
@@ -1164,7 +1449,7 @@ fun CenterTransportDock(
 
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(sizeSpec.playButtonSize)
                 .scale(playScale)
                 .clip(RoundedCornerShape(animatedCornerRadius))
                 .background(Color.White)
@@ -1186,7 +1471,7 @@ fun CenterTransportDock(
                     imageVector = if (playing) Icons.Rounded.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (playing) "Pause" else "Play",
                     tint = Color(0xFF0F172A),
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(sizeSpec.playIconSize)
                 )
             }
         }
@@ -1208,7 +1493,7 @@ fun CenterTransportDock(
 
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(sizeSpec.seekButtonSize)
                     .scale(forwardScale)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.08f))
@@ -1222,7 +1507,7 @@ fun CenterTransportDock(
                     imageVector = forwardIcon,
                     contentDescription = "Forward ${seekDurationSeconds}s",
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(sizeSpec.seekIconSize)
                 )
             }
         }
@@ -1232,26 +1517,26 @@ fun CenterTransportDock(
             IconButton(
                 onClick = onNextClick,
                 enabled = hasNext,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(sizeSpec.skipButtonSize)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
                     contentDescription = "Next Track",
                     tint = Color.White.copy(alpha = if (hasNext) 0.9f else 0.38f),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(sizeSpec.skipIconSize)
                 )
             }
         }
     }
 }
 
-fun formatTime(milliseconds: Long): String {
-    val totalSeconds = milliseconds / 1000
+fun formatTime(milliseconds: Long, forceHours: Boolean = false): String {
+    val totalSeconds = (milliseconds.coerceAtLeast(0L)) / 1000
     val seconds = totalSeconds % 60
     val minutes = (totalSeconds / 60) % 60
     val hours = totalSeconds / 3600
 
-    return if (hours > 0) {
+    return if (hours > 0 || forceHours) {
         String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
     } else {
         String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)

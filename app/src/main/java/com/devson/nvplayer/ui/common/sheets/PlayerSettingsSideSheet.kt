@@ -627,7 +627,20 @@ fun PlayerSettingsSideSheet(
                 onUpdateControlIconSize(it)
                 showIconSizeDialog = false
             },
-            optionLabel = { it.replaceFirstChar { char -> char.uppercase() } }
+            optionLabel = { size ->
+                when (size.lowercase()) {
+                    "small" -> "Small (Compact)"
+                    "large" -> "Large (Spacious)"
+                    else -> "Medium (Default)"
+                }
+            },
+            optionDescription = { size ->
+                when (size.lowercase()) {
+                    "small" -> "Smaller controls and tighter spacing to maximize viewing area"
+                    "large" -> "Larger buttons and icons for easier touch accessibility"
+                    else -> "Standard balanced controls and spacing"
+                }
+            }
         )
     }
 
@@ -1102,7 +1115,11 @@ private fun InterfaceTab(
             SheetRow(
                 icon = Icons.Default.PhotoSizeSelectLarge,
                 title = "Controls Icon Size",
-                subtitle = playbackSettings.controlIconSize.replaceFirstChar { it.uppercase() },
+                subtitle = when (playbackSettings.controlIconSize.lowercase()) {
+                    "small" -> "Small (Compact)"
+                    "large" -> "Large (Spacious)"
+                    else -> "Medium (Default)"
+                },
                 onClick = onShowIconSizeDialog
             )
 
