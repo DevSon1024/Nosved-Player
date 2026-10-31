@@ -217,6 +217,7 @@ fun PlayerControls(
     val activity = remember(context) { context.findActivity() }
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    val isCompactLandscape = !isPortrait && configuration.screenHeightDp < 400
 
     var isLeftExpanded by remember { mutableStateOf(false) }
     var isRightExpanded by remember { mutableStateOf(false) }
@@ -322,12 +323,22 @@ fun PlayerControls(
             rawTopRight
         }
 
+        val topHorizontalPadding = if (isPortrait) 16.dp else if (configuration.screenWidthDp >= 840) 48.dp else 24.dp
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .windowInsetsPadding(
+                    if (isPortrait) WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                    else WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                )
+                .padding(
+                    start = topHorizontalPadding,
+                    end = topHorizontalPadding,
+                    top = if (isPortrait) 8.dp else if (isCompactLandscape) 8.dp else 12.dp,
+                    bottom = 8.dp
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -359,7 +370,8 @@ fun PlayerControls(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onTitleClick() },
+                        .clickable { onTitleClick() }
+                        .padding(end = if (isPortrait) 4.dp else 8.dp),
                     verticalArrangement = Arrangement.Center
                 ) {
                     Row(
@@ -416,7 +428,7 @@ fun PlayerControls(
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(if (isPortrait) 10.dp else 18.dp))
 
             // Right Group: Battery & Clock Overlay + Top-Right Capsule
             Row(
@@ -464,7 +476,6 @@ fun PlayerControls(
         } else {
             formatTime(duration, forceHours = hasHours)
         }
-        val isCompactLandscape = !isPortrait && configuration.screenHeightDp < 400
 
         if (isPortrait) {
             // 2. CENTER PANEL (Playback Transport Dock in Center if not bottom layout)
