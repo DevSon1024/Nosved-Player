@@ -109,18 +109,24 @@ fun getAvailableStorageVolumes(context: Context): List<StorageVolumeInfo> {
 }
 
 private fun resolveRootPath(volume: StorageVolume, storageManager: StorageManager): String? {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        volume.directory?.absolutePath ?: runCatching {
-            val method = StorageVolume::class.java.getMethod("getPath")
-            method.invoke(volume) as? String
-        }.getOrNull()
-    } else {
-        // Reflection fallback for API < 30
-        runCatching {
-            val method = StorageVolume::class.java.getMethod("getPath")
-            method.invoke(volume) as? String
-        }.getOrNull()
+    val dirPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        volume.directory?.absolutePath
+    } else null
+
+    if (!dirPath.isNullOrBlank()) return dirPath
+
+    val uuid = volume.uuid
+    if (!uuid.isNullOrBlank()) {
+        val candidate = File("/storage", uuid)
+        if (candidate.exists()) {
+            return candidate.absolutePath
+        }
     }
+
+    return runCatching {
+        val method = StorageVolume::class.java.getMethod("getPath")
+        method.invoke(volume) as? String
+    }.getOrNull()
 }
 
 private fun fallbackInternalVolume(): StorageVolumeInfo {

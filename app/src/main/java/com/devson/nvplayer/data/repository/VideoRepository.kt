@@ -4,6 +4,9 @@ import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.model.FolderItem
 import com.devson.nvplayer.data.model.VideoItem
 import com.devson.nvplayer.domain.model.Video
+import com.devson.nvplayer.util.getAvailableStorageVolumes
+import android.net.Uri
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
@@ -59,34 +62,144 @@ class VideoRepository(
         }
     }
 
-    private fun isVideoFile(file: java.io.File): Boolean {
+    private fun isVideoFile(file: File): Boolean {
         val ext = file.extension.lowercase()
-        val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v")
-        if (ext in videoExtensions) return true
-        if (ext == "ts") {
-            // Distinguish MPEG Transport Stream video from TypeScript code file
-            if (!file.exists() || !file.canRead() || file.length() < 188) return false
-            return runCatching {
-                file.inputStream().use { stream ->
-                    val buffer = ByteArray(564)
-                    val read = stream.read(buffer)
-                    if (read >= 188) {
-                        buffer[0] == 0x47.toByte() || (read >= 376 && buffer[188] == 0x47.toByte())
-                    } else false
-                }
-            }.getOrDefault(false)
+        val videoExtensions = setOf(
+            "mp4", "mkv", "webm", "avi", "3gp", "mov", "flv", "wmv", "m4v",
+            "ts", "vob", "ogv", "mpg", "mpeg", "m2ts", "rmvb"
+        )
+        if (ext in videoExtensions) {
+            if (ext == "ts") {
+                // Distinguish MPEG Transport Stream video from TypeScript code file
+                if (!file.exists() || !file.canRead() || file.length() < 188) return false
+                return runCatching {
+                    file.inputStream().use { stream ->
+                        val buffer = ByteArray(564)
+                        val read = stream.read(buffer)
+                        if (read >= 188) {
+                            buffer[0] == 0x47.toByte() || (read >= 376 && buffer[188] == 0x47.toByte())
+                        } else false
+                    }
+                }.getOrDefault(false)
+            }
+            return true
         }
         return false
     }
 
+    /**
+     * Recursively scans an external/removable storage directory (e.g. USB OTG drive or SD card)
+     * for supported video files.
+     */
+    fun scanVolumeForVideos(
+        rootPath: String,
+        blacklistedFolders: List<String> = emptyList()
+    ): List<VideoItem> {
+        val rootDir = File(rootPath)
+        if (!rootDir.exists() || !rootDir.canRead() || !rootDir.isDirectory) {
+            return emptyList()
+        }
+
+        val blacklistedSet = blacklistedFolders.map {
+            if (it.endsWith("/")) it else "$it/"
+        }.toSet()
+
+        val results = mutableListOf<VideoItem>()
+        val ignoredDirNames = setOf(
+            "Android",
+            "LOST.DIR",
+            "System Volume Information",
+            "\$RECYCLE.BIN",
+            ".trashed",
+            ".thumbnails",
+            ".Trash",
+            ".nomedia"
+        )
+
+        val queue = ArrayDeque<Pair<File, Int>>()
+        queue.add(rootDir to 0)
+        val maxDepth = 12
+
+        while (queue.isNotEmpty()) {
+            val (currentDir, depth) = queue.removeFirst()
+            if (depth > maxDepth) continue
+
+            val nomedia = File(currentDir, ".nomedia")
+            if (nomedia.exists()) continue
+
+            val children = try {
+                currentDir.listFiles()
+            } catch (_: Exception) {
+                null
+            } ?: continue
+
+            for (child in children) {
+                val name = child.name
+                if (name.startsWith(".")) continue
+
+                if (child.isDirectory) {
+                    if (name !in ignoredDirNames) {
+                        val pathWithSlash = if (child.absolutePath.endsWith("/")) child.absolutePath else "${child.absolutePath}/"
+                        val isBlacklisted = blacklistedSet.any { pathWithSlash.startsWith(it) }
+                        if (!isBlacklisted) {
+                            queue.add(child to (depth + 1))
+                        }
+                    }
+                } else if (child.isFile && child.length() > 0L) {
+                    if (isVideoFile(child)) {
+                        val absPath = child.absolutePath
+                        val isBlacklisted = blacklistedSet.any { absPath.startsWith(it) }
+                        if (!isBlacklisted) {
+                            val uri = Uri.fromFile(child)
+                            val parentName = child.parentFile?.name?.ifEmpty { rootDir.name } ?: rootDir.name
+                            results.add(
+                                VideoItem(
+                                    uri = uri,
+                                    title = child.name,
+                                    duration = 0L,
+                                    folderName = parentName,
+                                    path = absPath,
+                                    thumbnailUri = uri,
+                                    size = child.length(),
+                                    width = 0,
+                                    height = 0,
+                                    dateModified = child.lastModified() / 1000L
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        return results
+    }
+
     suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
         val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
-        val videos = mediaStoreHelper.getAllVideos(blacklisted)
+        val mediaStoreVideos = mediaStoreHelper.getAllVideos(blacklisted)
+        val allVideos = mediaStoreVideos.toMutableList()
+        val existingPaths = mediaStoreVideos.map { it.path }.toHashSet()
+
+        // Also scan external/removable storage volumes (e.g., USB OTG, SD cards)
+        // which are not indexed by Android MediaStore.
+        val volumes = getAvailableStorageVolumes(context)
+        for (volume in volumes) {
+            if (!volume.isInternal) {
+                val volumeVideos = scanVolumeForVideos(volume.rootPath, blacklisted)
+                for (v in volumeVideos) {
+                    if (existingPaths.add(v.path)) {
+                        allVideos.add(v)
+                    }
+                }
+            }
+        }
+
         if (!hasSyncedWatchHistoryOnce) {
             hasSyncedWatchHistoryOnce = true
-            watchHistoryRepository.syncWatchHistoryFileStatus(videos)
+            watchHistoryRepository.syncWatchHistoryFileStatus(allVideos)
         }
-        videos
+        allVideos
     }
 
     suspend fun syncWatchHistory(scannedVideos: List<VideoItem>? = null) = withContext(Dispatchers.IO) {

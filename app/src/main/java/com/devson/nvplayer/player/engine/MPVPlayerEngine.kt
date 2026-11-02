@@ -468,7 +468,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         val usePrecise = precise && !isLowRam
         Log.d("MPVPlayerEngine", "Seeking to position: $position ms ($seconds s), precise: $usePrecise (isLowRam=$isLowRam)")
         try {
-            val mode = if (usePrecise) "absolute" else "absolute+keyframes"
+            val mode = if (usePrecise) "absolute+exact" else "absolute+keyframes"
             MPVLib.command("seek", seconds.toString(), mode)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to seek to position", e)

@@ -119,7 +119,10 @@ class VideoListViewModel(
             playbackSettingsRepo.playbackSettingsFlow
         ) { raw, storage, settings ->
             val storageFiltered = if (storage == null) raw
-            else raw.filter { it.path.startsWith(storage.rootPath) }
+            else {
+                val cleanRoot = storage.rootPath.trimEnd('/')
+                raw.filter { it.path == cleanRoot || it.path.startsWith("$cleanRoot/") }
+            }
 
             when (settings.folderFilterMode) {
                 FolderFilterMode.WHITELIST -> {
@@ -155,7 +158,10 @@ class VideoListViewModel(
         ) { raw, storage, query, settings ->
             raw.mapValues { (_, videos) ->
                 videos.filter { video ->
-                    val matchesStorage = storage == null || video.path.startsWith(storage.rootPath)
+                    val matchesStorage = if (storage == null) true else {
+                        val cleanRoot = storage.rootPath.trimEnd('/')
+                        video.path == cleanRoot || video.path.startsWith("$cleanRoot/")
+                    }
                     val matchesPath = !video.path.contains("/.")
                     val matchesSearch = query.isBlank() || SearchUtils.matches(video.title, query)
                     val matchesFilter = when (settings.folderFilterMode) {
@@ -264,6 +270,7 @@ class VideoListViewModel(
      * If the previously selected storage is no longer mounted, falls back to internal.
      */
     fun refreshStorages(context: Context) {
+        val oldVolumes = _availableStorages.value
         val volumes = getAvailableStorageVolumes(context)
         _availableStorages.value = volumes
 
@@ -275,6 +282,14 @@ class VideoListViewModel(
             // Reset explorer path to the new root
             internal?.let { _currentExplorerPath.value = it.rootPath }
         }
+
+        // If a new external volume was connected, refresh videos automatically
+        val hasNewExternalVolume = volumes.any { newVol ->
+            !newVol.isInternal && oldVolumes.none { oldVol -> oldVol.id == newVol.id }
+        }
+        if (hasNewExternalVolume) {
+            loadVideos(forceRefresh = true)
+        }
     }
 
     /** Switches active storage and resets the explorer path to the new root. */
@@ -283,6 +298,12 @@ class VideoListViewModel(
         _currentExplorerPath.value = storage.rootPath
         // Clear folder selection so filtered views update cleanly
         _selectedFolder.value = null
+
+        // If switching to an external storage that has not been scanned yet, trigger a scan
+        val cleanRoot = storage.rootPath.trimEnd('/')
+        if (!storage.isInternal && _rawVideosFlat.value.none { it.path == cleanRoot || it.path.startsWith("$cleanRoot/") }) {
+            loadVideos(forceRefresh = true)
+        }
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
@@ -321,8 +342,15 @@ class VideoListViewModel(
                 val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
                 val uncachedVideos = mutableListOf<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
 
+                val activeStorage = _selectedStorage.value
+                val activeCleanRoot = activeStorage?.rootPath?.trimEnd('/')
                 for ((parentPath, items) in groupedByPath) {
-                    val folderName = parentPath.substringAfterLast('/').ifEmpty { parentPath }
+                    val cleanParent = parentPath.trimEnd('/')
+                    val folderName = if (activeCleanRoot != null && cleanParent == activeCleanRoot) {
+                        activeStorage?.name ?: cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                    } else {
+                        cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                    }
                     val videos = items.map { item ->
                         val uriStr = item.uri.toString()
                         val cached = cachedMap[uriStr]
@@ -341,8 +369,8 @@ class VideoListViewModel(
                             finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                             externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-                            // Re-probe if frame rate was previously not detected (e.g. MKVs cached prior to EBML/MediaInfo extractor)
-                            if (finalFps == null) {
+                            // Re-probe if frame rate, duration, or resolution was not detected
+                            if (finalFps == null || finalDuration == 0L || item.width == 0) {
                                 uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                             }
                         } else {
@@ -405,18 +433,21 @@ class VideoListViewModel(
 
                                     val fps = details?.frameRate
                                     val embeddedSubs = details?.embeddedSubtitles ?: emptyList()
+                                    val resolvedDuration = if (duration > 0L) duration else (details?.durationMs ?: 0L)
+                                    val resolvedWidth = if (item.width > 0) item.width else (details?.width ?: 0)
+                                    val resolvedHeight = if (item.height > 0) item.height else (details?.height ?: 0)
 
                                     val cachedMetadata = CachedVideoMetadata(
                                         uri = uriStr,
                                         size = item.size,
                                         dateModified = dateMod,
-                                        duration = duration,
+                                        duration = resolvedDuration,
                                         externalSubtitleUri = null,
                                         frameRate = fps ?: -1f,
                                         embeddedSubtitles = embeddedSubs.joinToString(","),
                                         externalSubtitles = externalSubs.joinToString(",")
                                     )
-                                    Triple(uriStr, cachedMetadata, Pair(fps, Pair(embeddedSubs, externalSubs)))
+                                    Triple(uriStr, cachedMetadata, Triple(fps, Pair(embeddedSubs, externalSubs), Triple(resolvedDuration, resolvedWidth, resolvedHeight)))
                                 }
                             }.awaitAll()
 
@@ -428,9 +459,15 @@ class VideoListViewModel(
                                 folderVideos.map { video ->
                                     val enhancement = enhancementMap[video.uri]
                                     if (enhancement != null) {
-                                        val (fps, subsPair) = enhancement
+                                        val (fps, subsPair, dims) = enhancement
                                         val (embedded, external) = subsPair
+                                        val (dur, w, h) = dims
+                                        val res = if (w > 0 && h > 0) "${w}x${h}" else video.resolution
                                         video.copy(
+                                            duration = if (dur > 0L) dur else video.duration,
+                                            width = if (w > 0) w else video.width,
+                                            height = if (h > 0) h else video.height,
+                                            resolution = res,
                                             frameRate = fps,
                                             embeddedSubtitles = embedded,
                                             externalSubtitles = external
