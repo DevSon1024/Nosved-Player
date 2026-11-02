@@ -112,7 +112,8 @@ class ViewSettingsRepository private constructor(context: Context) {
                 ThumbnailMode.FIRST_FRAME
             },
             thumbnailFramePosition = prefs.getFloat("thumbnail_frame_position", 33f),
-            newVideoDaysThreshold = prefs.getInt("new_video_days_threshold", 7)
+            newVideoDaysThreshold = prefs.getInt("new_video_days_threshold", 7),
+            showHiddenFolders = prefs.getBoolean("show_hidden_folders", false)
         )
     }
 
@@ -151,9 +152,14 @@ class ViewSettingsRepository private constructor(context: Context) {
             putInt("new_video_days_threshold", updated.newVideoDaysThreshold)
             putBoolean("is_shortcuts_visible", updated.isShortcutsVisible)
             putBoolean("is_details_visible", updated.isDetailsVisible)
+            putBoolean("show_hidden_folders", updated.showHiddenFolders)
             putString("home_section_order", updated.homeSectionOrder.joinToString(",") { it.name })
             apply()
         }
+    }
+
+    suspend fun updateShowHiddenFolders(show: Boolean) {
+        updateSettings { it.copy(showHiddenFolders = show) }
     }
 
     suspend fun updateShowQuickFab(show: Boolean) {

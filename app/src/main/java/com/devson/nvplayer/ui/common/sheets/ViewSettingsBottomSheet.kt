@@ -341,6 +341,11 @@ fun ViewSettingsBottomSheet(
                                 checked = settings.displayLengthOverThumbnail,
                                 subtitle = "Overlay duration badge on top of thumbnail"
                             ) { viewModel.updateDisplayLengthOverThumbnail(it) }
+                            AdvancedToggleRow(
+                                label = "Show Hidden Folders",
+                                checked = settings.showHiddenFolders,
+                                subtitle = "Display dot-prefixed folders and hidden videos"
+                            ) { viewModel.updateShowHiddenFolders(it) }
                         }
                     }
                 }

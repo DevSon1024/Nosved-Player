@@ -143,5 +143,5 @@
 -keep class com.devson.nvplayer.domain.model.** { *; }
 -keep class com.devson.nvplayer.viewmodel.WatchHistoryViewModel* { *; }
 -keep class com.devson.nvplayer.player.tracker.** { *; }
+-dontwarn org.joni.**
 
-

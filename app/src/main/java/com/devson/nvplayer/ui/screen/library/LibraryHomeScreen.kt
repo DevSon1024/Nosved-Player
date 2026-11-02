@@ -368,7 +368,10 @@ fun LibraryHomeScreen(
                                         item(key = "continue_watching") {
                                             ContinueWatchingRow(
                                                 items = state.continueWatching,
-                                                onItemClick = onMediaClick
+                                                onItemClick = onMediaClick,
+                                                onRemoveClick = { item ->
+                                                    viewModel.removeFromHistory(item.videoUri)
+                                                }
                                             )
                                         }
                                     }

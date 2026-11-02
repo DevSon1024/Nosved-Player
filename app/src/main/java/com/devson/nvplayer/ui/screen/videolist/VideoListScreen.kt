@@ -2,10 +2,18 @@ package com.devson.nvplayer.ui.screen.videolist
 
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
+import java.io.File
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -20,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -40,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.ui.screen.videolist.components.DeleteConfirmationDialog
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
@@ -70,6 +80,19 @@ import com.devson.nvplayer.data.security.VaultSecurityManager
 import com.devson.nvplayer.viewmodel.VaultGalleryViewModel
 import com.devson.nvplayer.ui.screen.tools.SubtitleExtractionBottomSheet
 import kotlin.collections.get
+
+private fun canReadStorage(storage: com.devson.nvplayer.domain.model.StorageVolumeInfo?): Boolean {
+    if (storage == null || storage.isInternal) return true
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Environment.isExternalStorageManager()) return true
+    }
+    return try {
+        val f = File(storage.rootPath)
+        f.exists() && f.canRead()
+    } catch (_: Exception) {
+        false
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -131,6 +154,30 @@ fun VideoListScreen(
     val currentExplorerPath by viewModel.currentExplorerPath.collectAsStateWithLifecycle()
     val availableStorages by viewModel.availableStorages.collectAsStateWithLifecycle()
     val selectedStorage by viewModel.selectedStorage.collectAsStateWithLifecycle()
+
+    var isStorageAccessible by remember(selectedStorage) {
+        mutableStateOf(canReadStorage(selectedStorage))
+    }
+
+    val isStoragePermissionRequired = selectedStorage != null && selectedStorage?.isInternal == false && !isStorageAccessible
+
+    val onStoragePermissionClick: () -> Unit = {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                context.startActivity(intent)
+            }
+        } catch (_: Exception) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    context.startActivity(intent)
+                }
+            } catch (_: Exception) {}
+        }
+    }
 
     val searchSuggestions by viewModel.searchSuggestions.collectAsStateWithLifecycle()
     var searchActive by remember { mutableStateOf(false) }
@@ -218,6 +265,7 @@ fun VideoListScreen(
     //  Watch History 
     val historyMap by homeViewModel.historyMapFlow.collectAsStateWithLifecycle()
     val lastPlayedVideo by viewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+    val isDiscoveringHidden by viewModel.isDiscoveringHidden.collectAsStateWithLifecycle()
 
     LaunchedEffect(historyMap) {
         viewModel.setHistoryMap(historyMap)
@@ -228,13 +276,59 @@ fun VideoListScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 homeViewModel.loadWatchHistory()
-                // Re-detect storage volumes on resume for SD card insertion/ejection
+                // Re-detect storage volumes on resume for SD card / USB drive insertion/ejection
                 viewModel.refreshStorages(context)
+                val accessible = canReadStorage(viewModel.selectedStorage.value)
+                isStorageAccessible = accessible
+                if (accessible && viewModel.selectedStorage.value?.isInternal == false) {
+                    viewModel.loadVideos(forceRefresh = true)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) {
+                viewModel.refreshStorages(context)
+                val accessible = canReadStorage(viewModel.selectedStorage.value)
+                isStorageAccessible = accessible
+                viewModel.loadVideos(forceRefresh = true)
+            }
+        }
+        val storageFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addDataScheme("file")
+        }
+        val usbFilter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        try {
+            ContextCompat.registerReceiver(context, receiver, storageFilter, ContextCompat.RECEIVER_EXPORTED)
+        } catch (_: Exception) {
+            try {
+                ContextCompat.registerReceiver(context, receiver, storageFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            } catch (_: Exception) {}
+        }
+        try {
+            ContextCompat.registerReceiver(context, receiver, usbFilter, ContextCompat.RECEIVER_EXPORTED)
+        } catch (_: Exception) {
+            try {
+                ContextCompat.registerReceiver(context, receiver, usbFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            } catch (_: Exception) {}
+        }
+
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Exception) {}
         }
     }
 
@@ -247,6 +341,8 @@ fun VideoListScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             fileOpsViewModel.onPermissionGranted(context)
+        } else {
+            fileOpsViewModel.onPermissionDenied()
         }
         fileOpsViewModel.clearPendingIntentSender()
     }
@@ -647,6 +743,43 @@ fun VideoListScreen(
                 )
             }
 
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isDiscoveringHidden,
+                enter = fadeIn() + androidx.compose.animation.expandVertically(),
+                exit = fadeOut() + androidx.compose.animation.shrinkVertically(),
+                modifier = Modifier
+                    .padding(top = padding.calculateTopPadding() + 8.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(10f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.8.dp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Discovering hidden videos...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
             if (!hasPermission) {
                 Column(
                     modifier = Modifier
@@ -723,7 +856,10 @@ fun VideoListScreen(
                                         },
                                         listState = folderListState,
                                         gridState = folderGridState,
-                                        contentPadding = listContentPadding
+                                        contentPadding = listContentPadding,
+                                        isPermissionRequired = isStoragePermissionRequired,
+                                        onPermissionClick = onStoragePermissionClick,
+                                        onScanClick = { viewModel.loadVideos(forceRefresh = true) }
                                     )
                                 } else {
                                     val videos = videosByFolder[folder] ?: emptyList()
@@ -747,7 +883,10 @@ fun VideoListScreen(
                                         listState = videoListState,
                                         gridState = videoGridState,
                                         historyMap = historyMap,
-                                        contentPadding = listContentPadding
+                                        contentPadding = listContentPadding,
+                                        isPermissionRequired = isStoragePermissionRequired,
+                                        onPermissionClick = onStoragePermissionClick,
+                                        onScanClick = { viewModel.loadVideos(forceRefresh = true) }
                                     )
                                 }
                             }
@@ -774,7 +913,10 @@ fun VideoListScreen(
                                 listState = videoListState,
                                 gridState = videoGridState,
                                 historyMap = historyMap,
-                                contentPadding = listContentPadding
+                                contentPadding = listContentPadding,
+                                isPermissionRequired = isStoragePermissionRequired,
+                                onPermissionClick = onStoragePermissionClick,
+                                onScanClick = { viewModel.loadVideos(forceRefresh = true) }
                             )
                         }
                         ViewMode.FOLDERS -> {
@@ -841,7 +983,10 @@ fun VideoListScreen(
                                     },
                                     listState = folderListState,
                                     gridState = folderGridState,
-                                    contentPadding = PaddingValues(bottom = listBottomPadding)
+                                    contentPadding = PaddingValues(bottom = listBottomPadding),
+                                    isPermissionRequired = isStoragePermissionRequired,
+                                    onPermissionClick = onStoragePermissionClick,
+                                    onScanClick = { viewModel.loadVideos(forceRefresh = true) }
                                 )
                             }
                         }
@@ -948,33 +1093,23 @@ fun VideoListScreen(
                     .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
             }
         }
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete Video(s)") },
-            text = { Text("Choose how you want to delete the selected video(s).") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = true)
-                        selectedFolders = emptySet()
-                        selectedVideos = emptySet()
-                        showDeleteConfirmation = false
-                    }
-                ) { Text("Move to Recycle Bin") }
+        val count = if (isFolder) selectedFolders.size else selectedVideos.size
+        DeleteConfirmationDialog(
+            itemCount = if (count <= 0) selectedUrisForDelete.size else count,
+            isFolder = isFolder,
+            onMoveToTrash = {
+                fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = true)
+                selectedFolders = emptySet()
+                selectedVideos = emptySet()
+                showDeleteConfirmation = false
             },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
-                    TextButton(
-                        onClick = {
-                            fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = false)
-                            selectedFolders = emptySet()
-                            selectedVideos = emptySet()
-                            showDeleteConfirmation = false
-                        }
-                    ) { Text("Delete Permanently", color = MaterialTheme.colorScheme.error) }
-                }
-            }
+            onDeletePermanently = {
+                fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = false)
+                selectedFolders = emptySet()
+                selectedVideos = emptySet()
+                showDeleteConfirmation = false
+            },
+            onDismiss = { showDeleteConfirmation = false }
         )
     }
 

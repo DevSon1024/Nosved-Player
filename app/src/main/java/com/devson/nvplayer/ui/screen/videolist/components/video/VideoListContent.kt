@@ -20,6 +20,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.ui.res.stringResource
+import com.devson.nvplayer.R
 import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.ViewSettings
@@ -39,7 +44,10 @@ fun VideoListContent(
     onInfoClick: ((Video) -> Unit)? = null,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    isPermissionRequired: Boolean = false,
+    onPermissionClick: (() -> Unit)? = null,
+    onScanClick: () -> Unit = {}
 ) {
     val currentOnVideoClick by rememberUpdatedState(onVideoClick)
     val currentOnVideoLongClick by rememberUpdatedState(onVideoLongClick)
@@ -47,11 +55,23 @@ fun VideoListContent(
 
     if (videos.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CustomEmptyStateView(
-                heading  = "No Videos Here",
-                subtext  = "This folder appears to be empty. Try pulling down to refresh.",
-                ctaLabel = "Scan Device for Videos"
-            )
+            if (isPermissionRequired) {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.FolderOpen,
+                    heading = "Storage Access Required",
+                    subtext = "Android 15 requires All Files Access permission to browse and play videos from external USB drives.",
+                    ctaLabel = "Grant Permission",
+                    onCtaClick = onPermissionClick
+                )
+            } else {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.VideoLibrary,
+                    heading = "No Videos Here",
+                    subtext = "This folder appears to be empty. Try pulling down to refresh or scanning storage.",
+                    ctaLabel = stringResource(R.string.folder_scan_cta),
+                    onCtaClick = onScanClick
+                )
+            }
         }
         return
     }

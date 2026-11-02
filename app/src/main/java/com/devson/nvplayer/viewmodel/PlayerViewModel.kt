@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -23,6 +24,7 @@ import com.devson.nvplayer.player.engine.PlayerState
 import com.devson.nvplayer.player.model.TrackInfo
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.HdrType
 import com.devson.nvplayer.player.ytdlp.YtdlpManager
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,6 +85,12 @@ class PlayerViewModel(
     val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
     val bufferedPosition: StateFlow<Long> = playerEngine.bufferedPosition
     val mediaTitle: StateFlow<String> = playerEngine.mediaTitle
+    val hdrType: StateFlow<HdrType> = playerEngine.hdrType
+    val frameDropCount: StateFlow<Long> = playerEngine.frameDropCount
+    val decoderFrameDropCount: StateFlow<Long> = playerEngine.decoderFrameDropCount
+
+    @Volatile
+    private var lastSeekActionTimeMs = 0L
 
     val networkSpeedBytesPerSec = MutableStateFlow(0L)
     val bufferDurationSeconds = MutableStateFlow(0.0)
@@ -368,7 +376,7 @@ class PlayerViewModel(
         viewModelScope.launch {
             playerEngine.hwdecCurrent.collectLatest { actual ->
                 val preferred = playbackSettings.value.decoderMode
-                val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
+                val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS
 
                 if (preferredIsHw && actual != "no") {
                     // HW decoder confirmed active - mark it for this video session
@@ -391,7 +399,7 @@ class PlayerViewModel(
                     if (playerEngine.playbackState.value !is PlayerState.Playing) return@collectLatest
                     if (playerEngine.hwdecCurrent.value != "no") return@collectLatest // recovered
                     val prefNow = playbackSettings.value.decoderMode
-                    val prefNowIsHw = prefNow == DecoderMode.HW || prefNow == DecoderMode.HW_PLUS || prefNow == DecoderMode.AUTO
+                    val prefNowIsHw = prefNow == DecoderMode.HW || prefNow == DecoderMode.HW_PLUS
                     if (!prefNowIsHw) return@collectLatest // user switched to SW manually
 
                     Log.w("PlayerViewModel", "Runtime HW→SW fallback detected after 1.5s confirmation.")
@@ -420,7 +428,7 @@ class PlayerViewModel(
 
                         val actual = playerEngine.hwdecCurrent.value
                         val preferred = playbackSettings.value.decoderMode
-                        val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS || preferred == DecoderMode.AUTO
+                        val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS
 
                         if (preferredIsHw && actual == "no") {
                             Log.w("PlayerViewModel", "HW decoder never became active after 2.5s of playback. Marking unsupported.")
@@ -429,6 +437,88 @@ class PlayerViewModel(
                     }
                 }
                 prevState = state
+            }
+        }
+
+        // Coroutine 3: Active Decoder Health & Stutter Monitor.
+        // Automatically detects when hardware decoding is failing or struggling (e.g. corrupted frames,
+        // duplicate/broken DTS timestamps causing slow playback or excessive frame drops like in TSU_1920x1080.mp4)
+        // and seamlessly falls back to SW decoder.
+        viewModelScope.launch {
+            var lastEvaluatedUri: String? = null
+            var hasFallenBackForCurrentVideo = false
+
+            playbackState.collectLatest { state ->
+                val uriStr = currentUri.value?.toString()
+                if (uriStr != lastEvaluatedUri) {
+                    lastEvaluatedUri = uriStr
+                    hasFallenBackForCurrentVideo = false
+                }
+
+                if (state !is PlayerState.Playing || hasFallenBackForCurrentVideo) return@collectLatest
+
+                // Only monitor when preferred decoder is HW / HW+ and active decoder is HW
+                val preferred = playbackSettings.value.decoderMode
+                val preferredIsHw = preferred == DecoderMode.HW || preferred == DecoderMode.HW_PLUS
+                if (!preferredIsHw) return@collectLatest
+                if (playerEngine.hwdecCurrent.value == "no") return@collectLatest
+
+                // Allow 1.2s for decoder pipeline to stabilize
+                delay(1200L)
+
+                var sampleStartWallMs = android.os.SystemClock.uptimeMillis()
+                var sampleStartPosMs = playerEngine.currentPosition.value
+                var sampleStartDrops = playerEngine.frameDropCount.value + playerEngine.decoderFrameDropCount.value
+
+                while (this@launch.isActive && isVideoLoaded && playerEngine.playbackState.value is PlayerState.Playing && !hasFallenBackForCurrentVideo) {
+                    delay(1500L)
+
+                    if (!isVideoLoaded || playerEngine.playbackState.value !is PlayerState.Playing) break
+                    if (playerEngine.hwdecCurrent.value == "no") break // already fell back to SW
+
+                    val now = android.os.SystemClock.uptimeMillis()
+                    // If user sought recently, reset sample window
+                    if (now - lastSeekActionTimeMs < 2000L) {
+                        sampleStartWallMs = now
+                        sampleStartPosMs = playerEngine.currentPosition.value
+                        sampleStartDrops = playerEngine.frameDropCount.value + playerEngine.decoderFrameDropCount.value
+                        continue
+                    }
+
+                    // Ignore when near end of video
+                    val totalDur = playerEngine.duration.value
+                    val currentPos = playerEngine.currentPosition.value
+                    if (totalDur > 0L && totalDur - currentPos < 1500L) break
+
+                    val wallElapsed = now - sampleStartWallMs
+                    if (wallElapsed >= 1500L) {
+                        val posElapsed = currentPos - sampleStartPosMs
+                        val speed = _playbackSpeed.value.coerceAtLeast(0.25f)
+                        val expectedPosElapsed = (wallElapsed * speed).toLong()
+                        val currentDrops = playerEngine.frameDropCount.value + playerEngine.decoderFrameDropCount.value
+                        val newDrops = currentDrops - sampleStartDrops
+
+                        // Check 1: Severe slow playback (< 40% of target speed while playing on HW)
+                        val isSevereSlowdown = posElapsed >= 0 && posElapsed < (expectedPosElapsed * 0.40f)
+                        // Check 2: Excessive frame drops in the sampling window (> 15 drops)
+                        val isExcessiveDrops = newDrops >= 15L
+
+                        if (isSevereSlowdown || isExcessiveDrops) {
+                            Log.w(
+                                "PlayerViewModel",
+                                "Hardware playback stutter/corrupt frames detected: wallElapsed=${wallElapsed}ms, posElapsed=${posElapsed}ms (expected=${expectedPosElapsed}ms), newDrops=$newDrops. Triggering SW fallback."
+                            )
+                            hasFallenBackForCurrentVideo = true
+                            triggerSwFallback("Hardware playback stutter/corrupt frames detected. Switched to Software decoding.")
+                            break
+                        }
+
+                        // Advance sample window
+                        sampleStartWallMs = now
+                        sampleStartPosMs = currentPos
+                        sampleStartDrops = currentDrops
+                    }
+                }
             }
         }
 
@@ -514,10 +604,10 @@ class PlayerViewModel(
 
     /**
      * Switches active decoder to SW and shows a user-facing toast.
-     * Called when HW decoding is confirmed unavailable for the current video.
+     * Called when HW decoding is confirmed unavailable or malfunctioning for the current video.
      * Must be called from a coroutine context.
      */
-    private suspend fun triggerSwFallback() {
+    private suspend fun triggerSwFallback(customMessage: String? = null) {
         val wasHwSupported = _isHwSupported.value
         _isHwSupported.value = false
         playerEngine.setDecoder(DecoderMode.SW)
@@ -525,7 +615,7 @@ class PlayerViewModel(
             withContext(Dispatchers.Main) {
                 Toast.makeText(
                     getApplication(),
-                    "Hardware decoding is not supported for this video. Falling back to Software decoding.",
+                    customMessage ?: "Hardware decoding is not supported for this video. Falling back to Software decoding.",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -648,6 +738,7 @@ class PlayerViewModel(
         isExternalSubtitleLoaded = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
+        lastSeekActionTimeMs = 0L
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
 
@@ -883,6 +974,7 @@ class PlayerViewModel(
         isExternalSubtitleLoaded = false
         _isHwSupported.value = true
         hwdecEverActiveForCurrentVideo = false
+        lastSeekActionTimeMs = 0L
         val scheme = uri.scheme
         isNetworkStream.value = scheme == "http" || scheme == "https"
 
@@ -1063,11 +1155,15 @@ class PlayerViewModel(
     }
 
     fun seekTo(position: Long, precise: Boolean = true) {
+        lastSeekActionTimeMs = android.os.SystemClock.uptimeMillis()
         watchTracker.onSeek(position)
         playerEngine.seekTo(position, precise)
     }
 
     fun setScrubbing(isScrubbing: Boolean) {
+        if (!isScrubbing) {
+            lastSeekActionTimeMs = android.os.SystemClock.uptimeMillis()
+        }
         playerEngine.setScrubbing(isScrubbing)
     }
 
@@ -1402,7 +1498,7 @@ class PlayerViewModel(
     fun cycleDecoder() {
         val currentMode = playbackSettings.value.decoderMode
         var nextMode = currentMode.next()
-        if (!_isHwSupported.value && (nextMode == DecoderMode.HW || nextMode == DecoderMode.HW_PLUS || nextMode == DecoderMode.AUTO)) {
+        if (!_isHwSupported.value && (nextMode == DecoderMode.HW || nextMode == DecoderMode.HW_PLUS)) {
             nextMode = DecoderMode.SW
             Toast.makeText(getApplication(), "HW skipped (Unsupported)", Toast.LENGTH_SHORT).show()
         }
@@ -1418,7 +1514,7 @@ class PlayerViewModel(
     }
 
     fun updateDecoderMode(mode: DecoderMode) {
-        if (!_isHwSupported.value && (mode == DecoderMode.HW || mode == DecoderMode.HW_PLUS || mode == DecoderMode.AUTO)) {
+        if (!_isHwSupported.value && (mode == DecoderMode.HW || mode == DecoderMode.HW_PLUS)) {
             Toast.makeText(
                 getApplication(),
                 "Hardware decoding not supported for this video",

@@ -166,7 +166,11 @@ fun PlayerInterfaceSettingsScreen(
                 SettingClickableCard(
                     icon = Icons.Default.PhotoSizeSelectLarge,
                     title = "Controls Icon Size",
-                    subtitle = playbackSettings.controlIconSize.replaceFirstChar { it.uppercase() },
+                    subtitle = when (playbackSettings.controlIconSize.lowercase()) {
+                        "small" -> "Small (Compact)"
+                        "large" -> "Large (Spacious)"
+                        else -> "Medium (Default)"
+                    },
                     onClick = { showIconSizeDialog = true }
                 )
 
@@ -568,12 +572,17 @@ fun PlayerInterfaceSettingsScreen(
             text = {
                 Column(Modifier.selectableGroup()) {
                     sizes.forEach { size ->
+                        val (label, description) = when (size) {
+                            "small" -> "Small (Compact)" to "Smaller controls and tighter spacing to maximize viewing area"
+                            "large" -> "Large (Spacious)" to "Larger buttons and icons for easier touch accessibility"
+                            else -> "Medium (Default)" to "Standard balanced controls and spacing"
+                        }
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 48.dp)
+                                .heightIn(min = 52.dp)
                                 .selectable(
-                                    selected = (playbackSettings.controlIconSize == size),
+                                    selected = (playbackSettings.controlIconSize.lowercase() == size),
                                     onClick = {
                                         settingsViewModel.updateControlIconSize(size)
                                         showIconSizeDialog = false
@@ -584,14 +593,22 @@ fun PlayerInterfaceSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (playbackSettings.controlIconSize == size),
+                                selected = (playbackSettings.controlIconSize.lowercase() == size),
                                 onClick = null
                             )
                             Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = size.replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Column {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

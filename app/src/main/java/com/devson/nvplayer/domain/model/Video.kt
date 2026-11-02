@@ -51,6 +51,9 @@ data class Video(
     val externalSubtitles: List<String> = emptyList()
 )
 
+val Video.isPathHidden: Boolean
+    get() = title.startsWith(".") || folderName.startsWith(".") || isPathHidden(path)
+
 fun List<Video>.applySort(
     field: SortField,
     direction: SortDirection,

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -48,7 +49,10 @@ fun FolderListContent(
     onFolderLongClick: (VideoFolder) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    isPermissionRequired: Boolean = false,
+    onPermissionClick: (() -> Unit)? = null,
+    onScanClick: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val sortedFolders = remember(folders, settings.sortField, settings.sortDirection, historyMap) {
@@ -67,12 +71,23 @@ fun FolderListContent(
 
     if (sortedFolders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CustomEmptyStateView(
-                icon    = Icons.Filled.VideoLibrary,
-                heading = stringResource(R.string.folder_no_folders_found),
-                subtext = stringResource(R.string.folder_no_folders_desc),
-                ctaLabel = stringResource(R.string.folder_scan_cta)
-            )
+            if (isPermissionRequired) {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.FolderOpen,
+                    heading = "Storage Access Required",
+                    subtext = "Android 15 requires All Files Access permission to browse and play videos from external USB drives.",
+                    ctaLabel = "Grant Permission",
+                    onCtaClick = onPermissionClick
+                )
+            } else {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.VideoLibrary,
+                    heading = stringResource(R.string.folder_no_folders_found),
+                    subtext = stringResource(R.string.folder_no_folders_desc),
+                    ctaLabel = stringResource(R.string.folder_scan_cta),
+                    onCtaClick = onScanClick
+                )
+            }
         }
         return
     }

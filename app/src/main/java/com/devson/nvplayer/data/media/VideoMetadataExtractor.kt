@@ -23,7 +23,10 @@ object VideoMetadataExtractor {
 
     data class ExtractedDetails(
         val frameRate: Float?,
-        val embeddedSubtitles: List<String>
+        val embeddedSubtitles: List<String>,
+        val durationMs: Long? = null,
+        val width: Int? = null,
+        val height: Int? = null
     )
 
     fun isSubtitleExtension(ext: String?): Boolean {
@@ -78,6 +81,9 @@ object VideoMetadataExtractor {
     ): ExtractedDetails = withContext(Dispatchers.IO) {
         var fps: Float? = null
         val embeddedSubs = mutableSetOf<String>()
+        var extractedDuration: Long? = if (durationMs > 0L) durationMs else null
+        var extractedWidth: Int? = null
+        var extractedHeight: Int? = null
 
         val file = if (!path.isNullOrBlank()) File(path) else null
         val fileExists = file != null && file.exists()
@@ -137,6 +143,15 @@ object VideoMetadataExtractor {
                     val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
 
                     if (mime.startsWith("video/")) {
+                        if (extractedWidth == null && format.containsKey(MediaFormat.KEY_WIDTH)) {
+                            try { extractedWidth = format.getInteger(MediaFormat.KEY_WIDTH) } catch (_: Exception) {}
+                        }
+                        if (extractedHeight == null && format.containsKey(MediaFormat.KEY_HEIGHT)) {
+                            try { extractedHeight = format.getInteger(MediaFormat.KEY_HEIGHT) } catch (_: Exception) {}
+                        }
+                        if (extractedDuration == null && format.containsKey(MediaFormat.KEY_DURATION)) {
+                            try { extractedDuration = format.getLong(MediaFormat.KEY_DURATION) / 1000L } catch (_: Exception) {}
+                        }
                         if (fps == null && format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
                             try {
                                 val rateInt = format.getInteger(MediaFormat.KEY_FRAME_RATE)
@@ -174,14 +189,30 @@ object VideoMetadataExtractor {
             Log.w(TAG, "MediaExtractor inspection failed: ${e.localizedMessage}")
         }
 
-        // 3. Fallback: MediaMetadataRetriever for capture framerate or frame-count calculation
-        if (fps == null || fps <= 0f) {
+        // 3. Fallback: MediaMetadataRetriever for capture framerate or dimensions/duration
+        if (fps == null || fps <= 0f || extractedDuration == null || extractedWidth == null || extractedHeight == null) {
             val retriever = MediaMetadataRetriever()
             try {
                 if (file != null && fileExists) {
                     retriever.setDataSource(file.absolutePath)
                 } else {
                     retriever.setDataSource(context, uri)
+                }
+
+                if (extractedDuration == null || extractedDuration <= 0L) {
+                    val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    val dur = durStr?.toLongOrNull()
+                    if (dur != null && dur > 0L) extractedDuration = dur
+                }
+                if (extractedWidth == null || (extractedWidth ?: 0) <= 0) {
+                    val wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    val w = wStr?.toIntOrNull()
+                    if (w != null && w > 0) extractedWidth = w
+                }
+                if (extractedHeight == null || (extractedHeight ?: 0) <= 0) {
+                    val hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    val h = hStr?.toIntOrNull()
+                    if (h != null && h > 0) extractedHeight = h
                 }
 
                 val capRateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
@@ -194,7 +225,7 @@ object VideoMetadataExtractor {
                     val dur = if (durationMs > 0L) {
                         durationMs
                     } else {
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        extractedDuration ?: 0L
                     }
                     if (frameCount != null && frameCount > 0L && dur > 0L) {
                         fps = (frameCount * 1000f) / dur.toFloat()
@@ -256,7 +287,10 @@ object VideoMetadataExtractor {
 
         ExtractedDetails(
             frameRate = cleanFps,
-            embeddedSubtitles = embeddedSubs.toList()
+            embeddedSubtitles = embeddedSubs.toList(),
+            durationMs = extractedDuration,
+            width = extractedWidth,
+            height = extractedHeight
         )
     }
 }

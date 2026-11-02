@@ -24,8 +24,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import com.devson.nvplayer.domain.model.isPathHidden
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -59,6 +62,10 @@ class VideoListViewModel(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private val _isDiscoveringHidden = MutableStateFlow(false)
+    val isDiscoveringHidden: StateFlow<Boolean> = _isDiscoveringHidden.asStateFlow()
+    private var hiddenDiscoveryJob: kotlinx.coroutines.Job? = null
 
     private val _loadingProgress = MutableStateFlow(0f)
     val loadingProgress: StateFlow<Float> = _loadingProgress.asStateFlow()
@@ -109,17 +116,24 @@ class VideoListViewModel(
     }
 
     /**
-     * Master-filtered flat list: applies storage path filter, then folder filter mode (whitelist/blacklist).
+     * Master-filtered flat list: applies storage path filter, hidden filter, then folder filter mode (whitelist/blacklist).
      * All subsequent derived flows consume this instead of _rawVideosFlat directly.
      */
     private val _activeVideosFlat: StateFlow<List<Video>> =
         combine(
             _rawVideosFlat,
             _selectedStorage,
-            playbackSettingsRepo.playbackSettingsFlow
-        ) { raw, storage, settings ->
-            val storageFiltered = if (storage == null) raw
-            else raw.filter { it.path.startsWith(storage.rootPath) }
+            playbackSettingsRepo.playbackSettingsFlow,
+            viewSettingsRepo.viewSettingsFlow
+        ) { raw, storage, settings, viewSettings ->
+            val showHidden = viewSettings.showHiddenFolders
+            val hiddenFiltered = if (showHidden) raw else raw.filter { !it.isPathHidden }
+
+            val storageFiltered = if (storage == null) hiddenFiltered
+            else {
+                val cleanRoot = storage.rootPath.trimEnd('/')
+                hiddenFiltered.filter { it.path == cleanRoot || it.path.startsWith("$cleanRoot/") }
+            }
 
             when (settings.folderFilterMode) {
                 FolderFilterMode.WHITELIST -> {
@@ -151,12 +165,18 @@ class VideoListViewModel(
             _rawVideosByFolder,
             _selectedStorage,
             _searchQuery,
-            playbackSettingsRepo.playbackSettingsFlow
-        ) { raw, storage, query, settings ->
-            raw.mapValues { (_, videos) ->
-                videos.filter { video ->
-                    val matchesStorage = storage == null || video.path.startsWith(storage.rootPath)
-                    val matchesPath = !video.path.contains("/.")
+            playbackSettingsRepo.playbackSettingsFlow,
+            viewSettingsRepo.viewSettingsFlow
+        ) { raw, storage, query, settings, viewSettings ->
+            val showHidden = viewSettings.showHiddenFolders
+            raw.mapNotNull { (folder, videos) ->
+                if (!showHidden && folder.isPathHidden) return@mapNotNull null
+                val filteredVideos = videos.filter { video ->
+                    val matchesStorage = if (storage == null) true else {
+                        val cleanRoot = storage.rootPath.trimEnd('/')
+                        video.path == cleanRoot || video.path.startsWith("$cleanRoot/")
+                    }
+                    val matchesHidden = showHidden || !video.isPathHidden
                     val matchesSearch = query.isBlank() || SearchUtils.matches(video.title, query)
                     val matchesFilter = when (settings.folderFilterMode) {
                         FolderFilterMode.WHITELIST -> {
@@ -168,18 +188,18 @@ class VideoListViewModel(
                         }
                         FolderFilterMode.NONE -> true
                     }
-                    matchesStorage && matchesPath && matchesSearch && matchesFilter
+                    matchesStorage && matchesHidden && matchesSearch && matchesFilter
                 }
-            }.filterValues { it.isNotEmpty() }
+                if (filteredVideos.isNotEmpty()) folder to filteredVideos else null
+            }.toMap()
         }.flowOn(Dispatchers.Default)
          .stateIn(viewModelScope, SharingStarted.Lazily, emptyMap())
 
     val videosFlat: StateFlow<List<Video>> =
         combine(_activeVideosFlat, _searchQuery) { activeFlat, query ->
             activeFlat.filter { video ->
-                val matchesPath = !video.path.contains("/.")
                 val matchesSearch = query.isBlank() || SearchUtils.matches(video.title, query)
-                matchesPath && matchesSearch
+                matchesSearch
             }
         }.flowOn(Dispatchers.Default)
          .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -239,6 +259,20 @@ class VideoListViewModel(
             }
         }
 
+        viewModelScope.launch {
+            viewSettingsRepo.viewSettingsFlow
+                .map { it.showHiddenFolders }
+                .distinctUntilChanged()
+                .collect { showHidden ->
+                    if (showHidden) {
+                        discoverHiddenVideos()
+                    } else {
+                        hiddenDiscoveryJob?.cancel()
+                        _isDiscoveringHidden.value = false
+                    }
+                }
+        }
+
         try {
             repository.context.contentResolver.registerContentObserver(
                 android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
@@ -252,6 +286,7 @@ class VideoListViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        hiddenDiscoveryJob?.cancel()
         try {
             repository.context.contentResolver.unregisterContentObserver(contentObserver)
         } catch (e: Exception) {
@@ -264,6 +299,7 @@ class VideoListViewModel(
      * If the previously selected storage is no longer mounted, falls back to internal.
      */
     fun refreshStorages(context: Context) {
+        val oldVolumes = _availableStorages.value
         val volumes = getAvailableStorageVolumes(context)
         _availableStorages.value = volumes
 
@@ -275,6 +311,14 @@ class VideoListViewModel(
             // Reset explorer path to the new root
             internal?.let { _currentExplorerPath.value = it.rootPath }
         }
+
+        // If a new external volume was connected, refresh videos automatically
+        val hasNewExternalVolume = volumes.any { newVol ->
+            !newVol.isInternal && oldVolumes.none { oldVol -> oldVol.id == newVol.id }
+        }
+        if (hasNewExternalVolume) {
+            loadVideos(forceRefresh = true)
+        }
     }
 
     /** Switches active storage and resets the explorer path to the new root. */
@@ -283,6 +327,12 @@ class VideoListViewModel(
         _currentExplorerPath.value = storage.rootPath
         // Clear folder selection so filtered views update cleanly
         _selectedFolder.value = null
+
+        // If switching to an external storage that has not been scanned yet, trigger a scan
+        val cleanRoot = storage.rootPath.trimEnd('/')
+        if (!storage.isInternal && _rawVideosFlat.value.none { it.path == cleanRoot || it.path.startsWith("$cleanRoot/") }) {
+            loadVideos(forceRefresh = true)
+        }
     }
 
     fun loadVideos(forceRefresh: Boolean = false) {
@@ -321,8 +371,15 @@ class VideoListViewModel(
                 val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
                 val uncachedVideos = mutableListOf<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
 
+                val activeStorage = _selectedStorage.value
+                val activeCleanRoot = activeStorage?.rootPath?.trimEnd('/')
                 for ((parentPath, items) in groupedByPath) {
-                    val folderName = parentPath.substringAfterLast('/').ifEmpty { parentPath }
+                    val cleanParent = parentPath.trimEnd('/')
+                    val folderName = if (activeCleanRoot != null && cleanParent == activeCleanRoot) {
+                        activeStorage?.name ?: cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                    } else {
+                        cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                    }
                     val videos = items.map { item ->
                         val uriStr = item.uri.toString()
                         val cached = cachedMap[uriStr]
@@ -341,8 +398,8 @@ class VideoListViewModel(
                             finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                             externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-                            // Re-probe if frame rate was previously not detected (e.g. MKVs cached prior to EBML/MediaInfo extractor)
-                            if (finalFps == null) {
+                            // Re-probe if frame rate, duration, or resolution was not detected
+                            if (finalFps == null || finalDuration == 0L || item.width == 0) {
                                 uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                             }
                         } else {
@@ -405,18 +462,21 @@ class VideoListViewModel(
 
                                     val fps = details?.frameRate
                                     val embeddedSubs = details?.embeddedSubtitles ?: emptyList()
+                                    val resolvedDuration = if (duration > 0L) duration else (details?.durationMs ?: 0L)
+                                    val resolvedWidth = if (item.width > 0) item.width else (details?.width ?: 0)
+                                    val resolvedHeight = if (item.height > 0) item.height else (details?.height ?: 0)
 
                                     val cachedMetadata = CachedVideoMetadata(
                                         uri = uriStr,
                                         size = item.size,
                                         dateModified = dateMod,
-                                        duration = duration,
+                                        duration = resolvedDuration,
                                         externalSubtitleUri = null,
                                         frameRate = fps ?: -1f,
                                         embeddedSubtitles = embeddedSubs.joinToString(","),
                                         externalSubtitles = externalSubs.joinToString(",")
                                     )
-                                    Triple(uriStr, cachedMetadata, Pair(fps, Pair(embeddedSubs, externalSubs)))
+                                    Triple(uriStr, cachedMetadata, Triple(fps, Pair(embeddedSubs, externalSubs), Triple(resolvedDuration, resolvedWidth, resolvedHeight)))
                                 }
                             }.awaitAll()
 
@@ -428,9 +488,15 @@ class VideoListViewModel(
                                 folderVideos.map { video ->
                                     val enhancement = enhancementMap[video.uri]
                                     if (enhancement != null) {
-                                        val (fps, subsPair) = enhancement
+                                        val (fps, subsPair, dims) = enhancement
                                         val (embedded, external) = subsPair
+                                        val (dur, w, h) = dims
+                                        val res = if (w > 0 && h > 0) "${w}x${h}" else video.resolution
                                         video.copy(
+                                            duration = if (dur > 0L) dur else video.duration,
+                                            width = if (w > 0) w else video.width,
+                                            height = if (h > 0) h else video.height,
+                                            resolution = res,
                                             frameRate = fps,
                                             embeddedSubtitles = embedded,
                                             externalSubtitles = external
@@ -454,6 +520,105 @@ class VideoListViewModel(
                 _isLoading.value = false
                 _isRefreshing.value = false
             }
+
+            if (viewSettingsRepo.viewSettingsFlow.value.showHiddenFolders) {
+                discoverHiddenVideos()
+            }
+        }
+    }
+
+    fun discoverHiddenVideos() {
+        hiddenDiscoveryJob?.cancel()
+        hiddenDiscoveryJob = viewModelScope.launch(Dispatchers.IO) {
+            _isDiscoveringHidden.value = true
+            try {
+                val blacklisted = playbackSettingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
+                val metadataDao = repository.videoMetadataDao
+                val cachedMap = try {
+                    metadataDao.getAllMetadataSync().associateBy { it.uri }.toMutableMap()
+                } catch (_: Exception) {
+                    mutableMapOf()
+                }
+
+                repository.scanHiddenVideos(blacklisted) { batch ->
+                    if (batch.isEmpty()) return@scanHiddenVideos
+
+                    val currentRawMap = _rawVideosByFolder.value.toMutableMap()
+                    val existingUris = _rawVideosFlat.value.map { it.uri }.toHashSet()
+                    val newItems = batch.filter { existingUris.add(it.uri.toString()) }
+                    if (newItems.isEmpty()) return@scanHiddenVideos
+
+                    val metadataToInsert = newItems.map { item ->
+                        CachedVideoMetadata(
+                            uri = item.uri.toString(),
+                            size = item.size,
+                            dateModified = item.dateModified * 1000L,
+                            duration = item.duration
+                        )
+                    }
+                    metadataDao.insertAll(metadataToInsert)
+
+                    val newVideos = newItems.map { item ->
+                        val uriStr = item.uri.toString()
+                        val cached = cachedMap[uriStr]
+                        Video(
+                            uri = uriStr,
+                            title = item.title,
+                            duration = if (item.duration > 0L) item.duration else (cached?.duration ?: 0L),
+                            folderName = item.folderName,
+                            path = item.path,
+                            size = if (item.size > 0L) item.size else (cached?.size ?: 0L),
+                            width = item.width,
+                            height = item.height,
+                            dateAdded = item.dateModified * 1000L,
+                            dateModified = item.dateModified * 1000L,
+                            playedTime = null,
+                            lastPlayedAt = null,
+                            resolution = "${item.width}x${item.height}",
+                            frameRate = cached?.frameRate?.takeIf { it > 0f },
+                            thumbnailUri = item.thumbnailUri?.toString(),
+                            embeddedSubtitles = emptyList(),
+                            externalSubtitles = emptyList()
+                        )
+                    }
+
+                    val newGrouped = newVideos.groupBy { video ->
+                        val lastSlash = video.path.lastIndexOf('/')
+                        if (lastSlash > 0) video.path.substring(0, lastSlash) else video.folderName
+                    }
+
+                    val activeStorage = _selectedStorage.value
+                    val activeCleanRoot = activeStorage?.rootPath?.trimEnd('/')
+
+                    for ((parentPath, videos) in newGrouped) {
+                        val cleanParent = parentPath.trimEnd('/')
+                        val folderName = if (activeCleanRoot != null && cleanParent == activeCleanRoot) {
+                            activeStorage?.name ?: cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                        } else {
+                            cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                        }
+                        val folderKey = currentRawMap.keys.firstOrNull { it.id == parentPath }
+                            ?: VideoFolder(id = parentPath, name = folderName)
+                        val existingInFolder = currentRawMap[folderKey] ?: emptyList()
+                        currentRawMap[folderKey] = existingInFolder + videos
+                    }
+
+                    _rawVideosByFolder.value = currentRawMap.toMap()
+                    _rawVideosFlat.value = currentRawMap.values.flatten()
+                }
+            } catch (e: Exception) {
+                if (e !is kotlinx.coroutines.CancellationException) {
+                    android.util.Log.e("VideoListViewModel", "Error in discoverHiddenVideos", e)
+                }
+            } finally {
+                _isDiscoveringHidden.value = false
+            }
+        }
+    }
+
+    fun updateShowHiddenFolders(show: Boolean) {
+        viewModelScope.launch {
+            viewSettingsRepo.updateShowHiddenFolders(show)
         }
     }
 

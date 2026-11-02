@@ -2,6 +2,7 @@ package com.devson.nvplayer.ui.screens.videolist.components.explorer
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,19 +14,25 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.devson.nvplayer.R
 import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.common.components.CustomEmptyStateView
 import com.devson.nvplayer.ui.screen.videolist.components.video.VideoGridItem
 import com.devson.nvplayer.ui.screen.videolist.components.video.VideoListItem
 import com.devson.nvplayer.ui.screen.videolist.components.folder.FolderGridItem
@@ -49,9 +56,35 @@ fun ExplorerListContent(
     onVideoLongClick: (Video) -> Unit,
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    isPermissionRequired: Boolean = false,
+    onPermissionClick: (() -> Unit)? = null,
+    onScanClick: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
+
+    if (items.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (isPermissionRequired) {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.FolderOpen,
+                    heading = "Storage Access Required",
+                    subtext = "Android 15 requires All Files Access permission to browse and play videos from external USB drives.",
+                    ctaLabel = "Grant Permission",
+                    onCtaClick = onPermissionClick
+                )
+            } else {
+                CustomEmptyStateView(
+                    icon = Icons.Filled.FolderOpen,
+                    heading = "No Files or Folders Found",
+                    subtext = "No playable media found in this location.",
+                    ctaLabel = stringResource(R.string.folder_scan_cta),
+                    onCtaClick = onScanClick
+                )
+            }
+        }
+        return
+    }
 
     val folders = remember(items) {
         items.filterIsInstance<ExplorerItem.FolderItem>().map { it.folder }

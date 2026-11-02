@@ -41,6 +41,7 @@ fun FolderScreen(
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val playbackSettings by settingsViewModel.playbackSettings.collectAsState()
+    val viewSettings by settingsViewModel.viewSettings.collectAsState()
     val blacklistedFolders = playbackSettings.blacklistedFolders
     val whitelistedFolders = playbackSettings.whitelistedFolders
     val filterMode = playbackSettings.folderFilterMode
@@ -119,6 +120,44 @@ fun FolderScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+
+            // Show Hidden Folders Toggle
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Show Hidden Folders",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Display dot-prefixed folders and hidden videos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewSettings.showHiddenFolders,
+                        onCheckedChange = { settingsViewModel.updateShowHiddenFolders(it) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             //  Filter Mode Section 
             FilterModeSection(

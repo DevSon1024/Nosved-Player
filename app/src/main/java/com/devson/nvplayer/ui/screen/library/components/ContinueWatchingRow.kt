@@ -17,6 +17,7 @@ import com.devson.nvplayer.data.model.LibraryMediaItem
 fun ContinueWatchingRow(
     items: List<LibraryMediaItem>,
     onItemClick: (LibraryMediaItem) -> Unit,
+    onRemoveClick: ((LibraryMediaItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) return
@@ -51,7 +52,8 @@ fun ContinueWatchingRow(
             ) { item ->
                 MediaBackdropCard(
                     item = item,
-                    onClick = { onItemClick(item) }
+                    onClick = { onItemClick(item) },
+                    onRemoveClick = if (onRemoveClick != null) { { onRemoveClick(item) } } else null
                 )
             }
         }

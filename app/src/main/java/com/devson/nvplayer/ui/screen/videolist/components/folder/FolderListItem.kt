@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -42,11 +45,13 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.R
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.isPathHidden
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
 import com.devson.nvplayer.ui.common.shapes.FolderShape
@@ -84,13 +89,16 @@ fun FolderMediaPreview(
     videos: List<Video>,
     isSelected: Boolean,
     settings: ViewSettings,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isHidden: Boolean = false,
+    hiddenIconSize: Dp = 18.dp
 ) {
     val bgColor = MaterialTheme.colorScheme.secondaryContainer
- 
+    val folderShape = remember { FolderShape() }
+
     Box(
         modifier = modifier
-            .clip(FolderShape())
+            .clip(folderShape)
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
@@ -98,18 +106,27 @@ fun FolderMediaPreview(
             val firstVideo = videos.first()
             VideoThumbnail(
                 uri = firstVideo.uri,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (isHidden) Modifier.blur(16.dp) else Modifier),
                 showPlayIcon = false
             )
-            // Subtle bottom scrim so folder looks layered
+            // Subtle bottom scrim so folder looks layered; dark scrim over blurred hidden video
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(
-                            0.55f to Color.Transparent,
-                            1.0f  to Color.Black.copy(alpha = 0.28f)
-                        )
+                        if (isHidden) {
+                            Brush.verticalGradient(
+                                0.0f to Color.Black.copy(alpha = 0.35f),
+                                1.0f to Color.Black.copy(alpha = 0.55f)
+                            )
+                        } else {
+                            Brush.verticalGradient(
+                                0.55f to Color.Transparent,
+                                1.0f  to Color.Black.copy(alpha = 0.28f)
+                            )
+                        }
                     )
             )
         } else {
@@ -120,6 +137,27 @@ fun FolderMediaPreview(
                 tint         = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f),
                 modifier     = Modifier.size(28.dp)
             )
+        }
+
+        // Hidden eye indicator centered over the folder icon / blurred thumbnail
+        if (isHidden) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.45f),
+                        shape = CircleShape
+                    )
+                    .padding(hiddenIconSize / 3.5f),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.VisibilityOff,
+                    contentDescription = "Hidden",
+                    tint = Color.White.copy(alpha = 0.95f),
+                    modifier = Modifier.size(hiddenIconSize)
+                )
+            }
         }
     }
 }
@@ -136,7 +174,7 @@ fun FolderListItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
-    val isHidden = folder.name.startsWith(".")
+    val isHidden = folder.isPathHidden
     val newCount = remember(videos, historyMap, settings.newVideoDaysThreshold) {
         videos.count { v -> getWatchState(
             historyMap[v.uri]?.lastPositionMs ?: 0L,
@@ -182,17 +220,23 @@ fun FolderListItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
-                    .then(if (isHidden && !isSelected) Modifier.alpha(0.55f) else Modifier),
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Folder thumbnail
-                Box(modifier = Modifier.then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)) {
+                val folderShape = remember { FolderShape() }
+                Box(
+                    modifier = Modifier
+                        .size(width = 72.dp, height = 54.dp)
+                        .clip(folderShape)
+                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)
+                ) {
                     FolderMediaPreview(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.size(width = 72.dp, height = 54.dp)
+                        modifier = Modifier.fillMaxSize(),
+                        isHidden = isHidden
                     )
                     NewCountBadge(newCount)
                 }
@@ -201,19 +245,33 @@ fun FolderListItem(
 
                 // Folder name + metadata
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text       = folder.name,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        color      = when {
-                            isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                            isRecentlyPlayed -> MaterialTheme.colorScheme.primary
-                            isHidden   -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                            else       -> MaterialTheme.colorScheme.onSurface
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text       = folder.name,
+                            style      = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f, fill = false),
+                            color      = when {
+                                isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                isRecentlyPlayed -> MaterialTheme.colorScheme.primary
+                                else       -> MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                        if (isHidden) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.VisibilityOff,
+                                contentDescription = "Hidden folder",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(15.dp)
+                            )
                         }
-                    )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     FolderMetadataChips(videos, settings)
                 }

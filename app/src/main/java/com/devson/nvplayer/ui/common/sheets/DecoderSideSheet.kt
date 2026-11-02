@@ -185,14 +185,12 @@ fun DecoderSideSheet(
                             }
 
                             val modeTag = when (mode) {
-                                DecoderMode.AUTO -> "AUTO"
                                 DecoderMode.HW -> "HW"
                                 DecoderMode.HW_PLUS -> "HW+"
                                 DecoderMode.SW -> "SW"
                             }
 
                             val description = when (mode) {
-                                DecoderMode.AUTO -> "Automatically selects optimal decoder for video stream profile"
                                 DecoderMode.HW -> "Hardware decoder using native MediaCodec GPU acceleration"
                                 DecoderMode.HW_PLUS -> "Advanced Hardware+ decoder with direct video surface rendering"
                                 DecoderMode.SW -> "Software CPU decoding fallback for legacy codec compatibility"
@@ -247,7 +245,6 @@ fun DecoderSideSheet(
                                                 }
 
                                                 val titleText = when (mode) {
-                                                    DecoderMode.AUTO -> "Auto (Recommended)"
                                                     DecoderMode.HW -> "Hardware"
                                                     DecoderMode.HW_PLUS -> "Hardware+"
                                                     DecoderMode.SW -> "Software"
