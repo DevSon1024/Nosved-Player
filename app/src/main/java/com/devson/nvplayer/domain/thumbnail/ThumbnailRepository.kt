@@ -260,7 +260,8 @@ class ThumbnailRepository private constructor(private val context: Context) {
                 ?.let { artwork -> "|art:${artwork.name}:${artwork.length()}:${artwork.lastModified()}" }
                 .orEmpty()
 
-        return "${video.size}|${video.dateModified}|${video.duration}$artworkSignature"
+        val stableId = video.path.ifEmpty { video.uri }
+        return "$stableId|${video.size}|${video.dateModified}|${video.duration}$artworkSignature"
     }
 
     private fun buildRequest(video: Video): ImageRequest =

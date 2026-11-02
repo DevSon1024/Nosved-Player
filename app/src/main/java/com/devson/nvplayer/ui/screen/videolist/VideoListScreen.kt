@@ -28,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -264,6 +265,7 @@ fun VideoListScreen(
     //  Watch History 
     val historyMap by homeViewModel.historyMapFlow.collectAsStateWithLifecycle()
     val lastPlayedVideo by viewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+    val isDiscoveringHidden by viewModel.isDiscoveringHidden.collectAsStateWithLifecycle()
 
     LaunchedEffect(historyMap) {
         viewModel.setHistoryMap(historyMap)
@@ -739,6 +741,43 @@ fun VideoListScreen(
                         .padding(top = padding.calculateTopPadding())
                         .align(Alignment.TopCenter)
                 )
+            }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isDiscoveringHidden,
+                enter = fadeIn() + androidx.compose.animation.expandVertically(),
+                exit = fadeOut() + androidx.compose.animation.shrinkVertically(),
+                modifier = Modifier
+                    .padding(top = padding.calculateTopPadding() + 8.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(10f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f),
+                    tonalElevation = 3.dp,
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.8.dp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Discovering hidden videos...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
 
             if (!hasPermission) {

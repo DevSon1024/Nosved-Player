@@ -35,5 +35,6 @@ data class ViewSettings(
     val viewMode: ViewMode = ViewMode.ALL_FOLDERS,
     val thumbnailMode: ThumbnailMode = ThumbnailMode.FIRST_FRAME,
     val thumbnailFramePosition: Float = 33f,
-    val newVideoDaysThreshold: Int = 7
+    val newVideoDaysThreshold: Int = 7,
+    val showHiddenFolders: Boolean = false
 )

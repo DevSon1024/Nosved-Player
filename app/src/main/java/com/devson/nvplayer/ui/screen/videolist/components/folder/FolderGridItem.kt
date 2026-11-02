@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.devson.nvplayer.R
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.domain.model.isPathHidden
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
 import com.devson.nvplayer.ui.common.shapes.FolderShape
@@ -63,7 +65,7 @@ fun FolderGridItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
-    val isHidden = folder.name.startsWith(".")
+    val isHidden = folder.isPathHidden
     val isDense = settings.gridColumns >= 3
     val newCount = remember(videos, historyMap, settings.newVideoDaysThreshold) {
         videos.count { v -> getWatchState(
@@ -93,7 +95,7 @@ fun FolderGridItem(
         animationSpec = tween(180),
         label = "folderGridBorder"
     )
- 
+
     // 1-column: wide landscape card
     if (settings.gridColumns == 1) {
         Card(
@@ -119,25 +121,41 @@ fun FolderGridItem(
                             videos = videos,
                             isSelected = false,
                             settings = settings,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            isHidden = isHidden,
+                            hiddenIconSize = 22.dp
                         )
                         NewCountBadge(newCount)
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text       = folder.name,
-                            style      = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines   = 2,
-                            overflow   = TextOverflow.Ellipsis,
-                            color      = when {
-                                isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                                isRecentlyPlayed -> MaterialTheme.colorScheme.primary
-                                isHidden   -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                                else       -> MaterialTheme.colorScheme.onSurface
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text       = folder.name,
+                                style      = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines   = 2,
+                                overflow   = TextOverflow.Ellipsis,
+                                modifier   = Modifier.weight(1f, fill = false),
+                                color      = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    isRecentlyPlayed -> MaterialTheme.colorScheme.primary
+                                    else       -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            if (isHidden) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.VisibilityOff,
+                                    contentDescription = "Hidden folder",
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(15.dp)
+                                )
                             }
-                        )
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         FolderMetadataChips(videos, settings, isGrid = false)
                     }
@@ -147,7 +165,7 @@ fun FolderGridItem(
         }
         return
     }
- 
+
     // 2-column: thumbnail + label strip
     if (settings.gridColumns == 2) {
         Card(
@@ -173,7 +191,9 @@ fun FolderGridItem(
                         settings = settings,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxSize()
+                            .fillMaxSize(),
+                        isHidden = isHidden,
+                        hiddenIconSize = 20.dp
                     )
                     NewCountBadge(newCount)
                     }
@@ -182,19 +202,33 @@ fun FolderGridItem(
                             .fillMaxWidth()
                             .padding(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        Text(
-                            text       = folder.name,
-                            style      = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines   = 1,
-                            overflow   = TextOverflow.Ellipsis,
-                            color      = when {
-                                isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                                isRecentlyPlayed -> MaterialTheme.colorScheme.primary
-                                isHidden   -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                                else       -> MaterialTheme.colorScheme.onSurface
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text       = folder.name,
+                                style      = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines   = 1,
+                                overflow   = TextOverflow.Ellipsis,
+                                modifier   = Modifier.weight(1f, fill = false),
+                                color      = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    isRecentlyPlayed -> MaterialTheme.colorScheme.primary
+                                    else       -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            if (isHidden) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.VisibilityOff,
+                                    contentDescription = "Hidden folder",
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(13.dp)
+                                )
                             }
-                        )
+                        }
                         Spacer(modifier = Modifier.height(3.dp))
                         FolderMetadataChips(videos, settings, isGrid = true)
                     }
@@ -204,7 +238,7 @@ fun FolderGridItem(
         }
         return
     }
- 
+
     val isVeryDense = settings.gridColumns >= 4
 
     // 3+ columns: full-bleed thumbnail with overlay label
@@ -228,7 +262,9 @@ fun FolderGridItem(
                     videos = videos,
                     isSelected = false,
                     settings = settings,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    isHidden = isHidden,
+                    hiddenIconSize = if (isVeryDense) 16.dp else 20.dp
                 )
 
                 // Gradient scrim for label legibility
@@ -270,20 +306,34 @@ fun FolderGridItem(
                         .fillMaxWidth()
                         .padding(horizontal = if (isVeryDense) 4.dp else 6.dp, vertical = if (isVeryDense) 3.dp else 5.dp)
                 ) {
-                    Text(
-                        text       = folder.name,
-                        color      = when {
-                            isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
-                            isRecentlyPlayed -> MaterialTheme.colorScheme.primaryContainer
-                            isHidden -> Color.White.copy(alpha = 0.5f)
-                            else -> Color.White
-                        },
-                        style      = MaterialTheme.typography.labelSmall,
-                        fontSize   = if (isVeryDense) 9.sp else 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text       = folder.name,
+                            color      = when {
+                                isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                isRecentlyPlayed -> MaterialTheme.colorScheme.primaryContainer
+                                else -> Color.White
+                            },
+                            style      = MaterialTheme.typography.labelSmall,
+                            fontSize   = if (isVeryDense) 9.sp else 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f, fill = false)
+                        )
+                        if (isHidden) {
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.VisibilityOff,
+                                contentDescription = "Hidden folder",
+                                tint = Color.White.copy(alpha = 0.85f),
+                                modifier = Modifier.size(if (isVeryDense) 10.dp else 12.dp)
+                            )
+                        }
+                    }
                     Text(
                         text  = stringResource(R.string.folder_videos_count, videos.size),
                         color = Color.White.copy(alpha = 0.75f),

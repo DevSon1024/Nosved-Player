@@ -12,6 +12,18 @@ data class VideoFolder(
     // val videoCount: Int
 )
 
+fun isPathHidden(path: String): Boolean {
+    if (path.isEmpty()) return false
+    val segments = path.split('/', '\\')
+    return segments.any { it.startsWith(".") && it.length > 1 }
+}
+
+val VideoFolder.isHidden: Boolean
+    get() = name.startsWith(".")
+
+val VideoFolder.isPathHidden: Boolean
+    get() = name.startsWith(".") || isPathHidden(id)
+
 fun VideoFolder.getSectionLabel(
     sortField: SortField = SortField.TITLE,
     videos: List<Video> = emptyList(),

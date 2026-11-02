@@ -184,6 +184,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { viewSettingsRepo.updateDefaultScreen(screen) }
     }
 
+    fun updateShowHiddenFolders(show: Boolean) {
+        viewModelScope.launch { viewSettingsRepo.updateShowHiddenFolders(show) }
+    }
+
     val playbackSettings = settingsRepo.playbackSettingsFlow
         .stateIn(
             viewModelScope,
