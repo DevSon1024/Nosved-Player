@@ -135,7 +135,7 @@ class WatchTracker(
         // Load existing record and verify qualification status on Dispatchers.IO
         scope.launch {
             try {
-                val existing = watchHistoryDao.getHistory(uri)
+                val existing = watchHistoryDao.findExistingHistory(uri, originalPath)
                 val today = dateProvider()
                 val todayWatch = dailyWatchDao.getDailyWatch(today)
                 val alreadyQualifiedToday = todayWatch?.getWatchedUrisSet()?.contains(uri) == true
@@ -298,7 +298,7 @@ class WatchTracker(
         val today = dateProvider()
 
         try {
-            val existing = watchHistoryDao.getHistory(uri)
+            val existing = watchHistoryDao.findExistingHistory(uri, currentOriginalPath)
             val validPosition = if (positionMs >= 0L) positionMs else (existing?.lastPositionMs ?: 0L)
 
             // Record in daily watch records (idempotently avoids duplicate counting)
@@ -360,13 +360,19 @@ class WatchTracker(
     private suspend fun saveProgressInternal(positionMs: Long, isQualifiedNow: Boolean) {
         val uri = currentUri ?: return
         try {
-            val existing = watchHistoryDao.getHistory(uri)
-            val effectivePos = if (positionMs >= 0L) positionMs else (existing?.lastPositionMs ?: 0L)
+            val existing = watchHistoryDao.findExistingHistory(uri, currentOriginalPath)
+            val effectivePos = if (positionMs > 0L) positionMs else (existing?.lastPositionMs ?: 0L)
             val today = dateProvider()
             val dur = if (durationMs > 0L) durationMs else (existing?.durationMs ?: 0L)
             val progress = if (dur > 0L) (effectivePos.toFloat() / dur).coerceIn(0f, 1f) else (existing?.playbackProgress ?: 0f)
             val isCompleted = dur > 0L && (effectivePos > dur * 0.95f || (dur > 10000L && dur - effectivePos < 5000L))
             val effectiveWatchedMs = maxOf(accumulatedWatchedMs, existing?.totalPlaybackTimeMs ?: 0L)
+
+            if (existing != null && existing.uri != uri) {
+                try {
+                    watchHistoryDao.deleteHistory(existing.uri)
+                } catch (_: Exception) {}
+            }
 
             val entity = WatchHistoryEntity(
                 uri = uri,
@@ -382,7 +388,7 @@ class WatchTracker(
                 firstWatchedAt = existing?.firstWatchedAt?.takeIf { it > 0L } ?: clock(),
                 watchDate = today,
                 isDeleted = false,
-                isCompleted = isCompleted || (existing?.isCompleted == true),
+                isCompleted = isCompleted,
                 playbackProgress = progress
             )
             watchHistoryDao.insert(entity)

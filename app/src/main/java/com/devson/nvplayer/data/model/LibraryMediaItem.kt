@@ -32,10 +32,11 @@ data class LibraryMediaItem(
     val episodeCount: Int = 1,
     val year: Int? = null,
     val durationMs: Long = 0L,
-    val playbackPositionMs: Long = 0L,
+    val playbackPositionMs: Long = 0L, 
     val isWatched: Boolean = false,
     val seriesId: Long? = null,
-    val synopsis: String? = null
+    val synopsis: String? = null,
+    val lastPlayedAt: Long = 0L
 )
 
 @Immutable

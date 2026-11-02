@@ -10,6 +10,7 @@ import com.devson.nvplayer.data.database.EpisodeEntity
 import com.devson.nvplayer.data.database.MovieEntity
 import com.devson.nvplayer.data.database.SeasonEntity
 import com.devson.nvplayer.data.database.SeriesEntity
+import com.devson.nvplayer.data.database.WatchHistoryEntity
 import com.devson.nvplayer.data.model.LibraryCategory
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.data.model.LibraryMediaType
@@ -65,12 +66,15 @@ class LibraryViewModel(
     }
 
     private val _parsedItems = MutableStateFlow<List<LibraryMediaItem>>(emptyList())
+    private val parsedInfoCache = java.util.concurrent.ConcurrentHashMap<String, ParsedMediaInfo>()
 
     val uiState: StateFlow<LibraryUiState> = combine(
         videoListViewModel.isLoading,
         _parsedItems,
-        _selectedCategory
-    ) { isLoading, items, category ->
+        _selectedCategory,
+        watchHistoryDao.getActiveHistoryFlow(),
+        videoListViewModel.activeVideosFlat
+    ) { isLoading, items, category, activeHistory, activeVideos ->
         if (isLoading && items.isEmpty()) {
             LibraryUiState.Loading
         } else {
@@ -80,10 +84,78 @@ class LibraryViewModel(
                 LibraryCategory.SHOWS -> items.filter { it.type == LibraryMediaType.TV_SHOW }
             }
 
-            val continueWatching = items
-                .filter { it.playbackPositionMs > 5000L && it.durationMs > 0 && it.playbackPositionMs < (it.durationMs * 0.95) }
-                .sortedByDescending { it.playbackPositionMs }
-                .take(10)
+            val continueWatching = activeHistory
+                .asSequence()
+                .filter { hist ->
+                    val video = activeVideos.find {
+                        it.uri == hist.uri ||
+                        (!hist.originalPath.isNullOrBlank() && (it.path == hist.originalPath || it.uri == hist.originalPath)) ||
+                        (it.path.isNotBlank() && (it.path == hist.uri || it.uri == hist.uri))
+                    }
+                    val dur = if (hist.durationMs > 0L) hist.durationMs else (video?.duration ?: 0L)
+                    !hist.isCompleted &&
+                    hist.lastPositionMs > 1000L &&
+                    (dur <= 0L || hist.lastPositionMs < (dur * 0.95).toLong())
+                }
+                .distinctBy { hist ->
+                    hist.originalPath?.takeIf { it.isNotBlank() } ?: hist.uri
+                }
+                .take(20)
+                .map { hist ->
+                    val video = activeVideos.find {
+                        it.uri == hist.uri ||
+                        (!hist.originalPath.isNullOrBlank() && (it.path == hist.originalPath || it.uri == hist.originalPath)) ||
+                        (it.path.isNotBlank() && (it.path == hist.uri || it.uri == hist.uri))
+                    }
+                    val parsed = if (video != null) {
+                        parsedInfoCache["${video.title}_${video.duration}"]
+                            ?: MediaFilenameParser.parse(video.title, durationMillis = video.duration)
+                    } else null
+
+                    val displayTitle = when {
+                        parsed is ParsedMediaInfo.TvShow -> {
+                            val epText = "S%02dE%02d".format(parsed.seasonNumber ?: 1, parsed.episodeNumber ?: 1)
+                            "${parsed.cleanedTitle} $epText"
+                        }
+                        parsed is ParsedMediaInfo.Movie -> parsed.cleanedTitle
+                        !hist.videoTitle.isNullOrBlank() -> hist.videoTitle
+                        video != null -> video.title
+                        else -> {
+                            try {
+                                android.net.Uri.parse(hist.uri).lastPathSegment?.substringBeforeLast('.') ?: "Video"
+                            } catch (_: Exception) {
+                                "Video"
+                            }
+                        }
+                    }
+
+                    val mediaType = when (parsed) {
+                        is ParsedMediaInfo.Movie -> LibraryMediaType.MOVIE
+                        is ParsedMediaInfo.TvShow -> LibraryMediaType.TV_SHOW
+                        else -> LibraryMediaType.UNCLASSIFIED
+                    }
+
+                    val duration = if (hist.durationMs > 0L) hist.durationMs else (video?.duration ?: 0L)
+                    val effectiveUri = video?.uri ?: hist.uri
+                    val poster = video?.thumbnailUri ?: hist.originalPath ?: effectiveUri
+
+                    LibraryMediaItem(
+                        id = effectiveUri,
+                        title = displayTitle,
+                        cleanedTitle = displayTitle,
+                        videoUri = effectiveUri,
+                        posterUri = poster,
+                        backdropUri = poster,
+                        type = mediaType,
+                        seasonNumber = (parsed as? ParsedMediaInfo.TvShow)?.seasonNumber,
+                        episodeNumber = (parsed as? ParsedMediaInfo.TvShow)?.episodeNumber,
+                        durationMs = duration,
+                        playbackPositionMs = hist.lastPositionMs,
+                        isWatched = false,
+                        lastPlayedAt = hist.lastPlayedAt
+                    )
+                }
+                .toList()
 
             val recentlyAdded = filteredItems
                 .take(15)
@@ -103,7 +175,6 @@ class LibraryViewModel(
     }.stateIn(viewModelScope, SharingStarted.Lazily, LibraryUiState.Loading)
 
     private var lastProcessedSignature: String? = null
-    private val parsedInfoCache = java.util.concurrent.ConcurrentHashMap<String, ParsedMediaInfo>()
 
     init {
         // 1. Instant Room cache hydration on startup (~15ms)
@@ -255,6 +326,10 @@ class LibraryViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 watchHistoryDao.deleteHistory(videoUri)
+                val byPath = watchHistoryDao.getHistoryByPath(videoUri)
+                if (byPath != null) {
+                    watchHistoryDao.deleteHistory(byPath.uri)
+                }
                 mediaLibraryDao.updateMoviePlayback(videoUri, 0L, false)
                 mediaLibraryDao.updateEpisodePlayback(videoUri, 0L, false)
             } catch (e: Exception) {
@@ -296,7 +371,13 @@ class LibraryViewModel(
             }
 
             val historyList = watchHistoryDao.getAllHistorySync()
-            val historyMap = historyList.associateBy { it.uri }
+            val historyMap = mutableMapOf<String, WatchHistoryEntity>()
+            historyList.forEach { h ->
+                historyMap[h.uri] = h
+                if (!h.originalPath.isNullOrBlank()) {
+                    historyMap[h.originalPath] = h
+                }
+            }
 
             val existingSeriesMap = try {
                 mediaLibraryDao.getAllSeriesSync().associateBy { it.title }.toMutableMap()

@@ -592,7 +592,10 @@ class PlayerViewModel(
         val uri = _currentUri.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            val entity = dao.getHistory(uri.toString())
+            val uriStr = uri.toString()
+            val matchedVideo = _queueList.value.firstOrNull { it.uri == uriStr }
+            val resolvedPath = matchedVideo?.path ?: uri.path
+            val entity = dao.findExistingHistory(uriStr, resolvedPath)
             val savedPos = entity?.lastPositionMs ?: 0L
             if (savedPos > 0) {
                 Log.d("PlayerViewModel", "Restoring saved progress: $savedPos for URI: $uri")
@@ -841,11 +844,12 @@ class PlayerViewModel(
             if (isNetworkStream.value) {
                 dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
             } else {
-                val existing = dao.getHistory(uri.toString())
+                val uriStr = uri.toString()
+                val existing = dao.findExistingHistory(uriStr, resolvedPath)
                 if (existing == null) {
                     dao.insert(
                         WatchHistoryEntity(
-                            uri = uri.toString(),
+                            uri = uriStr,
                             lastPositionMs = 0L,
                             lastPlayedAt = System.currentTimeMillis(),
                             isNetworkStream = false,
@@ -856,8 +860,14 @@ class PlayerViewModel(
                         )
                     )
                 } else {
+                    if (existing.uri != uriStr) {
+                        try {
+                            dao.deleteHistory(existing.uri)
+                        } catch (_: Exception) {}
+                    }
                     dao.insert(
                         existing.copy(
+                            uri = uriStr,
                             lastPlayedAt = System.currentTimeMillis(),
                             videoTitle = existing.videoTitle ?: resolvedTitle,
                             originalPath = existing.originalPath ?: resolvedPath,
@@ -998,11 +1008,12 @@ class PlayerViewModel(
             if (isNetworkStream.value) {
                 dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
             } else {
-                val existing = dao.getHistory(uri.toString())
+                val uriStr = uri.toString()
+                val existing = dao.findExistingHistory(uriStr, resolvedPath)
                 if (existing == null) {
                     dao.insert(
                         WatchHistoryEntity(
-                            uri = uri.toString(),
+                            uri = uriStr,
                             lastPositionMs = 0L,
                             lastPlayedAt = System.currentTimeMillis(),
                             isNetworkStream = false,
@@ -1013,8 +1024,14 @@ class PlayerViewModel(
                         )
                     )
                 } else {
+                    if (existing.uri != uriStr) {
+                        try {
+                            dao.deleteHistory(existing.uri)
+                        } catch (_: Exception) {}
+                    }
                     dao.insert(
                         existing.copy(
+                            uri = uriStr,
                             lastPlayedAt = System.currentTimeMillis(),
                             videoTitle = existing.videoTitle ?: resolvedTitle,
                             originalPath = existing.originalPath ?: resolvedPath,
@@ -1084,15 +1101,21 @@ class PlayerViewModel(
                     )
                 )
 
-                val existing = dao.getHistory(video.uri)
+                val existing = dao.findExistingHistory(video.uri, video.path)
                 watchTracker.updateVideoMetadata(
                     title = video.title,
                     folderName = video.folderName,
                     durationMs = video.duration,
                     path = video.path
                 )
+                if (existing != null && existing.uri != video.uri) {
+                    try {
+                        dao.deleteHistory(existing.uri)
+                    } catch (_: Exception) {}
+                }
                 dao.insert(
                     (existing ?: WatchHistoryEntity(uri = video.uri)).copy(
+                        uri = video.uri,
                         lastPositionMs = existing?.lastPositionMs ?: 0L,
                         lastPlayedAt = System.currentTimeMillis(),
                         isNetworkStream = false,
@@ -1118,12 +1141,15 @@ class PlayerViewModel(
             val db = AppDatabase.getDatabase(getApplication())
             val dao = db.watchHistoryDao()
             val dailyDao = db.dailyWatchDao()
-            val existing = dao.getHistory(uri.toString())
+            val uriStr = uri.toString()
+            val matchedVideo = _queueList.value.firstOrNull { it.uri == uriStr }
+            val resolvedPath = matchedVideo?.path ?: uri.path
+            val existing = dao.findExistingHistory(uriStr, resolvedPath)
             val today = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
             if (existing != null) {
                 val finalWatchDate = existing.watchDate.ifBlank { today }
                 dao.updatePlaybackProgress(
-                    uri = uri.toString(),
+                    uri = existing.uri,
                     positionMs = 0L,
                     progress = 1.0f,
                     isCompleted = true,
@@ -1131,9 +1157,20 @@ class PlayerViewModel(
                     lastPlayedAt = existing.lastPlayedAt,
                     watchDate = finalWatchDate
                 )
-                dailyDao.recordQualifyingWatch(today, uri.toString())
+                if (existing.uri != uriStr) {
+                    dao.updatePlaybackProgress(
+                        uri = uriStr,
+                        positionMs = 0L,
+                        progress = 1.0f,
+                        isCompleted = true,
+                        totalPlaybackTimeMs = existing.totalPlaybackTimeMs,
+                        lastPlayedAt = existing.lastPlayedAt,
+                        watchDate = finalWatchDate
+                    )
+                }
+                dailyDao.recordQualifyingWatch(today, existing.uri)
             } else {
-                dao.deleteHistory(uri.toString())
+                dailyDao.recordQualifyingWatch(today, uriStr)
             }
             Log.d("PlayerViewModel", "Cleared watch progress for URI: $uri")
         }

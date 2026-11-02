@@ -117,8 +117,11 @@ fun YtdlpSettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
+                .padding(
+                    top = paddingValues.calculateTopPadding() + 4.dp,
+                    bottom = paddingValues.calculateBottomPadding() + 16.dp
+                )
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

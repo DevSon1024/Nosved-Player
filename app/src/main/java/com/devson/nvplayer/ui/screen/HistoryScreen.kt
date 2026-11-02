@@ -81,6 +81,7 @@ fun HistoryScreen(
     var isGridView by rememberSaveable { mutableStateOf(false) }
     var selectedUris by remember { mutableStateOf(emptySet<String>()) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var showNetworkDialog by remember { mutableStateOf(false) }
     var selectedDeletedItemForDialog by remember { mutableStateOf<VideoHistoryItem?>(null) }
     var selectedVideoForInfo by remember { mutableStateOf<Video?>(null) }
@@ -119,12 +120,16 @@ fun HistoryScreen(
                     if (isSelectionMode) {
                         Text(
                             text = "${selectedUris.size} Selected",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     } else {
                         Text(
                             text = stringResource(R.string.history_title),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },
@@ -184,20 +189,6 @@ fun HistoryScreen(
                             )
                         }
                     } else {
-                        IconButton(onClick = onNavigateToStreak) {
-                            Icon(
-                                imageVector = Icons.Default.Whatshot,
-                                contentDescription = "Watch Streak",
-                                tint = if (streakUiState.currentStreak > 0) Color(0xFFFF6D00) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = { showNetworkDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = "Play Network Stream",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
                         if (allHistoryItems.isNotEmpty()) {
                             IconButton(onClick = { isGridView = !isGridView }) {
                                 Icon(
@@ -213,11 +204,79 @@ fun HistoryScreen(
                                     contentDescription = "Select items"
                                 )
                             }
-                            IconButton(onClick = { showClearDialog = true }) {
+                            Box {
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "More Options"
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Network Stream") },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Filled.Language,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showNetworkDialog = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Watch Streak") },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Whatshot,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF6D00)
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onNavigateToStreak()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.history_clear_all),
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Filled.DeleteSweep,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showClearDialog = true
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            IconButton(onClick = onNavigateToStreak) {
                                 Icon(
-                                    imageVector = Icons.Filled.DeleteSweep,
-                                    contentDescription = stringResource(R.string.history_clear_all),
-                                    tint = MaterialTheme.colorScheme.error
+                                    imageVector = Icons.Default.Whatshot,
+                                    contentDescription = "Watch Streak",
+                                    tint = if (streakUiState.currentStreak > 0) Color(0xFFFF6D00) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { showNetworkDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = "Play Network Stream",
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -240,7 +299,7 @@ fun HistoryScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             if (allHistoryItems.isNotEmpty() || streakUiState.currentStreak > 0 || streakUiState.longestStreak > 0) {
                 // Top Streak Banner Card
@@ -265,7 +324,8 @@ fun HistoryScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(bottom = padding.calculateBottomPadding()),
                     contentAlignment = Alignment.Center
                 ) {
                     HistoryEmptyState(
@@ -290,7 +350,7 @@ fun HistoryScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
                                 top = 6.dp,
-                                bottom = 32.dp,
+                                bottom = padding.calculateBottomPadding() + 24.dp,
                                 start = 12.dp,
                                 end = 12.dp
                             ),
@@ -343,7 +403,7 @@ fun HistoryScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
                                 top = 6.dp,
-                                bottom = 32.dp,
+                                bottom = padding.calculateBottomPadding() + 24.dp,
                                 start = 12.dp,
                                 end = 12.dp
                             ),

@@ -251,23 +251,27 @@ fun LibraryHomeScreen(
                     previewLastPositionMs = effectivePosition,
                     modifier = Modifier.padding(bottom = 88.dp),
                     onPlay = {
-                        val currentUiState = uiState
-                        val allItems = if (currentUiState is LibraryUiState.Success) currentUiState.allItems else emptyList()
-                        val matchItem = allItems.find { it.videoUri == effectiveUri }
-                        if (matchItem != null) {
-                            onMediaClick(matchItem)
+                        if (continueWatchingItem != null) {
+                            onMediaClick(continueWatchingItem)
                         } else {
-                            onMediaClick(
-                                LibraryMediaItem(
-                                    id = effectiveUri,
-                                    title = effectiveTitle ?: "Video",
-                                    cleanedTitle = effectiveTitle ?: "Video",
-                                    videoUri = effectiveUri,
-                                    type = LibraryMediaType.MOVIE,
-                                    durationMs = effectiveDuration,
-                                    playbackPositionMs = effectivePosition
+                            val currentUiState = uiState
+                            val allItems = if (currentUiState is LibraryUiState.Success) currentUiState.allItems else emptyList()
+                            val matchItem = allItems.find { it.videoUri == effectiveUri }
+                            if (matchItem != null) {
+                                onMediaClick(matchItem)
+                            } else {
+                                onMediaClick(
+                                    LibraryMediaItem(
+                                        id = effectiveUri,
+                                        title = effectiveTitle ?: "Video",
+                                        cleanedTitle = effectiveTitle ?: "Video",
+                                        videoUri = effectiveUri,
+                                        type = LibraryMediaType.MOVIE,
+                                        durationMs = effectiveDuration,
+                                        playbackPositionMs = effectivePosition
+                                    )
                                 )
-                            )
+                            }
                         }
                     },
                     onNetworkStreamClick = { showNetworkDialog = true }

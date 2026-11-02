@@ -823,8 +823,11 @@ fun AppNavigation(
             LibraryHomeScreen(
                 viewModel = libraryViewModel,
                 onMediaClick = { item ->
-                    val flatVideos = videoListViewModel.videosFlat.value
-                    val currentVideo = flatVideos.find { it.uri == item.videoUri } ?: Video(
+                    val allCandidateVideos = videoListViewModel.rawVideosFlat.value.ifEmpty { videoListViewModel.videosFlat.value }
+                    val currentVideo = allCandidateVideos.find {
+                        it.uri == item.videoUri || (item.id.isNotBlank() && it.uri == item.id) ||
+                        (it.path.isNotBlank() && (it.path == item.videoUri || it.path == item.id))
+                    } ?: Video(
                         uri = item.videoUri,
                         title = item.title,
                         duration = item.durationMs,

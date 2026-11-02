@@ -75,9 +75,12 @@ fun StreakScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(
+                    top = innerPadding.calculateTopPadding() + 8.dp,
+                    bottom = innerPadding.calculateBottomPadding() + 16.dp
+                )
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Hero Streak Display
