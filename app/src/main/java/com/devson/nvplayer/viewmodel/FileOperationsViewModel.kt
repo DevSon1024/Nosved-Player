@@ -284,30 +284,84 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun clearResult() { _operationResult.value = null }
-    fun clearPendingIntentSender() { _pendingIntentSender.value = null }
+    fun clearPendingIntentSender() {
+        _pendingIntentSender.value = null
+        if (pendingAction == null) {
+            _operationInProgress.value = false
+        }
+    }
+
+    /** Called when the user cancels or denies the system permission prompt (e.g. MediaStore / SAF dialog). */
+    fun onPermissionDenied() {
+        pendingAction = null
+        _pendingIntentSender.value = null
+        _operationInProgress.value = false
+        _isTransferring.value = false
+        _transferringFileName.value = null
+        _transferPercentage.value = 0
+        _operationState.value = FileOperationState(isOperating = false)
+    }
 
     //  DELETE 
 
     fun deleteVideos(context: Context, uris: List<Uri>, trash: Boolean = false) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            _operationInProgress.value = true
+            val contentUris = mutableListOf<Uri>()
+            val fileUris = mutableListOf<Uri>()
+
+            uris.forEach { uri ->
+                if (uri.scheme == "file") {
+                    fileUris.add(uri)
+                } else {
+                    contentUris.add(uri)
+                }
+            }
+
+            // Direct file deletion (e.g. USB OTG or non-MediaStore paths)
+            if (fileUris.isNotEmpty()) {
+                _operationInProgress.value = true
+                var deletedFilesCount = 0
+                val scannedPaths = mutableListOf<String>()
+                withContext(Dispatchers.IO) {
+                    fileUris.forEach { uri ->
+                        val path = uri.path
+                        if (path != null) {
+                            val file = java.io.File(path)
+                            if (file.exists() && file.delete()) {
+                                deletedFilesCount++
+                                scannedPaths.add(file.absolutePath)
+                            }
+                        }
+                    }
+                    if (scannedPaths.isNotEmpty()) {
+                        MediaScannerConnection.scanFile(context, scannedPaths.toTypedArray(), null, null)
+                    }
+                }
+                if (contentUris.isEmpty()) {
+                    _operationInProgress.value = false
+                    _operationResult.value = "Successfully deleted $deletedFilesCount video(s)."
+                    _needsRefresh.value = true
+                    return@launch
+                }
+            }
+
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val pi = if (trash) MediaStore.createTrashRequest(context.contentResolver, uris, true)
-                             else MediaStore.createDeleteRequest(context.contentResolver, uris)
-                    pendingAction = PendingFileAction.Delete(uris, trash)
+                    val pi = if (trash) MediaStore.createTrashRequest(context.contentResolver, contentUris, true)
+                             else MediaStore.createDeleteRequest(context.contentResolver, contentUris)
+                    pendingAction = PendingFileAction.Delete(contentUris, trash)
+                    // Note: _operationInProgress is intentionally kept false while user considers the system prompt
                     _pendingIntentSender.value = pi.intentSender
                 } else {
-                    executeDeleteApi29(context, uris)
+                    _operationInProgress.value = true
+                    executeDeleteApi29(context, contentUris)
+                    _operationInProgress.value = false
                 }
             } catch (e: Exception) {
                 _operationResult.value = "Delete failed: ${e.localizedMessage}"
-            } finally {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    _operationInProgress.value = false
-                }
-                // For API 30+ we leave progress=true until onPermissionGranted is called
+                _operationInProgress.value = false
+                pendingAction = null
             }
         }
     }
@@ -333,7 +387,6 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     fun restoreVideos(context: Context, uris: List<Uri>) {
         if (uris.isEmpty() || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         viewModelScope.launch {
-            _operationInProgress.value = true
             try {
                 val pi = MediaStore.createTrashRequest(context.contentResolver, uris, false)
                 pendingAction = PendingFileAction.Restore(uris)
@@ -341,6 +394,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
             } catch (e: Exception) {
                 _operationResult.value = "Restore failed: ${e.localizedMessage}"
                 _operationInProgress.value = false
+                pendingAction = null
             }
         }
     }
@@ -363,6 +417,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         val action = pendingAction as? PendingFileAction.Delete ?: return
         pendingAction = null
         viewModelScope.launch {
+            _operationInProgress.value = true
             try {
                 val deletedCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     action.uris.size 
@@ -390,7 +445,6 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
     //  RENAME 
     fun renameVideo(context: Context, uri: Uri, newName: String) {
         viewModelScope.launch {
-            _operationInProgress.value = true
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     // API 30+: request write permission first
@@ -398,6 +452,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
                     pendingAction = PendingFileAction.Rename(uri, newName)
                     _pendingIntentSender.value = pi.intentSender
                 } else {
+                    _operationInProgress.value = true
                     // API 29: try direct update
                     executeRenameApi29(context, uri, newName)
                     _operationInProgress.value = false
@@ -405,6 +460,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
             } catch (e: Exception) {
                 _operationResult.value = "Rename failed: ${e.localizedMessage}"
                 _operationInProgress.value = false
+                pendingAction = null
             }
         }
     }
@@ -457,6 +513,7 @@ class FileOperationsViewModel(application: Application) : AndroidViewModel(appli
         val action = pendingAction as? PendingFileAction.Rename ?: return
         pendingAction = null
         viewModelScope.launch {
+            _operationInProgress.value = true
             try {
                 withContext(Dispatchers.IO) {
                     val values = ContentValues().apply {

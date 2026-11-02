@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
+import com.devson.nvplayer.ui.screen.videolist.components.DeleteConfirmationDialog
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
@@ -338,6 +339,8 @@ fun VideoListScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             fileOpsViewModel.onPermissionGranted(context)
+        } else {
+            fileOpsViewModel.onPermissionDenied()
         }
         fileOpsViewModel.clearPendingIntentSender()
     }
@@ -1051,33 +1054,23 @@ fun VideoListScreen(
                     .mapNotNull { runCatching { Uri.parse(it.uri) }.getOrNull() }
             }
         }
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete Video(s)") },
-            text = { Text("Choose how you want to delete the selected video(s).") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = true)
-                        selectedFolders = emptySet()
-                        selectedVideos = emptySet()
-                        showDeleteConfirmation = false
-                    }
-                ) { Text("Move to Recycle Bin") }
+        val count = if (isFolder) selectedFolders.size else selectedVideos.size
+        DeleteConfirmationDialog(
+            itemCount = if (count <= 0) selectedUrisForDelete.size else count,
+            isFolder = isFolder,
+            onMoveToTrash = {
+                fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = true)
+                selectedFolders = emptySet()
+                selectedVideos = emptySet()
+                showDeleteConfirmation = false
             },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
-                    TextButton(
-                        onClick = {
-                            fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = false)
-                            selectedFolders = emptySet()
-                            selectedVideos = emptySet()
-                            showDeleteConfirmation = false
-                        }
-                    ) { Text("Delete Permanently", color = MaterialTheme.colorScheme.error) }
-                }
-            }
+            onDeletePermanently = {
+                fileOpsViewModel.deleteVideos(context, selectedUrisForDelete, trash = false)
+                selectedFolders = emptySet()
+                selectedVideos = emptySet()
+                showDeleteConfirmation = false
+            },
+            onDismiss = { showDeleteConfirmation = false }
         )
     }
 

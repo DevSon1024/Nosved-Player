@@ -72,6 +72,8 @@ fun RecycleBinScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             fileOpsViewModel.onPermissionGranted(context)
+        } else {
+            fileOpsViewModel.onPermissionDenied()
         }
         fileOpsViewModel.clearPendingIntentSender()
     }
