@@ -425,7 +425,7 @@ class VideoListViewModel(
                             dateModified = finalDateModified,
                             playedTime = null,
                             lastPlayedAt = null,
-                            resolution = "${item.width}x${item.height}",
+                            resolution = if (item.width > 0 && item.height > 0) "${item.width}x${item.height}" else "",
                             frameRate = finalFps,
                             thumbnailUri = item.thumbnailUri?.toString(),
                             embeddedSubtitles = finalEmbeddedSubs,
@@ -540,6 +540,7 @@ class VideoListViewModel(
                     mutableMapOf()
                 }
 
+                repairZeroDurationVideos()
                 repository.scanHiddenVideos(blacklisted) { batch ->
                     if (batch.isEmpty()) return@scanHiddenVideos
 
@@ -574,7 +575,7 @@ class VideoListViewModel(
                             dateModified = item.dateModified * 1000L,
                             playedTime = null,
                             lastPlayedAt = null,
-                            resolution = "${item.width}x${item.height}",
+                            resolution = if (item.width > 0 && item.height > 0) "${item.width}x${item.height}" else "",
                             frameRate = cached?.frameRate?.takeIf { it > 0f },
                             thumbnailUri = item.thumbnailUri?.toString(),
                             embeddedSubtitles = emptyList(),
@@ -605,20 +606,79 @@ class VideoListViewModel(
 
                     _rawVideosByFolder.value = currentRawMap.toMap()
                     _rawVideosFlat.value = currentRawMap.values.flatten()
+
+                    if (newVideos.any { it.duration <= 0L || it.width <= 0 }) {
+                        repairZeroDurationVideos()
+                    }
                 }
             } catch (e: Exception) {
                 if (e !is kotlinx.coroutines.CancellationException) {
                     android.util.Log.e("VideoListViewModel", "Error in discoverHiddenVideos", e)
-                }
-            } finally {
-                _isDiscoveringHidden.value = false
-            }
+ }
+ } finally {
+ _isDiscoveringHidden.value = false
+ }
+ }
+ }
+
+ fun updateShowHiddenFolders(show: Boolean) {
+        viewModelScope.launch {
+            viewSettingsRepo.updateShowHiddenFolders(show)
         }
     }
 
-    fun updateShowHiddenFolders(show: Boolean) {
-        viewModelScope.launch {
-            viewSettingsRepo.updateShowHiddenFolders(show)
+    fun repairZeroDurationVideos() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val zeroItems = _rawVideosFlat.value.filter { it.duration <= 0L || it.width <= 0 }
+            if (zeroItems.isEmpty()) return@launch
+            val dispatcher = Dispatchers.IO.limitedParallelism(4)
+            val repaired = zeroItems.map { video ->
+                async(dispatcher) {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    val (dur, w, h) = try {
+                        retriever.setDataSource(video.path)
+                        val d = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        val width = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                        val height = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                        Triple(d, width, height)
+                    } catch (_: Exception) {
+                        Triple(0L, 0, 0)
+                    } finally {
+                        try { retriever.release() } catch (_: Exception) {}
+                    }
+
+                    if (dur > 0L || w > 0) {
+                        val res = if (w > 0 && h > 0) "${w}x${h}" else video.resolution
+                        val updated = video.copy(
+                            duration = if (dur > 0L) dur else video.duration,
+                            width = if (w > 0) w else video.width,
+                            height = if (h > 0) h else video.height,
+                            resolution = res
+                        )
+                        try {
+                            repository.videoMetadataDao.insertOrUpdate(
+                                CachedVideoMetadata(
+                                    uri = video.uri,
+                                    size = video.size,
+                                    dateModified = video.dateModified,
+                                    duration = updated.duration
+                                )
+                            )
+                        } catch (_: Exception) {}
+                        updated
+                    } else null
+                }
+            }.awaitAll().filterNotNull()
+
+            if (repaired.isNotEmpty()) {
+                val repMap = repaired.associateBy { it.uri }
+                val currentByFolder = _rawVideosByFolder.value
+                val updatedByFolder = currentByFolder.mapValues { (_, folderVideos) ->
+                    folderVideos.map { video -> repMap[video.uri] ?: video }
+                }
+                _rawVideosByFolder.value = updatedByFolder
+                _rawVideosFlat.value = updatedByFolder.values.flatten()
+            }
         }
     }
 
@@ -626,6 +686,9 @@ class VideoListViewModel(
         _selectedFolder.value = folder
         if (folder != null) {
             val folderVideos = _rawVideosByFolder.value[folder] ?: emptyList()
+            if (folderVideos.any { it.duration <= 0L || it.width <= 0 }) {
+                repairZeroDurationVideos()
+            }
             com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)
                 .startFolderThumbnailGeneration(folder.id, folderVideos, 512, 384)
         }

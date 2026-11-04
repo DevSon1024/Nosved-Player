@@ -27,6 +27,10 @@ import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.ui.common.RotarySortWheelDialog
 import com.devson.nvplayer.util.formatSortField
+import android.os.Build
+import android.os.Environment
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.devson.nvplayer.ui.common.components.StorageAccessRequiredDialog
 import com.devson.nvplayer.viewmodel.VideoListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +45,33 @@ fun ViewSettingsBottomSheet(
     var isFieldsExpanded by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
     var showSortWheel by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var pendingEnableHidden by remember { mutableStateOf(false) }
+
+    LifecycleResumeEffect(Unit) {
+        if (pendingEnableHidden) {
+            val hasAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Environment.isExternalStorageManager()
+            } else {
+                true
+            }
+            if (hasAccess) {
+                viewModel.updateShowHiddenFolders(true)
+            }
+            showPermissionDialog = false
+            pendingEnableHidden = false
+        }
+        onPauseOrDispose { }
+    }
+
+    if (showPermissionDialog) {
+        StorageAccessRequiredDialog(
+            onDismiss = {
+                showPermissionDialog = false
+                pendingEnableHidden = false
+            }
+        )
+    }
 
     SmoothModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -345,7 +376,25 @@ fun ViewSettingsBottomSheet(
                                 label = "Show Hidden Folders",
                                 checked = settings.showHiddenFolders,
                                 subtitle = "Display dot-prefixed folders and hidden videos"
-                            ) { viewModel.updateShowHiddenFolders(it) }
+                            ) { isChecked ->
+                                if (isChecked) {
+                                    val hasAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                        Environment.isExternalStorageManager()
+                                    } else {
+                                        true
+                                    }
+                                    if (hasAccess) {
+                                        viewModel.updateShowHiddenFolders(true)
+                                    } else {
+                                        pendingEnableHidden = true
+                                        showPermissionDialog = true
+                                    }
+                                } else {
+                                    pendingEnableHidden = false
+                                    showPermissionDialog = false
+                                    viewModel.updateShowHiddenFolders(false)
+                                }
+                            }
                         }
                     }
                 }

@@ -243,7 +243,11 @@ object VideoMetadataExtractor {
         // 4. MediaInfo fallback for formats where native extractors fail (MKV, AVI, etc.)
         if (fps == null || fps <= 0f) {
             try {
-                val pfd = context.contentResolver.openFileDescriptor(uri, "r")
+                val pfd = if (file != null && fileExists) {
+                    try { android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY) } catch (_: Exception) { null }
+                } else {
+                    try { context.contentResolver.openFileDescriptor(uri, "r") } catch (_: Exception) { null }
+                }
                 if (pfd != null) {
                     val mi = net.mediaarea.mediainfo.lib.MediaInfo()
                     try {

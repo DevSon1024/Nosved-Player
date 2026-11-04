@@ -116,7 +116,17 @@ class VideoRepository(
                 "System Volume Information",
                 "\$RECYCLE.BIN",
                 ".trashed",
-                ".Trash"
+                ".Trash",
+                ".git",
+                ".gradle",
+                ".idea",
+                ".vscode",
+                ".cache",
+                ".thumbnails",
+                ".npm",
+                "node_modules",
+                ".dart_tool",
+                "build"
             )
         } else {
             setOf(
@@ -127,6 +137,16 @@ class VideoRepository(
                 ".trashed",
                 ".thumbnails",
                 ".Trash",
+                ".git",
+                ".gradle",
+                ".idea",
+                ".vscode",
+                ".cache",
+                ".thumbnails",
+                ".npm",
+                "node_modules",
+                ".dart_tool",
+                "build",
                 ".nomedia"
             )
         }
@@ -192,6 +212,21 @@ class VideoRepository(
         return results
     }
 
+    private fun extractFastVideoMetadata(path: String): Triple<Long, Int, Int> {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(path)
+            val dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val w = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val h = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            Triple(dur, w, h)
+        } catch (_: Exception) {
+            Triple(0L, 0, 0)
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
+        }
+    }
+
     suspend fun scanHiddenVideos(
         blacklistedFolders: List<String> = emptyList(),
         onBatchFound: suspend (List<VideoItem>) -> Unit
@@ -225,7 +260,17 @@ class VideoRepository(
                 "System Volume Information",
                 "\$RECYCLE.BIN",
                 ".trashed",
-                ".Trash"
+                ".Trash",
+                ".git",
+                ".gradle",
+                ".idea",
+                ".vscode",
+                ".cache",
+                ".thumbnails",
+                ".npm",
+                "node_modules",
+                ".dart_tool",
+                "build"
             )
 
             val visitedDirs = HashSet<String>()
@@ -277,17 +322,18 @@ class VideoRepository(
                                     if (!isBlacklisted) {
                                         val uri = Uri.fromFile(child)
                                         val parentName = child.parentFile?.name?.ifEmpty { rootDir.name } ?: rootDir.name
+                                        val (fastDur, fastW, fastH) = extractFastVideoMetadata(absPath)
                                         currentBatch.add(
                                             VideoItem(
                                                 uri = uri,
                                                 title = child.name,
-                                                duration = 0L,
+                                                duration = fastDur,
                                                 folderName = parentName,
                                                 path = absPath,
                                                 thumbnailUri = uri,
                                                 size = child.length(),
-                                                width = 0,
-                                                height = 0,
+                                                width = fastW,
+                                                height = fastH,
                                                 dateModified = child.lastModified() / 1000L
                                             )
                                         )

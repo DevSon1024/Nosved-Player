@@ -48,6 +48,7 @@ fun formatResolutionCompact(resolution: String?): String? {
     val parts = resolution.split("x")
     if (parts.size == 2) {
         val height = parts[1].toIntOrNull() ?: return resolution
+        if (height <= 0) return null
         return "${height}p"
     }
     return resolution

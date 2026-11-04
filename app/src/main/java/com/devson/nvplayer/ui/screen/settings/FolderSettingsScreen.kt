@@ -30,7 +30,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.os.Build
+import android.os.Environment
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.devson.nvplayer.data.repository.FolderFilterMode
+import com.devson.nvplayer.ui.common.components.StorageAccessRequiredDialog
 import com.devson.nvplayer.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +53,33 @@ fun FolderScreen(
     // Which list tab is shown: 0=Whitelist, 1=Blacklist
     var selectedTab by remember { mutableIntStateOf(if (filterMode == FolderFilterMode.WHITELIST) 0 else 1) }
     var showPicker by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var pendingEnableHidden by remember { mutableStateOf(false) }
+
+    LifecycleResumeEffect(Unit) {
+        if (pendingEnableHidden) {
+            val hasAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Environment.isExternalStorageManager()
+            } else {
+                true
+            }
+            if (hasAccess) {
+                settingsViewModel.updateShowHiddenFolders(true)
+            }
+            showPermissionDialog = false
+            pendingEnableHidden = false
+        }
+        onPauseOrDispose { }
+    }
+
+    if (showPermissionDialog) {
+        StorageAccessRequiredDialog(
+            onDismiss = {
+                showPermissionDialog = false
+                pendingEnableHidden = false
+            }
+        )
+    }
 
     val currentList = if (selectedTab == 0) whitelistedFolders else blacklistedFolders
     val currentListSorted = remember(currentList) { currentList.sorted() }
@@ -152,7 +183,25 @@ fun FolderScreen(
                     }
                     Switch(
                         checked = viewSettings.showHiddenFolders,
-                        onCheckedChange = { settingsViewModel.updateShowHiddenFolders(it) }
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) {
+                                val hasAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                    Environment.isExternalStorageManager()
+                                } else {
+                                    true
+                                }
+                                if (hasAccess) {
+                                    settingsViewModel.updateShowHiddenFolders(true)
+                                } else {
+                                    pendingEnableHidden = true
+                                    showPermissionDialog = true
+                                }
+                            } else {
+                                pendingEnableHidden = false
+                                showPermissionDialog = false
+                                settingsViewModel.updateShowHiddenFolders(false)
+                            }
+                        }
                     )
                 }
             }

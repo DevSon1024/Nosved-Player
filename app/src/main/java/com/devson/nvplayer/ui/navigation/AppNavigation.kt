@@ -573,6 +573,7 @@ fun AppNavigation(
                 onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") { launchSingleTop = true } },
                 onNavigateToMpvConfig = { navController.navigate("mpv_config") { launchSingleTop = true } },
                 onNavigateToLanguageSettings = { navController.navigate("language_settings") { launchSingleTop = true } },
+                onNavigateToPermissions = { navController.navigate("permissions_settings") { launchSingleTop = true } },
                 settingsViewModel = settingsViewModel
             )
         }
@@ -602,6 +603,12 @@ fun AppNavigation(
             YtdlpSettingsScreen(
                 onNavigateBack = safePopBackStack,
                 settingsViewModel = settingsViewModel
+            )
+        }
+
+        composable("permissions_settings") {
+            com.devson.nvplayer.ui.screen.settings.PermissionsSettingsScreen(
+                onBack = safePopBackStack
             )
         }
 

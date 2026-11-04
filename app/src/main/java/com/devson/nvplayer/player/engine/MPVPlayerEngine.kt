@@ -421,7 +421,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         try {
             try { MPVLib.command("stop") } catch (_: Exception) {}
             val loadfileStart = System.currentTimeMillis()
-            MPVLib.command("loadfile", uriString)
+            val loadTarget = if (uri.scheme == "file") (uri.path ?: uriString) else uriString
+            MPVLib.command("loadfile", loadTarget)
             Log.d("MPVPlayerEngine", "[TIMING] loadfile command dispatched in ${System.currentTimeMillis() - loadfileStart}ms")
             MPVLib.setPropertyBoolean("pause", false) // Auto-play the loaded media file
             MPVLib.setPropertyString("secondary-sid", "no")

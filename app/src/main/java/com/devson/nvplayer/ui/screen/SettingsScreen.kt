@@ -50,6 +50,7 @@ fun SettingsScreen(
     onNavigateToYtdlpSettings: () -> Unit = {},
     onNavigateToMpvConfig: () -> Unit = {},
     onNavigateToLanguageSettings: () -> Unit = {},
+    onNavigateToPermissions: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel()
 ) {
     val isDeveloperMode  by settingsViewModel.isDeveloperMode.collectAsState()
@@ -273,6 +274,16 @@ fun SettingsScreen(
                             title = stringResource(R.string.settings_privacy),
                             subtitle = stringResource(R.string.settings_privacy_desc),
                             onClick = onNavigateToPrivacyPolicy
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 72.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsItemRow(
+                            icon = Icons.Default.Security,
+                            title = "Permissions",
+                            subtitle = "Manage storage and system permissions",
+                            onClick = onNavigateToPermissions
                         )
                     }
                 }
