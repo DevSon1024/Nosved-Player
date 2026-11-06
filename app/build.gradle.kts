@@ -1,10 +1,6 @@
 import java.io.File
-import java.io.FileInputStream
 import java.io.RandomAccessFile
 import java.util.Properties
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 import com.android.build.api.variant.FilterConfiguration
 
 plugins {
@@ -33,10 +29,6 @@ android {
         version = release(36)
     }
 
-    androidResources {
-        ignoreAssetsPatterns.add("native-v9a")
-        ignoreAssetsPatterns.add("py.arm64-v8a")
-    }
 
     defaultConfig {
         applicationId = "com.devson.nvplayer"
@@ -153,13 +145,10 @@ android {
             excludes += "META-INF/NOTICE*"
             excludes += "META-INF/*.kotlin_module"
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-            excludes += "assets/native-v9a/**"
-            excludes += "assets/py.*/**"
         }
         jniLibs {
             useLegacyPackaging = true // false when build the aab file and true when required small size compressed apk file 
             pickFirsts += "**/libc++_shared.so"
-            excludes += "**/libpython_bin.so"
         }
     }
 }
@@ -227,55 +216,6 @@ androidComponents {
 
 composeCompiler {
     stabilityConfigurationFile.set(rootProject.file("compose_stability.conf"))
-}
-
-tasks.register("stripPythonStdlib") {
-    group = "optimization"
-    description = "Strips unused desktop, testing, and legacy modules from python313.zip"
-    doLast {
-        val zipFile = file("src/main/assets/ytdl/python313.zip")
-        if (!zipFile.exists()) {
-            logger.warn("python313.zip not found at ${zipFile.absolutePath}")
-            return@doLast
-        }
-        val removablePatterns = listOf(
-            Regex("""^asyncio/windows_.*"""),
-            Regex("""^_pyrepl/windows_.*"""),
-            Regex("""^_pyrepl/(curses|_minimal_curses|trace)\.pyc$"""),
-            Regex("""^curses/.*"""),
-            Regex("""^wsgiref/.*"""),
-            Regex("""^(turtle|antigravity|pydoc|bdb|doctest|_osx_support|_aix_support)\.pyc$"""),
-            Regex("""^ctypes/_aix\.pyc$"""),
-            Regex("""^(imaplib|poplib|smtplib|mailbox|ftplib)\.pyc$"""),
-            Regex("""^(tabnanny|wave|colorsys|timeit|cProfile|profile|pstats|trace)\.pyc$"""),
-            Regex("""^(tkinter|unittest|idlelib)/.*""")
-        )
-        val tempZip = file("src/main/assets/ytdl/python313_stripped.zip")
-        var removedCount = 0
-        ZipInputStream(zipFile.inputStream().buffered()).use { zis ->
-            ZipOutputStream(tempZip.outputStream().buffered()).use { zos ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    val name = entry.name
-                    val shouldRemove = removablePatterns.any { it.matches(name) }
-                    if (shouldRemove) {
-                        removedCount++
-                    } else {
-                        zos.putNextEntry(ZipEntry(name))
-                        zis.copyTo(zos)
-                        zos.closeEntry()
-                    }
-                    zis.closeEntry()
-                    entry = zis.nextEntry
-                }
-            }
-        }
-        val originalSize = zipFile.length()
-        val newSize = tempZip.length()
-        zipFile.delete()
-        tempZip.renameTo(zipFile)
-        logger.lifecycle("stripPythonStdlib: removed $removedCount unused modules. ($originalSize bytes -> $newSize bytes)")
-    }
 }
 
 tasks.register("verify16kbAlignment") {
