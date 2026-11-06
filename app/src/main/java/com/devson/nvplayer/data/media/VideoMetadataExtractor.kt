@@ -94,17 +94,18 @@ object VideoMetadataExtractor {
             uri.toString().endsWith(".mkv", ignoreCase = true) ||
             uri.toString().endsWith(".webm", ignoreCase = true)
 
+        var fis: FileInputStream? = null
+        var pfd: android.os.ParcelFileDescriptor? = null
         try {
-            val pfd = if (file != null && fileExists) {
-                null
+            if (file != null && fileExists) {
+                fis = FileInputStream(file)
             } else {
-                try {
+                pfd = try {
                     context.contentResolver.openFileDescriptor(uri, "r")
                 } catch (_: Exception) {
                     null
                 }
             }
-            val fis = if (file != null && fileExists) FileInputStream(file) else null
             val fd = fis?.fd ?: pfd?.fileDescriptor
 
             if (fd != null && MatroskaSubtitleDemuxer.isMatroskaFile(fd)) {
@@ -121,17 +122,18 @@ object VideoMetadataExtractor {
                     }
                 }
             }
-            try { fis?.close() } catch (_: Exception) {}
-            try { pfd?.close() } catch (_: Exception) {}
         } catch (e: Exception) {
             Log.w(TAG, "Matroska fast track probe skipped", e)
+        } finally {
+            try { fis?.close() } catch (_: Exception) {}
+            try { pfd?.close() } catch (_: Exception) {}
         }
 
         // 2. MediaExtractor native inspection for Video FPS & Subtitle tracks
         try {
             val extractor = MediaExtractor()
             try {
-                if (file != null && fileExists) {
+                if (file != null && fileExists && file.canRead()) {
                     extractor.setDataSource(file.absolutePath)
                 } else {
                     extractor.setDataSource(context, uri, null)
@@ -193,7 +195,7 @@ object VideoMetadataExtractor {
         if (fps == null || fps <= 0f || extractedDuration == null || extractedWidth == null || extractedHeight == null) {
             val retriever = MediaMetadataRetriever()
             try {
-                if (file != null && fileExists) {
+                if (file != null && fileExists && file.canRead()) {
                     retriever.setDataSource(file.absolutePath)
                 } else {
                     retriever.setDataSource(context, uri)
@@ -204,16 +206,28 @@ object VideoMetadataExtractor {
                     val dur = durStr?.toLongOrNull()
                     if (dur != null && dur > 0L) extractedDuration = dur
                 }
-                if (extractedWidth == null || (extractedWidth ?: 0) <= 0) {
+                var w = extractedWidth
+                var h = extractedHeight
+                if (w == null || w <= 0) {
                     val wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-                    val w = wStr?.toIntOrNull()
-                    if (w != null && w > 0) extractedWidth = w
+                    val parsedW = wStr?.toIntOrNull()
+                    if (parsedW != null && parsedW > 0) w = parsedW
                 }
-                if (extractedHeight == null || (extractedHeight ?: 0) <= 0) {
+                if (h == null || h <= 0) {
                     val hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-                    val h = hStr?.toIntOrNull()
-                    if (h != null && h > 0) extractedHeight = h
+                    val parsedH = hStr?.toIntOrNull()
+                    if (parsedH != null && parsedH > 0) h = parsedH
                 }
+                val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                if (rotation == 90 || rotation == 270) {
+                    if (w != null && h != null) {
+                        val temp = w
+                        w = h
+                        h = temp
+                    }
+                }
+                extractedWidth = w
+                extractedHeight = h
 
                 val capRateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
                 val capRate = capRateStr?.toFloatOrNull()
@@ -237,41 +251,6 @@ object VideoMetadataExtractor {
                 try {
                     retriever.release()
                 } catch (_: Exception) {}
-            }
-        }
-
-        // 4. MediaInfo fallback for formats where native extractors fail (MKV, AVI, etc.)
-        if (fps == null || fps <= 0f) {
-            try {
-                val pfd = if (file != null && fileExists) {
-                    try { android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY) } catch (_: Exception) { null }
-                } else {
-                    try { context.contentResolver.openFileDescriptor(uri, "r") } catch (_: Exception) { null }
-                }
-                if (pfd != null) {
-                    val mi = net.mediaarea.mediainfo.lib.MediaInfo()
-                    try {
-                        val detachedFd = pfd.detachFd()
-                        mi.Open(detachedFd, path ?: "video")
-                        val miFpsStr = mi.Get(net.mediaarea.mediainfo.lib.MediaInfo.Stream.Video, 0, "FrameRate")
-                        val parsed = miFpsStr.toFloatOrNull()
-                        if (parsed != null && parsed > 0f) {
-                            fps = parsed
-                        } else {
-                            val strFps = mi.Get(net.mediaarea.mediainfo.lib.MediaInfo.Stream.Video, 0, "FrameRate/String")
-                            val cleanStr = strFps.replace("FPS", "", ignoreCase = true).trim()
-                            val parsedStr = cleanStr.toFloatOrNull()
-                            if (parsedStr != null && parsedStr > 0f) {
-                                fps = parsedStr
-                            }
-                        }
-                    } finally {
-                        try { mi.Close() } catch (_: Exception) {}
-                        try { pfd.close() } catch (_: Exception) {}
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "MediaInfo fallback failed: ${e.localizedMessage}")
             }
         }
 

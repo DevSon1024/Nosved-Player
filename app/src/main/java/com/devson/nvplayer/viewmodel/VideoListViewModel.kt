@@ -390,22 +390,29 @@ class VideoListViewModel(
                         val finalEmbeddedSubs: List<String>
                         val externalSubs: List<String>
 
+                        val finalWidth: Int
+                        val finalHeight: Int
+
                         if (cached != null) {
                             finalSize = if (item.size > 0) item.size else cached.size
                             finalDateModified = if (item.dateModified > 0) item.dateModified * 1000 else cached.dateModified
                             finalDuration = if (item.duration > 0) item.duration else cached.duration
+                            finalWidth = if (item.width > 0) item.width else cached.width
+                            finalHeight = if (item.height > 0) item.height else cached.height
                             finalFps = if (cached.frameRate != null && cached.frameRate > 0f) cached.frameRate else null
                             finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                             externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-                            // Re-probe if frame rate, duration, or resolution was not detected
-                            if (finalFps == null || finalDuration == 0L || item.width == 0) {
+                            // Only re-probe if duration or dimensions are genuinely missing
+                            if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0) {
                                 uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                             }
                         } else {
                             finalSize = item.size
                             finalDateModified = item.dateModified * 1000
                             finalDuration = item.duration
+                            finalWidth = item.width
+                            finalHeight = item.height
                             finalFps = null
                             finalEmbeddedSubs = emptyList()
                             externalSubs = emptyList()
@@ -419,13 +426,13 @@ class VideoListViewModel(
                             folderName = item.folderName,
                             path = item.path,
                             size = finalSize,
-                            width = item.width,
-                            height = item.height,
+                            width = finalWidth,
+                            height = finalHeight,
                             dateAdded = finalDateModified,
                             dateModified = finalDateModified,
                             playedTime = null,
                             lastPlayedAt = null,
-                            resolution = if (item.width > 0 && item.height > 0) "${item.width}x${item.height}" else "",
+                            resolution = if (finalWidth > 0 && finalHeight > 0) "${finalWidth}x${finalHeight}" else "",
                             frameRate = finalFps,
                             thumbnailUri = item.thumbnailUri?.toString(),
                             embeddedSubtitles = finalEmbeddedSubs,
@@ -474,7 +481,9 @@ class VideoListViewModel(
                                         externalSubtitleUri = null,
                                         frameRate = fps ?: -1f,
                                         embeddedSubtitles = embeddedSubs.joinToString(","),
-                                        externalSubtitles = externalSubs.joinToString(",")
+                                        externalSubtitles = externalSubs.joinToString(","),
+                                        width = resolvedWidth,
+                                        height = resolvedHeight
                                     )
                                     Triple(uriStr, cachedMetadata, Triple(fps, Pair(embeddedSubs, externalSubs), Triple(resolvedDuration, resolvedWidth, resolvedHeight)))
                                 }
@@ -521,6 +530,10 @@ class VideoListViewModel(
                 _isRefreshing.value = false
             }
 
+            if (_rawVideosFlat.value.any { it.duration <= 0L || it.width <= 0 || it.height <= 0 }) {
+                repairZeroDurationVideos()
+            }
+
             if (viewSettingsRepo.viewSettingsFlow.value.showHiddenFolders) {
                 discoverHiddenVideos()
             }
@@ -540,7 +553,6 @@ class VideoListViewModel(
                     mutableMapOf()
                 }
 
-                repairZeroDurationVideos()
                 repository.scanHiddenVideos(blacklisted) { batch ->
                     if (batch.isEmpty()) return@scanHiddenVideos
 
@@ -554,7 +566,9 @@ class VideoListViewModel(
                             uri = item.uri.toString(),
                             size = item.size,
                             dateModified = item.dateModified * 1000L,
-                            duration = item.duration
+                            duration = item.duration,
+                            width = item.width,
+                            height = item.height
                         )
                     }
                     metadataDao.insertAll(metadataToInsert)
@@ -606,10 +620,6 @@ class VideoListViewModel(
 
                     _rawVideosByFolder.value = currentRawMap.toMap()
                     _rawVideosFlat.value = currentRawMap.values.flatten()
-
-                    if (newVideos.any { it.duration <= 0L || it.width <= 0 }) {
-                        repairZeroDurationVideos()
-                    }
                 }
             } catch (e: Exception) {
                 if (e !is kotlinx.coroutines.CancellationException) {
@@ -629,30 +639,75 @@ class VideoListViewModel(
 
     fun repairZeroDurationVideos() {
         viewModelScope.launch(Dispatchers.IO) {
-            val zeroItems = _rawVideosFlat.value.filter { it.duration <= 0L || it.width <= 0 }
+            val zeroItems = _rawVideosFlat.value.filter { it.duration <= 0L || it.width <= 0 || it.height <= 0 }
             if (zeroItems.isEmpty()) return@launch
             val dispatcher = Dispatchers.IO.limitedParallelism(4)
             val repaired = zeroItems.map { video ->
                 async(dispatcher) {
+                    val file = java.io.File(video.path)
+                    var dur = 0L
+                    var w = 0
+                    var h = 0
+
                     val retriever = android.media.MediaMetadataRetriever()
-                    val (dur, w, h) = try {
-                        retriever.setDataSource(video.path)
-                        val d = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-                        val width = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-                        val height = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-                        Triple(d, width, height)
+                    try {
+                        if (file.exists() && file.canRead()) {
+                            retriever.setDataSource(file.absolutePath)
+                        } else {
+                            retriever.setDataSource(video.path)
+                        }
+                        dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        w = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                        h = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                        val rotation = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                        if (rotation == 90 || rotation == 270) {
+                            val temp = w
+                            w = h
+                            h = temp
+                        }
                     } catch (_: Exception) {
-                        Triple(0L, 0, 0)
                     } finally {
                         try { retriever.release() } catch (_: Exception) {}
                     }
 
-                    if (dur > 0L || w > 0) {
-                        val res = if (w > 0 && h > 0) "${w}x${h}" else video.resolution
+                    if (dur <= 0L || w <= 0 || h <= 0) {
+                        val extractor = android.media.MediaExtractor()
+                        try {
+                            if (file.exists() && file.canRead()) {
+                                extractor.setDataSource(file.absolutePath)
+                            } else {
+                                extractor.setDataSource(video.path)
+                            }
+                            for (i in 0 until extractor.trackCount) {
+                                val format = extractor.getTrackFormat(i)
+                                val mime = format.getString(android.media.MediaFormat.KEY_MIME) ?: ""
+                                if (mime.startsWith("video/")) {
+                                    if (w <= 0 && format.containsKey(android.media.MediaFormat.KEY_WIDTH)) {
+                                        w = format.getInteger(android.media.MediaFormat.KEY_WIDTH)
+                                    }
+                                    if (h <= 0 && format.containsKey(android.media.MediaFormat.KEY_HEIGHT)) {
+                                        h = format.getInteger(android.media.MediaFormat.KEY_HEIGHT)
+                                    }
+                                    if (dur <= 0L && format.containsKey(android.media.MediaFormat.KEY_DURATION)) {
+                                        dur = format.getLong(android.media.MediaFormat.KEY_DURATION) / 1000L
+                                    }
+                                    break
+                                }
+                            }
+                        } catch (_: Exception) {
+                        } finally {
+                            try { extractor.release() } catch (_: Exception) {}
+                        }
+                    }
+
+                    if (dur > 0L || (w > 0 && h > 0)) {
+                        val finalW = if (w > 0) w else video.width
+                        val finalH = if (h > 0) h else video.height
+                        val res = if (finalW > 0 && finalH > 0) "${finalW}x${finalH}" else ""
                         val updated = video.copy(
                             duration = if (dur > 0L) dur else video.duration,
-                            width = if (w > 0) w else video.width,
-                            height = if (h > 0) h else video.height,
+                            width = finalW,
+                            height = finalH,
                             resolution = res
                         )
                         try {
@@ -661,7 +716,9 @@ class VideoListViewModel(
                                     uri = video.uri,
                                     size = video.size,
                                     dateModified = video.dateModified,
-                                    duration = updated.duration
+                                    duration = updated.duration,
+                                    width = updated.width,
+                                    height = updated.height
                                 )
                             )
                         } catch (_: Exception) {}
@@ -686,7 +743,7 @@ class VideoListViewModel(
         _selectedFolder.value = folder
         if (folder != null) {
             val folderVideos = _rawVideosByFolder.value[folder] ?: emptyList()
-            if (folderVideos.any { it.duration <= 0L || it.width <= 0 }) {
+            if (folderVideos.any { it.duration <= 0L || it.width <= 0 || it.height <= 0 }) {
                 repairZeroDurationVideos()
             }
             com.devson.nvplayer.domain.thumbnail.ThumbnailRepository.getInstance(repository.context)

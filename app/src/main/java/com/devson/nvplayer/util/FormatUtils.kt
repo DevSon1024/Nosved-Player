@@ -18,6 +18,7 @@ fun formatDate(timeMs: Long): String {
 }
 
 fun formatDuration(durationMs: Long): String {
+    if (durationMs <= 0L) return ""
     val totalSeconds = durationMs / 1000
     val seconds = totalSeconds % 60
     val minutes = (totalSeconds / 60) % 60
@@ -45,11 +46,14 @@ fun formatRelativeTime(context: Context, timeMs: Long): String {
 
 fun formatResolutionCompact(resolution: String?): String? {
     if (resolution.isNullOrBlank()) return null
+    if (resolution.equals("0p", ignoreCase = true) || resolution == "0x0" || resolution == "0") return null
     val parts = resolution.split("x")
     if (parts.size == 2) {
-        val height = parts[1].toIntOrNull() ?: return resolution
-        if (height <= 0) return null
-        return "${height}p"
+        val width = parts[0].toIntOrNull() ?: 0
+        val height = parts[1].toIntOrNull() ?: return null
+        if (width <= 0 || height <= 0) return null
+        val standardDim = if (width > height) height else width
+        return "${standardDim}p"
     }
     return resolution
 }

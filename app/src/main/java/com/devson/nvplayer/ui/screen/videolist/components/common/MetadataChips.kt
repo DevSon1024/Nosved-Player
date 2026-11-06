@@ -78,12 +78,16 @@ fun VideoMetadataChips(
     isGrid: Boolean = false
 ) {
     val standardTokens = buildList {
-        if (settings.showLength && !settings.displayLengthOverThumbnail)
+        if (settings.showLength && !settings.displayLengthOverThumbnail && video.duration > 0L)
             add(MetaToken(formatDuration(video.duration), MetaChipType.PRIMARY))
         if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
             add(MetaToken(formatRelativeTime(LocalContext.current, video.lastPlayedAt)))
-        if (settings.showResolution && !video.resolution.isNullOrEmpty())
-            add(MetaToken(formatResolutionCompact(video.resolution) ?: video.resolution))
+        if (settings.showResolution && !video.resolution.isNullOrBlank()) {
+            val compactRes = formatResolutionCompact(video.resolution)
+            if (!compactRes.isNullOrBlank()) {
+                add(MetaToken(compactRes))
+            }
+        }
         if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f) {
             val formattedFps = if (video.frameRate % 1f == 0f) {
                 "${video.frameRate.toInt()} fps"

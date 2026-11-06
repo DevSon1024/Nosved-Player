@@ -185,7 +185,9 @@ fun DurationPill(
     isGrid: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    if (duration <= 0L) return
     val formattedDuration = remember(duration) { formatDuration(duration) }
+    if (formattedDuration.isBlank()) return
     Box(
         modifier = modifier
             .background(
@@ -213,7 +215,7 @@ fun BoxScope.VideoThumbnailBadges(
     val subtitleTokens = remember(video.embeddedSubtitles, video.externalSubtitles) {
         getSubtitleTokens(video)
     }
-    val showDuration = settings.showLength && settings.displayLengthOverThumbnail
+    val showDuration = settings.showLength && settings.displayLengthOverThumbnail && video.duration > 0L
     val showSubtitle = isGrid && subtitleTokens.isNotEmpty()
 
     if (showDuration || showSubtitle) {
@@ -242,6 +244,7 @@ fun BoxScope.DurationBadge(
     isGrid: Boolean,
     alignment: Alignment
 ) {
+    if (duration <= 0L) return
     DurationPill(
         duration = duration,
         isGrid = isGrid,

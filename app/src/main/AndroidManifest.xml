@@ -27,6 +27,7 @@
         android:theme="@style/Theme.nvplayer"
         android:largeHeap="true"
         android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"

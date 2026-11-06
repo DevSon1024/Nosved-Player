@@ -465,7 +465,14 @@ class LibraryViewModel(
                     val ids = mediaLibraryDao.insertSeriesList(newSeriesToInsert)
                     newSeriesToInsert.forEachIndexed { idx, sEntity ->
                         val id = ids.getOrNull(idx) ?: 0L
-                        existingSeriesMap[sEntity.title] = sEntity.copy(id = id)
+                        if (id > 0L) {
+                            existingSeriesMap[sEntity.title] = sEntity.copy(id = id)
+                        }
+                    }
+                    if (existingSeriesMap.values.any { it.id <= 0L }) {
+                        mediaLibraryDao.getAllSeriesSync().forEach { s ->
+                            existingSeriesMap[s.title] = s
+                        }
                     }
                 } catch (_: Exception) {}
             }
@@ -528,11 +535,7 @@ class LibraryViewModel(
                         mediaLibraryDao.deleteEpisodes(staleEpisodes)
                     }
 
-                    // 4. Prune orphaned seasons & series (seasons with no episodes, series with no seasons)
-                    mediaLibraryDao.deleteOrphanedSeasons()
-                    mediaLibraryDao.deleteOrphanedSeries()
-
-                    // 5. Update synopsis of existing series to reflect current episode & season counts
+                    // 4. Update synopsis of existing series to reflect current episode & season counts
                     for ((title, episodes) in seriesMap) {
                         val seriesEntity = existingSeriesMap[title] ?: continue
                         val seasons = episodes.mapNotNull {
@@ -548,7 +551,7 @@ class LibraryViewModel(
                         }
                     }
 
-                    // 6. Batch insert missing seasons
+                    // 5. Batch insert missing seasons
                     val allExistingSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
                     val seasonsToInsert = mutableListOf<SeasonEntity>()
                     for ((title, episodes) in seriesMap) {
@@ -567,7 +570,7 @@ class LibraryViewModel(
                         mediaLibraryDao.insertSeasons(seasonsToInsert)
                     }
 
-                    // 7. Batch insert missing episodes
+                    // 6. Batch insert missing episodes
                     val updatedSeasons = mediaLibraryDao.getAllSeasonsSync().groupBy { it.seriesId }
                     val allRemainingEpisodes = mediaLibraryDao.getAllEpisodesSync().associateBy { it.fileUri }
                     val newEpisodes = mutableListOf<EpisodeEntity>()
@@ -604,6 +607,10 @@ class LibraryViewModel(
                     if (newEpisodes.isNotEmpty()) {
                         mediaLibraryDao.insertEpisodes(newEpisodes)
                     }
+
+                    // 7. Prune orphaned seasons & series (after episodes and seasons are safely committed)
+                    mediaLibraryDao.deleteOrphanedSeasons()
+                    mediaLibraryDao.deleteOrphanedSeries()
                 } catch (e: Exception) {
                     android.util.Log.e("LibraryViewModel", "Error syncing library details to DB", e)
                 }

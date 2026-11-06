@@ -251,8 +251,27 @@ class CoilVideoThumbnailDecoder(
     private fun MediaMetadataRetriever.setDataSource(source: ImageSource) {
         val metadata = source.metadata
         when {
-            metadata is ContentMetadata -> setDataSource(options.context, metadata.uri.toAndroidUri())
-            source.fileSystem === FileSystem.SYSTEM -> setDataSource(source.file().toFile().path)
+            metadata is ContentMetadata -> {
+                val androidUri = metadata.uri.toAndroidUri()
+                if (androidUri.scheme == "file") {
+                    val file = java.io.File(androidUri.path ?: "")
+                    if (file.exists() && file.canRead()) {
+                        setDataSource(file.absolutePath)
+                    } else {
+                        setDataSource(options.context, androidUri)
+                    }
+                } else {
+                    setDataSource(options.context, androidUri)
+                }
+            }
+            source.fileSystem === FileSystem.SYSTEM -> {
+                val file = source.file().toFile()
+                if (file.exists() && file.canRead()) {
+                    setDataSource(file.absolutePath)
+                } else {
+                    setDataSource(file.path)
+                }
+            }
             else -> error("Unsupported thumbnail source")
         }
     }
@@ -284,7 +303,18 @@ class CoilVideoThumbnailDecoder(
         timeUs: Long,
     ): Bitmap? = withContext(Dispatchers.IO) {
         val extractor = MediaExtractor()
-        runCatching { extractor.setDataSource(path) }.onFailure { extractor.release(); return@withContext null }
+        val file = java.io.File(path)
+        val setOk = runCatching {
+            if (file.exists() && file.canRead()) {
+                extractor.setDataSource(file.absolutePath)
+            } else {
+                extractor.setDataSource(path)
+            }
+        }.isSuccess
+        if (!setOk) {
+            extractor.release()
+            return@withContext null
+        }
 
         var trackIndex = -1
         for (i in 0 until extractor.trackCount) {

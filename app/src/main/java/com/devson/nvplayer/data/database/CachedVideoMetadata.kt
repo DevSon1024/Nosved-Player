@@ -12,5 +12,7 @@ data class CachedVideoMetadata(
     val externalSubtitleUri: String? = null,
     val frameRate: Float? = null,
     val embeddedSubtitles: String? = null,
-    val externalSubtitles: String? = null
+    val externalSubtitles: String? = null,
+    val width: Int = 0,
+    val height: Int = 0
 )

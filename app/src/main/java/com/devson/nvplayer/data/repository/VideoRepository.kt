@@ -213,18 +213,64 @@ class VideoRepository(
     }
 
     private fun extractFastVideoMetadata(path: String): Triple<Long, Int, Int> {
+        val file = File(path)
+        var dur = 0L
+        var w = 0
+        var h = 0
+
         val retriever = android.media.MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(path)
-            val dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            val w = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-            val h = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-            Triple(dur, w, h)
+        try {
+            if (file.exists() && file.canRead()) {
+                retriever.setDataSource(file.absolutePath)
+            } else {
+                retriever.setDataSource(path)
+            }
+            dur = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            w = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            h = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            val rotation = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            if (rotation == 90 || rotation == 270) {
+                val temp = w
+                w = h
+                h = temp
+            }
         } catch (_: Exception) {
-            Triple(0L, 0, 0)
         } finally {
             try { retriever.release() } catch (_: Exception) {}
         }
+
+        if (dur <= 0L || w <= 0 || h <= 0) {
+            try {
+                val extractor = android.media.MediaExtractor()
+                try {
+                    if (file.exists() && file.canRead()) {
+                        extractor.setDataSource(file.absolutePath)
+                    } else {
+                        extractor.setDataSource(path)
+                    }
+                    for (i in 0 until extractor.trackCount) {
+                        val format = extractor.getTrackFormat(i)
+                        val mime = format.getString(android.media.MediaFormat.KEY_MIME) ?: ""
+                        if (mime.startsWith("video/")) {
+                            if (w <= 0 && format.containsKey(android.media.MediaFormat.KEY_WIDTH)) {
+                                w = format.getInteger(android.media.MediaFormat.KEY_WIDTH)
+                            }
+                            if (h <= 0 && format.containsKey(android.media.MediaFormat.KEY_HEIGHT)) {
+                                h = format.getInteger(android.media.MediaFormat.KEY_HEIGHT)
+                            }
+                            if (dur <= 0L && format.containsKey(android.media.MediaFormat.KEY_DURATION)) {
+                                dur = format.getLong(android.media.MediaFormat.KEY_DURATION) / 1000L
+                            }
+                            break
+                        }
+                    }
+                } finally {
+                    extractor.release()
+                }
+            } catch (_: Exception) {}
+        }
+
+        return Triple(dur, w, h)
     }
 
     suspend fun scanHiddenVideos(
@@ -406,8 +452,8 @@ class VideoRepository(
                                     path = path,
                                     thumbnailUri = uriObj,
                                     size = if (meta.size > 0L) meta.size else file.length(),
-                                    width = 0,
-                                    height = 0,
+                                    width = meta.width,
+                                    height = meta.height,
                                     dateModified = if (meta.dateModified > 0L) meta.dateModified / 1000L else file.lastModified() / 1000L
                                 )
                             )
@@ -495,7 +541,7 @@ class VideoRepository(
                 dateModified = finalDateModified,
                 playedTime = null,
                 lastPlayedAt = null,
-                resolution = "${item.width}x${item.height}",
+                resolution = if (item.width > 0 && item.height > 0) "${item.width}x${item.height}" else "",
                 frameRate = if (cached?.frameRate != null && cached.frameRate > 0f) cached.frameRate else null,
                 thumbnailUri = item.thumbnailUri?.toString(),
                 embeddedSubtitles = embeddedSubs,
