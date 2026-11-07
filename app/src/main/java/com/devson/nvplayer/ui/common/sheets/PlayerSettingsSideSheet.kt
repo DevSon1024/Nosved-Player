@@ -90,6 +90,7 @@ fun PlayerSettingsSideSheet(
     val onUpdateShowNextPrevButtons = actions.onUpdateShowNextPrevButtons
     val onUpdateShowRemainingTime = actions.onUpdateShowRemainingTime
     val onUpdateShowBatteryClockOverlay = actions.onUpdateShowBatteryClockOverlay
+    val onUpdateShowStatsOverlay = actions.onUpdateShowStatsOverlay
     val onUpdatePauseWhenObstructed = actions.onUpdatePauseWhenObstructed
     val onUpdateKeepAwakeAlways = actions.onUpdateKeepAwakeAlways
     val onUpdateIsBottomLayoutEnabled = actions.onUpdateIsBottomLayoutEnabled
@@ -345,6 +346,7 @@ fun PlayerSettingsSideSheet(
                                 playbackSettings = playbackSettings,
                                 onUpdateShowRemainingTime = onUpdateShowRemainingTime,
                                 onUpdateShowBatteryClockOverlay = onUpdateShowBatteryClockOverlay,
+                                onUpdateShowStatsOverlay = onUpdateShowStatsOverlay,
                                 onUpdateShowControlGradients = onUpdateShowControlGradients,
                                 onUpdateIsAmbientModeEnabled = onUpdateIsAmbientModeEnabled,
                                 onUpdateAmbientBlurStyle = onUpdateAmbientBlurStyle
@@ -1174,6 +1176,7 @@ private fun OverlaysTab(
     playbackSettings: PlaybackSettings,
     onUpdateShowRemainingTime: (Boolean) -> Unit,
     onUpdateShowBatteryClockOverlay: (Boolean) -> Unit,
+    onUpdateShowStatsOverlay: (Boolean) -> Unit = {},
     onUpdateShowControlGradients: (Boolean) -> Unit = {},
     onUpdateIsAmbientModeEnabled: (Boolean) -> Unit = {},
     onUpdateAmbientBlurStyle: (com.devson.nvplayer.data.repository.AmbientBlurStyle) -> Unit = {}
@@ -1286,6 +1289,16 @@ private fun OverlaysTab(
                 subtitle = "Display battery status and device clock on control bar",
                 checked = playbackSettings.showBatteryClockOverlay,
                 onCheckedChange = onUpdateShowBatteryClockOverlay
+            )
+
+            SheetDivider()
+
+            SheetToggleRow(
+                icon = Icons.Filled.Analytics,
+                title = "Statistics & Diagnostics Overlay",
+                subtitle = "Display real-time stream codecs, decoders, bitrate, and playback health",
+                checked = playbackSettings.showStatsOverlay,
+                onCheckedChange = onUpdateShowStatsOverlay
             )
 
             SheetDivider()

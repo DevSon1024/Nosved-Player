@@ -37,6 +37,7 @@ data class PlayerSettingsActions(
     val onUpdateShowNextPrevButtons: (Boolean) -> Unit = {},
     val onUpdateShowRemainingTime: (Boolean) -> Unit = {},
     val onUpdateShowBatteryClockOverlay: (Boolean) -> Unit = {},
+    val onUpdateShowStatsOverlay: (Boolean) -> Unit = {},
     val onUpdatePauseWhenObstructed: (Boolean) -> Unit = {},
     val onUpdateKeepAwakeAlways: (Boolean) -> Unit = {},
     val onUpdateIsBottomLayoutEnabled: (Boolean) -> Unit = {},

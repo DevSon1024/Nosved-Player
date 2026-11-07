@@ -156,6 +156,7 @@ fun PlayerControls(
     title: String,
     isPlaying: Boolean,
     isSmartEnhanceEnabled: Boolean = false,
+    isStatsOverlayActive: Boolean = false,
     currentPosition: Long = 0L,
     bufferedPosition: Long = 0L,
     currentPositionProvider: (() -> Long)? = null,
@@ -204,6 +205,7 @@ fun PlayerControls(
     showControlGradients: Boolean = true,
     onTitleClick: () -> Unit = {},
     onScreenshotClick: () -> Unit = {},
+    onToggleStats: () -> Unit = {},
     resolutionLabel: String? = null,
     videoCodecLabel: String? = null,
     fileSizeLabel: String? = null,
@@ -286,6 +288,7 @@ fun PlayerControls(
                 PlayerButton.ASPECT_RATIO -> onAspectClick()
                 PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
                 PlayerButton.SCREENSHOT -> onScreenshotClick()
+                PlayerButton.STATS -> onToggleStats()
                 PlayerButton.SCREEN_ROTATION -> {
                     activity?.let { act ->
                         val currentOrientation = act.requestedOrientation
@@ -406,6 +409,7 @@ fun PlayerControls(
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        isStatsOverlayActive = isStatsOverlayActive,
                         themePrimary = themePrimary,
                         onButtonClick = onButtonClick
                     )
@@ -431,6 +435,7 @@ fun PlayerControls(
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        isStatsOverlayActive = isStatsOverlayActive,
                         themePrimary = themePrimary,
                         onButtonClick = onButtonClick
                     )
@@ -616,6 +621,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -654,6 +660,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -816,6 +823,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -860,6 +868,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -885,6 +894,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -902,6 +912,7 @@ fun PlayerControls(
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                                isStatsOverlayActive = isStatsOverlayActive,
                                 themePrimary = themePrimary,
                                 onButtonClick = onButtonClick
                             )
@@ -925,6 +936,7 @@ fun DynamicControlCapsule(
     currentAspectMode: AspectMode = AspectMode.FIT,
     isSmartEnhanceEnabled: Boolean = false,
     isBackgroundPlayEnabled: Boolean = false,
+    isStatsOverlayActive: Boolean = false,
     themePrimary: Color = MaterialTheme.colorScheme.primary,
     onButtonClick: (PlayerButton) -> Unit
 ) {
@@ -947,6 +959,7 @@ fun DynamicControlCapsule(
                 currentAspectMode = currentAspectMode,
                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                isStatsOverlayActive = isStatsOverlayActive,
                 themePrimary = themePrimary,
                 onClick = { onButtonClick(button) }
             )
@@ -1019,6 +1032,7 @@ fun CapsuleControlItem(
     currentAspectMode: AspectMode,
     isSmartEnhanceEnabled: Boolean,
     isBackgroundPlayEnabled: Boolean,
+    isStatsOverlayActive: Boolean = false,
     themePrimary: Color,
     onClick: () -> Unit
 ) {
@@ -1043,6 +1057,38 @@ fun CapsuleControlItem(
                 fontSize = sizeSpec.capsulePillFontSize,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
+            )
+        }
+        return
+    }
+
+    if (button == PlayerButton.STATS) {
+        val isActive = isStatsOverlayActive
+        val containerModifier = if (isActive) {
+            Modifier
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(50))
+                .background(AccentBlue.copy(alpha = 0.25f))
+                .border(1.dp, AccentBlue.copy(alpha = 0.6f), RoundedCornerShape(50))
+                .clickable { onClick() }
+                .padding(horizontal = sizeSpec.capsulePillHorizontalPadding, vertical = sizeSpec.capsulePillVerticalPadding)
+        } else {
+            Modifier
+                .size(sizeSpec.capsuleButtonSize)
+                .clip(CircleShape)
+                .clickable { onClick() }
+        }
+        val tint = if (isActive) Color(0xFF93C5FD) else Color.White.copy(alpha = 0.9f)
+
+        Box(
+            modifier = containerModifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = button.icon,
+                contentDescription = button.displayName,
+                tint = tint,
+                modifier = Modifier.size(sizeSpec.capsuleIconSize)
             )
         }
         return
@@ -1092,6 +1138,7 @@ fun BottomZoneWithOverflow(
     currentAspectMode: AspectMode,
     isSmartEnhanceEnabled: Boolean,
     isBackgroundPlayEnabled: Boolean,
+    isStatsOverlayActive: Boolean = false,
     themePrimary: Color,
     onButtonClick: (PlayerButton) -> Unit
 ) {
@@ -1105,6 +1152,7 @@ fun BottomZoneWithOverflow(
             currentAspectMode = currentAspectMode,
             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+            isStatsOverlayActive = isStatsOverlayActive,
             themePrimary = themePrimary,
             onButtonClick = onButtonClick
         )
@@ -1153,6 +1201,7 @@ fun BottomZoneWithOverflow(
                     currentAspectMode = currentAspectMode,
                     isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                     isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                    isStatsOverlayActive = isStatsOverlayActive,
                     themePrimary = themePrimary,
                     onButtonClick = onButtonClick
                 )
@@ -1177,6 +1226,7 @@ fun BottomZoneWithOverflow(
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            isStatsOverlayActive = isStatsOverlayActive,
                             themePrimary = themePrimary,
                             onClick = { onButtonClick(button) }
                         )
@@ -1190,6 +1240,7 @@ fun BottomZoneWithOverflow(
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            isStatsOverlayActive = isStatsOverlayActive,
                             themePrimary = themePrimary,
                             onClick = { onButtonClick(button) }
                         )
@@ -1217,6 +1268,7 @@ fun BottomZoneWithOverflow(
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        isStatsOverlayActive = isStatsOverlayActive,
                         themePrimary = themePrimary,
                         onButtonClick = onButtonClick
                     )
@@ -1240,6 +1292,7 @@ fun BottomZoneWithOverflow(
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            isStatsOverlayActive = isStatsOverlayActive,
                             themePrimary = themePrimary,
                             onClick = { onButtonClick(button) }
                         )
@@ -1263,6 +1316,7 @@ fun BottomZoneWithOverflow(
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                            isStatsOverlayActive = isStatsOverlayActive,
                             themePrimary = themePrimary,
                             onClick = { onButtonClick(button) }
                         )
@@ -1282,6 +1336,7 @@ fun BottomZoneWithOverflow(
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+                        isStatsOverlayActive = isStatsOverlayActive,
                         themePrimary = themePrimary,
                         onButtonClick = onButtonClick
                     )
@@ -1614,9 +1669,11 @@ fun RenderPlayerButton(
     activity: Activity? = null,
     currentAspectMode: AspectMode = AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
+    isStatsOverlayActive: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
     onTitleClick: () -> Unit = {},
-    onScreenshotClick: () -> Unit = {}
+    onScreenshotClick: () -> Unit = {},
+    onToggleStats: () -> Unit = {}
 ) {
     if (button == PlayerButton.VIDEO_TITLE) {
         Column(modifier = modifier.clickable { onTitleClick() }) {
@@ -1646,6 +1703,7 @@ fun RenderPlayerButton(
             PlayerButton.ASPECT_RATIO -> onAspectClick()
             PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
             PlayerButton.SCREENSHOT -> onScreenshotClick()
+            PlayerButton.STATS -> onToggleStats()
             PlayerButton.SCREEN_ROTATION -> {
                 activity?.let { act ->
                     val currentOrientation = act.requestedOrientation
@@ -1669,6 +1727,7 @@ fun RenderPlayerButton(
         currentAspectMode = currentAspectMode,
         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
+        isStatsOverlayActive = isStatsOverlayActive,
         themePrimary = themePrimary,
         onClick = onClick
     )

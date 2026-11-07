@@ -100,6 +100,18 @@ class WatchTracker(
     private var lastSaveWallClockTimeMs: Long = 0L
     private var isSeeking: Boolean = false
 
+    private fun isVaultMedia(uri: String?, path: String?, folderName: String?): Boolean {
+        if (folderName.equals("Vault", ignoreCase = true)) return true
+        val u = uri.orEmpty()
+        val p = path.orEmpty()
+        return u.contains(".vault_secure_media") ||
+               u.contains("vault_playback") ||
+               u.contains("playback_") ||
+               p.contains(".vault_secure_media") ||
+               p.contains("vault_playback") ||
+               p.contains("playback_")
+    }
+
     fun requiredWatchTimeMs(durationMs: Long): Long = Companion.requiredWatchTimeMs(durationMs)
 
     fun calculateThreshold(duration: Long): Long = requiredWatchTimeMs(duration)
@@ -113,6 +125,27 @@ class WatchTracker(
         originalPath: String? = null
     ) {
         flush()
+
+        if (isVaultMedia(uri, originalPath, folderName)) {
+            synchronized(this) {
+                currentUri = null
+                currentTitle = null
+                currentFolderName = null
+                currentOriginalPath = null
+                this.durationMs = 0L
+                this.isNetworkStream = false
+                accumulatedWatchedMs = 0L
+                todayWatchedMs = 0L
+                sessionWatchedMs = 0L
+                hasQualified = false
+                lastPositionMs = -1L
+                lastWallClockTimeMs = -1L
+                lastSavedPositionMs = 0L
+                lastSaveWallClockTimeMs = clock()
+                isSeeking = false
+            }
+            return
+        }
 
         synchronized(this) {
             currentUri = uri
@@ -295,6 +328,7 @@ class WatchTracker(
 
     private suspend fun handleQualification(positionMs: Long) {
         val uri = currentUri ?: return
+        if (isVaultMedia(uri, currentOriginalPath, currentFolderName)) return
         val today = dateProvider()
 
         try {
@@ -359,6 +393,7 @@ class WatchTracker(
 
     private suspend fun saveProgressInternal(positionMs: Long, isQualifiedNow: Boolean) {
         val uri = currentUri ?: return
+        if (isVaultMedia(uri, currentOriginalPath, currentFolderName)) return
         try {
             val existing = watchHistoryDao.findExistingHistory(uri, currentOriginalPath)
             val effectivePos = if (positionMs > 0L) positionMs else (existing?.lastPositionMs ?: 0L)
@@ -400,6 +435,7 @@ class WatchTracker(
 
     fun flush(currentPositionMs: Long? = null) {
         val uri = currentUri ?: return
+        if (isVaultMedia(uri, currentOriginalPath, currentFolderName)) return
         val pos = currentPositionMs ?: lastSavedPositionMs
         scope.launch {
             saveProgressInternal(pos, isQualifiedNow = false)

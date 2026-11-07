@@ -105,6 +105,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Velocity
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 
 @Composable
@@ -226,6 +227,7 @@ fun PlayerScreen(
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
     var showImportSubtitleDialog by remember { mutableStateOf(false) }
+    var showStatsOverlay by remember { mutableStateOf(false) }
 
     val safSubtitlePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = com.devson.nvplayer.util.OpenDocumentWithInitialUri("primary:Movies")
@@ -826,6 +828,7 @@ fun PlayerScreen(
                             isBottomLayoutEnabled = playbackSettings.isBottomLayoutEnabled,
                             showControlGradients = playbackSettings.showControlGradients,
                             isSmartEnhanceEnabled = playbackSettings.enhanceMode != EnhanceMode.OFF,
+                            isStatsOverlayActive = showStatsOverlay || playbackSettings.showStatsOverlay,
                             currentPositionProvider = posProvider,
                             bufferedPositionProvider = bufProvider,
                             isNetworkStream = isNetworkStream,
@@ -896,6 +899,14 @@ fun PlayerScreen(
                              onScreenshotClick = {
                                  activeViewModel?.enterFrameCaptureMode()
                              },
+                             onToggleStats = {
+                                 if (showStatsOverlay || playbackSettings.showStatsOverlay) {
+                                     showStatsOverlay = false
+                                     settingsActions.onUpdateShowStatsOverlay(false)
+                                 } else {
+                                     showStatsOverlay = true
+                                 }
+                             },
                             resolutionLabel = resolutionLabel,
                             videoCodecLabel = videoCodecLabel,
                             fileSizeLabel = fileSizeLabel,
@@ -914,6 +925,21 @@ fun PlayerScreen(
                             onSliderReleased = { activeViewModel?.onFrameSliderReleased(it) },
                             onCapture = { activeViewModel?.takeVideoScreenshot() },
                             onExit = { activeViewModel?.exitFrameCaptureMode() }
+                        )
+                    }
+
+                    if (!isInPipMode) {
+                        val configuration = LocalConfiguration.current
+                        com.devson.nvplayer.ui.common.components.DeviceStatsOverlay(
+                            visible = showStatsOverlay || playbackSettings.showStatsOverlay,
+                            decoderMode = playbackSettings.decoderMode,
+                            onDismiss = {
+                                showStatsOverlay = false
+                                settingsActions.onUpdateShowStatsOverlay(false)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(top = if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) 72.dp else 24.dp, start = 16.dp)
                         )
                     }
                 }

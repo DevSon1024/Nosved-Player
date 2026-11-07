@@ -36,5 +36,6 @@ data class ViewSettings(
     val thumbnailMode: ThumbnailMode = ThumbnailMode.FIRST_FRAME,
     val thumbnailFramePosition: Float = 33f,
     val newVideoDaysThreshold: Int = 7,
-    val showHiddenFolders: Boolean = false
+    val showHiddenFolders: Boolean = false,
+    val autoScrollToLastPlayed: Boolean = true
 )

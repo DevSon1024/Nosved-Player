@@ -263,6 +263,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { settingsRepo.updateShowBatteryClockOverlay(show) }
     }
 
+    fun updateShowStatsOverlay(show: Boolean) {
+        viewModelScope.launch { settingsRepo.updateShowStatsOverlay(show) }
+    }
+
     fun updatePauseWhenObstructed(pause: Boolean) {
         viewModelScope.launch { settingsRepo.updatePauseWhenObstructed(pause) }
     }

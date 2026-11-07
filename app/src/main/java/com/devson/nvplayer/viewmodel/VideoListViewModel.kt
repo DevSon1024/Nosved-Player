@@ -958,4 +958,10 @@ class VideoListViewModel(
             viewSettingsRepo.updateSelectByThumbnail(select)
         }
     }
+
+    fun updateAutoScrollToLastPlayed(enabled: Boolean) {
+        viewModelScope.launch {
+            viewSettingsRepo.updateAutoScrollToLastPlayed(enabled)
+        }
+    }
 }

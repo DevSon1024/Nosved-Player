@@ -254,9 +254,11 @@ fun VideoListScreen(
     // Reset video scroll position when entering a different folder
     LaunchedEffect(selectedFolder) {
         if (selectedFolder?.name != currentFolderId) {
-            videoListState.scrollToItem(0)
-            videoGridState.scrollToItem(0)
             currentFolderId = selectedFolder?.name
+            if (!viewSettings.autoScrollToLastPlayed) {
+                videoListState.scrollToItem(0)
+                videoGridState.scrollToItem(0)
+            }
         }
     }
 
@@ -868,6 +870,8 @@ fun VideoListScreen(
                                         videos = sortedVideos,
                                         settings = viewSettings,
                                         selectedVideos = selectedVideos,
+                                        historyMap = historyMap,
+                                        folderKey = folder.name,
                                         onVideoClick = { video ->
                                             if (isSelectionActive) {
                                                 selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
@@ -880,7 +884,6 @@ fun VideoListScreen(
                                         },
                                         listState = videoListState,
                                         gridState = videoGridState,
-                                        historyMap = historyMap,
                                         contentPadding = listContentPadding,
                                         isPermissionRequired = isStoragePermissionRequired,
                                         onPermissionClick = onStoragePermissionClick,
@@ -898,6 +901,8 @@ fun VideoListScreen(
                                 videos = sortedVideos,
                                 settings = viewSettings,
                                 selectedVideos = selectedVideos,
+                                historyMap = historyMap,
+                                folderKey = "ALL_FILES",
                                 onVideoClick = { video ->
                                     if (isSelectionActive) {
                                         selectedVideos = if (video in selectedVideos) selectedVideos - video else selectedVideos + video
@@ -910,7 +915,6 @@ fun VideoListScreen(
                                 },
                                 listState = videoListState,
                                 gridState = videoGridState,
-                                historyMap = historyMap,
                                 contentPadding = listContentPadding,
                                 isPermissionRequired = isStoragePermissionRequired,
                                 onPermissionClick = onStoragePermissionClick,

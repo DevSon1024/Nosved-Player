@@ -21,6 +21,7 @@ enum class PlayerButton(val displayName: String, val icon: ImageVector) {
     MORE_OPTIONS("More", Icons.Rounded.MoreHoriz),
     BACKGROUND_PLAY("Background Play", Icons.Rounded.Headphones),
     SCREENSHOT("Screenshot", Icons.Rounded.CameraAlt),
+    STATS("Stats", Icons.Rounded.Analytics),
     NONE("None", Icons.Rounded.Close)
 }
 

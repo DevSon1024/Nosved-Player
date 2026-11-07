@@ -84,7 +84,23 @@ class HomeViewModel(
             val metadataDao = AppDatabase.getDatabase(context).videoMetadataDao()
             dao.getAllHistoryFlow().collect { entities ->
                 val allCached = metadataDao.getAllMetadataSync().associateBy { it.uri }
-                val historyList = entities.map { entity ->
+                val (vaultEntities, nonVaultEntities) = entities.partition { entity ->
+                    entity.folderName.equals("Vault", ignoreCase = true) ||
+                    entity.uri.contains(".vault_secure_media") ||
+                    entity.uri.contains("vault_playback") ||
+                    entity.uri.contains("playback_") ||
+                    entity.originalPath?.contains(".vault_secure_media") == true ||
+                    entity.originalPath?.contains("vault_playback") == true ||
+                    entity.originalPath?.contains("playback_") == true
+                }
+
+                if (vaultEntities.isNotEmpty()) {
+                    vaultEntities.forEach { entity ->
+                        try { dao.deleteHistory(entity.uri) } catch (_: Exception) {}
+                    }
+                }
+
+                val historyList = nonVaultEntities.map { entity ->
                     val cached = allCached[entity.uri]
                     WatchHistory(
                         uri = entity.uri,

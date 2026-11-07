@@ -680,52 +680,56 @@ class PlayerViewModel(
         val resolvedPath = matchedVideo?.path ?: uri.path
         val resolvedFolder = matchedVideo?.folderName
 
-        watchTracker.onVideoChanged(
-            uri = uri.toString(),
-            title = resolvedTitle,
-            folderName = resolvedFolder,
-            durationMs = resolvedDuration,
-            isNetworkStream = isNetworkStream.value,
-            originalPath = resolvedPath
-        )
+        val isVault = isVaultMedia(uri.toString(), resolvedPath, resolvedFolder)
 
-        // Save progress as 0 if not already present, and update timestamp
-        viewModelScope.launch(Dispatchers.IO) {
-            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            if (isNetworkStream.value) {
-                dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
-            } else {
-                val uriStr = uri.toString()
-                val existing = dao.findExistingHistory(uriStr, resolvedPath)
-                if (existing == null) {
-                    dao.insert(
-                        WatchHistoryEntity(
-                            uri = uriStr,
-                            lastPositionMs = 0L,
-                            lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = false,
-                            videoTitle = resolvedTitle,
-                            originalPath = resolvedPath,
-                            folderName = resolvedFolder,
-                            durationMs = resolvedDuration
-                        )
-                    )
+        if (!isVault) {
+            watchTracker.onVideoChanged(
+                uri = uri.toString(),
+                title = resolvedTitle,
+                folderName = resolvedFolder,
+                durationMs = resolvedDuration,
+                isNetworkStream = isNetworkStream.value,
+                originalPath = resolvedPath
+            )
+
+            // Save progress as 0 if not already present, and update timestamp
+            viewModelScope.launch(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                if (isNetworkStream.value) {
+                    dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
                 } else {
-                    if (existing.uri != uriStr) {
-                        try {
-                            dao.deleteHistory(existing.uri)
-                        } catch (_: Exception) {}
-                    }
-                    dao.insert(
-                        existing.copy(
-                            uri = uriStr,
-                            lastPlayedAt = System.currentTimeMillis(),
-                            videoTitle = existing.videoTitle ?: resolvedTitle,
-                            originalPath = existing.originalPath ?: resolvedPath,
-                            folderName = existing.folderName ?: resolvedFolder,
-                            durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
+                    val uriStr = uri.toString()
+                    val existing = dao.findExistingHistory(uriStr, resolvedPath)
+                    if (existing == null) {
+                        dao.insert(
+                            WatchHistoryEntity(
+                                uri = uriStr,
+                                lastPositionMs = 0L,
+                                lastPlayedAt = System.currentTimeMillis(),
+                                isNetworkStream = false,
+                                videoTitle = resolvedTitle,
+                                originalPath = resolvedPath,
+                                folderName = resolvedFolder,
+                                durationMs = resolvedDuration
+                            )
                         )
-                    )
+                    } else {
+                        if (existing.uri != uriStr) {
+                            try {
+                                dao.deleteHistory(existing.uri)
+                            } catch (_: Exception) {}
+                        }
+                        dao.insert(
+                            existing.copy(
+                                uri = uriStr,
+                                lastPlayedAt = System.currentTimeMillis(),
+                                videoTitle = existing.videoTitle ?: resolvedTitle,
+                                originalPath = existing.originalPath ?: resolvedPath,
+                                folderName = existing.folderName ?: resolvedFolder,
+                                durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -844,52 +848,56 @@ class PlayerViewModel(
         val resolvedPath = matchedVideo?.path ?: uri.path
         val resolvedFolder = matchedVideo?.folderName
 
-        watchTracker.onVideoChanged(
-            uri = uri.toString(),
-            title = resolvedTitle,
-            folderName = resolvedFolder,
-            durationMs = resolvedDuration,
-            isNetworkStream = isNetworkStream.value,
-            originalPath = resolvedPath
-        )
+        val isVault = isVaultMedia(uri.toString(), resolvedPath, resolvedFolder)
 
-        // Save progress as 0 if not already present, and update timestamp
-        viewModelScope.launch(Dispatchers.IO) {
-            val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
-            if (isNetworkStream.value) {
-                dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
-            } else {
-                val uriStr = uri.toString()
-                val existing = dao.findExistingHistory(uriStr, resolvedPath)
-                if (existing == null) {
-                    dao.insert(
-                        WatchHistoryEntity(
-                            uri = uriStr,
-                            lastPositionMs = 0L,
-                            lastPlayedAt = System.currentTimeMillis(),
-                            isNetworkStream = false,
-                            videoTitle = resolvedTitle,
-                            originalPath = resolvedPath,
-                            folderName = resolvedFolder,
-                            durationMs = resolvedDuration
-                        )
-                    )
+        if (!isVault) {
+            watchTracker.onVideoChanged(
+                uri = uri.toString(),
+                title = resolvedTitle,
+                folderName = resolvedFolder,
+                durationMs = resolvedDuration,
+                isNetworkStream = isNetworkStream.value,
+                originalPath = resolvedPath
+            )
+
+            // Save progress as 0 if not already present, and update timestamp
+            viewModelScope.launch(Dispatchers.IO) {
+                val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
+                if (isNetworkStream.value) {
+                    dao.insertOrUpdateStream(uri.toString(), resolvedTitle)
                 } else {
-                    if (existing.uri != uriStr) {
-                        try {
-                            dao.deleteHistory(existing.uri)
-                        } catch (_: Exception) {}
-                    }
-                    dao.insert(
-                        existing.copy(
-                            uri = uriStr,
-                            lastPlayedAt = System.currentTimeMillis(),
-                            videoTitle = existing.videoTitle ?: resolvedTitle,
-                            originalPath = existing.originalPath ?: resolvedPath,
-                            folderName = existing.folderName ?: resolvedFolder,
-                            durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
+                    val uriStr = uri.toString()
+                    val existing = dao.findExistingHistory(uriStr, resolvedPath)
+                    if (existing == null) {
+                        dao.insert(
+                            WatchHistoryEntity(
+                                uri = uriStr,
+                                lastPositionMs = 0L,
+                                lastPlayedAt = System.currentTimeMillis(),
+                                isNetworkStream = false,
+                                videoTitle = resolvedTitle,
+                                originalPath = resolvedPath,
+                                folderName = resolvedFolder,
+                                durationMs = resolvedDuration
+                            )
                         )
-                    )
+                    } else {
+                        if (existing.uri != uriStr) {
+                            try {
+                                dao.deleteHistory(existing.uri)
+                            } catch (_: Exception) {}
+                        }
+                        dao.insert(
+                            existing.copy(
+                                uri = uriStr,
+                                lastPlayedAt = System.currentTimeMillis(),
+                                videoTitle = existing.videoTitle ?: resolvedTitle,
+                                originalPath = existing.originalPath ?: resolvedPath,
+                                folderName = existing.folderName ?: resolvedFolder,
+                                durationMs = if (existing.durationMs > 0L) existing.durationMs else resolvedDuration
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -905,6 +913,18 @@ class PlayerViewModel(
         updateNavigationStates()
     }
 
+    fun isVaultMedia(uri: String?, path: String?, folderName: String?): Boolean {
+        if (folderName.equals("Vault", ignoreCase = true)) return true
+        val u = uri.orEmpty()
+        val p = path.orEmpty()
+        return u.contains(".vault_secure_media") ||
+               u.contains("vault_playback") ||
+               u.contains("playback_") ||
+               p.contains(".vault_secure_media") ||
+               p.contains("vault_playback") ||
+               p.contains("playback_")
+    }
+
     fun play() {
         if (playbackState.value is PlayerState.Ended) {
             seekTo(0L)
@@ -914,6 +934,11 @@ class PlayerViewModel(
 
     fun savePlaybackProgress() {
         val uri = _currentUri.value ?: return
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        val resolvedPath = matchedVideo?.path ?: uri.path
+        val resolvedFolder = matchedVideo?.folderName
+        if (isVaultMedia(uri.toString(), resolvedPath, resolvedFolder)) return
+
         var pos = currentPosition.value
         val dur = duration.value
         
@@ -937,6 +962,7 @@ class PlayerViewModel(
     }
 
     fun insertOrUpdateHistory(video: Video) {
+        if (isVaultMedia(video.uri, video.path, video.folderName)) return
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = AppDatabase.getDatabase(getApplication())
@@ -988,6 +1014,10 @@ class PlayerViewModel(
 
     fun clearPlaybackProgress() {
         val uri = _currentUri.value ?: return
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+        val resolvedPath = matchedVideo?.path ?: uri.path
+        val resolvedFolder = matchedVideo?.folderName
+        if (isVaultMedia(uri.toString(), resolvedPath, resolvedFolder)) return
         viewModelScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getDatabase(getApplication())
             val dao = db.watchHistoryDao()
@@ -1723,8 +1753,14 @@ class PlayerViewModel(
     }
 
     override fun onCleared() {
-        watchTracker.flush(currentPosition.value)
-        savePlaybackProgress()
+        val uri = _currentUri.value
+        val matchedVideo = _queueList.value.firstOrNull { it.uri == uri?.toString() }
+        val resolvedPath = matchedVideo?.path ?: uri?.path
+        val resolvedFolder = matchedVideo?.folderName
+        if (!isVaultMedia(uri?.toString(), resolvedPath, resolvedFolder)) {
+            watchTracker.flush(currentPosition.value)
+            savePlaybackProgress()
+        }
         super.onCleared()
         Log.d("PlayerViewModel", "PlayerViewModel cleared, releasing resources")
         // RELEASE FIX: Unregister the SharedPreferences listener to break the strong reference

@@ -113,7 +113,8 @@ class ViewSettingsRepository private constructor(context: Context) {
             },
             thumbnailFramePosition = prefs.getFloat("thumbnail_frame_position", 33f),
             newVideoDaysThreshold = prefs.getInt("new_video_days_threshold", 7),
-            showHiddenFolders = prefs.getBoolean("show_hidden_folders", false)
+            showHiddenFolders = prefs.getBoolean("show_hidden_folders", false),
+            autoScrollToLastPlayed = prefs.getBoolean("auto_scroll_to_last_played", true)
         )
     }
 
@@ -153,9 +154,14 @@ class ViewSettingsRepository private constructor(context: Context) {
             putBoolean("is_shortcuts_visible", updated.isShortcutsVisible)
             putBoolean("is_details_visible", updated.isDetailsVisible)
             putBoolean("show_hidden_folders", updated.showHiddenFolders)
+            putBoolean("auto_scroll_to_last_played", updated.autoScrollToLastPlayed)
             putString("home_section_order", updated.homeSectionOrder.joinToString(",") { it.name })
             apply()
         }
+    }
+
+    suspend fun updateAutoScrollToLastPlayed(enabled: Boolean) {
+        updateSettings { it.copy(autoScrollToLastPlayed = enabled) }
     }
 
     suspend fun updateShowHiddenFolders(show: Boolean) {

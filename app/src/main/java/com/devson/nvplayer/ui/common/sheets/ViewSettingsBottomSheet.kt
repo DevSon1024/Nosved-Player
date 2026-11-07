@@ -373,6 +373,11 @@ fun ViewSettingsBottomSheet(
                                 subtitle = "Overlay duration badge on top of thumbnail"
                             ) { viewModel.updateDisplayLengthOverThumbnail(it) }
                             AdvancedToggleRow(
+                                label = "Auto-scroll to last played",
+                                checked = settings.autoScrollToLastPlayed,
+                                subtitle = "Automatically scroll to the last played video when opening a list"
+                            ) { viewModel.updateAutoScrollToLastPlayed(it) }
+                            AdvancedToggleRow(
                                 label = "Show Hidden Folders",
                                 checked = settings.showHiddenFolders,
                                 subtitle = "Display dot-prefixed folders and hidden videos"

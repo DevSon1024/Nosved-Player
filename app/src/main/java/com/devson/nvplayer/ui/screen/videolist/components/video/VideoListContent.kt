@@ -14,9 +14,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -39,6 +44,7 @@ fun VideoListContent(
     settings: ViewSettings,
     selectedVideos: Set<Video>,
     historyMap: Map<String, WatchHistory> = emptyMap(),
+    folderKey: String? = null,
     onVideoClick: (Video) -> Unit,
     onVideoLongClick: (Video) -> Unit,
     onInfoClick: ((Video) -> Unit)? = null,
@@ -75,8 +81,53 @@ fun VideoListContent(
         }
         return
     }
-    val mostRecentHistoryUri = remember(historyMap) {
-        historyMap.values.filter { it.lastPlayedAt > 0L }.maxByOrNull { it.lastPlayedAt }?.uri
+
+    val lastPlayedInThisList = remember(videos, historyMap) {
+        videos.mapNotNull { video ->
+            val hist = historyMap[video.uri]
+            val playedAt = hist?.lastPlayedAt
+                ?: if (video.lastPlayedAt != null && video.lastPlayedAt > 0L) video.lastPlayedAt else null
+            if (playedAt != null && playedAt > 0L) video to playedAt else null
+        }.maxByOrNull { it.second }?.first
+    }
+
+    val mostRecentHistoryUri = remember(historyMap, lastPlayedInThisList) {
+        lastPlayedInThisList?.uri
+            ?: historyMap.values.filter { it.lastPlayedAt > 0L }.maxByOrNull { it.lastPlayedAt }?.uri
+    }
+
+    var lastHandledHistoryTimestamp by rememberSaveable { mutableLongStateOf(0L) }
+    var lastHandledFolderKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val currentEffectiveFolderKey = folderKey ?: videos.firstOrNull()?.folderName ?: "all_videos"
+
+    LaunchedEffect(videos, lastPlayedInThisList, settings.autoScrollToLastPlayed, currentEffectiveFolderKey) {
+        if (!settings.autoScrollToLastPlayed || videos.isEmpty()) return@LaunchedEffect
+
+        val playedTimestamp = lastPlayedInThisList?.let {
+            historyMap[it.uri]?.lastPlayedAt ?: it.lastPlayedAt ?: 0L
+        } ?: 0L
+
+        val isFolderChanged = lastHandledFolderKey != currentEffectiveFolderKey
+        val isHistoryUpdated = playedTimestamp > 0L && playedTimestamp != lastHandledHistoryTimestamp
+
+        if (isFolderChanged || isHistoryUpdated) {
+            lastHandledFolderKey = currentEffectiveFolderKey
+            lastHandledHistoryTimestamp = playedTimestamp
+
+            if (lastPlayedInThisList != null) {
+                val targetIndex = videos.indexOfFirst { it.uri == lastPlayedInThisList.uri }
+                if (targetIndex > 0) {
+                    val preScrollIndex = (targetIndex - 2).coerceAtLeast(0)
+                    if (settings.layoutMode == LayoutMode.GRID) {
+                        if (targetIndex > 8) gridState.scrollToItem(preScrollIndex)
+                        gridState.animateScrollToItem(targetIndex)
+                    } else {
+                        if (targetIndex > 8) listState.scrollToItem(preScrollIndex)
+                        listState.animateScrollToItem(targetIndex)
+                    }
+                }
+            }
+        }
     }
 
     FastScroller(

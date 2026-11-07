@@ -110,7 +110,8 @@ data class PlaybackSettings(
     val queueLayoutMode: LayoutMode = LayoutMode.LIST,
     val isAmbientModeEnabled: Boolean = false,
     val ambientBlurStyle: AmbientBlurStyle = AmbientBlurStyle.GLOW,
-    val saveBrightnessLevel: Boolean = false
+    val saveBrightnessLevel: Boolean = false,
+    val showStatsOverlay: Boolean = false
 )
 
 

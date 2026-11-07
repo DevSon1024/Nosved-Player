@@ -568,6 +568,7 @@ fun ControlLayoutEditorScreen(
                                         PlayerButton.MORE_OPTIONS -> "Open speed controls and advanced settings"
                                         PlayerButton.BACKGROUND_PLAY -> "Toggle background audio playback mode"
                                         PlayerButton.SCREENSHOT -> "Take a screenshot of the current video frame"
+                                        PlayerButton.STATS -> "Display real-time stream codecs, decoders, bitrate, and playback diagnostics"
                                         else -> ""
                                     },
                                     style = MaterialTheme.typography.bodySmall,

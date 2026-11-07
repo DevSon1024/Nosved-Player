@@ -27,12 +27,22 @@ class WatchHistoryRepository(
         private const val TAG = "WatchHistoryRepository"
     }
 
+    private fun isVaultEntity(entity: com.devson.nvplayer.data.database.WatchHistoryEntity): Boolean {
+        return entity.folderName.equals("Vault", ignoreCase = true) ||
+               entity.uri.contains(".vault_secure_media") ||
+               entity.uri.contains("vault_playback") ||
+               entity.uri.contains("playback_") ||
+               entity.originalPath?.contains(".vault_secure_media") == true ||
+               entity.originalPath?.contains("vault_playback") == true ||
+               entity.originalPath?.contains("playback_") == true
+    }
+
     /**
      * Flow of all watch history items (both active and deleted), mapped to domain VideoHistoryItem.
      */
     fun getVideoHistoryFlow(): Flow<List<VideoHistoryItem>> {
         return watchHistoryDao.getAllHistoryFlow().map { entities ->
-            entities.map { it.toVideoHistoryItem() }
+            entities.filterNot { isVaultEntity(it) }.map { it.toVideoHistoryItem() }
         }
     }
 
@@ -41,7 +51,7 @@ class WatchHistoryRepository(
      */
     fun getActiveHistoryFlow(): Flow<List<VideoHistoryItem>> {
         return watchHistoryDao.getActiveHistoryFlow().map { entities ->
-            entities.map { it.toVideoHistoryItem() }
+            entities.filterNot { isVaultEntity(it) }.map { it.toVideoHistoryItem() }
         }
     }
 
@@ -50,7 +60,7 @@ class WatchHistoryRepository(
      */
     fun getDeletedHistoryFlow(): Flow<List<VideoHistoryItem>> {
         return watchHistoryDao.getDeletedHistoryFlow().map { entities ->
-            entities.map { it.toVideoHistoryItem() }
+            entities.filterNot { isVaultEntity(it) }.map { it.toVideoHistoryItem() }
         }
     }
 
@@ -59,7 +69,7 @@ class WatchHistoryRepository(
      */
     fun getHistoryForDateFlow(watchDate: String): Flow<List<VideoHistoryItem>> {
         return watchHistoryDao.getHistoryForDateFlow(watchDate).map { entities ->
-            entities.map { it.toVideoHistoryItem() }
+            entities.filterNot { isVaultEntity(it) }.map { it.toVideoHistoryItem() }
         }
     }
 
@@ -67,7 +77,7 @@ class WatchHistoryRepository(
      * Synchronously queries all history items mapped to VideoHistoryItem.
      */
     suspend fun getVideoHistorySync(): List<VideoHistoryItem> = withContext(Dispatchers.IO) {
-        watchHistoryDao.getAllHistorySync().map { it.toVideoHistoryItem() }
+        watchHistoryDao.getAllHistorySync().filterNot { isVaultEntity(it) }.map { it.toVideoHistoryItem() }
     }
 
     private fun safeLogD(msg: String) {

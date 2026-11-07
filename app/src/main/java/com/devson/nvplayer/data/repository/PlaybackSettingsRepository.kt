@@ -59,7 +59,7 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_quality", "ytdl_custom_user_agent",
             "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
             "show_up_next_queue", "queue_layout_mode", "is_ambient_mode_enabled",
-            "whitelisted_folders", "folder_filter_mode", "save_brightness_level" -> {
+            "whitelisted_folders", "folder_filter_mode", "save_brightness_level", "show_stats_overlay" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -155,6 +155,7 @@ class PlaybackSettingsRepository(context: Context) {
                 SoftButtonMode.HIDE
             },
             showBatteryClockOverlay = prefs.getBoolean("show_battery_clock_overlay", false),
+            showStatsOverlay = prefs.getBoolean("show_stats_overlay", false),
             pauseWhenObstructed = prefs.getBoolean("pause_when_obstructed", true),
             showRemainingTime = prefs.getBoolean("show_remaining_time", false),
             useSystemCaptionStyle = prefs.getBoolean("use_system_caption_style", false),
@@ -346,6 +347,7 @@ class PlaybackSettingsRepository(context: Context) {
                 putString("fullscreen_mode", updated.fullScreenMode.name)
                 putString("soft_button_mode", updated.softButtonMode.name)
                 putBoolean("show_battery_clock_overlay", updated.showBatteryClockOverlay)
+                putBoolean("show_stats_overlay", updated.showStatsOverlay)
                 putBoolean("pause_when_obstructed", updated.pauseWhenObstructed)
                 putBoolean("show_remaining_time", updated.showRemainingTime)
                 putBoolean("use_system_caption_style", updated.useSystemCaptionStyle)
@@ -501,6 +503,10 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateShowBatteryClockOverlay(show: Boolean) {
         updatePlaybackSettings { it.copy(showBatteryClockOverlay = show) }
+    }
+
+    suspend fun updateShowStatsOverlay(show: Boolean) {
+        updatePlaybackSettings { it.copy(showStatsOverlay = show) }
     }
 
     suspend fun updatePauseWhenObstructed(pause: Boolean) {

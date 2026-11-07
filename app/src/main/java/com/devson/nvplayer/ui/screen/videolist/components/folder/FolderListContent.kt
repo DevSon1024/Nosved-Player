@@ -18,9 +18,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -67,6 +71,25 @@ fun FolderListContent(
     val mostRecentFolderId = remember(mostRecentHistoryUri, folders) {
         if (mostRecentHistoryUri == null) null
         else folders.entries.firstOrNull { (_, videos) -> videos.any { it.uri == mostRecentHistoryUri } }?.key?.id
+    }
+
+    var lastHandledFolderHistoryUri by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(sortedFolders, mostRecentFolderId, settings.autoScrollToLastPlayed) {
+        if (!settings.autoScrollToLastPlayed || sortedFolders.isEmpty() || mostRecentFolderId == null) return@LaunchedEffect
+        if (lastHandledFolderHistoryUri != mostRecentHistoryUri) {
+            lastHandledFolderHistoryUri = mostRecentHistoryUri
+            val targetIndex = sortedFolders.indexOfFirst { it.id == mostRecentFolderId }
+            if (targetIndex > 0) {
+                val preScrollIndex = (targetIndex - 2).coerceAtLeast(0)
+                if (settings.layoutMode == LayoutMode.GRID) {
+                    if (targetIndex > 8) gridState.scrollToItem(preScrollIndex)
+                    gridState.animateScrollToItem(targetIndex)
+                } else {
+                    if (targetIndex > 8) listState.scrollToItem(preScrollIndex)
+                    listState.animateScrollToItem(targetIndex)
+                }
+            }
+        }
     }
 
     if (sortedFolders.isEmpty()) {

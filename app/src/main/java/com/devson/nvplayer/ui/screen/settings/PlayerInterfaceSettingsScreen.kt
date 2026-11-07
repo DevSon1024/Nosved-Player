@@ -328,6 +328,14 @@ fun PlayerInterfaceSettingsScreen(
                 )
 
                 SettingToggleCard(
+                    icon = Icons.Filled.Analytics,
+                    title = "Statistics & Diagnostics Overlay",
+                    subtitle = "Display real-time stream codecs, decoders, bitrate, and playback health",
+                    checked = playbackSettings.showStatsOverlay,
+                    onCheckedChange = { settingsViewModel.updateShowStatsOverlay(it) }
+                )
+
+                SettingToggleCard(
                     icon = Icons.Default.Gradient,
                     title = "Controls Backdrop Dimming",
                     subtitle = "Show top and bottom black fade behind player controls",
