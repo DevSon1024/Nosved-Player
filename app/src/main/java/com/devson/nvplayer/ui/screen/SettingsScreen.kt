@@ -47,7 +47,7 @@ fun SettingsScreen(
     onNavigateToStorageAnalyzer: () -> Unit = {},
     onNavigateToVault: () -> Unit = {},
     onNavigateToGestures: () -> Unit = {},
-    onNavigateToYtdlpSettings: () -> Unit = {},
+
     onNavigateToMpvConfig: () -> Unit = {},
     onNavigateToLanguageSettings: () -> Unit = {},
     onNavigateToPermissions: () -> Unit = {},
@@ -187,16 +187,7 @@ fun SettingsScreen(
                             subtitle = "Default audio and subtitle language preferences",
                             onClick = onNavigateToLanguageSettings
                         )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = 72.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-                        SettingsItemRow(
-                            icon = Icons.Default.Cloud,
-                            title = "yt-dlp Streaming",
-                            subtitle = "Configure format preferences and environment",
-                            onClick = onNavigateToYtdlpSettings
-                        )
+
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 72.dp),
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)

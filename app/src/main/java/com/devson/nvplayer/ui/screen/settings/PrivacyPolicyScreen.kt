@@ -144,7 +144,7 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
                             PolicyPointRow(
                                 icon = Icons.Default.Shield,
                                 title = "Direct Streaming Connections",
-                                description = "When playing network streams (such as YouTube or custom links), the app connects directly to the media hosts. These connections are subject to the hosts' own privacy policies, without intermediate tracking by us."
+                                description = "When playing network streams (such as HLS, DASH, or direct media links), the app connects directly to the media hosts. These connections are subject to the hosts' own privacy policies, without intermediate tracking by us."
                             )
                         }
 

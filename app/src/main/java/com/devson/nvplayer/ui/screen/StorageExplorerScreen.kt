@@ -130,7 +130,11 @@ fun StorageExplorerScreen(
     val rootFile by remember(selectedStorage) {
         derivedStateOf { File(selectedStorage?.rootPath ?: Environment.getExternalStorageDirectory().absolutePath) }
     }
-    var currentDir by remember(selectedStorage) { mutableStateOf(rootFile) }
+    var currentDir by remember(selectedStorage) {
+        val movies = File(selectedStorage?.rootPath ?: Environment.getExternalStorageDirectory().absolutePath, "Movies")
+        val initial = if (movies.exists() && movies.canRead()) movies else rootFile
+        mutableStateOf(initial)
+    }
 
     val canGoUp = currentDir.absolutePath != rootFile.absolutePath
     BackHandler(enabled = canGoUp) {

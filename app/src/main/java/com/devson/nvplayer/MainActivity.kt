@@ -45,6 +45,7 @@ import android.net.Uri
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.player.service.MediaPlaybackService
+import com.devson.nvplayer.util.StreamUrlValidator
 
 class MainActivity : FragmentActivity() {
 
@@ -77,12 +78,36 @@ class MainActivity : FragmentActivity() {
         val type = intent.type
 
         if (Intent.ACTION_VIEW == action) {
-            uri = intent.data ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            val candidateUri = intent.data ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            if (candidateUri != null) {
+                val scheme = candidateUri.scheme?.lowercase()
+                if (scheme == "http" || scheme == "https") {
+                    if (StreamUrlValidator.isValidStreamingUrl(candidateUri.toString())) {
+                        uri = candidateUri
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Unsupported stream URL. Only HLS (.m3u8), DASH (.mpd), and direct video files are supported.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } else {
+                    uri = candidateUri
+                }
+            }
         } else if (Intent.ACTION_SEND == action) {
             if (type == "text/plain") {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
                 if (!sharedText.isNullOrBlank()) {
-                    uri = Uri.parse(sharedText.trim())
+                    if (StreamUrlValidator.isValidStreamingUrl(sharedText)) {
+                        uri = Uri.parse(sharedText)
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Unsupported stream URL. Only HLS (.m3u8), DASH (.mpd), and direct video files are supported.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             } else if (type?.startsWith("video/") == true ||
                 type?.contains("matroska", ignoreCase = true) == true ||

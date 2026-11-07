@@ -58,15 +58,6 @@
 }
 
 
-# -----------------------------------------------------------------------------
-# 3.  YT-DLP INTEGRATION
-# -----------------------------------------------------------------------------
-# YtdlpManager uses android.system.Os.setenv() and ProcessBuilder with paths
-# derived at runtime - R8 must not rename these classes.
-# YtdlpOptionsBuilder is called by name from PlayerViewModel via settings flow.
-# -----------------------------------------------------------------------------
--keep class com.devson.nvplayer.player.ytdlp.** { *; }
-
 
 # -----------------------------------------------------------------------------
 # 4.  KOTLIN COROUTINES  (critical for release builds)

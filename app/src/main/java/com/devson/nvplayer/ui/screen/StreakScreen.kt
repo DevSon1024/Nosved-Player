@@ -20,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -389,12 +390,23 @@ fun StreakStatsGrid(
             title = "Longest",
             value = "${streakUiState.longestStreak} d"
         )
+        val formattedLastWatch = remember(streakUiState.lastQualifyingDate) {
+            streakUiState.lastQualifyingDate?.takeIf { it.isNotBlank() }?.let { dateStr ->
+                try {
+                    val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                    val outputFormat = java.text.SimpleDateFormat("dd MMM", java.util.Locale.US)
+                    inputFormat.parse(dateStr)?.let { outputFormat.format(it) }
+                } catch (_: Exception) {
+                    null
+                } ?: dateStr
+            } ?: "None"
+        }
         StatMiniCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Default.CalendarToday,
             iconTint = MaterialTheme.colorScheme.primary,
             title = "Last Watch",
-            value = streakUiState.lastQualifyingDate?.takeIf { it.isNotBlank() }?.takeLast(5) ?: "None"
+            value = formattedLastWatch
         )
     }
 }

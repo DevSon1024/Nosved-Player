@@ -104,7 +104,6 @@ fun VideoListScreen(
     onNavigateToFeed: (Int) -> Unit = {},
     onPlayStream: (Uri) -> Unit = {},
     onNetworkHistoryClick: () -> Unit = {},
-    onNavigateToYtdlpSettings: () -> Unit = {},
     viewModel: VideoListViewModel = viewModel(),
     homeViewModel: HomeViewModel,
     vaultGalleryViewModel: VaultGalleryViewModel? = null,
@@ -185,7 +184,6 @@ fun VideoListScreen(
     val searchFocusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     var showNetworkDialog by remember { mutableStateOf(false) }
-    var showYtdlpMissingDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchActive) {
         if (searchActive) searchFocusRequester.requestFocus()
@@ -1137,66 +1135,13 @@ fun VideoListScreen(
         NetworkStreamDialog(
             onDismiss = { showNetworkDialog = false },
             onPlay = { uri ->
-                val uriString = uri.toString().lowercase(java.util.Locale.ROOT)
-                val isYoutube = uriString.contains("youtube") || uriString.contains("youtu.be")
-                val isYtdlpInstalled = com.devson.nvplayer.player.ytdlp.YtdlpManager.isInstalled(context)
-
-                if (isYoutube && !isYtdlpInstalled) {
-                    showNetworkDialog = false
-                    showYtdlpMissingDialog = true
-                } else {
-                    showNetworkDialog = false
-                    onPlayStream(uri)
-                }
+                showNetworkDialog = false
+                onPlayStream(uri)
             },
             onHistoryClick = {
                 showNetworkDialog = false
                 onNetworkHistoryClick()
-            },
-            onNavigateToYtdlpSettings = {
-                showNetworkDialog = false
-                onNavigateToYtdlpSettings()
             }
-        )
-    }
-
-    if (showYtdlpMissingDialog) {
-        AlertDialog(
-            onDismissRequest = { showYtdlpMissingDialog = false },
-            title = {
-                Text(
-                    text = "yt-dlp Required",
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Text(
-                    text = "This stream requires yt-dlp to extract the video. Please install yt-dlp first under App Settings to play YouTube videos.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showYtdlpMissingDialog = false
-                        onNavigateToYtdlpSettings()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("Go to Settings")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showYtdlpMissingDialog = false }) {
-                    Text("Cancel")
-                }
-            },
-            shape = RoundedCornerShape(24.dp)
         )
     }
 

@@ -200,10 +200,7 @@ fun PlayerControls(
     currentAspectMode: AspectMode = AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
-    ytdlQuality: Int = -1,
-    currentQualityLabel: String = "",
-    onShowQuality: () -> Unit = {},
-    isBottomLayoutEnabled: Boolean = false,
+     isBottomLayoutEnabled: Boolean = false,
     showControlGradients: Boolean = true,
     onTitleClick: () -> Unit = {},
     onScreenshotClick: () -> Unit = {},
@@ -271,7 +268,6 @@ fun PlayerControls(
         val filterButtons = { list: List<PlayerButton> ->
             list.filter { button ->
                 if (button == PlayerButton.CHAPTERS && !hasChapters) return@filter false
-                if (button == PlayerButton.STREAM_QUALITY && !isNetworkStream) return@filter false
                 true
             }
         }
@@ -289,7 +285,6 @@ fun PlayerControls(
                 PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
                 PlayerButton.ASPECT_RATIO -> onAspectClick()
                 PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
-                PlayerButton.STREAM_QUALITY -> onShowQuality()
                 PlayerButton.SCREENSHOT -> onScreenshotClick()
                 PlayerButton.SCREEN_ROTATION -> {
                     activity?.let { act ->
@@ -312,16 +307,7 @@ fun PlayerControls(
         val extraTopLeft = rawTopLeft.filter { it != PlayerButton.BACK_ARROW && it != PlayerButton.VIDEO_TITLE }
 
         val rawTopRight = filterButtons(if (isPortrait) portraitTopRightButtons else topRightButtons)
-        val allActiveButtons = if (isPortrait) {
-            portraitTopLeftButtons + portraitTopRightButtons + portraitBottomButtons
-        } else {
-            topLeftButtons + topRightButtons + bottomLeftButtons + bottomRightButtons
-        }
-        val effectiveTopRight = if (isNetworkStream && !allActiveButtons.contains(PlayerButton.STREAM_QUALITY)) {
-            rawTopRight + PlayerButton.STREAM_QUALITY
-        } else {
-            rawTopRight
-        }
+        val effectiveTopRight = rawTopRight
 
         val topHorizontalPadding = if (isPortrait) 16.dp else if (configuration.screenWidthDp >= 840) 48.dp else 24.dp
 
@@ -417,8 +403,6 @@ fun PlayerControls(
                         controls = extraTopLeft,
                         sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -444,8 +428,6 @@ fun PlayerControls(
                         controls = effectiveTopRight,
                         sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -631,8 +613,6 @@ fun PlayerControls(
                                 controls = filteredButtons,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -671,8 +651,6 @@ fun PlayerControls(
                                 controls = filteredButtons,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -835,8 +813,6 @@ fun PlayerControls(
                                 floatingOverflow = true,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -881,8 +857,6 @@ fun PlayerControls(
                                 floatingOverflow = true,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -908,8 +882,6 @@ fun PlayerControls(
                                 floatingOverflow = false,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -927,8 +899,6 @@ fun PlayerControls(
                                 floatingOverflow = false,
                                 sizeSpec = sizeSpec,
                                 currentDecoder = currentDecoder,
-                                ytdlQuality = ytdlQuality,
-                                currentQualityLabel = currentQualityLabel,
                                 currentAspectMode = currentAspectMode,
                                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -952,8 +922,6 @@ fun DynamicControlCapsule(
     modifier: Modifier = Modifier,
     sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String = "HW",
-    ytdlQuality: Int = -1,
-    currentQualityLabel: String = "",
     currentAspectMode: AspectMode = AspectMode.FIT,
     isSmartEnhanceEnabled: Boolean = false,
     isBackgroundPlayEnabled: Boolean = false,
@@ -976,8 +944,6 @@ fun DynamicControlCapsule(
                 button = button,
                 sizeSpec = sizeSpec,
                 currentDecoder = currentDecoder,
-                ytdlQuality = ytdlQuality,
-                currentQualityLabel = currentQualityLabel,
                 currentAspectMode = currentAspectMode,
                 isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                 isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1042,7 +1008,7 @@ fun HdrIndicatorBadge(
 
 /**
  * Individual item inside the capsule:
- * - Decoder & Quality render as distinct Material 3 Tonal Pills
+ * - Decoder renders as a distinct Material 3 Tonal Pill
  * - Standard controls render as borderless 40.dp IconButtons
  */
 @Composable
@@ -1050,8 +1016,6 @@ fun CapsuleControlItem(
     button: PlayerButton,
     sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String,
-    ytdlQuality: Int,
-    currentQualityLabel: String,
     currentAspectMode: AspectMode,
     isSmartEnhanceEnabled: Boolean,
     isBackgroundPlayEnabled: Boolean,
@@ -1060,16 +1024,8 @@ fun CapsuleControlItem(
 ) {
     if (button == PlayerButton.NONE || button == PlayerButton.VIDEO_TITLE) return
 
-    if (button == PlayerButton.DECODER || button == PlayerButton.STREAM_QUALITY) {
-        val label = if (button == PlayerButton.DECODER) {
-            currentDecoder
-        } else {
-            when {
-                currentQualityLabel.isNotBlank() -> currentQualityLabel.substringBefore(" (").trim()
-                ytdlQuality == -1 -> "Auto"
-                else -> "${ytdlQuality}p"
-            }
-        }
+    if (button == PlayerButton.DECODER) {
+        val label = currentDecoder
 
         Box(
             modifier = Modifier
@@ -1133,8 +1089,6 @@ fun BottomZoneWithOverflow(
     floatingOverflow: Boolean = false,
     sizeSpec: ControlSizeSpec = remember { getControlSizeSpec("medium") },
     currentDecoder: String,
-    ytdlQuality: Int,
-    currentQualityLabel: String,
     currentAspectMode: AspectMode,
     isSmartEnhanceEnabled: Boolean,
     isBackgroundPlayEnabled: Boolean,
@@ -1148,8 +1102,6 @@ fun BottomZoneWithOverflow(
             controls = buttons,
             sizeSpec = sizeSpec,
             currentDecoder = currentDecoder,
-            ytdlQuality = ytdlQuality,
-            currentQualityLabel = currentQualityLabel,
             currentAspectMode = currentAspectMode,
             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1198,8 +1150,6 @@ fun BottomZoneWithOverflow(
                     controls = overflowButtons,
                     sizeSpec = sizeSpec,
                     currentDecoder = currentDecoder,
-                    ytdlQuality = ytdlQuality,
-                    currentQualityLabel = currentQualityLabel,
                     currentAspectMode = currentAspectMode,
                     isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                     isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1224,8 +1174,6 @@ fun BottomZoneWithOverflow(
                             button = button,
                             sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1239,8 +1187,6 @@ fun BottomZoneWithOverflow(
                             button = button,
                             sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1268,8 +1214,6 @@ fun BottomZoneWithOverflow(
                         controls = overflowButtons,
                         sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1293,8 +1237,6 @@ fun BottomZoneWithOverflow(
                             button = button,
                             sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1318,8 +1260,6 @@ fun BottomZoneWithOverflow(
                             button = button,
                             sizeSpec = sizeSpec,
                             currentDecoder = currentDecoder,
-                            ytdlQuality = ytdlQuality,
-                            currentQualityLabel = currentQualityLabel,
                             currentAspectMode = currentAspectMode,
                             isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                             isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1339,8 +1279,6 @@ fun BottomZoneWithOverflow(
                         controls = overflowButtons,
                         sizeSpec = sizeSpec,
                         currentDecoder = currentDecoder,
-                        ytdlQuality = ytdlQuality,
-                        currentQualityLabel = currentQualityLabel,
                         currentAspectMode = currentAspectMode,
                         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
                         isBackgroundPlayEnabled = isBackgroundPlayEnabled,
@@ -1677,9 +1615,6 @@ fun RenderPlayerButton(
     currentAspectMode: AspectMode = AspectMode.FIT,
     isBackgroundPlayEnabled: Boolean = false,
     onBackgroundPlayClick: () -> Unit = {},
-    ytdlQuality: Int = -1,
-    currentQualityLabel: String = "",
-    onShowQuality: () -> Unit = {},
     onTitleClick: () -> Unit = {},
     onScreenshotClick: () -> Unit = {}
 ) {
@@ -1710,7 +1645,6 @@ fun RenderPlayerButton(
             PlayerButton.PICTURE_IN_PICTURE -> onPipClick()
             PlayerButton.ASPECT_RATIO -> onAspectClick()
             PlayerButton.BACKGROUND_PLAY -> onBackgroundPlayClick()
-            PlayerButton.STREAM_QUALITY -> onShowQuality()
             PlayerButton.SCREENSHOT -> onScreenshotClick()
             PlayerButton.SCREEN_ROTATION -> {
                 activity?.let { act ->
@@ -1732,8 +1666,6 @@ fun RenderPlayerButton(
     CapsuleControlItem(
         button = button,
         currentDecoder = currentDecoder,
-        ytdlQuality = ytdlQuality,
-        currentQualityLabel = currentQualityLabel,
         currentAspectMode = currentAspectMode,
         isSmartEnhanceEnabled = isSmartEnhanceEnabled,
         isBackgroundPlayEnabled = isBackgroundPlayEnabled,

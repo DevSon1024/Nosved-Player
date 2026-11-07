@@ -37,7 +37,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.FolderSpecial
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.LockOpen
+import com.devson.nvplayer.util.OpenMultipleDocumentsWithInitialUri
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -116,6 +119,7 @@ fun VaultGalleryScreen(
     val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
     val currentStorageMode by viewModel.defaultStorageMode.collectAsStateWithLifecycle()
     var showSettingsSheet by remember(initialOpenProtection) { mutableStateOf(initialOpenProtection) }
+    var showLocationInfoDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val activity = context as? Activity
@@ -150,7 +154,7 @@ fun VaultGalleryScreen(
     }
 
     val mediaPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
+        contract = OpenMultipleDocumentsWithInitialUri("primary:Movies")
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             for (uri in uris) {
@@ -219,6 +223,13 @@ fun VaultGalleryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showLocationInfoDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "Vault Location Info",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     IconButton(onClick = { mediaPickerLauncher.launch(arrayOf("video/*")) }) {
                         Icon(
                             imageVector = Icons.Filled.Add,
@@ -246,6 +257,14 @@ fun VaultGalleryScreen(
                             expanded = topMenuExpanded,
                             onDismissRequest = { topMenuExpanded = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Vault Storage Location") },
+                                leadingIcon = { Icon(Icons.Filled.FolderSpecial, contentDescription = null) },
+                                onClick = {
+                                    topMenuExpanded = false
+                                    showLocationInfoDialog = true
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Vault Settings") },
                                 leadingIcon = { Icon(Icons.Filled.Shield, contentDescription = null) },
@@ -433,6 +452,57 @@ fun VaultGalleryScreen(
         )
     }
 
+
+    if (showLocationInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showLocationInfoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.FolderSpecial,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = "Vault Storage Location",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Your private videos are moved and securely stored in:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "/storage/emulated/0/Documents/NosvedPlayer/.vault_secure_media/",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    Text(
+                        text = "Protection Notice:\nThese files are protected by Nosved Player with isolated storage and encryption. Outside file managers and gallery apps cannot index or play them. You can only view and stream these videos inside Nosved Player when your Vault is unlocked with your PIN.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLocationInfoDialog = false }) {
+                    Text("Got it")
+                }
+            }
+        )
+    }
 
     if (showSettingsSheet) {
         VaultSettingsBottomSheet(

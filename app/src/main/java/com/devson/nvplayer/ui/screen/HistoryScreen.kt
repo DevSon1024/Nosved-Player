@@ -69,8 +69,7 @@ fun HistoryScreen(
     ),
     homeViewModel: HomeViewModel? = null,
     onPlayStream: (Uri) -> Unit = {},
-    onNetworkHistoryClick: () -> Unit = {},
-    onNavigateToYtdlpSettings: () -> Unit = {}
+    onNetworkHistoryClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val historyItems by watchHistoryViewModel.filteredHistory.collectAsState()
@@ -96,10 +95,6 @@ fun HistoryScreen(
             onHistoryClick = {
                 showNetworkDialog = false
                 onNetworkHistoryClick()
-            },
-            onNavigateToYtdlpSettings = {
-                showNetworkDialog = false
-                onNavigateToYtdlpSettings()
             }
         )
     }

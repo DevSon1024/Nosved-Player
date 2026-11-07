@@ -28,6 +28,7 @@
         android:largeHeap="true"
         android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true"
+        android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
@@ -125,6 +126,10 @@
                 <data android:pathPattern=".*\\.AVI" />
                 <data android:pathPattern=".*\\.MOV" />
                 <data android:pathPattern=".*\\.TS" />
+                <data android:pathPattern=".*\\.m3u8" />
+                <data android:pathPattern=".*\\.M3U8" />
+                <data android:pathPattern=".*\\.mpd" />
+                <data android:pathPattern=".*\\.MPD" />
             </intent-filter>
 
             <!-- Video Suggestion & Open with... / Share sheet support -->

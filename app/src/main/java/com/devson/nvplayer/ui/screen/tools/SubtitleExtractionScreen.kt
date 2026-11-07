@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.devson.nvplayer.data.model.SubtitleStreamInfo
+import com.devson.nvplayer.util.OpenDocumentWithInitialUri
 import com.devson.nvplayer.viewmodel.SubtitleExtractionUiState
 import com.devson.nvplayer.viewmodel.SubtitleExtractionViewModel
 import java.io.File
@@ -47,7 +48,7 @@ fun SubtitleExtractionScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = OpenDocumentWithInitialUri("primary:Movies")
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.analyzeVideo(context, uri)

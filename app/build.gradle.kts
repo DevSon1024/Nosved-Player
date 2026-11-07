@@ -42,16 +42,6 @@ android {
             useSupportLibrary = true
         }
 
-        externalNativeBuild {
-            cmake {
-                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-                arguments += listOf(
-                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
-                )
-                cFlags += "-Wl,-z,max-page-size=16384"
-                cppFlags += "-Wl,-z,max-page-size=16384"
-            }
-        }
     }
     signingConfigs {
         create("release") {
@@ -128,12 +118,6 @@ android {
         viewBinding = true
         resValues = true
         buildConfig = true
-    }
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
     }
     ndkVersion = "28.2.13676358"
 

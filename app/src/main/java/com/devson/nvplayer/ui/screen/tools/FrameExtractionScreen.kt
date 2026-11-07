@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.devson.nvplayer.util.OpenDocumentWithInitialUri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -68,7 +69,7 @@ fun FrameExtractionScreen(
     }
 
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = OpenDocumentWithInitialUri("primary:Movies")
     ) { uri: Uri? ->
         if (uri != null) {
             selectedVideoUri = uri
@@ -152,7 +153,7 @@ fun FrameExtractionScreen(
 
                     if (selectedVideoUri == null) {
                         Button(
-                            onClick = { videoPickerLauncher.launch("video/*") },
+                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !uiState.isExtracting
                         ) {
@@ -189,7 +190,7 @@ fun FrameExtractionScreen(
                             OutlinedButton(
                                 onClick = {
                                     viewModel.resetState()
-                                    videoPickerLauncher.launch("video/*")
+                                    videoPickerLauncher.launch(arrayOf("video/*"))
                                 },
                                 enabled = !uiState.isExtracting
                             ) {

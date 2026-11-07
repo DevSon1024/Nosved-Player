@@ -31,8 +31,7 @@ import kotlinx.coroutines.launch
 fun NetworkHistoryScreen(
     homeViewModel: HomeViewModel,
     onBack: () -> Unit,
-    onPlayStream: (Uri) -> Unit,
-    onNavigateToYtdlpSettings: () -> Unit = {}
+    onPlayStream: (Uri) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val streams by homeViewModel.networkHistory.collectAsState(initial = emptyList())
@@ -47,11 +46,7 @@ fun NetworkHistoryScreen(
                 showNetworkDialog = false
                 onPlayStream(uri)
             },
-            onHistoryClick = { showNetworkDialog = false },
-            onNavigateToYtdlpSettings = {
-                showNetworkDialog = false
-                onNavigateToYtdlpSettings()
-            }
+            onHistoryClick = { showNetworkDialog = false }
         )
     }
 

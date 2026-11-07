@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FolderSpecial
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.Pin
@@ -46,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -99,6 +101,7 @@ fun VaultSettingsBottomSheet(
     var selectedQuestion by remember { mutableStateOf(securityManager.getSecurityQuestion() ?: VaultSecurityManager.DEFAULT_SECURITY_QUESTIONS.first()) }
     var newAnswerText by remember { mutableStateOf("") }
     var questionDropdownExpanded by remember { mutableStateOf(false) }
+    var showLocationInfoDialog by remember { mutableStateOf(false) }
 
     SmoothModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -141,6 +144,9 @@ fun VaultSettingsBottomSheet(
                                 newAnswerText = ""
                                 errorMessage = null
                                 currentFlow = VaultSettingsFlow.UPDATE_SECURITY_QUESTION_VERIFY_PIN
+                            },
+                            onLocationInfoClick = {
+                                showLocationInfoDialog = true
                             },
                             onResetVaultClick = {
                                 dismissWithAnimation()
@@ -371,6 +377,57 @@ fun VaultSettingsBottomSheet(
             }
         }
     }
+
+    if (showLocationInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showLocationInfoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.FolderSpecial,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = {
+                Text(
+                    text = "Vault Storage Location",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Your private videos are moved and securely stored in:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "/storage/emulated/0/Documents/NosvedPlayer/.vault_secure_media/",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    Text(
+                        text = "Protection Notice:\nThese files are protected by Nosved Player with isolated storage and encryption. Outside file managers and gallery apps cannot index or play them. You can only view and stream these videos inside Nosved Player when your Vault is unlocked with your PIN.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLocationInfoDialog = false }) {
+                    Text("Got it")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -380,6 +437,7 @@ private fun VaultSettingsMainContent(
     onVaultProtectionClick: () -> Unit,
     onChangePinClick: () -> Unit,
     onUpdateSecurityQuestionClick: () -> Unit,
+    onLocationInfoClick: () -> Unit,
     onResetVaultClick: () -> Unit
 ) {
     Column(
@@ -454,6 +512,13 @@ private fun VaultSettingsMainContent(
                         title = "Security Question",
                         subtitle = "Update question & answer for PIN recovery",
                         onClick = onUpdateSecurityQuestionClick
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    VaultSettingsRow(
+                        icon = Icons.Filled.FolderSpecial,
+                        title = "Storage Location",
+                        subtitle = "Documents/NosvedPlayer/.vault_secure_media/",
+                        onClick = onLocationInfoClick
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     VaultSettingsRow(

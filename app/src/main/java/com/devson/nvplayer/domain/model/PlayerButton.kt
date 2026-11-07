@@ -20,7 +20,6 @@ enum class PlayerButton(val displayName: String, val icon: ImageVector) {
     ASPECT_RATIO("Aspect", Icons.Rounded.FitScreen),
     MORE_OPTIONS("More", Icons.Rounded.MoreHoriz),
     BACKGROUND_PLAY("Background Play", Icons.Rounded.Headphones),
-    STREAM_QUALITY("Quality", Icons.Rounded.Settings),
     SCREENSHOT("Screenshot", Icons.Rounded.CameraAlt),
     NONE("None", Icons.Rounded.Close)
 }

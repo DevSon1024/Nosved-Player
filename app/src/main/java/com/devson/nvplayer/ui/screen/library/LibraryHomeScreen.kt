@@ -64,7 +64,6 @@ fun LibraryHomeScreen(
     onNavigateToSearch: (String) -> Unit,
     onPlayStream: (Uri) -> Unit = {},
     onNetworkHistoryClick: () -> Unit = {},
-    onNavigateToYtdlpSettings: () -> Unit = {},
     onNavigateToStreak: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -95,10 +94,6 @@ fun LibraryHomeScreen(
             onHistoryClick = {
                 showNetworkDialog = false
                 onNetworkHistoryClick()
-            },
-            onNavigateToYtdlpSettings = {
-                showNetworkDialog = false
-                onNavigateToYtdlpSettings()
             }
         )
     }

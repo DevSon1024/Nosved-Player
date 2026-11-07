@@ -47,7 +47,6 @@ import com.devson.nvplayer.ui.screen.settings.CreditsScreen
 import com.devson.nvplayer.ui.screen.settings.FolderScreen
 import com.devson.nvplayer.ui.screen.videolist.VideoListScreen
 import com.devson.nvplayer.ui.screen.FeedScreen
-import com.devson.nvplayer.ui.screen.settings.YtdlpSettingsScreen
 import com.devson.nvplayer.ui.screen.settings.MpvConfigSettingsScreen
 import com.devson.nvplayer.ui.screen.library.LibraryHomeScreen
 import com.devson.nvplayer.ui.screen.library.SeriesDetailScreen
@@ -410,11 +409,6 @@ fun AppNavigation(
                         height = 0
                     )
                     onNavigateToPlayerStream(uri, listOf(dummyVideo))
-                },
-                onNavigateToYtdlpSettings = {
-                    navController.navigate("ytdlp_settings") {
-                        launchSingleTop = true
-                    }
                 }
             )
         }
@@ -464,11 +458,6 @@ fun AppNavigation(
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToYtdlpSettings = {
-                    navController.navigate("ytdlp_settings") {
                         launchSingleTop = true
                     }
                 },
@@ -522,11 +511,6 @@ fun AppNavigation(
                     navController.navigate("network_history") {
                         launchSingleTop = true
                     }
-                },
-                onNavigateToYtdlpSettings = {
-                    navController.navigate("ytdlp_settings") {
-                        launchSingleTop = true
-                    }
                 }
             )
         }
@@ -570,7 +554,6 @@ fun AppNavigation(
                 onNavigateToScanFolders = { navController.navigate("folder_settings") { launchSingleTop = true } },
                 onNavigateToTool = { navController.navigate("tools") { launchSingleTop = true } },
                 onNavigateToRecycleBin = { navController.navigate("recycle_bin") { launchSingleTop = true } },
-                onNavigateToYtdlpSettings = { navController.navigate("ytdlp_settings") { launchSingleTop = true } },
                 onNavigateToMpvConfig = { navController.navigate("mpv_config") { launchSingleTop = true } },
                 onNavigateToLanguageSettings = { navController.navigate("language_settings") { launchSingleTop = true } },
                 onNavigateToPermissions = { navController.navigate("permissions_settings") { launchSingleTop = true } },
@@ -596,13 +579,6 @@ fun AppNavigation(
         composable("mpv_help") {
             MpvHelpScreen(
                 onNavigateBack = safePopBackStack
-            )
-        }
-
-        composable("ytdlp_settings") {
-            YtdlpSettingsScreen(
-                onNavigateBack = safePopBackStack,
-                settingsViewModel = settingsViewModel
             )
         }
 
@@ -871,11 +847,6 @@ fun AppNavigation(
                 },
                 onNetworkHistoryClick = {
                     navController.navigate("network_history") {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToYtdlpSettings = {
-                    navController.navigate("ytdlp_settings") {
                         launchSingleTop = true
                     }
                 },

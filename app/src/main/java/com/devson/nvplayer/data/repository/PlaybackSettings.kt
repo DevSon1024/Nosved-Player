@@ -2,10 +2,6 @@ package com.devson.nvplayer.data.repository
 
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.DecoderMode
-import com.devson.nvplayer.player.ytdlp.YtdlCodecPreference
-import com.devson.nvplayer.player.ytdlp.YtdlContainerPreference
-import com.devson.nvplayer.player.ytdlp.YtdlHdrPreference
-import com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.runtime.Immutable
 
@@ -105,30 +101,8 @@ data class PlaybackSettings(
     val portraitBottomControls: String = "DECODER,CHAPTERS,SMART_ENHANCE,ASPECT_RATIO,SCREEN_ROTATION",
     val aspectMode: AspectMode = AspectMode.FIT,
     val backgroundPlayEnabled: Boolean = false,
-    // yt-dlp Settings
-    val ytdlFormat: String = "",
-    val ytdlQuality: Int = -1, // -1 for any
-    val preferH264: Boolean = false,
-    val codecPreference: YtdlCodecPreference = YtdlCodecPreference.AUTO,
-    val maxFps: Int = 0,
-    val hdrPreference: YtdlHdrPreference = YtdlHdrPreference.ANY,
-    val containerPreference: YtdlContainerPreference = YtdlContainerPreference.ANY,
-    val formatSort: String = "",
-    val mergeOutputFormat: String = "",
-    val writeSubs: Boolean = true,
-    val writeAutoSubs: Boolean = false,
-    val subtitleLanguages: String = "",
+    val ytdlQuality: Int = -1, // -1 for auto
     val customUserAgent: String = "",
-    val referer: String = "",
-    val cookiesFile: String = "",
-    val proxy: String = "",
-    val extractorArgs: String = "",
-    val geoBypass: Boolean = false,
-    val playlistMode: YtdlPlaylistMode = YtdlPlaylistMode.DEFAULT,
-    val liveFromStart: Boolean = false,
-    val sponsorBlockMark: String = "",
-    val sponsorBlockRemove: String = "",
-    val customRawOptions: String = "",
     val isDataSaverEnabled: Boolean = false,
     val isBottomLayoutEnabled: Boolean = false,
     val showControlGradients: Boolean = true,

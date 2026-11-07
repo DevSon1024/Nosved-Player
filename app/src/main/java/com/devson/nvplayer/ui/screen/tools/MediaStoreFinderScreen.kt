@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.devson.nvplayer.util.OpenDocumentWithInitialUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +59,7 @@ fun MediaStoreFinderScreen(
     var fileMimeType by remember { mutableStateOf<String?>(null) }
 
     val filePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = OpenDocumentWithInitialUri("primary:Movies")
     ) { uri ->
         if (uri != null) {
             val id = getMediaIdFromUri(context, uri)
@@ -141,7 +142,7 @@ fun MediaStoreFinderScreen(
             }
             
             Button(
-                onClick = { filePickerLauncher.launch("*/*") },
+                onClick = { filePickerLauncher.launch(arrayOf("*/*")) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
             ) {

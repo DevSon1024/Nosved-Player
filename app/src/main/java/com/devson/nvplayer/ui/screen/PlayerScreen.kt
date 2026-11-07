@@ -59,7 +59,6 @@ import com.devson.nvplayer.data.repository.MultiFingerAction
 import android.provider.MediaStore
 import com.devson.nvplayer.ui.common.SubtitleSettingsSideSheet
 import com.devson.nvplayer.ui.common.sheets.AudioSettingsSideSheet
-import com.devson.nvplayer.ui.common.sheets.QualitySettingsSideSheet
 import com.devson.nvplayer.ui.common.sheets.PlayerSettingsSideSheet
 import com.devson.nvplayer.ui.common.sheets.EnhanceSettingsSideSheet
 import com.devson.nvplayer.player.model.ChapterInfo
@@ -226,33 +225,10 @@ fun PlayerScreen(
     var showChaptersSideSheet by remember { mutableStateOf(false) }
     var showDecoderSideSheet by remember { mutableStateOf(false) }
     var showEnhanceSettingsSideSheet by remember { mutableStateOf(false) }
-    var showQualitySideSheet by remember { mutableStateOf(false) }
     var showImportSubtitleDialog by remember { mutableStateOf(false) }
 
-    val streamQualityState by (activeViewModel?.streamQualityState ?: MutableStateFlow(com.devson.nvplayer.data.model.StreamQualityState())).collectAsState()
-    val isQualitySelectorVisible by (activeViewModel?.isQualitySelectorVisible ?: MutableStateFlow(false)).collectAsState()
-    val qualityHudMessage by (activeViewModel?.qualityHudMessage ?: MutableStateFlow(null)).collectAsState()
-
-    var qualityOverlayText by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(qualityHudMessage) {
-        val msg = qualityHudMessage
-        if (!msg.isNullOrBlank()) {
-            qualityOverlayText = msg
-            activeViewModel?.clearQualityHudMessage()
-            delay(1200L)
-            qualityOverlayText = null
-        }
-    }
-
-    LaunchedEffect(isQualitySelectorVisible) {
-        if (isQualitySelectorVisible) {
-            showQualitySideSheet = true
-        }
-    }
-
     val safSubtitlePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+        contract = com.devson.nvplayer.util.OpenDocumentWithInitialUri("primary:Movies")
     ) { uri: Uri? ->
         if (uri != null) {
             activeViewModel?.importSubtitle(uri)
@@ -494,8 +470,6 @@ fun PlayerScreen(
             showDecoderSideSheet = false
         } else if (showEnhanceSettingsSideSheet) {
             showEnhanceSettingsSideSheet = false
-        } else if (showQualitySideSheet) {
-            showQualitySideSheet = false
         } else {
             handleBack()
         }
@@ -920,11 +894,8 @@ fun PlayerScreen(
                                 }
                              },
                              onScreenshotClick = {
-                                activeViewModel?.enterFrameCaptureMode()
+                                 activeViewModel?.enterFrameCaptureMode()
                              },
-                             ytdlQuality = playbackSettings.ytdlQuality,
-                             currentQualityLabel = streamQualityState.currentQuality?.label ?: if (playbackSettings.ytdlQuality == -1) "Auto" else "${playbackSettings.ytdlQuality}p",
-                            onShowQuality = { showQualitySideSheet = true },
                             resolutionLabel = resolutionLabel,
                             videoCodecLabel = videoCodecLabel,
                             fileSizeLabel = fileSizeLabel,
@@ -1000,47 +971,11 @@ fun PlayerScreen(
                     }
                 }
 
-                // Stream Quality Overlay HUD
-                AnimatedVisibility(
-                    visible = qualityOverlayText != null,
-                    enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
-                    exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150)),
-                    modifier = Modifier.align(Alignment.Center)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.75f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.HighQuality,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = qualityOverlayText ?: "",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
             }
         }
 
         val isAnySideSheetVisible = showSubtitleSettingsSideSheet ||
             showImportSubtitleDialog ||
-            showQualitySideSheet ||
             showAudioSettingsSideSheet ||
             showPlayerSettingsSideSheet ||
             showChaptersSideSheet ||
@@ -1073,8 +1008,6 @@ fun PlayerScreen(
             },
             showImportSubtitleDialog = showImportSubtitleDialog,
             onDismissImportSubtitleDialog = { showImportSubtitleDialog = false },
-            visibleQualitySheet = showQualitySideSheet,
-            onDismissQualitySheet = { showQualitySideSheet = false },
             visibleAudioSheet = showAudioSettingsSideSheet,
             onDismissAudioSheet = { showAudioSettingsSideSheet = false },
             visibleSettingsSheet = showPlayerSettingsSideSheet,
@@ -1094,7 +1027,6 @@ fun PlayerScreen(
             audioTracks = audioTracks,
             audioBoosterEnabled = audioBoosterEnabled,
             chapters = chapters,
-            streamQualityState = streamQualityState,
             settingsActions = settingsActions,
             subtitleActions = subtitleActions,
             enhanceActions = enhanceActions,
@@ -1700,8 +1632,6 @@ private fun PlayerSideSheets(
     onOpenImportSubtitleDialog: () -> Unit,
     showImportSubtitleDialog: Boolean,
     onDismissImportSubtitleDialog: () -> Unit,
-    visibleQualitySheet: Boolean,
-    onDismissQualitySheet: () -> Unit,
     visibleAudioSheet: Boolean,
     onDismissAudioSheet: () -> Unit,
     visibleSettingsSheet: Boolean,
@@ -1722,7 +1652,6 @@ private fun PlayerSideSheets(
     audioTracks: List<TrackInfo>,
     audioBoosterEnabled: Boolean,
     chapters: List<ChapterInfo>,
-    streamQualityState: com.devson.nvplayer.data.model.StreamQualityState,
     settingsActions: PlayerSettingsActions,
     subtitleActions: PlayerSubtitleActions,
     enhanceActions: PlayerEnhanceActions,
@@ -1790,22 +1719,6 @@ private fun PlayerSideSheets(
             }
         }
     }
-
-    QualitySettingsSideSheet(
-        visible = visibleQualitySheet,
-        qualityState = streamQualityState,
-        playbackSettings = playbackSettings,
-        onSelectQuality = { option ->
-            activeViewModel?.selectQuality(option)
-        },
-        onDataSaverToggled = { enabled ->
-            activeViewModel?.toggleDataSaver(enabled)
-        },
-        onDismiss = {
-            onDismissQualitySheet()
-            activeViewModel?.closeQualitySelector()
-        }
-    )
 
     AudioSettingsSideSheet(
         visible = visibleAudioSheet,

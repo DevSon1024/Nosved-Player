@@ -3,62 +3,46 @@ package com.devson.nvplayer.ui.screen
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.*
 import com.devson.nvplayer.ui.common.sheets.SmoothModalBottomSheet
+import com.devson.nvplayer.util.StreamUrlValidator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.devson.nvplayer.player.ytdlp.YtdlpManager
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkStreamDialog(
     onDismiss: () -> Unit,
     onPlay: (Uri) -> Unit,
-    onHistoryClick: () -> Unit,
-    onNavigateToYtdlpSettings: () -> Unit = {}
+    onHistoryClick: () -> Unit
 ) {
     val context = LocalContext.current
     val clipboardManager = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-    }
-
-    val isYtdlpInstalled = remember(context) {
-        YtdlpManager.isInstalled(context)
     }
 
     var urlText by remember { mutableStateOf("") }
@@ -66,37 +50,10 @@ fun NetworkStreamDialog(
     var showInfoSheet by remember { mutableStateOf(false) }
 
     val trimmedUrl = urlText.trim()
-    val isKnownDirectOrManifest = remember(trimmedUrl) {
-        if (trimmedUrl.isBlank()) return@remember false
-        val clean = trimmedUrl.lowercase(Locale.ROOT).substringBefore('?').substringBefore('#')
-        listOf(
-            ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".ts",
-            ".m4v", ".3gp", ".m3u8", ".mpd"
-        ).any { clean.endsWith(it) }
-    }
-
-    val isPlatformUrl = remember(trimmedUrl) {
-        val lower = trimmedUrl.lowercase(Locale.ROOT)
-        listOf(
-            "youtube.com", "youtu.be", "twitch.tv", "vimeo.com",
-            "dailymotion.com", "tiktok.com", "bilibili.com",
-            "twitter.com", "x.com", "instagram.com", "facebook.com", "reddit.com"
-        ).any { lower.contains(it) }
-    }
-
-    val needsYtdlp = remember(trimmedUrl, isKnownDirectOrManifest, isPlatformUrl) {
-        trimmedUrl.isNotBlank() && (isPlatformUrl || (!isKnownDirectOrManifest && (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://"))))
-    }
 
     if (showInfoSheet) {
         NetworkStreamInfoSheet(
-            isYtdlpInstalled = isYtdlpInstalled,
-            onDismiss = { showInfoSheet = false },
-            onNavigateToYtdlpSettings = {
-                showInfoSheet = false
-                onDismiss()
-                onNavigateToYtdlpSettings()
-            }
+            onDismiss = { showInfoSheet = false }
         )
     }
 
@@ -164,7 +121,7 @@ fun NetworkStreamDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Enter a direct video URL, HLS/DASH manifest (.m3u8, .mpd), or web video link to stream in MPV.",
+                    text = "Enter an HLS stream (.m3u8), DASH manifest (.mpd), or direct media URL to stream with MPV.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -175,7 +132,13 @@ fun NetworkStreamDialog(
                         urlText = it
                         errorText = null
                     },
-                    placeholder = { Text("https://example.com/video.mp4") },
+                    placeholder = {
+                        Text(
+                            text = "https://example.com/stream.m3u8",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Link,
@@ -208,8 +171,8 @@ fun NetworkStreamDialog(
                             }
                         }
                     },
-                    singleLine = false,
-                    maxLines = 3,
+                    singleLine = true,
+                    maxLines = 1,
                     isError = errorText != null,
                     supportingText = {
                         if (errorText != null) {
@@ -220,7 +183,7 @@ fun NetworkStreamDialog(
                             )
                         } else {
                             Text(
-                                text = "Supports MP4, MKV, HLS (.m3u8), DASH (.mpd), and web links",
+                                text = "Supports HLS (.m3u8), DASH (.mpd), and direct media (MP4, MKV)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -230,93 +193,35 @@ fun NetworkStreamDialog(
                     shape = RoundedCornerShape(14.dp)
                 )
 
-                // Warning & prompt if stream requires yt-dlp and it's missing
-                AnimatedVisibility(
-                    visible = needsYtdlp && !isYtdlpInstalled,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "yt-dlp Engine Required",
-                                    fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                            Text(
-                                text = "This URL does not end with a direct video extension or points to a web platform. The yt-dlp environment is required to parse and play it.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f)
-                            )
-                            FilledTonalButton(
-                                onClick = {
-                                    onDismiss()
-                                    onNavigateToYtdlpSettings()
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Install yt-dlp in Settings",
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Demo links chips
+                // Demo links chips with horizontal scroll
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    SuggestionChip(
+                        onClick = {
+                            urlText = "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"
+                            errorText = null
+                        },
+                        label = { Text("HLS Demo") },
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    SuggestionChip(
+                        onClick = {
+                            urlText = "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"
+                            errorText = null
+                        },
+                        label = { Text("DASH Demo") },
+                        shape = RoundedCornerShape(8.dp)
+                    )
                     SuggestionChip(
                         onClick = {
                             urlText = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"
                             errorText = null
                         },
                         label = { Text("MP4 Demo") },
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    SuggestionChip(
-                        onClick = {
-                            urlText = "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"
-                            errorText = null
-                        },
-                        label = { Text("HLS Adaptive Demo") },
                         shape = RoundedCornerShape(8.dp)
                     )
                 }
@@ -334,8 +239,8 @@ fun NetworkStreamDialog(
                         errorText = "Please enter a valid URL (http:// or https://)"
                         return@Button
                     }
-                    if (needsYtdlp && !isYtdlpInstalled) {
-                        errorText = "yt-dlp must be installed in Settings before playing this stream"
+                    if (!StreamUrlValidator.isValidStreamingUrl(trimmedUrl)) {
+                        errorText = "Unsupported stream URL. Only HLS (.m3u8), DASH (.mpd), and direct video files (.mp4, .mkv) are supported."
                         return@Button
                     }
                     onPlay(parsedUri)
@@ -366,9 +271,7 @@ fun NetworkStreamDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NetworkStreamInfoSheet(
-    isYtdlpInstalled: Boolean,
-    onDismiss: () -> Unit,
-    onNavigateToYtdlpSettings: () -> Unit
+    onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
@@ -393,12 +296,12 @@ private fun NetworkStreamInfoSheet(
             ) {
                 Column {
                     Text(
-                        text = "Network Streaming Guide",
+                        text = "Online Streaming Guide",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Stream engine capabilities and yt-dlp support",
+                        text = "Native HLS, DASH, and progressive streaming",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -411,92 +314,37 @@ private fun NetworkStreamInfoSheet(
                 }
             }
 
-            // yt-dlp Status Card
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isYtdlpInstalled) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                } else {
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                },
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (isYtdlpInstalled) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                    else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isYtdlpInstalled) Icons.Filled.CheckCircle else Icons.Filled.Warning,
-                        contentDescription = null,
-                        tint = if (isYtdlpInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isYtdlpInstalled) "yt-dlp Environment Installed" else "yt-dlp Not Installed",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = if (isYtdlpInstalled) {
-                                "YouTube and web platform stream extraction is fully operational."
-                            } else {
-                                "Required for playing YouTube and other web platform video URLs."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
+            // Section 1: HLS
+            InfoCardItem(
+                icon = Icons.Filled.LiveTv,
+                title = "HTTP Live Streaming (HLS)",
+                subtitle = ".m3u8 Multi-Bitrate Playlists",
+                description = "Nosved Player natively demuxes HLS master manifests with adaptive multi-bitrate tracks, fast segment seeking, and live stream playback."
+            )
 
-            // Section 1: Direct media streams
+            // Section 2: DASH
+            InfoCardItem(
+                icon = Icons.Filled.Tune,
+                title = "Dynamic Adaptive Streaming (DASH)",
+                subtitle = ".mpd Media Presentation Descriptions",
+                description = "Seamlessly parses multi-adaptation sets, offering resolutions from 144p to 4K Ultra HD and multi-language audio track switching."
+            )
+
+            // Section 3: Direct media streams
             InfoCardItem(
                 icon = Icons.Filled.Movie,
                 title = "Direct Media Files",
-                subtitle = "Progressive HTTP/HTTPS",
-                description = "Direct files (.mp4, .mkv, .webm, .avi, .mov, .flv, .ts) play directly using native MPV hardware decoders."
+                subtitle = "Progressive HTTP/HTTPS Streams",
+                description = "Direct files (.mp4, .mkv, .webm, .ts, etc.) stream directly with hardware-accelerated MediaCodec decoders and smart network buffering."
             )
 
-            // Section 2: Adaptive streams
-            InfoCardItem(
-                icon = Icons.Filled.Tune,
-                title = "Adaptive Manifests (HLS / DASH)",
-                subtitle = ".m3u8 and .mpd Multi-Bitrate",
-                description = "Nosved Player inspects real multi-bitrate streams dynamically, allowing you to select specific resolutions (144p to 4K) or toggle Data Saver."
-            )
-
-            // Section 3: Web Platform Links & yt-dlp
-            InfoCardItem(
-                icon = Icons.Filled.Language,
-                title = "Web Platforms (YouTube, Twitch, etc.)",
-                subtitle = "Requires yt-dlp + Python 3.13",
-                description = "Websites do not serve raw video files directly. Nosved Player uses an embedded yt-dlp engine to extract live video/audio formats and stream them into MPV seamlessly."
-            )
-
-            // Action button to yt-dlp settings
             Button(
-                onClick = {
-                    dismissWithAnimation()
-                    onNavigateToYtdlpSettings()
-                },
+                onClick = dismissWithAnimation,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isYtdlpInstalled) "Manage yt-dlp Settings" else "Open yt-dlp Streaming Settings",
+                    text = "Got it",
                     fontWeight = FontWeight.SemiBold
                 )
             }

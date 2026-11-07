@@ -4,10 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.DecoderMode
-import com.devson.nvplayer.player.ytdlp.YtdlCodecPreference
-import com.devson.nvplayer.player.ytdlp.YtdlContainerPreference
-import com.devson.nvplayer.player.ytdlp.YtdlHdrPreference
-import com.devson.nvplayer.player.ytdlp.YtdlPlaylistMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,10 +56,7 @@ class PlaybackSettingsRepository(context: Context) {
             "top_left_controls", "top_right_controls", "bottom_left_controls", "bottom_right_controls",
             "portrait_top_left_controls", "portrait_top_right_controls", "portrait_bottom_controls",
             "aspect_mode", "background_play_enabled",
-            "ytdl_format", "ytdl_quality", "ytdl_prefer_h264", "ytdl_codec_preference", "ytdl_max_fps", "ytdl_hdr_preference",
-            "ytdl_container_preference", "ytdl_format_sort", "ytdl_merge_output_format", "ytdl_write_subs", "ytdl_write_auto_subs",
-            "ytdl_subtitle_languages", "ytdl_custom_user_agent", "ytdl_referer", "ytdl_cookies_file", "ytdl_proxy", "ytdl_extractor_args",
-            "ytdl_geo_bypass", "ytdl_playlist_mode", "ytdl_live_from_start", "ytdl_sponsorblock_mark", "ytdl_sponsorblock_remove", "ytdl_custom_raw_options",
+            "ytdl_quality", "ytdl_custom_user_agent",
             "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
             "show_up_next_queue", "queue_layout_mode", "is_ambient_mode_enabled",
             "whitelisted_folders", "folder_filter_mode", "save_brightness_level" -> {
@@ -305,65 +298,8 @@ class PlaybackSettingsRepository(context: Context) {
                 AspectMode.FIT
             },
             backgroundPlayEnabled = prefs.getBoolean("background_play_enabled", false),
-            ytdlFormat = prefs.getString("ytdl_format", "") ?: "",
             ytdlQuality = prefs.getInt("ytdl_quality", -1),
-            preferH264 = prefs.getBoolean("ytdl_prefer_h264", false),
-            codecPreference = try {
-                YtdlCodecPreference.valueOf(
-                    prefs.getString(
-                        "ytdl_codec_preference",
-                        YtdlCodecPreference.AUTO.name
-                    ) ?: YtdlCodecPreference.AUTO.name
-                )
-            } catch (e: Exception) {
-                YtdlCodecPreference.AUTO
-            },
-            maxFps = prefs.getInt("ytdl_max_fps", 0),
-            hdrPreference = try {
-                YtdlHdrPreference.valueOf(
-                    prefs.getString(
-                        "ytdl_hdr_preference",
-                        YtdlHdrPreference.ANY.name
-                    ) ?: YtdlHdrPreference.ANY.name
-                )
-            } catch (e: Exception) {
-                YtdlHdrPreference.ANY
-            },
-            containerPreference = try {
-                YtdlContainerPreference.valueOf(
-                    prefs.getString(
-                        "ytdl_container_preference",
-                        YtdlContainerPreference.ANY.name
-                    ) ?: YtdlContainerPreference.ANY.name
-                )
-            } catch (e: Exception) {
-                YtdlContainerPreference.ANY
-            },
-            formatSort = prefs.getString("ytdl_format_sort", "") ?: "",
-            mergeOutputFormat = prefs.getString("ytdl_merge_output_format", "") ?: "",
-            writeSubs = prefs.getBoolean("ytdl_write_subs", true),
-            writeAutoSubs = prefs.getBoolean("ytdl_write_auto_subs", false),
-            subtitleLanguages = prefs.getString("ytdl_subtitle_languages", "") ?: "",
             customUserAgent = prefs.getString("ytdl_custom_user_agent", "") ?: "",
-            referer = prefs.getString("ytdl_referer", "") ?: "",
-            cookiesFile = prefs.getString("ytdl_cookies_file", "") ?: "",
-            proxy = prefs.getString("ytdl_proxy", "") ?: "",
-            extractorArgs = prefs.getString("ytdl_extractor_args", "") ?: "",
-            geoBypass = prefs.getBoolean("ytdl_geo_bypass", false),
-            playlistMode = try {
-                YtdlPlaylistMode.valueOf(
-                    prefs.getString(
-                        "ytdl_playlist_mode",
-                        YtdlPlaylistMode.DEFAULT.name
-                    ) ?: YtdlPlaylistMode.DEFAULT.name
-                )
-            } catch (e: Exception) {
-                YtdlPlaylistMode.DEFAULT
-            },
-            liveFromStart = prefs.getBoolean("ytdl_live_from_start", false),
-            sponsorBlockMark = prefs.getString("ytdl_sponsorblock_mark", "") ?: "",
-            sponsorBlockRemove = prefs.getString("ytdl_sponsorblock_remove", "") ?: "",
-            customRawOptions = prefs.getString("ytdl_custom_raw_options", "") ?: "",
             isDataSaverEnabled = prefs.getBoolean("is_data_saver_enabled", false),
             isBottomLayoutEnabled = prefs.getBoolean("is_bottom_layout_enabled", false),
             showControlGradients = prefs.getBoolean("show_control_gradients", true),
@@ -456,29 +392,8 @@ class PlaybackSettingsRepository(context: Context) {
                 putString("portrait_bottom_controls", updated.portraitBottomControls)
                 putString("aspect_mode", updated.aspectMode.name)
                 putBoolean("background_play_enabled", updated.backgroundPlayEnabled)
-                putString("ytdl_format", updated.ytdlFormat)
                 putInt("ytdl_quality", updated.ytdlQuality)
-                putBoolean("ytdl_prefer_h264", updated.preferH264)
-                putString("ytdl_codec_preference", updated.codecPreference.name)
-                putInt("ytdl_max_fps", updated.maxFps)
-                putString("ytdl_hdr_preference", updated.hdrPreference.name)
-                putString("ytdl_container_preference", updated.containerPreference.name)
-                putString("ytdl_format_sort", updated.formatSort)
-                putString("ytdl_merge_output_format", updated.mergeOutputFormat)
-                putBoolean("ytdl_write_subs", updated.writeSubs)
-                putBoolean("ytdl_write_auto_subs", updated.writeAutoSubs)
-                putString("ytdl_subtitle_languages", updated.subtitleLanguages)
                 putString("ytdl_custom_user_agent", updated.customUserAgent)
-                putString("ytdl_referer", updated.referer)
-                putString("ytdl_cookies_file", updated.cookiesFile)
-                putString("ytdl_proxy", updated.proxy)
-                putString("ytdl_extractor_args", updated.extractorArgs)
-                putBoolean("ytdl_geo_bypass", updated.geoBypass)
-                putString("ytdl_playlist_mode", updated.playlistMode.name)
-                putBoolean("ytdl_live_from_start", updated.liveFromStart)
-                putString("ytdl_sponsorblock_mark", updated.sponsorBlockMark)
-                putString("ytdl_sponsorblock_remove", updated.sponsorBlockRemove)
-                putString("ytdl_custom_raw_options", updated.customRawOptions)
                 putBoolean("is_data_saver_enabled", updated.isDataSaverEnabled)
                 putBoolean("is_bottom_layout_enabled", updated.isBottomLayoutEnabled)
                 putBoolean("show_control_gradients", updated.showControlGradients)
@@ -784,74 +699,11 @@ class PlaybackSettingsRepository(context: Context) {
         updatePlaybackSettings { it.copy(backgroundPlayEnabled = enabled) }
     }
 
-    suspend fun updateYtdlFormat(value: String) {
-        updatePlaybackSettings { it.copy(ytdlFormat = value) }
-    }
     suspend fun updateYtdlQuality(value: Int) {
         updatePlaybackSettings { it.copy(ytdlQuality = value) }
     }
-    suspend fun updatePreferH264(value: Boolean) {
-        updatePlaybackSettings { it.copy(preferH264 = value) }
-    }
-    suspend fun updateYtdlCodecPreference(value: YtdlCodecPreference) {
-        updatePlaybackSettings { it.copy(codecPreference = value) }
-    }
-    suspend fun updateYtdlMaxFps(value: Int) {
-        updatePlaybackSettings { it.copy(maxFps = value) }
-    }
-    suspend fun updateYtdlHdrPreference(value: YtdlHdrPreference) {
-        updatePlaybackSettings { it.copy(hdrPreference = value) }
-    }
-    suspend fun updateYtdlContainerPreference(value: YtdlContainerPreference) {
-        updatePlaybackSettings { it.copy(containerPreference = value) }
-    }
-    suspend fun updateYtdlFormatSort(value: String) {
-        updatePlaybackSettings { it.copy(formatSort = value) }
-    }
-    suspend fun updateYtdlMergeOutputFormat(value: String) {
-        updatePlaybackSettings { it.copy(mergeOutputFormat = value) }
-    }
-    suspend fun updateYtdlWriteSubs(value: Boolean) {
-        updatePlaybackSettings { it.copy(writeSubs = value) }
-    }
-    suspend fun updateYtdlWriteAutoSubs(value: Boolean) {
-        updatePlaybackSettings { it.copy(writeAutoSubs = value) }
-    }
-    suspend fun updateYtdlSubtitleLanguages(value: String) {
-        updatePlaybackSettings { it.copy(subtitleLanguages = value) }
-    }
     suspend fun updateYtdlCustomUserAgent(value: String) {
         updatePlaybackSettings { it.copy(customUserAgent = value) }
-    }
-    suspend fun updateYtdlReferer(value: String) {
-        updatePlaybackSettings { it.copy(referer = value) }
-    }
-    suspend fun updateYtdlCookiesFile(value: String) {
-        updatePlaybackSettings { it.copy(cookiesFile = value) }
-    }
-    suspend fun updateYtdlProxy(value: String) {
-        updatePlaybackSettings { it.copy(proxy = value) }
-    }
-    suspend fun updateYtdlExtractorArgs(value: String) {
-        updatePlaybackSettings { it.copy(extractorArgs = value) }
-    }
-    suspend fun updateYtdlGeoBypass(value: Boolean) {
-        updatePlaybackSettings { it.copy(geoBypass = value) }
-    }
-    suspend fun updateYtdlPlaylistMode(value: YtdlPlaylistMode) {
-        updatePlaybackSettings { it.copy(playlistMode = value) }
-    }
-    suspend fun updateYtdlLiveFromStart(value: Boolean) {
-        updatePlaybackSettings { it.copy(liveFromStart = value) }
-    }
-    suspend fun updateYtdlSponsorBlockMark(value: String) {
-        updatePlaybackSettings { it.copy(sponsorBlockMark = value) }
-    }
-    suspend fun updateYtdlSponsorBlockRemove(value: String) {
-        updatePlaybackSettings { it.copy(sponsorBlockRemove = value) }
-    }
-    suspend fun updateYtdlCustomRawOptions(value: String) {
-        updatePlaybackSettings { it.copy(customRawOptions = value) }
     }
 
     suspend fun updateDataSaverEnabled(enabled: Boolean) {
