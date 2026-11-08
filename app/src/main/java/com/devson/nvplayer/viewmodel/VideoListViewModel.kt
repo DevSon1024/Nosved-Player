@@ -964,4 +964,15 @@ class VideoListViewModel(
             viewSettingsRepo.updateAutoScrollToLastPlayed(enabled)
         }
     }
+
+    private val _lastClosedVideoUri = MutableStateFlow<String?>(null)
+    val lastClosedVideoUri: StateFlow<String?> = _lastClosedVideoUri.asStateFlow()
+
+    fun setLastClosedVideoUri(uri: String?) {
+        _lastClosedVideoUri.value = uri
+    }
+
+    fun clearLastClosedVideoUri() {
+        _lastClosedVideoUri.value = null
+    }
 }

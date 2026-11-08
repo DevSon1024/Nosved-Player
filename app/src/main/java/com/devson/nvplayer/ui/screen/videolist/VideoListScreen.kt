@@ -47,6 +47,7 @@ import androidx.compose.animation.fadeOut
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.devson.nvplayer.domain.model.DefaultScreen
+import com.devson.nvplayer.domain.model.LayoutMode
 import com.devson.nvplayer.domain.model.Video
 import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.ui.screen.videolist.components.DeleteConfirmationDialog
@@ -255,10 +256,8 @@ fun VideoListScreen(
     LaunchedEffect(selectedFolder) {
         if (selectedFolder?.name != currentFolderId) {
             currentFolderId = selectedFolder?.name
-            if (!viewSettings.autoScrollToLastPlayed) {
-                videoListState.scrollToItem(0)
-                videoGridState.scrollToItem(0)
-            }
+            videoListState.scrollToItem(0)
+            videoGridState.scrollToItem(0)
         }
     }
 
@@ -269,6 +268,46 @@ fun VideoListScreen(
 
     LaunchedEffect(historyMap) {
         viewModel.setHistoryMap(historyMap)
+    }
+
+    val lastClosedVideoUri by viewModel.lastClosedVideoUri.collectAsStateWithLifecycle()
+
+    LaunchedEffect(lastClosedVideoUri, selectedFolder, viewSettings.viewMode) {
+        val uri = lastClosedVideoUri ?: return@LaunchedEffect
+        if (!viewSettings.autoScrollToLastPlayed) {
+            viewModel.clearLastClosedVideoUri()
+            return@LaunchedEffect
+        }
+
+        // Only auto-scroll when a folder is open or when in ALL VIDEOS mode (never on folder list)
+        val targetVideos = when {
+            selectedFolder != null -> {
+                val folderVideos = videosByFolder[selectedFolder] ?: emptyList()
+                folderVideos.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+            }
+            viewSettings.viewMode == ViewMode.FILES -> {
+                videosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+            }
+            else -> {
+                // Folder list or other views: do not apply on folder at all
+                viewModel.clearLastClosedVideoUri()
+                return@LaunchedEffect
+            }
+        }
+
+        val targetIndex = targetVideos.indexOfFirst { it.uri == uri }
+        if (targetIndex > 0) {
+            kotlinx.coroutines.delay(120)
+            val preScrollIndex = (targetIndex - 2).coerceAtLeast(0)
+            if (viewSettings.layoutMode == LayoutMode.GRID) {
+                if (targetIndex > 8) videoGridState.scrollToItem(preScrollIndex)
+                videoGridState.animateScrollToItem(targetIndex)
+            } else {
+                if (targetIndex > 8) videoListState.scrollToItem(preScrollIndex)
+                videoListState.animateScrollToItem(targetIndex)
+            }
+        }
+        viewModel.clearLastClosedVideoUri()
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current

@@ -109,50 +109,6 @@ fun ExplorerListContent(
         historyMap.values.filter { it.lastPlayedAt > 0L }.maxByOrNull { it.lastPlayedAt }?.uri
     }
 
-    val lastPlayedInExplorer = remember(items, historyMap, folderVideosMap) {
-        val videoItems = items.filterIsInstance<ExplorerItem.VideoItem>()
-        val folderItems = items.filterIsInstance<ExplorerItem.FolderItem>()
-
-        val playedVideoItem = videoItems.mapNotNull { item ->
-            val hist = historyMap[item.video.uri]
-            val playedAt = hist?.lastPlayedAt
-                ?: if (item.video.lastPlayedAt != null && item.video.lastPlayedAt > 0L) item.video.lastPlayedAt else null
-            if (playedAt != null && playedAt > 0L) (item as ExplorerItem) to playedAt else null
-        }.maxByOrNull { it.second }
-
-        val playedFolderItem = folderItems.mapNotNull { item ->
-            val vids = folderVideosMap[item.folder] ?: emptyList()
-            val maxPlayedAt = vids.mapNotNull { v ->
-                val hist = historyMap[v.uri]
-                val p = hist?.lastPlayedAt ?: if (v.lastPlayedAt != null && v.lastPlayedAt > 0L) v.lastPlayedAt else null
-                if (p != null && p > 0L) p else null
-            }.maxOrNull()
-            if (maxPlayedAt != null && maxPlayedAt > 0L) (item as ExplorerItem) to maxPlayedAt else null
-        }.maxByOrNull { it.second }
-
-        listOfNotNull(playedVideoItem, playedFolderItem).maxByOrNull { it.second }
-    }
-
-    var lastHandledExplorerTimestamp by rememberSaveable { mutableLongStateOf(0L) }
-    LaunchedEffect(items, lastPlayedInExplorer, settings.autoScrollToLastPlayed) {
-        if (!settings.autoScrollToLastPlayed || items.isEmpty() || lastPlayedInExplorer == null) return@LaunchedEffect
-        val (item, playedTimestamp) = lastPlayedInExplorer
-        if (playedTimestamp > 0L && playedTimestamp != lastHandledExplorerTimestamp) {
-            lastHandledExplorerTimestamp = playedTimestamp
-            val targetIndex = items.indexOf(item)
-            if (targetIndex > 0) {
-                val preScrollIndex = (targetIndex - 2).coerceAtLeast(0)
-                if (settings.layoutMode == LayoutMode.GRID) {
-                    if (targetIndex > 8) gridState.scrollToItem(preScrollIndex)
-                    gridState.animateScrollToItem(targetIndex)
-                } else {
-                    if (targetIndex > 8) listState.scrollToItem(preScrollIndex)
-                    listState.animateScrollToItem(targetIndex)
-                }
-            }
-        }
-    }
-
     FastScroller(
         itemCount = items.size,
         listState = if (settings.layoutMode == LayoutMode.LIST) listState else null,

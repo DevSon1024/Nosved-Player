@@ -1106,7 +1106,11 @@ fun AppNavigation(
                 onCycleSubtitle = { playerVm.cycleSubtitle() },
                 onCycleAudio = { playerVm.cycleAudio() },
                 onBackClick = {
+                    val closingUri = playerVm.currentUri.value
                     playerVm.savePlaybackProgress()
+                    if (closingUri != null) {
+                        videoListViewModel.setLastClosedVideoUri(closingUri.toString())
+                    }
                     safePopBackStack()
                 },
                 onSurfaceReady = { playerVm.loadVideoIfNeeded() },
