@@ -80,8 +80,6 @@ fun VideoMetadataChips(
     val standardTokens = buildList {
         if (settings.showLength && !settings.displayLengthOverThumbnail && video.duration > 0L)
             add(MetaToken(formatDuration(video.duration), MetaChipType.PRIMARY))
-        if (settings.showPlayedTime && video.lastPlayedAt != null && video.lastPlayedAt > 0)
-            add(MetaToken(formatRelativeTime(LocalContext.current, video.lastPlayedAt)))
         if (settings.showResolution && !video.resolution.isNullOrBlank()) {
             val compactRes = formatResolutionCompact(video.resolution)
             if (!compactRes.isNullOrBlank()) {
@@ -109,7 +107,8 @@ fun VideoMetadataChips(
     val visibleTokens = if (isGrid) {
         standardTokens.take(2)
     } else {
-        subtitleTokens.take(2) + standardTokens.take(3)
+        val maxStandard = if (subtitleTokens.isNotEmpty()) 3 else 4
+        subtitleTokens.take(2) + standardTokens.take(maxStandard)
     }
 
     if (visibleTokens.isEmpty()) return

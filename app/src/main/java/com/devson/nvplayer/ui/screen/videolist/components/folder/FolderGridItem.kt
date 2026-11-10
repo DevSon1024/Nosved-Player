@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -125,7 +126,15 @@ fun FolderGridItem(
                             isHidden = isHidden,
                             hiddenIconSize = 22.dp
                         )
-                        NewCountBadge(newCount)
+                        if (newCount > 0) {
+                            NewCountBadge(
+                                count = newCount,
+                                isSelected = isSelected,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .offset(x = (-3).dp, y = (-3).dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -153,6 +162,25 @@ fun FolderGridItem(
                                     contentDescription = "Hidden folder",
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                     modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                        if (settings.showPath) {
+                            val folderPath = remember(folder.id, videos) {
+                                videos.firstOrNull()?.path?.substringBeforeLast('/') ?: folder.id
+                            }
+                            if (folderPath.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = folderPath,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    else
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -185,17 +213,25 @@ fun FolderGridItem(
                         .fillMaxWidth()
                         .weight(1f)
                     ) {
-                    FolderMediaPreview(
-                        videos = videos,
-                        isSelected = false,
-                        settings = settings,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxSize(),
-                        isHidden = isHidden,
-                        hiddenIconSize = 20.dp
-                    )
-                    NewCountBadge(newCount)
+                        FolderMediaPreview(
+                            videos = videos,
+                            isSelected = false,
+                            settings = settings,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxSize(),
+                            isHidden = isHidden,
+                            hiddenIconSize = 20.dp
+                        )
+                        if (newCount > 0) {
+                            NewCountBadge(
+                                count = newCount,
+                                isSelected = isSelected,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(start = 6.dp, top = 6.dp)
+                            )
+                        }
                     }
                     Column(
                         modifier = Modifier
@@ -226,6 +262,25 @@ fun FolderGridItem(
                                     contentDescription = "Hidden folder",
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                     modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                        if (settings.showPath) {
+                            val folderPath = remember(folder.id, videos) {
+                                videos.firstOrNull()?.path?.substringBeforeLast('/') ?: folder.id
+                            }
+                            if (folderPath.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = folderPath,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 10.sp,
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    else
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

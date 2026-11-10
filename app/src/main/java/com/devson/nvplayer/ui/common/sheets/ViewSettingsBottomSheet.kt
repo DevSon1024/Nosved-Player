@@ -41,7 +41,7 @@ fun ViewSettingsBottomSheet(
     onDismiss: () -> Unit,
     viewModel: VideoListViewModel
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isFieldsExpanded by remember { mutableStateOf(false) }
     var isAdvancedExpanded by remember { mutableStateOf(false) }
     var showSortWheel by remember { mutableStateOf(false) }
@@ -84,6 +84,7 @@ fun ViewSettingsBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
             // Header Row
@@ -282,12 +283,11 @@ fun ViewSettingsBottomSheet(
                                 Triple("Thumbnail", settings.showThumbnail) { viewModel.updateShowThumbnail(it) },
                                 Triple("Length", settings.showLength) { viewModel.updateShowLength(it) },
                                 Triple("File Ext.", settings.showFileExtension) { viewModel.updateShowFileExtension(it) },
-                                Triple("Played Time", settings.showPlayedTime) { viewModel.updateShowPlayedTime(it) },
                                 Triple("Resolution", settings.showResolution) { viewModel.updateShowResolution(it) },
+                                Triple("FPS", settings.showFrameRate) { viewModel.updateShowFrameRate(it) },
                                 Triple("Path", settings.showPath) { viewModel.updateShowPath(it) },
                                 Triple("Size", settings.showSize) { viewModel.updateShowSize(it) },
-                                Triple("Date", settings.showDate) { viewModel.updateShowDate(it) },
-                                Triple("FPS", settings.showFrameRate) { viewModel.updateShowFrameRate(it) }
+                                Triple("Date", settings.showDate) { viewModel.updateShowDate(it) }
                             )
 
                             val chunked = fieldItems.chunked(3)

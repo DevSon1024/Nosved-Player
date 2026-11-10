@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,24 +65,36 @@ import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatSize
 
 @Composable
-fun BoxScope.NewCountBadge(count: Int) {
+fun NewCountBadge(
+    count: Int,
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
+) {
     if (count <= 0) return
-    Box(
-        modifier = Modifier
-            .align(Alignment.TopStart)
-            .background(
-                color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primary,
+        shadowElevation = 2.dp,
+        border = BorderStroke(1.5.dp, borderColor)
     ) {
-        Text(
-            text       = stringResource(R.string.folder_new_badge, count),
-            color      = MaterialTheme.colorScheme.onPrimary,
-            style      = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize   = 9.sp
-        )
+        Box(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text       = stringResource(R.string.folder_new_badge, count),
+                color      = MaterialTheme.colorScheme.onPrimary,
+                style      = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize   = 9.sp
+            )
+        }
     }
 }
 
@@ -226,19 +240,26 @@ fun FolderListItem(
                 // Folder thumbnail
                 val folderShape = remember { FolderShape() }
                 Box(
-                    modifier = Modifier
-                        .size(width = 72.dp, height = 54.dp)
-                        .clip(folderShape)
-                        .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick() } else Modifier)
+                    modifier = Modifier.size(width = 72.dp, height = 54.dp)
                 ) {
                     FolderMediaPreview(
                         videos   = videos,
                         isSelected = false,
                         settings = settings,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(if (settings.selectByThumbnail) Modifier.clip(folderShape).clickable { onLongClick() } else Modifier),
                         isHidden = isHidden
                     )
-                    NewCountBadge(newCount)
+                    if (newCount > 0) {
+                        NewCountBadge(
+                            count = newCount,
+                            isSelected = isSelected,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(x = (-3).dp, y = (-3).dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -272,6 +293,27 @@ fun FolderListItem(
                             )
                         }
                     }
+
+                    if (settings.showPath) {
+                        val folderPath = remember(folder.id, videos) {
+                            videos.firstOrNull()?.path?.substringBeforeLast('/') ?: folder.id
+                        }
+                        if (folderPath.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = folderPath,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                else
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
                     FolderMetadataChips(videos, settings)
                 }

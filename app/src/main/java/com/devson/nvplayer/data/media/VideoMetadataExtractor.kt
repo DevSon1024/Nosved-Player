@@ -140,11 +140,15 @@ object VideoMetadataExtractor {
                 }
 
                 val trackCount = extractor.trackCount
+                var videoTrackIdx = -1
                 for (i in 0 until trackCount) {
                     val format = extractor.getTrackFormat(i)
                     val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
 
                     if (mime.startsWith("video/")) {
+                        if (videoTrackIdx < 0) {
+                            videoTrackIdx = i
+                        }
                         if (extractedWidth == null && format.containsKey(MediaFormat.KEY_WIDTH)) {
                             try { extractedWidth = format.getInteger(MediaFormat.KEY_WIDTH) } catch (_: Exception) {}
                         }
@@ -182,6 +186,45 @@ object VideoMetadataExtractor {
                             else -> "SUB"
                         }
                         embeddedSubs.add(subExt)
+                    }
+                }
+
+                // If fps is still not detected, inspect sample presentation timestamps
+                if ((fps == null || fps <= 0f) && videoTrackIdx >= 0) {
+                    try {
+                        extractor.selectTrack(videoTrackIdx)
+                        val sampleTimes = ArrayList<Long>(24)
+                        var readCount = 0
+                        while (readCount < 24) {
+                            val timeUs = extractor.sampleTime
+                            if (timeUs >= 0L) {
+                                sampleTimes.add(timeUs)
+                            }
+                            if (!extractor.advance()) break
+                            readCount++
+                        }
+                        if (sampleTimes.size >= 4) {
+                            val sortedTimes = sampleTimes.distinct().sorted()
+                            val intervals = ArrayList<Long>()
+                            for (idx in 0 until sortedTimes.size - 1) {
+                                val deltaUs = sortedTimes[idx + 1] - sortedTimes[idx]
+                                if (deltaUs in 4_000L..200_000L) {
+                                    intervals.add(deltaUs)
+                                }
+                            }
+                            if (intervals.isNotEmpty()) {
+                                intervals.sort()
+                                val medianIntervalUs = intervals[intervals.size / 2]
+                                if (medianIntervalUs > 0L) {
+                                    val computedFps = 1_000_000.0 / medianIntervalUs.toDouble()
+                                    if (computedFps in 1.0..360.0) {
+                                        fps = computedFps.toFloat()
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Sample time inspection fallback error: ${e.message}")
                     }
                 }
             } finally {
@@ -257,11 +300,20 @@ object VideoMetadataExtractor {
         // Normalize and clean up FPS value
         val cleanFps = fps?.let { raw ->
             if (raw > 0f && raw <= 360f) {
-                val rounded = round(raw * 100f) / 100f
-                if (abs(rounded - round(rounded)) < 0.01f) {
-                    round(rounded)
+                val commonRates = floatArrayOf(
+                    23.976f, 24.0f, 25.0f, 29.97f, 30.0f,
+                    48.0f, 50.0f, 59.94f, 60.0f, 90.0f, 120.0f, 144.0f, 240.0f
+                )
+                val matched = commonRates.firstOrNull { abs(it - raw) <= 0.45f }
+                if (matched != null) {
+                    matched
                 } else {
-                    rounded
+                    val rounded = round(raw * 100f) / 100f
+                    if (abs(rounded - round(rounded)) < 0.05f) {
+                        round(rounded)
+                    } else {
+                        rounded
+                    }
                 }
             } else {
                 null

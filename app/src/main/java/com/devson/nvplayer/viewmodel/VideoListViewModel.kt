@@ -403,8 +403,8 @@ class VideoListViewModel(
                             finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                             externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-                            // Only re-probe if duration or dimensions are genuinely missing
-                            if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0) {
+                            // Re-probe if duration, dimensions, or framerate are missing
+                            if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0 || finalFps == null) {
                                 uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                             }
                         } else {
@@ -460,7 +460,7 @@ class VideoListViewModel(
                                     val uriStr = item.uri.toString()
                                     val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path)
                                     val details = try {
-                                        withTimeoutOrNull(1500L) {
+                                        withTimeoutOrNull(2500L) {
                                             VideoMetadataExtractor.extractDetails(repository.context, item.path, item.uri, duration)
                                         }
                                     } catch (_: Exception) {
