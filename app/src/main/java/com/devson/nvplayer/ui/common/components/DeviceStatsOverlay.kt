@@ -80,6 +80,7 @@ data class DecoderInfo(
 
 data class MpvPlaybackStats(
     val requestedDecoderMode: String = "HW (Hardware)",
+    val requestedAudioDecoderMode: String = "Auto (Hardware / AudioTrack)",
     val videoResolution: String = "N/A",
     val videoCodecMime: String = "N/A",
     val videoCodecFriendly: String = "N/A",
@@ -123,6 +124,7 @@ data class MpvPlaybackStats(
 fun DeviceStatsOverlay(
     visible: Boolean,
     decoderMode: String,
+    useSwAudioDecoder: Boolean = false,
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit = {}
 ) {
@@ -132,6 +134,7 @@ fun DeviceStatsOverlay(
     DeviceStatsOverlay(
         visible = visible,
         decoderMode = mode,
+        useSwAudioDecoder = useSwAudioDecoder,
         modifier = modifier,
         onDismiss = onDismiss
     )
@@ -141,6 +144,7 @@ fun DeviceStatsOverlay(
 fun DeviceStatsOverlay(
     visible: Boolean,
     decoderMode: DecoderMode = DecoderMode.HW,
+    useSwAudioDecoder: Boolean = false,
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit = {}
 ) {
@@ -148,6 +152,7 @@ fun DeviceStatsOverlay(
     var deviceStats by remember { mutableStateOf(DeviceStats()) }
     var playbackStats by remember { mutableStateOf(MpvPlaybackStats()) }
     val updatedDecoderMode by rememberUpdatedState(decoderMode)
+    val updatedUseSwAudioDecoder by rememberUpdatedState(useSwAudioDecoder)
 
     LaunchedEffect(visible) {
         if (visible) {
@@ -159,7 +164,7 @@ fun DeviceStatsOverlay(
                 prevCpuStat = newCpuStat
 
                 val pStats = withContext(Dispatchers.IO) {
-                    collectMpvPlaybackStats(context, updatedDecoderMode)
+                    collectMpvPlaybackStats(context, updatedDecoderMode, updatedUseSwAudioDecoder)
                 }
 
                 deviceStats = dStats
@@ -273,15 +278,23 @@ fun DeviceStatsOverlay(
                     badge = playbackStats.audioDecoderInfo.badge,
                     isHardware = playbackStats.audioDecoderInfo.isHardware
                 )
-                StatItem("Decoder Mode", playbackStats.requestedDecoderMode)
-                StatItem("Active Track", "${playbackStats.audioTrackLabel} (${playbackStats.audioLanguage})")
+                StatItem("Decoder Mode", playbackStats.requestedAudioDecoderMode)
+                StatItem(
+                    "Active Track",
+                    if (playbackStats.audioDecoderInfo.badge == "OFF" || playbackStats.audioTrackLabel == "None") "None (Disabled)"
+                    else "${playbackStats.audioTrackLabel} (${playbackStats.audioLanguage})"
+                )
                 StatItem("Active Decoder", playbackStats.audioDecoderInfo.decoderName)
                 StatItem("Decoder State", playbackStats.audioDecoderStateDisplay)
                 StatItem("Technology", playbackStats.audioDecoderInfo.technology)
-                StatItem("Codec", "${playbackStats.audioCodecFriendly} (${playbackStats.audioCodecMime})")
-                StatItem("Channels", playbackStats.audioChannels)
-                StatItem("Sample Rate", playbackStats.audioSampleRate)
-                if (playbackStats.audioBitrate != "N/A") {
+                StatItem(
+                    "Codec",
+                    if (playbackStats.audioDecoderInfo.badge == "OFF") "None"
+                    else "${playbackStats.audioCodecFriendly} (${playbackStats.audioCodecMime})"
+                )
+                StatItem("Channels", if (playbackStats.audioDecoderInfo.badge == "OFF") "None" else playbackStats.audioChannels)
+                StatItem("Sample Rate", if (playbackStats.audioDecoderInfo.badge == "OFF") "None" else playbackStats.audioSampleRate)
+                if (playbackStats.audioBitrate != "N/A" && playbackStats.audioDecoderInfo.badge != "OFF") {
                     StatItem("Audio Bitrate", playbackStats.audioBitrate)
                 }
                 if (playbackStats.audioTracksCount > 1) {
@@ -386,6 +399,8 @@ private fun TrackSectionHeader(
 private fun DecoderBadge(badge: String, isHardware: Boolean) {
     val (bgColor, textColor) = if (badge == "PCM") {
         Color(0x222196F3) to Color(0xFF90CAF9)
+    } else if (badge == "OFF") {
+        Color(0x229E9E9E) to Color(0xFFBDBDBD)
     } else if (isHardware) {
         Color(0x224CAF50) to Color(0xFF81C784)
     } else {
@@ -513,7 +528,8 @@ private fun memWarningColor(usedMb: Long, totalMb: Long, defaultColor: Color): C
 
 private fun collectMpvPlaybackStats(
     context: Context,
-    decoderMode: DecoderMode
+    decoderMode: DecoderMode,
+    useSwAudioDecoder: Boolean = false
 ): MpvPlaybackStats {
     val reqModeStr = when (decoderMode) {
         DecoderMode.SW -> "SW (Software Only)"
@@ -655,12 +671,46 @@ private fun collectMpvPlaybackStats(
         )
     }
 
-    val audioDecoderInfo = DecoderInfo(
-        badge = if (decoderMode == DecoderMode.SW) "SW" else "HW",
-        isHardware = decoderMode != DecoderMode.SW,
-        decoderName = "AudioTrack / FFmpeg ($aCodec)",
-        technology = "Direct Hardware / AudioTrack Pipeline"
-    )
+    val aid = try {
+        MPVLib.getPropertyInt("aid") ?: -1
+    } catch (_: Exception) {
+        -1
+    }
+    val ad = try {
+        MPVLib.getPropertyString("ad") ?: ""
+    } catch (_: Exception) {
+        ""
+    }
+
+    val isAudioDisabled = aid <= 0
+    val isSwAudio = useSwAudioDecoder || ad.contains("lavc")
+
+    val audioDecoderInfo = when {
+        isAudioDisabled -> DecoderInfo(
+            badge = "OFF",
+            isHardware = false,
+            decoderName = "Disabled (Audio Muted)",
+            technology = "Audio Stream Inactive"
+        )
+        isSwAudio -> DecoderInfo(
+            badge = "SW",
+            isHardware = false,
+            decoderName = "FFmpeg libavcodec ($aCodec)",
+            technology = "Software CPU Audio Decoding"
+        )
+        else -> DecoderInfo(
+            badge = "HW",
+            isHardware = true,
+            decoderName = "Android AudioTrack / System ($aCodec)",
+            technology = "Direct Hardware / AudioTrack Pipeline"
+        )
+    }
+
+    val reqAudioModeStr = when {
+        isAudioDisabled -> "Disabled (Audio Muted)"
+        isSwAudio -> "SW (Software FFmpeg)"
+        else -> "Auto (Hardware / AudioTrack)"
+    }
 
     val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         context.display
@@ -673,6 +723,7 @@ private fun collectMpvPlaybackStats(
 
     return MpvPlaybackStats(
         requestedDecoderMode = reqModeStr,
+        requestedAudioDecoderMode = reqAudioModeStr,
         videoResolution = vRes,
         videoCodecMime = vCodec,
         videoCodecFriendly = friendlyCodec(vCodec),
@@ -695,7 +746,7 @@ private fun collectMpvPlaybackStats(
         audioTracksCount = audioTracksCount,
         audioOtherLanguages = audioLangs.filter { it != aLang }.joinToString(", "),
         audioDecoderInfo = audioDecoderInfo,
-        audioDecoderStateDisplay = if (isPaused) "Paused" else "Actively Decoding",
+        audioDecoderStateDisplay = if (isAudioDisabled) "Muted / Inactive" else if (isPaused) "Paused" else "Actively Decoding",
 
         hasActiveSubtitle = hasSub,
         subtitleCodec = friendlyCodec(sCodec),

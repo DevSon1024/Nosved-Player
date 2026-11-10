@@ -7,6 +7,7 @@ import android.util.Log
 import com.devson.nvplayer.util.DeviceCapabilityHelper
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.player.model.AudioDecoderMode
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.model.HdrType
@@ -97,6 +98,16 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     private val _hwdecCurrent = MutableStateFlow("no")
     override val hwdecCurrent: StateFlow<String> = _hwdecCurrent.asStateFlow()
+
+    private var requestedAudioDecoderMode: AudioDecoderMode = AudioDecoderMode.AUTOMATIC
+    private val _audioDecoderMode = MutableStateFlow(AudioDecoderMode.AUTOMATIC)
+    override val audioDecoderMode: StateFlow<AudioDecoderMode> = _audioDecoderMode.asStateFlow()
+
+    private val _activeAudioDecoder = MutableStateFlow("")
+    override val activeAudioDecoder: StateFlow<String> = _activeAudioDecoder.asStateFlow()
+
+    private val _audioDecoderError = MutableStateFlow<String?>(null)
+    override val audioDecoderError: StateFlow<String?> = _audioDecoderError.asStateFlow()
 
     private val _networkSpeedBytesPerSec = MutableStateFlow(0L)
     override val networkSpeedBytesPerSec: StateFlow<Long> = _networkSpeedBytesPerSec.asStateFlow()
@@ -274,6 +285,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             // Observe active hardware decoder changes
             MPVLib.observeProperty("hwdec-current", MPVLib.MpvFormat.MPV_FORMAT_STRING)
 
+            // Observe audio decoder and track properties
+            MPVLib.observeProperty("audio-codec-name", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+            MPVLib.observeProperty("audio-codec", MPVLib.MpvFormat.MPV_FORMAT_STRING)
+            MPVLib.observeProperty("aid", MPVLib.MpvFormat.MPV_FORMAT_INT64)
+
             // Observe HDR and color properties
             MPVLib.observeProperty("video-params/gamma", MPVLib.MpvFormat.MPV_FORMAT_STRING)
             MPVLib.observeProperty("video-params/colormatrix", MPVLib.MpvFormat.MPV_FORMAT_STRING)
@@ -294,6 +310,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setPropertyDouble("video-scale-y", 1.0)
             MPVLib.setPropertyString("sub-visibility", "yes")
             MPVLib.setPropertyString("secondary-sid", "no")
+
+            val initialAudioDecoder = settings.audioDecoderMode
+            requestedAudioDecoderMode = initialAudioDecoder
+            _audioDecoderMode.value = initialAudioDecoder
+            applyEffectiveAudioDecoder()
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
         } catch (e: Exception) {
@@ -404,6 +425,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             Log.w("MPVPlayerEngine", "Failed to apply hardware-aware demuxer configuration", e)
         }
         applyEffectiveDecoder()
+        applyEffectiveAudioDecoder()
+        _audioDecoderError.value = null
 
         try {
             try { MPVLib.command("stop") } catch (_: Exception) {}
@@ -552,7 +575,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             } else {
                 MPVLib.setPropertyInt("aid", id)
             }
+            applyEffectiveAudioDecoder()
             updateTracks()
+            updateActiveAudioDecoderInfo()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to select audio track: $id", e)
         }
@@ -833,6 +858,12 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _currentSubtitleText.value = ""
             }
 
+            // Add fallback/disable option for audio
+            if (audios.isNotEmpty()) {
+                val anyAudioSelected = audios.any { it.selected }
+                audios.add(0, TrackInfo(-1, "audio", "Disable Audio", !anyAudioSelected, isExternal = false))
+            }
+
             _subtitleTracks.value = subs
             _audioTracks.value = audios
             Log.d("MPVPlayerEngine", "Tracks updated. Subs: ${subs.size}, Audios: ${audios.size}")
@@ -971,6 +1002,91 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             MPVLib.setPropertyString("hwdec", targetHwdec)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to set effective hwdec to $targetHwdec", e)
+        }
+    }
+
+    override fun setAudioDecoder(mode: AudioDecoderMode) {
+        Log.d("MPVPlayerEngine", "Setting audio decoder mode request: ${mode.displayName} (${mode.id})")
+        requestedAudioDecoderMode = mode
+        _audioDecoderMode.value = mode
+        applyEffectiveAudioDecoder()
+        if (_playbackState.value is PlayerState.Playing || _playbackState.value is PlayerState.Paused) {
+            try {
+                MPVLib.command("audio-reload")
+            } catch (e: Exception) {
+                Log.w("MPVPlayerEngine", "audio-reload command failed, falling back to aid refresh", e)
+                try {
+                    val currentAid = MPVLib.getPropertyInt("aid") ?: 1
+                    if (currentAid > 0) {
+                        MPVLib.setPropertyInt("aid", currentAid)
+                    }
+                } catch (ex: Exception) {
+                    Log.e("MPVPlayerEngine", "Failed to refresh aid", ex)
+                }
+            }
+        }
+        updateActiveAudioDecoderInfo()
+    }
+
+    override fun setUseSwAudioDecoder(enabled: Boolean) {
+        setAudioDecoder(if (enabled) AudioDecoderMode.SOFTWARE else AudioDecoderMode.AUTOMATIC)
+    }
+
+    private fun applyEffectiveAudioDecoder() {
+        val targetAd = when (requestedAudioDecoderMode) {
+            AudioDecoderMode.SOFTWARE -> "lavc:*"
+            AudioDecoderMode.AUTOMATIC -> "all"
+        }
+        Log.d("MPVPlayerEngine", "Applying effective audio decoder 'ad': $targetAd (requested: ${requestedAudioDecoderMode.displayName})")
+        try {
+            MPVLib.setPropertyString("ad", targetAd)
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Failed to set audio decoder property 'ad' to $targetAd", e)
+        }
+    }
+
+    private fun updateActiveAudioDecoderInfo() {
+        try {
+            val codecName = MPVLib.getPropertyString("audio-codec-name") ?: ""
+            val codecDesc = MPVLib.getPropertyString("audio-codec") ?: ""
+            val currentAid = MPVLib.getPropertyInt("aid") ?: -1
+
+            if (currentAid <= 0 || (codecName.isEmpty() && codecDesc.isEmpty())) {
+                val hasAudioTracks = _audioTracks.value.any { it.id != -1 }
+                if (currentAid <= 0 && hasAudioTracks) {
+                    _audioDecoderError.value = null
+                    _activeAudioDecoder.value = "Audio Disabled"
+                    return
+                }
+                if (hasAudioTracks && (_playbackState.value is PlayerState.Playing || _playbackState.value is PlayerState.Paused)) {
+                    if (requestedAudioDecoderMode == AudioDecoderMode.SOFTWARE) {
+                        _audioDecoderError.value = "Software audio decoder failed or codec unsupported"
+                        _activeAudioDecoder.value = "SW Decoder Unavailable"
+                    } else {
+                        _audioDecoderError.value = null
+                        _activeAudioDecoder.value = "Unavailable"
+                    }
+                } else {
+                    _audioDecoderError.value = null
+                    _activeAudioDecoder.value = if (!hasAudioTracks) "No Audio Track" else ""
+                }
+                return
+            }
+
+            val displayCodec = if (codecName.isNotEmpty()) codecName.uppercase() else codecDesc
+            val isSwMode = requestedAudioDecoderMode == AudioDecoderMode.SOFTWARE
+
+            val activeDesc = if (isSwMode) {
+                "SW (FFmpeg) • $displayCodec"
+            } else {
+                "Auto • $displayCodec"
+            }
+
+            _audioDecoderError.value = null
+            _activeAudioDecoder.value = activeDesc
+            Log.d("MPVPlayerEngine", "Active audio decoder updated: $activeDesc (codec=$codecName)")
+        } catch (e: Exception) {
+            Log.e("MPVPlayerEngine", "Error querying audio decoder info", e)
         }
     }
 
@@ -1321,6 +1437,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             "cache-speed" -> _networkSpeedBytesPerSec.value = value
             "frame-drop-count" -> _frameDropCount.value = value
             "decoder-frame-drop-count" -> _decoderFrameDropCount.value = value
+            "aid" -> {
+                updateTracks()
+                updateActiveAudioDecoderInfo()
+            }
         }
     }
 
@@ -1357,6 +1477,8 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         } else if (property == "hwdec-current") {
             _hwdecCurrent.value = safeVal ?: "no"
             Log.d("MPVPlayerEngine", "Active hardware decoder changed: $safeVal")
+        } else if (property == "audio-codec-name" || property == "audio-codec") {
+            updateActiveAudioDecoderInfo()
         } else if (property == "video-params/gamma" || property == "video-params/colormatrix" ||
             property == "video-params/primaries" || property == "video-params/pixelformat") {
             evaluateHdrType()
@@ -1411,6 +1533,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _playbackState.value = PlayerState.Playing
                 _isPlaying.value = true
                 updateTracks()
+                updateActiveAudioDecoderInfo()
                 applyDefaultLanguagePreferences()
                 updateChapters()
                 togglePerformanceOverlayFromConf()
@@ -1421,6 +1544,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             16, 21 -> {
                 Log.d("MPVPlayerEngine", "Tracks changed/restart event received ($eventId)")
                 updateTracks()
+                updateActiveAudioDecoderInfo()
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 _playbackState.value = PlayerState.Ended

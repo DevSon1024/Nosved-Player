@@ -211,6 +211,8 @@ fun PlayerScreen(
     val isFrameCaptureMode by (activeViewModel?.isFrameCaptureMode ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsStateWithLifecycle()
     val currentFrame by (activeViewModel?.currentFrame ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
     val totalFrames by (activeViewModel?.totalFrames ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
+    val activeAudioDecoder by (activeViewModel?.activeAudioDecoder ?: kotlinx.coroutines.flow.MutableStateFlow("")).collectAsStateWithLifecycle()
+    val audioDecoderError by (activeViewModel?.audioDecoderError ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsStateWithLifecycle()
 
     androidx.activity.compose.BackHandler(enabled = isFrameCaptureMode) {
         activeViewModel?.exitFrameCaptureMode()
@@ -933,6 +935,7 @@ fun PlayerScreen(
                         com.devson.nvplayer.ui.common.components.DeviceStatsOverlay(
                             visible = showStatsOverlay || playbackSettings.showStatsOverlay,
                             decoderMode = playbackSettings.decoderMode,
+                            useSwAudioDecoder = playbackSettings.useSwAudioDecoder,
                             onDismiss = {
                                 showStatsOverlay = false
                                 settingsActions.onUpdateShowStatsOverlay(false)
@@ -1052,6 +1055,8 @@ fun PlayerScreen(
             subtitleTracks = subtitleTracks,
             audioTracks = audioTracks,
             audioBoosterEnabled = audioBoosterEnabled,
+            activeAudioDecoder = activeAudioDecoder,
+            audioDecoderError = audioDecoderError,
             chapters = chapters,
             settingsActions = settingsActions,
             subtitleActions = subtitleActions,
@@ -1677,6 +1682,8 @@ private fun PlayerSideSheets(
     subtitleTracks: List<TrackInfo>,
     audioTracks: List<TrackInfo>,
     audioBoosterEnabled: Boolean,
+    activeAudioDecoder: String = "",
+    audioDecoderError: String? = null,
     chapters: List<ChapterInfo>,
     settingsActions: PlayerSettingsActions,
     subtitleActions: PlayerSubtitleActions,
@@ -1750,7 +1757,11 @@ private fun PlayerSideSheets(
         visible = visibleAudioSheet,
         audioTracks = audioTracks,
         audioBoosterEnabled = audioBoosterEnabled,
+        useSwAudioDecoder = playbackSettings.useSwAudioDecoder,
+        activeAudioDecoder = activeAudioDecoder,
+        audioDecoderError = audioDecoderError,
         onToggleAudioBooster = onToggleAudioBooster,
+        onToggleUseSwAudioDecoder = { activeViewModel?.toggleUseSwAudioDecoder(it) },
         onSelectAudioTrack = { activeViewModel?.selectAudioTrack(it) },
         onDismiss = onDismissAudioSheet
     )

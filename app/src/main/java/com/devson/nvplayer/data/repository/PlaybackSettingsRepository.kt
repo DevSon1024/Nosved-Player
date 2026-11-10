@@ -3,6 +3,7 @@ package com.devson.nvplayer.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.player.model.AudioDecoderMode
 import com.devson.nvplayer.player.model.DecoderMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,7 +60,8 @@ class PlaybackSettingsRepository(context: Context) {
             "ytdl_quality", "ytdl_custom_user_agent",
             "is_data_saver_enabled", "is_bottom_layout_enabled", "show_control_gradients",
             "show_up_next_queue", "queue_layout_mode", "is_ambient_mode_enabled",
-            "whitelisted_folders", "folder_filter_mode", "save_brightness_level", "show_stats_overlay" -> {
+            "whitelisted_folders", "folder_filter_mode", "save_brightness_level", "show_stats_overlay",
+            "use_sw_audio_decoder", "audio_decoder_mode" -> {
                 _playbackSettingsFlow.value = loadPlaybackSettings()
             }
         }
@@ -316,7 +318,16 @@ class PlaybackSettingsRepository(context: Context) {
             ambientBlurStyle = AmbientBlurStyle.fromKey(
                 prefs.getString("ambient_blur_style", AmbientBlurStyle.GLOW.key) ?: AmbientBlurStyle.GLOW.key
             ),
-            saveBrightnessLevel = prefs.getBoolean("save_brightness_level", false)
+            saveBrightnessLevel = prefs.getBoolean("save_brightness_level", false),
+            useSwAudioDecoder = prefs.getBoolean("use_sw_audio_decoder", false),
+            audioDecoderMode = try {
+                AudioDecoderMode.valueOf(
+                    prefs.getString("audio_decoder_mode", AudioDecoderMode.AUTOMATIC.name)
+                        ?: AudioDecoderMode.AUTOMATIC.name
+                )
+            } catch (e: Exception) {
+                AudioDecoderMode.AUTOMATIC
+            }
         )
     }
 
@@ -404,6 +415,8 @@ class PlaybackSettingsRepository(context: Context) {
                 putBoolean("is_ambient_mode_enabled", updated.isAmbientModeEnabled)
                 putString("ambient_blur_style", updated.ambientBlurStyle.key)
                 putBoolean("save_brightness_level", updated.saveBrightnessLevel)
+                putBoolean("use_sw_audio_decoder", updated.useSwAudioDecoder)
+                putString("audio_decoder_mode", updated.audioDecoderMode.name)
                 apply()
             }
         }
@@ -643,6 +656,24 @@ class PlaybackSettingsRepository(context: Context) {
 
     suspend fun updateDecoderMode(mode: DecoderMode) {
         updatePlaybackSettings { it.copy(decoderMode = mode) }
+    }
+
+    suspend fun updateUseSwAudioDecoder(enabled: Boolean) {
+        updatePlaybackSettings {
+            it.copy(
+                useSwAudioDecoder = enabled,
+                audioDecoderMode = if (enabled) AudioDecoderMode.SOFTWARE else AudioDecoderMode.AUTOMATIC
+            )
+        }
+    }
+
+    suspend fun updateAudioDecoderMode(mode: AudioDecoderMode) {
+        updatePlaybackSettings {
+            it.copy(
+                audioDecoderMode = mode,
+                useSwAudioDecoder = (mode == AudioDecoderMode.SOFTWARE)
+            )
+        }
     }
 
     suspend fun updateEnhanceMode(mode: EnhanceMode) {

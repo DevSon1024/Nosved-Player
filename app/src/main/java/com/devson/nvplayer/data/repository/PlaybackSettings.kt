@@ -2,6 +2,7 @@ package com.devson.nvplayer.data.repository
 
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.DecoderMode
+import com.devson.nvplayer.player.model.AudioDecoderMode
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.runtime.Immutable
 
@@ -81,6 +82,8 @@ data class PlaybackSettings(
     val folderFilterMode: FolderFilterMode = FolderFilterMode.NONE,
     val keepAwakeAlways: Boolean = false,
     val decoderMode: DecoderMode = DecoderMode.HW,
+    val useSwAudioDecoder: Boolean = false,
+    val audioDecoderMode: AudioDecoderMode = AudioDecoderMode.AUTOMATIC,
     val enhanceMode: EnhanceMode = EnhanceMode.OFF,
     val enhanceSaturation: Int = 0,
     val enhanceContrast: Int = 0,

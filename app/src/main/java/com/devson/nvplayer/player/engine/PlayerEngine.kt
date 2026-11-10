@@ -2,6 +2,7 @@ package com.devson.nvplayer.player.engine
 
 import android.net.Uri
 import com.devson.nvplayer.player.model.AspectMode
+import com.devson.nvplayer.player.model.AudioDecoderMode
 import com.devson.nvplayer.player.model.ChapterInfo
 import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.model.HdrType
@@ -21,6 +22,9 @@ interface PlayerEngine {
     val audioTracks: StateFlow<List<TrackInfo>>
     val chapters: StateFlow<List<ChapterInfo>>
     val hwdecCurrent: StateFlow<String>
+    val audioDecoderMode: StateFlow<AudioDecoderMode>
+    val activeAudioDecoder: StateFlow<String>
+    val audioDecoderError: StateFlow<String?>
     val networkSpeedBytesPerSec: StateFlow<Long>
     val bufferDurationSeconds: StateFlow<Double>
     val bufferedPosition: StateFlow<Long>
@@ -49,6 +53,8 @@ interface PlayerEngine {
     fun addExternalSubtitle(path: String, select: Boolean = true)
     fun setAudioBoost(boost: Boolean)
     fun setMpvVolume(volume: Double)
+    fun setAudioDecoder(mode: AudioDecoderMode) {}
+    fun setUseSwAudioDecoder(enabled: Boolean) {}
     fun setDecoder(mode: DecoderMode)
     fun setAspectMode(mode: AspectMode)
     fun setVideoTrackEnabled(enabled: Boolean)

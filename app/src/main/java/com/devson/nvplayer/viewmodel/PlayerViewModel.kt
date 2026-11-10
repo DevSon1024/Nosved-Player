@@ -23,6 +23,7 @@ import com.devson.nvplayer.player.engine.PlayerEngine
 import com.devson.nvplayer.player.engine.PlayerState
 import com.devson.nvplayer.player.model.TrackInfo
 import com.devson.nvplayer.player.model.ChapterInfo
+import com.devson.nvplayer.player.model.AudioDecoderMode
 import com.devson.nvplayer.player.model.DecoderMode
 import com.devson.nvplayer.player.model.HdrType
 import androidx.lifecycle.viewModelScope
@@ -78,6 +79,9 @@ class PlayerViewModel(
     val audioTracks: StateFlow<List<TrackInfo>> = playerEngine.audioTracks
     val chapters: StateFlow<List<ChapterInfo>> = playerEngine.chapters
     val hwdecCurrent: StateFlow<String> = playerEngine.hwdecCurrent
+    val activeAudioDecoder: StateFlow<String> = playerEngine.activeAudioDecoder
+    val audioDecoderError: StateFlow<String?> = playerEngine.audioDecoderError
+    val audioDecoderMode: StateFlow<AudioDecoderMode> = playerEngine.audioDecoderMode
     val bufferedPosition: StateFlow<Long> = playerEngine.bufferedPosition
     val mediaTitle: StateFlow<String> = playerEngine.mediaTitle
     val hdrType: StateFlow<HdrType> = playerEngine.hdrType
@@ -279,6 +283,7 @@ class PlayerViewModel(
         // Observe decoder and aspect mode changes from settings and apply immediately if video is active
         viewModelScope.launch {
             var lastDecoderMode: DecoderMode? = null
+            var lastAudioDecoderMode: AudioDecoderMode? = null
             var lastAspectMode: AspectMode? = null
             playbackSettings.collect { settings ->
                 if (lastDecoderMode != settings.decoderMode) {
@@ -286,6 +291,13 @@ class PlayerViewModel(
                     if (isVideoLoaded) {
                         Log.d("PlayerViewModel", "Applying decoder change immediately: ${settings.decoderMode}")
                         playerEngine.setDecoder(settings.decoderMode)
+                    }
+                }
+                if (lastAudioDecoderMode != settings.audioDecoderMode) {
+                    lastAudioDecoderMode = settings.audioDecoderMode
+                    if (isVideoLoaded) {
+                        Log.d("PlayerViewModel", "Applying audio decoder change immediately: ${settings.audioDecoderMode}")
+                        playerEngine.setAudioDecoder(settings.audioDecoderMode)
                     }
                 }
                 if (lastAspectMode != settings.aspectMode) {
@@ -1317,6 +1329,22 @@ class PlayerViewModel(
 
     fun selectAudioTrack(id: Int) {
         playerEngine.selectAudioTrack(id)
+    }
+
+    fun toggleUseSwAudioDecoder(enabled: Boolean) {
+        Log.d("PlayerViewModel", "Toggling Use SW audio decoder: $enabled")
+        viewModelScope.launch {
+            settingsRepo.updateUseSwAudioDecoder(enabled)
+        }
+        playerEngine.setUseSwAudioDecoder(enabled)
+    }
+
+    fun setAudioDecoderMode(mode: AudioDecoderMode) {
+        Log.d("PlayerViewModel", "Setting audio decoder mode: $mode")
+        viewModelScope.launch {
+            settingsRepo.updateAudioDecoderMode(mode)
+        }
+        playerEngine.setAudioDecoder(mode)
     }
 
     fun selectChapter(index: Int) {

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +46,11 @@ fun AudioSettingsSideSheet(
     visible: Boolean,
     audioTracks: List<TrackInfo>,
     audioBoosterEnabled: Boolean,
+    useSwAudioDecoder: Boolean = false,
+    activeAudioDecoder: String = "",
+    audioDecoderError: String? = null,
     onToggleAudioBooster: (Boolean) -> Unit,
+    onToggleUseSwAudioDecoder: (Boolean) -> Unit = {},
     onSelectAudioTrack: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -53,6 +59,9 @@ fun AudioSettingsSideSheet(
     val sheetWidthPercent = if (isLandscape) 0.48f else 0.85f
 
     val activeTrack = remember(audioTracks) { audioTracks.find { it.selected } }
+    val isAudioDisabled = activeTrack?.id == -1 || (audioTracks.isNotEmpty() && activeTrack == null)
+    val streamTracks = remember(audioTracks) { audioTracks.filter { it.id != -1 } }
+    val disableTrack = remember(audioTracks) { audioTracks.find { it.id == -1 } }
 
     BackHandler(enabled = visible) {
         onDismiss()
@@ -147,7 +156,12 @@ fun AudioSettingsSideSheet(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (activeTrack != null) "Active: ${activeTrack.name}" else "${audioTracks.size} tracks available",
+                                    text = when {
+                                        isAudioDisabled -> "Audio Disabled"
+                                        activeTrack != null -> "Active: ${activeTrack.name}"
+                                        audioTracks.isEmpty() -> "No audio tracks detected"
+                                        else -> "${streamTracks.size} tracks available"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -195,11 +209,123 @@ fun AudioSettingsSideSheet(
                                     )
                                 }
                             } else {
-                                audioTracks.forEach { track ->
+                                // Disable Audio option
+                                if (disableTrack != null) {
+                                    TrackCard(
+                                        title = "Disable Audio",
+                                        subtitle = "Mute and turn off all audio streams",
+                                        icon = Icons.AutoMirrored.Rounded.VolumeOff,
+                                        isSelected = disableTrack.selected,
+                                        onClick = { onSelectAudioTrack(-1) }
+                                    )
+                                }
+
+                                // Regular stream tracks
+                                streamTracks.forEach { track ->
+                                    val subtitle = when {
+                                        track.codec.isNotBlank() && track.lang.isNotBlank() ->
+                                            "${track.codec.uppercase()} • ${track.lang.uppercase()}"
+                                        track.codec.isNotBlank() -> track.codec.uppercase()
+                                        track.lang.isNotBlank() -> track.lang.uppercase()
+                                        else -> "Stream #${track.id}"
+                                    }
                                     TrackCard(
                                         title = track.name,
+                                        subtitle = subtitle,
+                                        icon = Icons.AutoMirrored.Rounded.VolumeUp,
                                         isSelected = track.selected,
                                         onClick = { onSelectAudioTrack(track.id) }
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+
+                        // Section 2: Audio Decoder
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SectionHeader(title = "Audio Decoder")
+
+                            // Use SW audio decoder card
+                            Card(
+                                onClick = { onToggleUseSwAudioDecoder(!useSwAudioDecoder) },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (useSwAudioDecoder) {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f)
+                                    }
+                                ),
+                                border = BorderStroke(
+                                    width = if (useSwAudioDecoder) 1.5.dp else 1.dp,
+                                    color = if (useSwAudioDecoder) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Use SW audio decoder",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Decode audio via FFmpeg software decoders independently of video decoder",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        if (activeAudioDecoder.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Surface(
+                                                color = if (audioDecoderError != null) {
+                                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                },
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Active Decoder: $activeAudioDecoder",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (audioDecoderError != null) {
+                                                        MaterialTheme.colorScheme.onErrorContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.primary
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                )
+                                            }
+                                        }
+
+                                        if (audioDecoderError != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = audioDecoderError,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Checkbox(
+                                        checked = useSwAudioDecoder,
+                                        onCheckedChange = onToggleUseSwAudioDecoder,
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = MaterialTheme.colorScheme.primary,
+                                            checkmarkColor = MaterialTheme.colorScheme.onPrimary
+                                        )
                                     )
                                 }
                             }
@@ -292,6 +418,8 @@ fun AudioSettingsSideSheet(
 @Composable
 private fun TrackCard(
     title: String,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -325,6 +453,59 @@ private fun TrackCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                if (icon != null) {
+                    Surface(
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        shape = CircleShape,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isSelected) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "ACTIVE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+
                 RadioButton(
                     selected = isSelected,
                     onClick = null,
@@ -332,28 +513,6 @@ private fun TrackCard(
                         selectedColor = MaterialTheme.colorScheme.primary
                     )
                 )
-
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (isSelected) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        text = "ACTIVE",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
             }
         }
     }
