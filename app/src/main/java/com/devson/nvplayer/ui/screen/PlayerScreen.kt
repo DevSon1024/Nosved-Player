@@ -810,9 +810,11 @@ fun PlayerScreen(
 
                         // Dynamic Speed Overlay
                         AnimatedVisibility(
-                            visible = isDynamicSpeedActive,
-                            enter = fadeIn(animationSpec = tween(150)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
-                            exit = fadeOut(animationSpec = tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150))
+                            visible = isDynamicSpeedActive && isPlaying,
+                            enter = fadeIn(animationSpec = tween(150)) +
+                                    scaleIn(initialScale = 0.8f, animationSpec = tween(150)),
+                            exit = fadeOut(animationSpec = tween(150)) +
+                                    scaleOut(targetScale = 0.8f, animationSpec = tween(150))
                         ) {
                             SpeedSliderHUD(playbackSpeed = playbackSpeed)
                         }
