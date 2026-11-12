@@ -45,7 +45,9 @@ import com.devson.nvplayer.data.model.LibraryCategory
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.data.model.LibraryMediaType
 import com.devson.nvplayer.data.model.LibraryUiState
-import com.devson.nvplayer.ui.common.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.common.components.fab.NosvedExpressiveFab
+import com.devson.nvplayer.ui.common.components.fab.NosvedFabPreviewData
+import com.devson.nvplayer.ui.common.components.fab.nosvedQuickFabPosition
 import com.devson.nvplayer.ui.common.popup.SearchSuggestionsPopup
 import com.devson.nvplayer.ui.screen.NetworkStreamDialog
 import com.devson.nvplayer.ui.screen.library.components.CategoryFilterRow
@@ -227,51 +229,12 @@ fun LibraryHomeScreen(
             }
         },
         floatingActionButton = {
-            val quickFabVideo by viewModel.videoListViewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
-            val viewSettings by viewModel.videoListViewModel.viewSettings.collectAsStateWithLifecycle()
-
-            val continueWatchingItem = (uiState as? LibraryUiState.Success)?.continueWatching?.firstOrNull()
-
-            val effectiveUri = continueWatchingItem?.videoUri ?: quickFabVideo?.uri
-            val effectiveTitle = continueWatchingItem?.title ?: quickFabVideo?.title
-            val effectiveDuration = continueWatchingItem?.durationMs ?: quickFabVideo?.duration ?: 0L
-            val effectivePosition = continueWatchingItem?.playbackPositionMs ?: 0L
-
-            if (viewSettings.showQuickFab && effectiveUri != null) {
-                PreviewFloatingActionButton(
-                    enablePreview = viewSettings.enableFabPreview,
-                    previewUri = effectiveUri,
-                    previewTitle = effectiveTitle,
-                    previewDurationMs = effectiveDuration,
-                    previewLastPositionMs = effectivePosition,
-                    modifier = Modifier.padding(bottom = 88.dp),
-                    onPlay = {
-                        if (continueWatchingItem != null) {
-                            onMediaClick(continueWatchingItem)
-                        } else {
-                            val currentUiState = uiState
-                            val allItems = if (currentUiState is LibraryUiState.Success) currentUiState.allItems else emptyList()
-                            val matchItem = allItems.find { it.videoUri == effectiveUri }
-                            if (matchItem != null) {
-                                onMediaClick(matchItem)
-                            } else {
-                                onMediaClick(
-                                    LibraryMediaItem(
-                                        id = effectiveUri,
-                                        title = effectiveTitle ?: "Video",
-                                        cleanedTitle = effectiveTitle ?: "Video",
-                                        videoUri = effectiveUri,
-                                        type = LibraryMediaType.MOVIE,
-                                        durationMs = effectiveDuration,
-                                        playbackPositionMs = effectivePosition
-                                    )
-                                )
-                            }
-                        }
-                    },
-                    onNetworkStreamClick = { showNetworkDialog = true }
-                )
-            }
+            LibraryQuickFab(
+                viewModel = viewModel,
+                uiState = uiState,
+                onMediaClick = onMediaClick,
+                onNetworkStreamClick = { showNetworkDialog = true }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -580,4 +543,64 @@ private fun CategoryEmptyState(
             Text("Re-scan Library")
         }
     }
+}
+
+@Composable
+private fun LibraryQuickFab(
+    viewModel: LibraryViewModel,
+    uiState: LibraryUiState,
+    onMediaClick: (LibraryMediaItem) -> Unit,
+    onNetworkStreamClick: () -> Unit
+) {
+    val quickFabVideo by viewModel.videoListViewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+    val viewSettings by viewModel.videoListViewModel.viewSettings.collectAsStateWithLifecycle()
+
+    val continueWatchingItem = (uiState as? LibraryUiState.Success)?.continueWatching?.firstOrNull()
+
+    val effectiveUri = continueWatchingItem?.videoUri ?: quickFabVideo?.uri
+    val effectiveTitle = continueWatchingItem?.title ?: quickFabVideo?.title
+    val effectiveDuration = continueWatchingItem?.durationMs ?: quickFabVideo?.duration ?: 0L
+    val effectivePosition = continueWatchingItem?.playbackPositionMs ?: 0L
+
+    val previewData = remember(effectiveUri, effectiveTitle, effectiveDuration, effectivePosition) {
+        effectiveUri?.let { uri ->
+            NosvedFabPreviewData(
+                uri = uri,
+                title = effectiveTitle,
+                durationMs = effectiveDuration,
+                lastPositionMs = effectivePosition
+            )
+        }
+    }
+
+    NosvedExpressiveFab(
+        visible = viewSettings.showQuickFab,
+        enablePreview = viewSettings.enableFabPreview,
+        previewData = previewData,
+        modifier = Modifier.nosvedQuickFabPosition(scaffoldHandlesBottomInsets = false),
+        onPlayLastPlayed = {
+            if (continueWatchingItem != null) {
+                onMediaClick(continueWatchingItem)
+            } else if (effectiveUri != null) {
+                val allItems = (uiState as? LibraryUiState.Success)?.allItems ?: emptyList()
+                val matchItem = allItems.find { it.videoUri == effectiveUri }
+                if (matchItem != null) {
+                    onMediaClick(matchItem)
+                } else {
+                    onMediaClick(
+                        LibraryMediaItem(
+                            id = effectiveUri,
+                            title = effectiveTitle ?: "Video",
+                            cleanedTitle = effectiveTitle ?: "Video",
+                            videoUri = effectiveUri,
+                            type = LibraryMediaType.MOVIE,
+                            durationMs = effectiveDuration,
+                            playbackPositionMs = effectivePosition
+                        )
+                    )
+                }
+            }
+        },
+        onNetworkStreamClick = onNetworkStreamClick
+    )
 }

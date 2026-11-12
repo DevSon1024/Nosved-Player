@@ -54,7 +54,9 @@ import com.devson.nvplayer.ui.screen.videolist.components.DeleteConfirmationDial
 import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.applySort
 import com.devson.nvplayer.ui.components.CustomRenameDialog
-import com.devson.nvplayer.ui.common.components.PreviewFloatingActionButton
+import com.devson.nvplayer.ui.common.components.fab.NosvedExpressiveFab
+import com.devson.nvplayer.ui.common.components.fab.NosvedFabPreviewData
+import com.devson.nvplayer.ui.common.components.fab.nosvedQuickFabPosition
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -263,7 +265,6 @@ fun VideoListScreen(
 
     //  Watch History 
     val historyMap by homeViewModel.historyMapFlow.collectAsStateWithLifecycle()
-    val lastPlayedVideo by viewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
     val isDiscoveringHidden by viewModel.isDiscoveringHidden.collectAsStateWithLifecycle()
 
     LaunchedEffect(historyMap) {
@@ -728,36 +729,18 @@ fun VideoListScreen(
             }
         },
         floatingActionButton = {
-            if (viewSettings.showQuickFab && !isSelectionActive) {
-                val video = lastPlayedVideo
-                val lastHistoryEntry = remember(video, historyMap) { video?.let { historyMap[it.uri] } }
-                val allVideosFlat = videosFlat
-                PreviewFloatingActionButton(
-                    enablePreview = viewSettings.enableFabPreview && video != null,
-                    previewUri = video?.uri,
-                    previewTitle = video?.title,
-                    previewDurationMs = video?.duration ?: 0L,
-                    previewLastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L,
-                    modifier = Modifier.padding(bottom = 88.dp),
-                    onPlay = {
-                        video?.let { vid ->
-                            val playlist = when (viewSettings.viewMode) {
-                                ViewMode.FILES -> allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
-                                ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
-                                    (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
-                                } else {
-                                    allVideosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
-                                }
-                                ViewMode.FOLDERS -> {
-                                    allVideosFlat.filter { it.path.startsWith(currentExplorerPath) }.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
-                                }
-                            }
-                            onVideoSelected(vid, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
-                        }
-                    },
-                    onNetworkStreamClick = { showNetworkDialog = true }
-                )
-            }
+            VideoListQuickFab(
+                visible = viewSettings.showQuickFab && !isSelectionActive,
+                viewModel = viewModel,
+                viewSettings = viewSettings,
+                historyMap = historyMap,
+                videosFlat = videosFlat,
+                videosByFolder = videosByFolder,
+                selectedFolder = selectedFolder,
+                currentExplorerPath = currentExplorerPath,
+                onVideoSelected = onVideoSelected,
+                onNetworkStreamClick = { showNetworkDialog = true }
+            )
         }
     ) { padding ->
         val listBottomPadding = padding.calculateBottomPadding() + if (isSelectionActive) 0.dp else 92.dp
@@ -1289,4 +1272,58 @@ fun VideoListScreen(
             shape = RoundedCornerShape(24.dp)
         )
     }
+}
+
+@Composable
+private fun VideoListQuickFab(
+    visible: Boolean,
+    viewModel: VideoListViewModel,
+    viewSettings: com.devson.nvplayer.domain.model.ViewSettings,
+    historyMap: Map<String, com.devson.nvplayer.domain.model.WatchHistory>,
+    videosFlat: List<Video>,
+    videosByFolder: Map<VideoFolder, List<Video>>,
+    selectedFolder: VideoFolder?,
+    currentExplorerPath: String,
+    onVideoSelected: (Video, List<Video>, Long) -> Unit,
+    onNetworkStreamClick: () -> Unit
+) {
+    val lastPlayedVideo by viewModel.quickFabLastPlayedVideo.collectAsStateWithLifecycle()
+    val lastHistoryEntry = remember(lastPlayedVideo, historyMap) {
+        lastPlayedVideo?.let { historyMap[it.uri] }
+    }
+    val previewData = remember(lastPlayedVideo, lastHistoryEntry) {
+        lastPlayedVideo?.let { video ->
+            NosvedFabPreviewData(
+                uri = video.uri,
+                title = video.title,
+                durationMs = video.duration,
+                lastPositionMs = lastHistoryEntry?.lastPositionMs ?: 0L
+            )
+        }
+    }
+
+    NosvedExpressiveFab(
+        visible = visible,
+        enablePreview = viewSettings.enableFabPreview,
+        previewData = previewData,
+        modifier = Modifier.nosvedQuickFabPosition(scaffoldHandlesBottomInsets = true),
+        onPlayLastPlayed = {
+            lastPlayedVideo?.let { vid ->
+                val playlist = when (viewSettings.viewMode) {
+                    ViewMode.FILES -> videosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+                    ViewMode.ALL_FOLDERS -> if (selectedFolder != null) {
+                        (videosByFolder[selectedFolder] ?: emptyList()).applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+                    } else {
+                        videosFlat.applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+                    }
+                    ViewMode.FOLDERS -> {
+                        videosFlat.filter { it.path.startsWith(currentExplorerPath) }
+                            .applySort(viewSettings.sortField, viewSettings.sortDirection, historyMap)
+                    }
+                }
+                onVideoSelected(vid, playlist, lastHistoryEntry?.lastPositionMs ?: 0L)
+            }
+        },
+        onNetworkStreamClick = onNetworkStreamClick
+    )
 }
