@@ -11,7 +11,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -64,10 +67,15 @@ private fun buildRoundedContour(
     pointsPct: List<Pair<Float, Float>>,
     w: Float,
     h: Float,
-    cornerRadius: Float
+    cornerRadius: Float,
+    contentScale: Float = 1f
 ): Path {
     val n = pointsPct.size
-    val pts = pointsPct.map { Offset(it.first / 100f * w, it.second / 100f * h) }
+    val pts = pointsPct.map { (px, py) ->
+        val sx = (px - 50f) * contentScale + 50f
+        val sy = (py - 50f) * contentScale + 50f
+        Offset(sx / 100f * w, sy / 100f * h)
+    }
     val path = Path()
     for (i in 0 until n) {
         val curr = pts[i]
@@ -88,6 +96,55 @@ private fun buildRoundedContour(
     }
     path.close()
     return path
+}
+
+/**
+ * Lightweight static Nosved logo mark reusing the canonical brand geometry without
+ * infinite animations or shimmer controllers. Path geometry is cached per size via
+ * [drawWithCache], and [colorProvider] allows tint transitions without rebuilding paths.
+ */
+@Composable
+fun NosvedLogoMark(
+    modifier: Modifier = Modifier,
+    tightBounds: Boolean = true,
+    colorProvider: () -> Color
+) {
+    val scale = if (tightBounds) 1.40f else 1.0f
+    Spacer(
+        modifier = modifier.drawWithCache {
+            val w = size.width
+            val h = size.height
+            val combined = if (w > 0f && h > 0f) {
+                Path().apply {
+                    fillType = PathFillType.EvenOdd
+                    addPath(buildRoundedContour(NosvedOuterContour, w, h, w * 0.028f * scale, scale))
+                    addPath(buildRoundedContour(NosvedBarsHoleContour, w, h, w * 0.02f * scale, scale))
+                    addPath(buildRoundedContour(NosvedTriangleHoleContour, w, h, w * 0.014f * scale, scale))
+                }
+            } else {
+                null
+            }
+            onDrawBehind {
+                if (combined != null) {
+                    drawPath(path = combined, color = colorProvider())
+                }
+            }
+        }
+    )
+}
+
+/** Overload accepting a static [Color] for [NosvedLogoMark]. */
+@Composable
+fun NosvedLogoMark(
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current,
+    tightBounds: Boolean = true
+) {
+    NosvedLogoMark(
+        modifier = modifier,
+        tightBounds = tightBounds,
+        colorProvider = { color }
+    )
 }
 
 /** Returns the first `progress` fraction (by length) of `path`, for a draw-on reveal. */
