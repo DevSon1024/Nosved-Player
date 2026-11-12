@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.devson.nvplayer.util.DeviceCapabilityHelper
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.AudioDecoderMode
@@ -135,6 +136,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private var isScrubbingOrSeeking = false
 
     init {
+        PerfTracer.traceSection("MPVPlayerEngine.init") {
         try {
             if (isInitialized) {
                 // RELEASE FIX: Process was reused (activity recreation, PiP, back-stack pop).
@@ -321,6 +323,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             Log.e("MPVPlayerEngine", "Failed to initialize MPVLib", e)
             _playbackState.value = PlayerState.Error("Initialization error: ${e.localizedMessage}")
         }
+        }
     }
 
     fun isAviMedia(uri: Uri): Boolean {
@@ -432,6 +435,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             try { MPVLib.command("stop") } catch (_: Exception) {}
             val loadfileStart = System.currentTimeMillis()
             val loadTarget = if (uri.scheme == "file") (uri.path ?: uriString) else uriString
+            PerfTracer.markMpvLoadfileInvoked()
             MPVLib.command("loadfile", loadTarget)
             Log.d("MPVPlayerEngine", "[TIMING] loadfile command dispatched in ${System.currentTimeMillis() - loadfileStart}ms")
             MPVLib.setPropertyBoolean("pause", false) // Auto-play the loaded media file
@@ -1488,6 +1492,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "time-pos" -> {
+                if (value > 0.0) {
+                    PerfTracer.markFirstVideoFrameRendered("time_pos")
+                }
                 val now = android.os.SystemClock.uptimeMillis()
                 val targetMs = (value * 1000).toLong()
                 if (isScrubbingOrSeeking || !_isPlaying.value || (now - lastTimePosDispatchMs >= 200L)) {
@@ -1528,6 +1535,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 _playbackState.value = PlayerState.Loading
             }
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                PerfTracer.markMpvFileLoaded()
                 val elapsed = System.currentTimeMillis() - loadStartTimeMs
                 Log.d("MPVPlayerEngine", "[TIMING] MPV_EVENT_FILE_LOADED: Media ready and playing in ${elapsed}ms for $currentLoadingUri")
                 _playbackState.value = PlayerState.Playing
@@ -1542,6 +1550,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 setAmbientMode(settings.isAmbientModeEnabled, settings.ambientBlurStyle)
             }
             16, 21 -> {
+                if (eventId == MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART) {
+                    PerfTracer.markFirstVideoFrameRendered("playback_restart")
+                }
                 Log.d("MPVPlayerEngine", "Tracks changed/restart event received ($eventId)")
                 updateTracks()
                 updateActiveAudioDecoderInfo()

@@ -106,6 +106,7 @@ import androidx.compose.ui.unit.Velocity
 import com.devson.nvplayer.domain.model.LayoutMode
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.viewmodel.PreFetchedVideoMetadata
 
 @Composable
@@ -174,6 +175,7 @@ fun PlayerScreen(
     onUpdateQueueLayoutMode: (LayoutMode) -> Unit = {},
     hdrType: HdrType = HdrType.NONE
 ) {
+    PerfTracer.markPlayerScreenComposition()
     val localContext = LocalContext.current
     val owner = localContext.findActivity() as? androidx.lifecycle.ViewModelStoreOwner
     val resolvedViewModel = remember(owner) {

@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.devson.nvplayer.util.PerfTracer
 import `is`.xyz.mpv.MPVLib
 import java.lang.ref.WeakReference
 
@@ -39,11 +40,13 @@ class MPVSurfaceView @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
+        PerfTracer.markSurfaceCreated()
         Log.d("MPVSurfaceView", "Surface created - attaching native surface to MPVLib")
         synchronized(MPVSurfaceView) {
             try {
                 setActiveSurface(holder.surface)
                 MPVLib.attachSurface(holder.surface)
+                PerfTracer.markSurfaceAttached()
                 try {
                     MPVLib.setPropertyString("force-window", "yes")
                 } catch (_: Exception) {

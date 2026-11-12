@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.data.repository.OrientationMode
 import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.findActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -106,6 +107,12 @@ fun AppNavigation(
     shortcutDestination: String? = null,
     onShortcutHandled: () -> Unit = {}
 ) {
+    PerfTracer.markFirstScreenComposition()
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.withFrameNanos {
+            PerfTracer.markFirstScreenDisplayed()
+        }
+    }
     val navController = rememberNavController()
 
     // 1. Create a safe back navigation helper to prevent popping the start destination
@@ -176,6 +183,7 @@ fun AppNavigation(
             initialWidth = video.width,
             initialHeight = video.height
         )
+        PerfTracer.markPlayerNavigationStart(video.uri)
         navController.navigate("player") {
             launchSingleTop = true
         }
@@ -204,6 +212,7 @@ fun AppNavigation(
             uri = uri,
             playlistUris = queue.map { Uri.parse(it.uri) }
         )
+        PerfTracer.markPlayerNavigationStart(uri.toString())
         navController.navigate("player") {
             launchSingleTop = true
         }
@@ -416,6 +425,7 @@ fun AppNavigation(
         composable("video_list") {
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
+                    PerfTracer.markVideoClick("video_list")
                     val flatVideos = videoListViewModel.videosFlat.value
                     val queueVideos = getLogicalQueue(
                         video = video,
@@ -806,6 +816,7 @@ fun AppNavigation(
             LibraryHomeScreen(
                 viewModel = libraryViewModel,
                 onMediaClick = { item ->
+                    PerfTracer.markVideoClick("library_home")
                     val allCandidateVideos = videoListViewModel.rawVideosFlat.value.ifEmpty { videoListViewModel.videosFlat.value }
                     val currentVideo = allCandidateVideos.find {
                         it.uri == item.videoUri || (item.id.isNotBlank() && it.uri == item.id) ||

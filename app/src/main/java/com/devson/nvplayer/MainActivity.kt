@@ -45,6 +45,7 @@ import android.net.Uri
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.player.service.MediaPlaybackService
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.StreamUrlValidator
 
 class MainActivity : FragmentActivity() {
@@ -238,8 +239,10 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        PerfTracer.markMainActivityCreateStart()
+        PerfTracer.traceSection("MainActivity.onCreate") {
+            super.onCreate(savedInstanceState)
+            enableEdgeToEdge()
 
         handleShortcutIntent(intent)
         com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(this)
@@ -318,6 +321,8 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        }
+        PerfTracer.markMainActivityCreateEnd()
     }
 
     override fun onNewIntent(intent: Intent) {

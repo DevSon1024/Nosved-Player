@@ -17,9 +17,18 @@ import com.devson.nvplayer.util.MediaStoreThumbnailFetcher
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.domain.thumbnail.CoilVideoThumbnailDecoder
 import com.devson.nvplayer.domain.thumbnail.toThumbnailStrategy
+import com.devson.nvplayer.util.PerfTracer
 import okio.Path.Companion.toOkioPath
 
 class NosvedApplication : Application(), SingletonImageLoader.Factory {
+
+    override fun onCreate() {
+        PerfTracer.markAppInitStart()
+        PerfTracer.traceSection("NosvedApplication.onCreate") {
+            super.onCreate()
+        }
+        PerfTracer.markAppInitEnd()
+    }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val cacheDir = cacheDir.resolve("video_thumbnails_cache")

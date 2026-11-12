@@ -17,6 +17,7 @@ import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
 import com.devson.nvplayer.util.getAvailableStorageVolumes
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.SearchUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -341,6 +342,9 @@ class VideoListViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) {
             val isInitial = _rawVideosFlat.value.isEmpty()
+            if (isInitial) {
+                PerfTracer.markLibraryLoadStart()
+            }
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
@@ -446,7 +450,11 @@ class VideoListViewModel(
 
                 _loadingProgress.value = 1f
                 _rawVideosByFolder.value = mappedVideos.toMap()
-                _rawVideosFlat.value = mappedVideos.values.flatten()
+                val flatList = mappedVideos.values.flatten()
+                _rawVideosFlat.value = flatList
+                if (isInitial) {
+                    PerfTracer.markLibraryLoadEnd(flatList.size, mappedVideos.size)
+                }
                 _isLoading.value = false
                 _isRefreshing.value = false
 
