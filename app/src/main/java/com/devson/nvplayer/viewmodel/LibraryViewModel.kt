@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -84,14 +85,27 @@ class LibraryViewModel(
                 LibraryCategory.SHOWS -> items.filter { it.type == LibraryMediaType.TV_SHOW }
             }
 
+            val videoByUriOrPath = HashMap<String, Video>(activeVideos.size * 2)
+            for (v in activeVideos) {
+                videoByUriOrPath[v.uri] = v
+                if (v.path.isNotBlank()) {
+                    videoByUriOrPath[v.path] = v
+                }
+            }
+
+            fun resolveVideo(hist: WatchHistoryEntity): Video? {
+                videoByUriOrPath[hist.uri]?.let { return it }
+                val orig = hist.originalPath
+                if (!orig.isNullOrBlank()) {
+                    videoByUriOrPath[orig]?.let { return it }
+                }
+                return null
+            }
+
             val continueWatching = activeHistory
                 .asSequence()
                 .filter { hist ->
-                    val video = activeVideos.find {
-                        it.uri == hist.uri ||
-                        (!hist.originalPath.isNullOrBlank() && (it.path == hist.originalPath || it.uri == hist.originalPath)) ||
-                        (it.path.isNotBlank() && (it.path == hist.uri || it.uri == hist.uri))
-                    }
+                    val video = resolveVideo(hist)
                     val dur = if (hist.durationMs > 0L) hist.durationMs else (video?.duration ?: 0L)
                     !hist.isCompleted &&
                     hist.lastPositionMs > 1000L &&
@@ -102,11 +116,7 @@ class LibraryViewModel(
                 }
                 .take(20)
                 .map { hist ->
-                    val video = activeVideos.find {
-                        it.uri == hist.uri ||
-                        (!hist.originalPath.isNullOrBlank() && (it.path == hist.originalPath || it.uri == hist.originalPath)) ||
-                        (it.path.isNotBlank() && (it.path == hist.uri || it.uri == hist.uri))
-                    }
+                    val video = resolveVideo(hist)
                     val parsed = if (video != null) {
                         parsedInfoCache["${video.title}_${video.duration}"]
                             ?: MediaFilenameParser.parse(video.title, durationMillis = video.duration)
@@ -172,7 +182,8 @@ class LibraryViewModel(
                 selectedCategory = category
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, LibraryUiState.Loading)
+    }.flowOn(Dispatchers.Default)
+     .stateIn(viewModelScope, SharingStarted.Lazily, LibraryUiState.Loading)
 
     private var lastProcessedSignature: String? = null
 

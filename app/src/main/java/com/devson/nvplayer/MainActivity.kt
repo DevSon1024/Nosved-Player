@@ -245,7 +245,9 @@ class MainActivity : FragmentActivity() {
             enableEdgeToEdge()
 
         handleShortcutIntent(intent)
-        com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(applicationContext)
+        }
 
         val uri = handleIntent(intent)
         deepLinkUri.value = uri
