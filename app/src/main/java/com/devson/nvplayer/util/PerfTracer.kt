@@ -108,6 +108,58 @@ object PerfTracer {
         Log.i(TAG, "[VIDEO] video_click source=$source t=${now}ms")
     }
 
+    fun markQueueConstructionStart() {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] queue_construction_start t=${now}ms (+${sinceVideoClick(now)}ms)")
+        }
+    }
+
+    fun markQueueConstructionEnd(queueSize: Int) {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] queue_construction_end t=${now}ms (+${sinceVideoClick(now)}ms) size=$queueSize")
+        }
+    }
+
+    fun markPrepareVideoStart() {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] prepare_video_start t=${now}ms (+${sinceVideoClick(now)}ms)")
+        }
+    }
+
+    fun markPrepareVideoEnd() {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] prepare_video_end t=${now}ms (+${sinceVideoClick(now)}ms)")
+        }
+    }
+
+    fun markMpvInitStart() {
+        val now = SystemClock.elapsedRealtime()
+        Log.i(TAG, "[VIDEO] mpv_init_start t=${now}ms (+${sinceVideoClick(now)}ms)")
+    }
+
+    fun markMpvInitEnd() {
+        val now = SystemClock.elapsedRealtime()
+        Log.i(TAG, "[VIDEO] mpv_init_end t=${now}ms (+${sinceVideoClick(now)}ms)")
+    }
+
+    fun markDecoderConfigStart() {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] decoder_config_start t=${now}ms (+${sinceVideoClick(now)}ms)")
+        }
+    }
+
+    fun markDecoderConfigEnd(mode: String) {
+        if (videoLaunchActive.get()) {
+            val now = SystemClock.elapsedRealtime()
+            Log.i(TAG, "[VIDEO] decoder_config_end t=${now}ms (+${sinceVideoClick(now)}ms) mode=$mode")
+        }
+    }
+
     fun markPlayerNavigationStart(uriString: String) {
         val now = SystemClock.elapsedRealtime()
         if (!videoLaunchActive.get()) {

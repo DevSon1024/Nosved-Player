@@ -33,7 +33,7 @@ interface PlayerEngine {
     val frameDropCount: StateFlow<Long>
     val decoderFrameDropCount: StateFlow<Long>
 
-    fun loadVideo(uri: Uri)
+    fun loadVideo(uri: Uri, isAviHint: Boolean? = null)
     fun play()
     fun pause()
     fun togglePlayback()

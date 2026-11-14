@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import android.media.MediaMetadataRetriever
+import com.devson.nvplayer.player.engine.MPVPlayerEngine
+import com.devson.nvplayer.util.PerfTracer
 
 @androidx.compose.runtime.Immutable
 data class PreFetchedVideoMetadata(
@@ -529,8 +531,18 @@ class PlayerViewModel(
         }
     }
 
+    private var initialResumePositionMs: Long = 0L
+
     private fun restorePlaybackProgress() {
         val uri = _currentUri.value ?: return
+        val directPos = initialResumePositionMs
+        if (directPos > 0L) {
+            Log.d("PlayerViewModel", "Restoring direct initial progress: $directPos for URI: $uri")
+            seekTo(directPos)
+            isPositionRestored = true
+            initialResumePositionMs = 0L
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             val dao = AppDatabase.getDatabase(getApplication()).watchHistoryDao()
             val uriStr = uri.toString()
@@ -635,12 +647,15 @@ class PlayerViewModel(
         playlistUris: List<Uri> = emptyList(),
         initialWidth: Int = 0,
         initialHeight: Int = 0,
-        initialRotation: Int = 0
+        initialRotation: Int = 0,
+        initialPositionMs: Long = 0L
     ) {
+        PerfTracer.markPrepareVideoStart()
         val prepStartTime = System.currentTimeMillis()
         Log.d("PlayerViewModel", "[TIMING] prepareVideo started for URI: $uri, playlist size: ${playlistUris.size} at $prepStartTime")
         _currentUri.value = uri
         _playlist.value = playlistUris
+        initialResumePositionMs = initialPositionMs
         
         val initialMatchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
         val effectiveWidth = if (initialWidth > 0) initialWidth else (initialMatchedVideo?.width ?: 0)
@@ -650,19 +665,28 @@ class PlayerViewModel(
             _preFetchedMetadata.value = PreFetchedVideoMetadata(effectiveWidth, effectiveHeight, initialRotation)
         } else {
             _preFetchedMetadata.value = null
-        }
-
-        viewModelScope.launch {
-            val meta = preFetchVideoMetadata(getApplication(), uri)
-            if (meta.width > 0 && meta.height > 0) {
-                _preFetchedMetadata.value = meta
+            viewModelScope.launch(Dispatchers.IO) {
+                val cached = try {
+                    AppDatabase.getDatabase(getApplication()).videoMetadataDao().getMetadataByUri(uri.toString())
+                } catch (_: Exception) { null }
+                if (cached != null && cached.width > 0 && cached.height > 0) {
+                    _preFetchedMetadata.value = PreFetchedVideoMetadata(cached.width, cached.height, initialRotation)
+                } else {
+                    val meta = preFetchVideoMetadata(getApplication(), uri)
+                    if (meta.width > 0 && meta.height > 0) {
+                        _preFetchedMetadata.value = meta
+                    }
+                    Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
+                }
             }
-            Log.d("PlayerViewModel", "Pre-fetched metadata for $uri: w=${meta.width}, h=${meta.height}, r=${meta.rotation}")
         }
 
         updateNavigationStates()
         val currentQueue = _queueList.value
-        if (currentQueue.isEmpty() || currentQueue.size != playlistUris.size || currentQueue.map { it.uri } != playlistUris.map { it.toString() }) {
+        val queueMatches = currentQueue.isNotEmpty() &&
+                currentQueue.size == playlistUris.size &&
+                currentQueue.indices.all { currentQueue[it].uri == playlistUris[it].toString() }
+        if (!queueMatches) {
             _queueList.value = playlistUris.map { u ->
                 Video(
                     uri = u.toString(),
@@ -754,6 +778,7 @@ class PlayerViewModel(
         } catch (e: Exception) {
             Log.w("PlayerViewModel", "Could not persist URI read permission: ${e.localizedMessage}")
         }
+        PerfTracer.markPrepareVideoEnd()
     }
 
     /**
@@ -788,8 +813,19 @@ class PlayerViewModel(
             // 6. Apply saved subtitle settings
             playerEngine.applySubtitleSettings(playbackSettings.value)
 
-            // 7. Load prepared video into engine
-            playerEngine.loadVideo(uri)
+            // 7. Load prepared video into engine with AVI detection hint if available
+            val matchedVideo = _queueList.value.firstOrNull { it.uri == uri.toString() }
+            val isAviHint = when {
+                matchedVideo != null -> {
+                    val isAvi = MPVPlayerEngine.isAviPathOrName(matchedVideo.path) ||
+                                MPVPlayerEngine.isAviPathOrName(matchedVideo.title)
+                    val isKnownNonAvi = MPVPlayerEngine.isKnownNonAviPathOrName(matchedVideo.path) ||
+                                        MPVPlayerEngine.isKnownNonAviPathOrName(matchedVideo.title)
+                    if (isAvi) true else if (isKnownNonAvi) false else null
+                }
+                else -> null
+            }
+            playerEngine.loadVideo(uri, isAviHint)
             isVideoLoaded = true
             Log.d("PlayerViewModel", "[TIMING] loadVideoIfNeeded pre-configuration dispatched in ${System.currentTimeMillis() - loadStart}ms")
         }

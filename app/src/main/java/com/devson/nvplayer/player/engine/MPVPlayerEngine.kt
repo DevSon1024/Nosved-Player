@@ -40,6 +40,18 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                    lower.contains(".avi&")
         }
 
+        fun isKnownNonAviPathOrName(pathOrUriString: String): Boolean {
+            val lower = pathOrUriString.lowercase()
+            return lower.endsWith(".mp4") || lower.endsWith(".mkv") ||
+                   lower.endsWith(".webm") || lower.endsWith(".mov") ||
+                   lower.endsWith(".ts") || lower.endsWith(".flv") ||
+                   lower.endsWith(".3gp") || lower.endsWith(".m4v") ||
+                   lower.endsWith(".wmv") || lower.endsWith(".mpg") ||
+                   lower.endsWith(".mpeg") || lower.endsWith(".m4a") ||
+                   lower.endsWith(".mp3") || lower.endsWith(".opus") ||
+                   lower.endsWith(".aac") || lower.endsWith(".flac")
+        }
+
         fun isAviHeader(headerBytes: ByteArray): Boolean {
             if (headerBytes.size < 12) return false
             val isRiff = headerBytes[0] == 'R'.code.toByte() &&
@@ -136,6 +148,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private var isScrubbingOrSeeking = false
 
     init {
+        PerfTracer.markMpvInitStart()
         PerfTracer.traceSection("MPVPlayerEngine.init") {
         try {
             if (isInitialized) {
@@ -319,6 +332,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             applyEffectiveAudioDecoder()
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
+            PerfTracer.markMpvInitEnd()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to initialize MPVLib", e)
             _playbackState.value = PlayerState.Error("Initialization error: ${e.localizedMessage}")
@@ -326,57 +340,43 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         }
     }
 
-    fun isAviMedia(uri: Uri): Boolean {
-        val uriStr = uri.toString()
-        if (isAviPathOrName(uriStr)) {
-            return true
+    fun isAviMedia(uri: Uri, displayName: String? = null, filePath: String? = null): Boolean {
+        if (displayName != null) {
+            if (isAviPathOrName(displayName)) return true
+            if (isKnownNonAviPathOrName(displayName)) return false
         }
+        if (filePath != null) {
+            if (isAviPathOrName(filePath)) return true
+            if (isKnownNonAviPathOrName(filePath)) return false
+        }
+        val uriStr = uri.toString()
+        if (isAviPathOrName(uriStr)) return true
+        if (isKnownNonAviPathOrName(uriStr)) return false
+
         val path = uri.path
-        if (path != null && isAviPathOrName(path)) {
-            return true
+        if (path != null) {
+            if (isAviPathOrName(path)) return true
+            if (isKnownNonAviPathOrName(path)) return false
         }
         val lastSegment = uri.lastPathSegment
-        if (lastSegment != null && isAviPathOrName(lastSegment)) {
-            return true
+        if (lastSegment != null) {
+            if (isAviPathOrName(lastSegment)) return true
+            if (isKnownNonAviPathOrName(lastSegment)) return false
         }
 
         if (uri.scheme == "content") {
             try {
                 val mime = context.contentResolver.getType(uri)?.lowercase()
-                if (mime != null && (mime.contains("avi") || mime.contains("msvideo"))) {
-                    return true
-                }
-            } catch (_: Exception) {}
-
-            try {
-                val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                        if (nameIndex >= 0) {
-                            val displayName = cursor.getString(nameIndex)
-                            if (displayName != null && isAviPathOrName(displayName)) {
-                                return true
-                            }
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val header = ByteArray(12)
-                    val bytesRead = stream.read(header, 0, 12)
-                    if (bytesRead == 12 && isAviHeader(header)) {
-                        return true
-                    }
+                if (mime != null) {
+                    if (mime.contains("avi") || mime.contains("msvideo")) return true
+                    if (mime.startsWith("video/")) return false
                 }
             } catch (_: Exception) {}
         }
         return false
     }
 
-    override fun loadVideo(uri: Uri) {
+    override fun loadVideo(uri: Uri, isAviHint: Boolean?) {
         loadStartTimeMs = System.currentTimeMillis()
         val uriString = uri.toString()
         currentLoadingUri = uriString
@@ -402,7 +402,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             uriString.startsWith("rtmp://", ignoreCase = true) ||
             uriString.startsWith("rtsp://", ignoreCase = true)
 
-        val isAvi = isAviMedia(uri)
+        val isAvi = isAviHint ?: isAviMedia(uri)
         if (isAvi) {
             Log.d("MPVPlayerEngine", "Enabling optimized fast path for AVI container: probe-info=no, analyzeduration=0, probesize=32768")
             try { MPVLib.setPropertyString("demuxer-lavf-probe-info", "no") } catch (e: Exception) { Log.w("MPVPlayerEngine", "Failed to set demuxer-lavf-probe-info", e) }
@@ -432,7 +432,6 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _audioDecoderError.value = null
 
         try {
-            try { MPVLib.command("stop") } catch (_: Exception) {}
             val loadfileStart = System.currentTimeMillis()
             val loadTarget = if (uri.scheme == "file") (uri.path ?: uriString) else uriString
             PerfTracer.markMpvLoadfileInvoked()
@@ -965,9 +964,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private var areFiltersOrShadersActive: Boolean = false
 
     override fun setDecoder(mode: DecoderMode) {
+        PerfTracer.markDecoderConfigStart()
         Log.d("MPVPlayerEngine", "Setting decoder mode request: ${mode.displayName} (${mode.value})")
         requestedDecoderMode = mode
         applyEffectiveDecoder()
+        PerfTracer.markDecoderConfigEnd(mode.name)
     }
 
     override fun setSmartEnhance(saturation: Int, contrast: Int, brightness: Int, gamma: Int, hue: Int) {

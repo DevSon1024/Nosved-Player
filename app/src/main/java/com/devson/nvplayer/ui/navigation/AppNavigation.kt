@@ -155,7 +155,8 @@ fun AppNavigation(
     val showBottomBar = currentRoute in topLevelRoutes && !isSelectionActive
     val playbackSettings by settingsViewModel.playbackSettings.collectAsStateWithLifecycle()
 
-    val onNavigateToPlayer: (Video, List<Video>) -> Unit = { video, queue ->
+    fun navigateToPlayer(video: Video, queue: List<Video>, initialPositionMs: Long = 0L) {
+        PerfTracer.markVideoClick(video.uri)
         val isLandscape = when (playbackSettings.orientationMode) {
             OrientationMode.LANDSCAPE, OrientationMode.AUTO -> true
             OrientationMode.PORTRAIT -> false
@@ -181,12 +182,17 @@ fun AppNavigation(
             uri = Uri.parse(video.uri),
             playlistUris = queue.map { Uri.parse(it.uri) },
             initialWidth = video.width,
-            initialHeight = video.height
+            initialHeight = video.height,
+            initialPositionMs = initialPositionMs
         )
         PerfTracer.markPlayerNavigationStart(video.uri)
         navController.navigate("player") {
             launchSingleTop = true
         }
+    }
+
+    val onNavigateToPlayer: (Video, List<Video>) -> Unit = { video, queue ->
+        navigateToPlayer(video, queue, 0L)
     }
 
     val onNavigateToPlayerStream: (Uri, List<Video>) -> Unit = { uri, queue ->
@@ -435,7 +441,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onNavigateToSettings = {
                     navigateToTopLevel("settings")
@@ -495,7 +501,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onBack = safePopBackStack,
                 onNavigateToStreak = {
@@ -979,7 +985,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onBack = safePopBackStack
             )
@@ -1191,7 +1197,8 @@ private fun getLogicalQueue(
     sortField: SortField,
     sortDirection: SortDirection
 ): List<Video> {
-    return if (video.folderName.isNotEmpty()) {
+    PerfTracer.markQueueConstructionStart()
+    val result = if (video.folderName.isNotEmpty()) {
         if (currentViewMode == ViewMode.FILES) {
             flatVideos.applySort(sortField, sortDirection)
         } else {
@@ -1200,4 +1207,6 @@ private fun getLogicalQueue(
     } else {
         playlist
     }
+    PerfTracer.markQueueConstructionEnd(result.size)
+    return result
 }

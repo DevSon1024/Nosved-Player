@@ -38,6 +38,8 @@ import android.content.IntentFilter
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -269,18 +271,21 @@ class MainActivity : FragmentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
-        // Listen for playback and navigation state changes to update PiP actions dynamically
+        // Listen for playback and navigation state changes to update PiP actions dynamically only when in PiP mode
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(
-                    playerViewModel.isPlaying,
-                    playerViewModel.hasNext,
-                    playerViewModel.hasPrevious
-                ) { _, _, _ -> }.collect {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode) {
-                        updatePipActions()
+                snapshotFlow { _isInPipMode.value }
+                    .collectLatest { inPip ->
+                        if (inPip && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && playerViewModelLazy.isInitialized()) {
+                            combine(
+                                playerViewModel.isPlaying,
+                                playerViewModel.hasNext,
+                                playerViewModel.hasPrevious
+                            ) { _, _, _ -> }.collect {
+                                updatePipActions()
+                            }
+                        }
                     }
-                }
             }
         }
 

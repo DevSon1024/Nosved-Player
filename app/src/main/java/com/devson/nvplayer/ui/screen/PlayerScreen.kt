@@ -321,9 +321,14 @@ fun PlayerScreen(
     }
 
     //  Resolve the real video title 
-    // For content:// (MediaStore) URIs, lastPathSegment is just the row ID (e.g.
-    // "1000551661").  Query ContentResolver for the actual DISPLAY_NAME instead.
-    val videoTitle: String = remember(currentUri, engineMediaTitle) {
+    // Reuse known title from currentVideo/queue to avoid Main-thread ContentResolver queries during composition
+    val videoTitle: String = remember(currentVideo?.title, currentUri, engineMediaTitle) {
+        val knownTitle = currentVideo?.title
+        if (!knownTitle.isNullOrBlank() && !knownTitle.all { it.isDigit() }) {
+            val dot = knownTitle.lastIndexOf('.')
+            return@remember if (dot > 0) knownTitle.substring(0, dot) else knownTitle
+        }
+
         val activeUri = currentUri
         if (activeUri == null) {
             return@remember if (!engineMediaTitle.isNullOrBlank()) engineMediaTitle else "Local Video"
@@ -333,32 +338,9 @@ fun PlayerScreen(
         val isLocal = scheme == null || scheme == "content" || scheme == "file"
         
         if (isLocal) {
-            // For local videos, try ContentResolver first to get DISPLAY_NAME
-            try {
-                context.contentResolver.query(
-                    activeUri,
-                    arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
-                    null, null, null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                        if (nameCol >= 0) {
-                            val fullName = cursor.getString(nameCol) ?: ""
-                            // Strip extension
-                            val dot = fullName.lastIndexOf('.')
-                            val nameWithoutExt = if (dot > 0) fullName.substring(0, dot) else fullName
-                            if (nameWithoutExt.isNotBlank()) {
-                                return@remember nameWithoutExt
-                            }
-                        }
-                    }
-                }
-            } catch (_: Exception) { }
-            
-            // If ContentResolver fails, try to extract from the path segment
+            // Extract from path segment without hitting ContentResolver on the UI thread
             val seg = activeUri.lastPathSegment ?: activeUri.toString()
             val name = seg.substringAfterLast('/')
-            // Only use the segment name if it is not just a numeric ID and we have a valid engineMediaTitle
             val isNumericId = name.all { it.isDigit() }
             if (isNumericId && !engineMediaTitle.isNullOrBlank() && !engineMediaTitle.all { it.isDigit() }) {
                 val dot = engineMediaTitle.lastIndexOf('.')
