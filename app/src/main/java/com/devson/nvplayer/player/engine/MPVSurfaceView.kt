@@ -45,16 +45,20 @@ class MPVSurfaceView @JvmOverloads constructor(
         synchronized(MPVSurfaceView) {
             try {
                 setActiveSurface(holder.surface)
-                MPVLib.attachSurface(holder.surface)
-                PerfTracer.markSurfaceAttached()
-                try {
-                    MPVLib.setPropertyString("force-window", "yes")
-                } catch (_: Exception) {
+                if (MPVPlayerEngine.isInitialized) {
+                    MPVLib.attachSurface(holder.surface)
+                    PerfTracer.markSurfaceAttached()
                     try {
-                        MPVLib.setOptionString("force-window", "yes")
-                    } catch (_: Exception) {}
+                        MPVLib.setPropertyString("force-window", "yes")
+                    } catch (_: Exception) {
+                        try {
+                            MPVLib.setOptionString("force-window", "yes")
+                        } catch (_: Exception) {}
+                    }
+                    MPVLib.setPropertyString("vo", "gpu")
+                } else {
+                    Log.w("MPVSurfaceView", "MPVLib not yet initialized during surfaceCreated, skipping native attach")
                 }
-                MPVLib.setPropertyString("vo", "gpu")
                 onSurfaceCreatedListener?.invoke()
             } catch (e: Exception) {
                 Log.e("MPVSurfaceView", "Error attaching surface to MPVLib", e)
@@ -66,7 +70,9 @@ class MPVSurfaceView @JvmOverloads constructor(
         Log.d("MPVSurfaceView", "Surface changed - format: $format, width: $width, height: $height")
         synchronized(MPVSurfaceView) {
             try {
-                MPVLib.setPropertyString("android-surface-size", "${width}x${height}")
+                if (MPVPlayerEngine.isInitialized) {
+                    MPVLib.setPropertyString("android-surface-size", "${width}x${height}")
+                }
             } catch (e: Exception) {
                 Log.e("MPVSurfaceView", "Error setting surface size", e)
             }
@@ -82,9 +88,11 @@ class MPVSurfaceView @JvmOverloads constructor(
                     setActiveSurface(null)
                     // MUST BE SYNCHRONOUS. Do not defer or run on background thread.
                     // The surface is invalidated by the system immediately when this returns.
-                    MPVLib.setPropertyString("vo", "null")
-                    MPVLib.setOptionString("force-window", "no")
-                    MPVLib.detachSurface()
+                    if (MPVPlayerEngine.isInitialized) {
+                        MPVLib.setPropertyString("vo", "null")
+                        MPVLib.setOptionString("force-window", "no")
+                        MPVLib.detachSurface()
+                    }
                 } else {
                     Log.d("MPVSurfaceView", "Surface destroyed matches an inactive surface. Skipping detach.")
                 }
