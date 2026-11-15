@@ -160,6 +160,9 @@ fun PlayerScreen(
     onEnterPip: () -> Unit = {},
     networkSpeedBytesPerSec: Long = 0L,
     bufferDurationSeconds: Double = 0.0,
+    networkSpeedBpsProvider: (() -> Long)? = null,
+    bufferDurationSecProvider: (() -> Double)? = null,
+    engineMediaTitle: String = "",
     isNetworkStream: Boolean = false,
     bufferedPosition: Long = 0L,
     currentPositionProvider: (() -> Long)? = null,
@@ -188,24 +191,29 @@ fun PlayerScreen(
     val bufProvider: () -> Long = bufferedPositionProvider
         ?: activeViewModel?.let { vm -> { vm.bufferedPosition.value } }
         ?: { bufferedPosition }
-    val engineMediaTitle by (activeViewModel?.mediaTitle ?: kotlinx.coroutines.flow.MutableStateFlow("")).collectAsStateWithLifecycle()
-    val currentUri by (activeViewModel?.currentUri ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsStateWithLifecycle()
-    val activeVideoWidth by (activeViewModel?.videoWidth ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
-    val activeVideoHeight by (activeViewModel?.videoHeight ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
-    val activeDuration by (activeViewModel?.duration ?: kotlinx.coroutines.flow.MutableStateFlow(0L)).collectAsStateWithLifecycle()
 
-    val currentVideo = remember(currentVideoId, currentUri, engineMediaTitle, activeDuration, activeVideoWidth, activeVideoHeight, queueList) {
-        queueList.firstOrNull { it.uri == currentVideoId || (currentUri != null && it.uri == currentUri.toString()) }
-            ?: currentUri?.let { uri ->
+    val effectiveMediaTitle = if (engineMediaTitle.isNotBlank()) {
+        engineMediaTitle
+    } else {
+        activeViewModel?.mediaTitle?.value ?: ""
+    }
+    val effectiveUri = currentUri ?: activeViewModel?.currentUri?.value
+    val effectiveWidth = if (videoWidth > 0L) videoWidth else (activeViewModel?.videoWidth?.value ?: 0L)
+    val effectiveHeight = if (videoHeight > 0L) videoHeight else (activeViewModel?.videoHeight?.value ?: 0L)
+    val effectiveDuration = if (duration > 0L) duration else (activeViewModel?.duration?.value ?: 0L)
+
+    val currentVideo = remember(currentVideoId, effectiveUri, effectiveMediaTitle, effectiveDuration, effectiveWidth, effectiveHeight, queueList) {
+        queueList.firstOrNull { it.uri == currentVideoId || (effectiveUri != null && it.uri == effectiveUri.toString()) }
+            ?: effectiveUri?.let { uri ->
                 Video(
                     uri = uri.toString(),
-                    title = engineMediaTitle.ifBlank { uri.lastPathSegment ?: "Video" },
-                    duration = activeDuration,
+                    title = effectiveMediaTitle.ifBlank { uri.lastPathSegment ?: "Video" },
+                    duration = effectiveDuration,
                     folderName = uri.path?.substringBeforeLast('/', "")?.substringAfterLast('/') ?: "",
                     path = uri.path ?: "",
                     size = 0L,
-                    width = activeVideoWidth.toInt(),
-                    height = activeVideoHeight.toInt()
+                    width = effectiveWidth.toInt(),
+                    height = effectiveHeight.toInt()
                 )
             }
     }
@@ -322,16 +330,16 @@ fun PlayerScreen(
 
     //  Resolve the real video title 
     // Reuse known title from currentVideo/queue to avoid Main-thread ContentResolver queries during composition
-    val videoTitle: String = remember(currentVideo?.title, currentUri, engineMediaTitle) {
+    val videoTitle: String = remember(currentVideo?.title, effectiveUri, effectiveMediaTitle) {
         val knownTitle = currentVideo?.title
         if (!knownTitle.isNullOrBlank() && !knownTitle.all { it.isDigit() }) {
             val dot = knownTitle.lastIndexOf('.')
             return@remember if (dot > 0) knownTitle.substring(0, dot) else knownTitle
         }
 
-        val activeUri = currentUri
+        val activeUri = effectiveUri
         if (activeUri == null) {
-            return@remember if (!engineMediaTitle.isNullOrBlank()) engineMediaTitle else "Local Video"
+            return@remember if (effectiveMediaTitle.isNotBlank()) effectiveMediaTitle else "Local Video"
         }
         
         val scheme = activeUri.scheme
@@ -342,9 +350,9 @@ fun PlayerScreen(
             val seg = activeUri.lastPathSegment ?: activeUri.toString()
             val name = seg.substringAfterLast('/')
             val isNumericId = name.all { it.isDigit() }
-            if (isNumericId && !engineMediaTitle.isNullOrBlank() && !engineMediaTitle.all { it.isDigit() }) {
-                val dot = engineMediaTitle.lastIndexOf('.')
-                return@remember if (dot > 0) engineMediaTitle.substring(0, dot) else engineMediaTitle
+            if (isNumericId && effectiveMediaTitle.isNotBlank() && !effectiveMediaTitle.all { it.isDigit() }) {
+                val dot = effectiveMediaTitle.lastIndexOf('.')
+                return@remember if (dot > 0) effectiveMediaTitle.substring(0, dot) else effectiveMediaTitle
             }
             
             val dot = name.lastIndexOf('.')
@@ -354,13 +362,13 @@ fun PlayerScreen(
             }
         }
         
-        // For network streams or as a fallback, use engineMediaTitle if available
-        if (!engineMediaTitle.isNullOrBlank()) {
-            val cleanTitle = if (engineMediaTitle.startsWith("http://") || engineMediaTitle.startsWith("https://")) {
-                val parsed = runCatching { Uri.parse(engineMediaTitle) }.getOrNull()
-                parsed?.lastPathSegment ?: engineMediaTitle
+        // For network streams or as a fallback, use effectiveMediaTitle if available
+        if (effectiveMediaTitle.isNotBlank()) {
+            val cleanTitle = if (effectiveMediaTitle.startsWith("http://") || effectiveMediaTitle.startsWith("https://")) {
+                val parsed = runCatching { Uri.parse(effectiveMediaTitle) }.getOrNull()
+                parsed?.lastPathSegment ?: effectiveMediaTitle
             } else {
-                engineMediaTitle
+                effectiveMediaTitle
             }
             return@remember cleanTitle
         }
@@ -372,10 +380,9 @@ fun PlayerScreen(
         if (dot > 0) name.substring(0, dot) else name
     }
 
-    val resolutionLabel = remember(activeVideoWidth, activeVideoHeight, videoWidth, videoHeight, currentVideo) {
+    val resolutionLabel = remember(effectiveWidth, effectiveHeight, currentVideo) {
         val h = when {
-            activeVideoHeight > 0 -> activeVideoHeight
-            videoHeight > 0 -> videoHeight
+            effectiveHeight > 0 -> effectiveHeight
             (currentVideo?.height ?: 0) > 0 -> (currentVideo?.height ?: 0).toLong()
             else -> 0L
         }
@@ -386,12 +393,29 @@ fun PlayerScreen(
         }
     }
 
-    var videoCodecLabel by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(currentUri, playbackState) {
-        val raw = runCatching {
-            val c = `is`.xyz.mpv.MPVLib.getPropertyString("video-codec")
-            if (!c.isNullOrBlank()) c else `is`.xyz.mpv.MPVLib.getPropertyString("video-format")
-        }.getOrNull()
+    var videoCodecLabel by remember(effectiveUri) { mutableStateOf<String?>(null) }
+    LaunchedEffect(effectiveUri, playbackState) {
+        if (videoCodecLabel != null || playbackState is PlayerState.Idle) return@LaunchedEffect
+        val name = currentVideo?.title ?: effectiveUri?.lastPathSegment ?: ""
+        val lower = name.lowercase()
+        val inferred = when {
+            lower.contains("h264") || lower.contains("x264") || lower.contains("avc") -> "H.264"
+            lower.contains("hevc") || lower.contains("h265") || lower.contains("x265") -> "HEVC"
+            lower.contains("av1") -> "AV1"
+            lower.contains("vp9") -> "VP9"
+            else -> null
+        }
+        if (inferred != null) {
+            videoCodecLabel = inferred
+            return@LaunchedEffect
+        }
+
+        val raw = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val c = `is`.xyz.mpv.MPVLib.getPropertyString("video-codec")
+                if (!c.isNullOrBlank()) c else `is`.xyz.mpv.MPVLib.getPropertyString("video-format")
+            }.getOrNull()
+        }
         if (!raw.isNullOrBlank()) {
             videoCodecLabel = when (raw.lowercase()) {
                 "h264", "avc", "avc1" -> "H.264"
@@ -403,20 +427,10 @@ fun PlayerScreen(
                 "vc1" -> "VC-1"
                 else -> raw.uppercase()
             }
-        } else {
-            val name = currentVideo?.title ?: currentUri?.lastPathSegment ?: ""
-            val lower = name.lowercase()
-            videoCodecLabel = when {
-                lower.contains("h264") || lower.contains("x264") || lower.contains("avc") -> "H.264"
-                lower.contains("hevc") || lower.contains("h265") || lower.contains("x265") -> "HEVC"
-                lower.contains("av1") -> "AV1"
-                lower.contains("vp9") -> "VP9"
-                else -> null
-            }
         }
     }
 
-    val fileSizeLabel = remember(currentVideo, currentUri) {
+    val fileSizeLabel = remember(currentVideo, effectiveUri) {
         val size = currentVideo?.size ?: 0L
         if (size > 0L) {
             com.devson.nvplayer.util.formatSize(size)
@@ -1009,7 +1023,9 @@ fun PlayerScreen(
             ) {
                 StreamingDataPanel(
                     speedBps = networkSpeedBytesPerSec,
-                    bufferSec = bufferDurationSeconds
+                    bufferSec = bufferDurationSeconds,
+                    speedBpsProvider = networkSpeedBpsProvider,
+                    bufferSecProvider = bufferDurationSecProvider
                 )
             }
         }
@@ -1245,10 +1261,28 @@ private fun PersistentTopBar(
 
 @Composable
 fun StreamingDataPanel(
-    speedBps: Long,
-    bufferSec: Double,
+    speedBps: Long = 0L,
+    bufferSec: Double = 0.0,
+    speedBpsProvider: (() -> Long)? = null,
+    bufferSecProvider: (() -> Double)? = null,
     modifier: Modifier = Modifier
 ) {
+    var polledSpeed by remember { mutableLongStateOf(speedBpsProvider?.invoke() ?: speedBps) }
+    var polledBuffer by remember { mutableDoubleStateOf(bufferSecProvider?.invoke() ?: bufferSec) }
+
+    if (speedBpsProvider != null || bufferSecProvider != null) {
+        LaunchedEffect(speedBpsProvider, bufferSecProvider) {
+            while (true) {
+                polledSpeed = speedBpsProvider?.invoke() ?: speedBps
+                polledBuffer = bufferSecProvider?.invoke() ?: bufferSec
+                delay(500L)
+            }
+        }
+    } else {
+        polledSpeed = speedBps
+        polledBuffer = bufferSec
+    }
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = Color.Black.copy(alpha = 0.6f)
@@ -1272,7 +1306,7 @@ fun StreamingDataPanel(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Speed: ${formatSpeed(speedBps)}",
+                    text = "Speed: ${formatSpeed(polledSpeed)}",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -1289,7 +1323,7 @@ fun StreamingDataPanel(
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Buffer: ${String.format(Locale.US, "%.1fs", bufferSec)}",
+                    text = "Buffer: ${String.format(Locale.US, "%.1fs", polledBuffer)}",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -2096,7 +2130,8 @@ private fun PlayerUpNextQueuePanel(
                         ) {
                             itemsIndexed(
                                 items = queueList,
-                                key = { _, video -> video.uri }
+                                key = { _, video -> video.uri },
+                                contentType = { _, _ -> "queue_video_item" }
                             ) { index, video ->
                                 val isPlaying = video.uri == currentVideoId
                                 QueueVideoItem(
@@ -2123,7 +2158,8 @@ private fun PlayerUpNextQueuePanel(
                         ) {
                             itemsIndexed(
                                 items = queueList,
-                                key = { _, video -> video.uri }
+                                key = { _, video -> video.uri },
+                                contentType = { _, _ -> "queue_video_grid_item" }
                             ) { index, video ->
                                 val isPlaying = video.uri == currentVideoId
                                 QueueVideoGridItem(

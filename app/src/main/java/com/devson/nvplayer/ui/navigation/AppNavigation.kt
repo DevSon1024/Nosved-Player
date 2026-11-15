@@ -1015,15 +1015,13 @@ fun AppNavigation(
             val hasNext by playerVm.hasNext.collectAsStateWithLifecycle()
             val hasPrevious by playerVm.hasPrevious.collectAsStateWithLifecycle()
             val isHwSupported by playerVm.isHwSupported.collectAsStateWithLifecycle()
+            val engineMediaTitle by playerVm.mediaTitle.collectAsStateWithLifecycle()
 
-            val currentSubtitleText by playerVm.currentSubtitleText.collectAsStateWithLifecycle()
             val subtitleTracks by playerVm.subtitleTracks.collectAsStateWithLifecycle()
             val audioTracks by playerVm.audioTracks.collectAsStateWithLifecycle()
             val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsStateWithLifecycle()
             val audioBoostVolume by playerVm.audioBoostVolume.collectAsStateWithLifecycle()
             val chapters by playerVm.chapters.collectAsStateWithLifecycle()
-            val networkSpeedBytesPerSec by playerVm.networkSpeedBytesPerSec.collectAsStateWithLifecycle()
-            val bufferDurationSeconds by playerVm.bufferDurationSeconds.collectAsStateWithLifecycle()
             val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
             val hdrType by playerVm.hdrType.collectAsStateWithLifecycle()
 
@@ -1098,8 +1096,9 @@ fun AppNavigation(
             PlayerScreen(
                 isDynamicSpeedActive = isDynamicSpeedActive,
                 onSetDynamicSpeedActive = { playerVm.setDynamicSpeedActive(it) },
-                networkSpeedBytesPerSec = networkSpeedBytesPerSec,
-                bufferDurationSeconds = bufferDurationSeconds,
+                networkSpeedBpsProvider = { playerVm.networkSpeedBytesPerSec.value },
+                bufferDurationSecProvider = { playerVm.bufferDurationSeconds.value },
+                engineMediaTitle = engineMediaTitle,
                 isNetworkStream = isNetworkStream,
                 currentPositionProvider = { playerVm.currentPosition.value },
                 bufferedPositionProvider = { playerVm.bufferedPosition.value },
@@ -1138,7 +1137,6 @@ fun AppNavigation(
                 hasPrevious = hasPrevious,
                 onNextClick = { playerVm.playNext() },
                 onPrevClick = { playerVm.playPrevious() },
-                currentSubtitleText = currentSubtitleText,
                 subtitleTracks = subtitleTracks,
                 audioTracks = audioTracks,
                 audioBoosterEnabled = audioBoosterEnabled,

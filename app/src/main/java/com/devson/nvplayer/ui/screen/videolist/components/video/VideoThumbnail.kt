@@ -76,8 +76,7 @@ fun VideoThumbnail(
     showPlayIcon: Boolean = true
 ) {
     val context = LocalContext.current
-    var isLoaded by remember(uri) { mutableStateOf(false) }
-    val imageRequest = remember(uri) {
+    val imageRequest = remember(context, uri) {
         ImageRequest.Builder(context)
             .data(uri)
             .size(320, 180)
@@ -90,16 +89,13 @@ fun VideoThumbnail(
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        if (!isLoaded) {
-            BrandedThumbnailPlaceholder()
-        }
+        BrandedThumbnailPlaceholder()
 
         AsyncImage(
             model = imageRequest,
             contentDescription = "Video Thumbnail",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-            onSuccess = { isLoaded = true }
+            modifier = Modifier.fillMaxSize()
         )
         if (showPlayIcon) {
             // Gradient scrim so icon is legible over any thumbnail color
