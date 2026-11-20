@@ -38,7 +38,10 @@ object VideoMetadataExtractor {
      * Locates external subtitle files residing in the same directory that match the video file name.
      * Returns a distinct list of uppercase extensions (e.g. ["SRT", "ASS"]).
      */
-    fun findExternalSubtitles(videoPath: String?): List<String> {
+    fun findExternalSubtitles(
+        videoPath: String?,
+        folderSubCache: MutableMap<String, List<File>>? = null
+    ): List<String> {
         if (videoPath.isNullOrBlank()) return emptyList()
         return try {
             val videoFile = File(videoPath)
@@ -46,9 +49,17 @@ object VideoMetadataExtractor {
             if (!parentDir.exists() || !parentDir.isDirectory) return emptyList()
 
             val baseName = videoFile.nameWithoutExtension
-            val subFiles = parentDir.listFiles { f ->
-                f.isFile && isSubtitleExtension(f.extension)
-            } ?: emptyArray()
+            val subFiles = if (folderSubCache != null) {
+                folderSubCache.getOrPut(parentDir.absolutePath) {
+                    parentDir.listFiles { f ->
+                        f.isFile && isSubtitleExtension(f.extension)
+                    }?.toList() ?: emptyList()
+                }
+            } else {
+                parentDir.listFiles { f ->
+                    f.isFile && isSubtitleExtension(f.extension)
+                }?.toList() ?: emptyList()
+            }
 
             val matched = subFiles.filter { sub ->
                 val subBase = sub.nameWithoutExtension

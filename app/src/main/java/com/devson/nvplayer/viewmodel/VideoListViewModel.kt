@@ -385,6 +385,7 @@ class VideoListViewModel(
                 val mappedVideos = LinkedHashMap<VideoFolder, MutableList<Video>>()
                 val flatList = ArrayList<Video>(videoItems.size)
                 val uncachedVideos = ArrayList<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
+                val fastCacheToInsert = ArrayList<CachedVideoMetadata>()
                 val folderCache = HashMap<String, VideoFolder>()
 
                 val activeStorage = _selectedStorage.value
@@ -424,8 +425,8 @@ class VideoListViewModel(
                         finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
                         externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-                        // Re-probe if duration, dimensions, or framerate are missing
-                        if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0 || finalFps == null) {
+                        // Only re-probe if critical metadata (duration/dimensions) is missing
+                        if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0) {
                             uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                         }
                     } else {
@@ -437,7 +438,24 @@ class VideoListViewModel(
                         finalFps = null
                         finalEmbeddedSubs = emptyList()
                         externalSubs = emptyList()
-                        uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
+                        if (finalDuration > 0L && finalWidth > 0 && finalHeight > 0) {
+                            fastCacheToInsert.add(
+                                CachedVideoMetadata(
+                                    uri = uriStr,
+                                    size = finalSize,
+                                    dateModified = finalDateModified,
+                                    duration = finalDuration,
+                                    externalSubtitleUri = null,
+                                    frameRate = -1f,
+                                    embeddedSubtitles = "",
+                                    externalSubtitles = "",
+                                    width = finalWidth,
+                                    height = finalHeight
+                                )
+                            )
+                        } else {
+                            uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
+                        }
                     }
 
                     val video = Video(
@@ -473,15 +491,26 @@ class VideoListViewModel(
                 _isLoading.value = false
                 _isRefreshing.value = false
 
-                // Background asynchronous metadata enhancement for uncached videos
+                if (fastCacheToInsert.isNotEmpty()) {
+                    launch(Dispatchers.IO) {
+                        try {
+                            metadataDao.insertAll(fastCacheToInsert)
+                        } catch (e: Exception) {
+                            android.util.Log.e("VideoListViewModel", "Fast cache insert error", e)
+                        }
+                    }
+                }
+
+                // Background asynchronous metadata enhancement for truly uncached/corrupted videos
                 if (uncachedVideos.isNotEmpty()) {
                     launch(Dispatchers.IO) {
                         try {
-                            val dispatcher = Dispatchers.IO.limitedParallelism(4)
+                            val dispatcher = Dispatchers.IO.limitedParallelism(2)
+                            val subtitleDirCache = HashMap<String, List<java.io.File>>()
                             val updatedItems = uncachedVideos.map { (item, duration, dateMod) ->
                                 async(dispatcher) {
                                     val uriStr = item.uri.toString()
-                                    val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path)
+                                    val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path, subtitleDirCache)
                                     val details = try {
                                         withTimeoutOrNull(2500L) {
                                             VideoMetadataExtractor.extractDetails(repository.context, item.path, item.uri, duration)

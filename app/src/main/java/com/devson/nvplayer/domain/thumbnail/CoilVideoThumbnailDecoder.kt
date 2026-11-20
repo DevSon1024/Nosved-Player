@@ -32,6 +32,7 @@ import coil3.request.Options
 import coil3.toAndroidUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.ByteString.Companion.encodeUtf8
 import okio.FileSystem
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -42,16 +43,18 @@ class CoilVideoThumbnailDecoder(
     private val strategy: ThumbnailStrategy,
     private val diskCache: Lazy<DiskCache?>,
 ) : Decoder {
-    private val diskCacheKey: String
-        get() =
-            options.diskCacheKey ?: run {
+    private val safeDiskCacheKey: String
+        get() {
+            val base = options.diskCacheKey ?: run {
                 val metadata = source.metadata
                 when {
                     metadata is ContentMetadata -> metadata.uri.toAndroidUri().toString()
                     source.fileSystem === FileSystem.SYSTEM -> source.file().toFile().path
-                    else -> error("Unsupported thumbnail source")
+                    else -> "unknown_video_source"
                 }
             }
+            return "${base}_${strategy.cacheKey}".encodeUtf8().sha256().hex()
+        }
 
     @OptIn(ExperimentalCoilApi::class)
     override suspend fun decode(): DecodeResult {
@@ -59,13 +62,14 @@ class CoilVideoThumbnailDecoder(
             val decodeOptions = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.RGB_565
             }
-            val cachedBitmap =
+            val cachedBitmap = runCatching {
                 snapshot.data
                     .toFile()
                     .inputStream()
                     .use { stream ->
                         BitmapFactory.decodeStream(stream, null, decodeOptions)
                     }
+            }.getOrNull()
 
             if (cachedBitmap != null) {
                 return DecodeResult(
@@ -75,7 +79,8 @@ class CoilVideoThumbnailDecoder(
             }
         }
 
-        if (strategy is ThumbnailStrategy.FirstFrame) {
+        // Fast system thumbnail lookup for non-percentage strategies to avoid heavy retriever invocation
+        if (strategy !is ThumbnailStrategy.FrameAtPercentage) {
             tryLoadSystemThumbnail()?.let { systemBitmap ->
                 val cachedBitmap = writeToDiskCache(systemBitmap.scaleToThumbnailMax())
                 return DecodeResult(
@@ -511,7 +516,7 @@ class CoilVideoThumbnailDecoder(
 
     private fun readFromDiskCache(): DiskCache.Snapshot? =
         if (options.diskCachePolicy.readEnabled) {
-            diskCache.value?.openSnapshot(diskCacheKey)
+            runCatching { diskCache.value?.openSnapshot(safeDiskCacheKey) }.getOrNull()
         } else {
             null
         }
@@ -521,7 +526,7 @@ class CoilVideoThumbnailDecoder(
             return inBitmap
         }
 
-        val editor = diskCache.value?.openEditor(diskCacheKey) ?: return inBitmap
+        val editor = runCatching { diskCache.value?.openEditor(safeDiskCacheKey) }.getOrNull() ?: return inBitmap
         try {
             editor.data.toFile().outputStream().use { output ->
                 inBitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
@@ -561,6 +566,11 @@ class CoilVideoThumbnailDecoder(
             }
 
             val metadata = result.source.metadata
+            if (metadata is ContentMetadata) {
+                val uriStr = metadata.uri.toString()
+                if (uriStr.contains("video")) return true
+            }
+
             val sourcePath =
                 when {
                     metadata is ContentMetadata -> metadata.uri.toString()

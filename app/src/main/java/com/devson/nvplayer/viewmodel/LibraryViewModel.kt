@@ -208,7 +208,7 @@ class LibraryViewModel(
                 }
                 isFirstEmission = false
 
-                val signature = "${videos.size}_${videos.sumOf { it.size }}_${videos.firstOrNull()?.uri}_${videos.lastOrNull()?.uri}_${videos.firstOrNull()?.dateModified}"
+                val signature = "${videos.size}_${videos.firstOrNull()?.uri}_${videos.firstOrNull()?.dateModified}_${videos.lastOrNull()?.uri}_${videos.lastOrNull()?.dateModified}"
                 if (signature == lastProcessedSignature && _parsedItems.value.isNotEmpty()) {
                     return@collectLatest
                 }

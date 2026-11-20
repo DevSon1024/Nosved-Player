@@ -41,6 +41,11 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
         return ImageLoader.Builder(context)
             .coroutineContext(thumbnailDispatcher)
             .components {
+                val isSystemThumbPreferred = {
+                    val mode = viewSettingsRepo.viewSettingsFlow.value.thumbnailMode
+                    mode == com.devson.nvplayer.domain.model.ThumbnailMode.SMART ||
+                        mode == com.devson.nvplayer.domain.model.ThumbnailMode.FIRST_FRAME
+                }
                 add(
                     CoilVideoThumbnailDecoder.Factory(
                         thumbnailStrategy = {
@@ -49,8 +54,8 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
                         }
                     )
                 )
-                add(MediaStoreThumbnailFetcher.Factory())
-                add(MediaStoreThumbnailFetcher.StringFactory())
+                add(MediaStoreThumbnailFetcher.Factory(isSystemThumbPreferred))
+                add(MediaStoreThumbnailFetcher.StringFactory(isSystemThumbPreferred))
                 add(VideoFrameDecoder.Factory())
             }
             .memoryCache {
