@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.devson.nvplayer.util.DeviceCapabilityHelper
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.player.model.AspectMode
 import com.devson.nvplayer.player.model.AudioDecoderMode
@@ -30,6 +31,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         @Volatile
         var activeInstance: MPVPlayerEngine? = null
 
+        @Volatile
+        private var assetsCopied = false
+
         fun isAviPathOrName(pathOrUriString: String): Boolean {
             val lower = pathOrUriString.lowercase()
             return lower.endsWith(".avi") ||
@@ -37,6 +41,18 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                    lower.contains(".avi#") ||
                    lower.contains(".avi/") ||
                    lower.contains(".avi&")
+        }
+
+        fun isKnownNonAviPathOrName(pathOrUriString: String): Boolean {
+            val lower = pathOrUriString.lowercase()
+            return lower.endsWith(".mp4") || lower.endsWith(".mkv") ||
+                   lower.endsWith(".webm") || lower.endsWith(".mov") ||
+                   lower.endsWith(".ts") || lower.endsWith(".flv") ||
+                   lower.endsWith(".3gp") || lower.endsWith(".m4v") ||
+                   lower.endsWith(".wmv") || lower.endsWith(".mpg") ||
+                   lower.endsWith(".mpeg") || lower.endsWith(".m4a") ||
+                   lower.endsWith(".mp3") || lower.endsWith(".opus") ||
+                   lower.endsWith(".aac") || lower.endsWith(".flac")
         }
 
         fun isAviHeader(headerBytes: ByteArray): Boolean {
@@ -134,14 +150,44 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     @Volatile
     private var isScrubbingOrSeeking = false
 
+    // HDR property cache to eliminate redundant JNI calls
+    private var cachedGamma: String? = null
+    private var cachedColormatrix: String? = null
+    private var cachedPrimaries: String? = null
+    private var cachedSigPeak: Double = 0.0
+    private var cachedPixelFormat: String? = null
+
+    // Audio decoder property cache
+    private var cachedAudioCodecName: String = ""
+    private var cachedAudioCodecDesc: String = ""
+
+    // Ambient sizing cache
+    private var lastOsdWidth: Long = 0L
+    private var lastOsdHeight: Long = 0L
+    private var lastScaleX: Double = 1.0
+    private var lastScaleY: Double = 1.0
+    private var lastAmbientStyleInternal: com.devson.nvplayer.data.repository.AmbientBlurStyle? = null
+
+    // Tracks update debouncing
+    private var lastTracksUpdateTimeMs = 0L
+
+    // EOF tracking to avoid JNI getPropertyBoolean on pause
+    private var isEofReached = false
+
     init {
+        PerfTracer.markMpvInitStart()
+        PerfTracer.traceSection("MPVPlayerEngine.init") {
         try {
             if (isInitialized) {
-                // RELEASE FIX: Process was reused (activity recreation, PiP, back-stack pop).
+                // Process was reused (activity recreation, PiP, back-stack pop).
                 // MPVLib is a C++ singleton - calling create() twice without destroy() is UB/crash.
                 // Destroy the old instance cleanly before re-creating.
                 Log.w("MPVPlayerEngine", "MPVLib already initialized - destroying old instance before re-init")
-                MPVLib.removeObserver(this)
+                activeInstance?.let { oldInstance ->
+                    try {
+                        MPVLib.removeObserver(oldInstance)
+                    } catch (_: Exception) {}
+                }
                 MPVLib.destroy()
                 isInitialized = false
             }
@@ -317,63 +363,51 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             applyEffectiveAudioDecoder()
 
             Log.d("MPVPlayerEngine", "MPVLib initialized successfully")
+            PerfTracer.markMpvInitEnd()
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to initialize MPVLib", e)
             _playbackState.value = PlayerState.Error("Initialization error: ${e.localizedMessage}")
         }
+        }
     }
 
-    fun isAviMedia(uri: Uri): Boolean {
-        val uriStr = uri.toString()
-        if (isAviPathOrName(uriStr)) {
-            return true
+    fun isAviMedia(uri: Uri, displayName: String? = null, filePath: String? = null): Boolean {
+        if (displayName != null) {
+            if (isAviPathOrName(displayName)) return true
+            if (isKnownNonAviPathOrName(displayName)) return false
         }
+        if (filePath != null) {
+            if (isAviPathOrName(filePath)) return true
+            if (isKnownNonAviPathOrName(filePath)) return false
+        }
+        val uriStr = uri.toString()
+        if (isAviPathOrName(uriStr)) return true
+        if (isKnownNonAviPathOrName(uriStr)) return false
+
         val path = uri.path
-        if (path != null && isAviPathOrName(path)) {
-            return true
+        if (path != null) {
+            if (isAviPathOrName(path)) return true
+            if (isKnownNonAviPathOrName(path)) return false
         }
         val lastSegment = uri.lastPathSegment
-        if (lastSegment != null && isAviPathOrName(lastSegment)) {
-            return true
+        if (lastSegment != null) {
+            if (isAviPathOrName(lastSegment)) return true
+            if (isKnownNonAviPathOrName(lastSegment)) return false
         }
 
         if (uri.scheme == "content") {
             try {
                 val mime = context.contentResolver.getType(uri)?.lowercase()
-                if (mime != null && (mime.contains("avi") || mime.contains("msvideo"))) {
-                    return true
-                }
-            } catch (_: Exception) {}
-
-            try {
-                val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
-                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                        if (nameIndex >= 0) {
-                            val displayName = cursor.getString(nameIndex)
-                            if (displayName != null && isAviPathOrName(displayName)) {
-                                return true
-                            }
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-
-            try {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val header = ByteArray(12)
-                    val bytesRead = stream.read(header, 0, 12)
-                    if (bytesRead == 12 && isAviHeader(header)) {
-                        return true
-                    }
+                if (mime != null) {
+                    if (mime.contains("avi") || mime.contains("msvideo")) return true
+                    if (mime.startsWith("video/")) return false
                 }
             } catch (_: Exception) {}
         }
         return false
     }
 
-    override fun loadVideo(uri: Uri) {
+    override fun loadVideo(uri: Uri, isAviHint: Boolean?) {
         loadStartTimeMs = System.currentTimeMillis()
         val uriString = uri.toString()
         currentLoadingUri = uriString
@@ -394,12 +428,22 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _frameDropCount.value = 0L
         _decoderFrameDropCount.value = 0L
 
+        cachedGamma = null
+        cachedColormatrix = null
+        cachedPrimaries = null
+        cachedSigPeak = 0.0
+        cachedPixelFormat = null
+        cachedAudioCodecName = ""
+        cachedAudioCodecDesc = ""
+        isEofReached = false
+        lastTracksUpdateTimeMs = 0L
+
         val isNetworkStream = uriString.startsWith("http://", ignoreCase = true) ||
             uriString.startsWith("https://", ignoreCase = true) ||
             uriString.startsWith("rtmp://", ignoreCase = true) ||
             uriString.startsWith("rtsp://", ignoreCase = true)
 
-        val isAvi = isAviMedia(uri)
+        val isAvi = isAviHint ?: isAviMedia(uri)
         if (isAvi) {
             Log.d("MPVPlayerEngine", "Enabling optimized fast path for AVI container: probe-info=no, analyzeduration=0, probesize=32768")
             try { MPVLib.setPropertyString("demuxer-lavf-probe-info", "no") } catch (e: Exception) { Log.w("MPVPlayerEngine", "Failed to set demuxer-lavf-probe-info", e) }
@@ -429,9 +473,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         _audioDecoderError.value = null
 
         try {
-            try { MPVLib.command("stop") } catch (_: Exception) {}
             val loadfileStart = System.currentTimeMillis()
             val loadTarget = if (uri.scheme == "file") (uri.path ?: uriString) else uriString
+            PerfTracer.markMpvLoadfileInvoked()
             MPVLib.command("loadfile", loadTarget)
             Log.d("MPVPlayerEngine", "[TIMING] loadfile command dispatched in ${System.currentTimeMillis() - loadfileStart}ms")
             MPVLib.setPropertyBoolean("pause", false) // Auto-play the loaded media file
@@ -818,6 +862,7 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     private fun updateTracks() {
+        lastTracksUpdateTimeMs = android.os.SystemClock.uptimeMillis()
         try {
             val count = MPVLib.getPropertyInt("track-list/count") ?: 0
             val subs = mutableListOf<TrackInfo>()
@@ -894,17 +939,18 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
         try {
             val audioLangPref = settingsRepo.defaultAudioLangFlow.value.trim().lowercase()
             val subLangPref = settingsRepo.defaultSubtitleLangFlow.value.trim().lowercase()
+            var tracksChanged = false
 
             if (audioLangPref.isNotEmpty()) {
                 val audios = _audioTracks.value.filter { it.id != -1 }
                 val match = audios.firstOrNull { track ->
                     langMatches(track.lang, audioLangPref)
                 }
-                if (match != null) {
+                if (match != null && !match.selected) {
                     Log.d("MPVPlayerEngine", "Auto-selecting audio track: ${match.name} (lang=${match.lang}) for pref=$audioLangPref")
-                    selectAudioTrack(match.id)
-                } else {
-                    Log.d("MPVPlayerEngine", "No audio track matching pref=$audioLangPref, keeping MPV default")
+                    MPVLib.setPropertyInt("aid", match.id)
+                    applyEffectiveAudioDecoder()
+                    tracksChanged = true
                 }
             }
 
@@ -913,12 +959,17 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 val match = subs.firstOrNull { track ->
                     langMatches(track.lang, subLangPref)
                 }
-                if (match != null) {
+                if (match != null && !match.selected) {
                     Log.d("MPVPlayerEngine", "Auto-selecting subtitle track: ${match.name} (lang=${match.lang}) for pref=$subLangPref")
-                    selectSubtitleTrack(match.id)
-                } else {
-                    Log.d("MPVPlayerEngine", "No subtitle track matching pref=$subLangPref, keeping MPV default")
+                    MPVLib.setPropertyString("secondary-sid", "no")
+                    MPVLib.setPropertyInt("sid", match.id)
+                    MPVLib.setPropertyString("sub-visibility", "yes")
+                    tracksChanged = true
                 }
+            }
+            if (tracksChanged) {
+                updateTracks()
+                updateActiveAudioDecoderInfo()
             }
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to apply default language preferences", e)
@@ -961,9 +1012,11 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     private var areFiltersOrShadersActive: Boolean = false
 
     override fun setDecoder(mode: DecoderMode) {
+        PerfTracer.markDecoderConfigStart()
         Log.d("MPVPlayerEngine", "Setting decoder mode request: ${mode.displayName} (${mode.value})")
         requestedDecoderMode = mode
         applyEffectiveDecoder()
+        PerfTracer.markDecoderConfigEnd(mode.name)
     }
 
     override fun setSmartEnhance(saturation: Int, contrast: Int, brightness: Int, gamma: Int, hue: Int) {
@@ -1047,28 +1100,41 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     private fun updateActiveAudioDecoderInfo() {
         try {
-            val codecName = MPVLib.getPropertyString("audio-codec-name") ?: ""
-            val codecDesc = MPVLib.getPropertyString("audio-codec") ?: ""
+            val codecName = cachedAudioCodecName.ifEmpty {
+                MPVLib.getPropertyString("audio-codec-name") ?: ""
+            }
+            val codecDesc = cachedAudioCodecDesc.ifEmpty {
+                MPVLib.getPropertyString("audio-codec") ?: ""
+            }
             val currentAid = MPVLib.getPropertyInt("aid") ?: -1
 
             if (currentAid <= 0 || (codecName.isEmpty() && codecDesc.isEmpty())) {
                 val hasAudioTracks = _audioTracks.value.any { it.id != -1 }
                 if (currentAid <= 0 && hasAudioTracks) {
                     _audioDecoderError.value = null
-                    _activeAudioDecoder.value = "Audio Disabled"
+                    if (_activeAudioDecoder.value != "Audio Disabled") {
+                        _activeAudioDecoder.value = "Audio Disabled"
+                    }
                     return
                 }
                 if (hasAudioTracks && (_playbackState.value is PlayerState.Playing || _playbackState.value is PlayerState.Paused)) {
                     if (requestedAudioDecoderMode == AudioDecoderMode.SOFTWARE) {
                         _audioDecoderError.value = "Software audio decoder failed or codec unsupported"
-                        _activeAudioDecoder.value = "SW Decoder Unavailable"
+                        if (_activeAudioDecoder.value != "SW Decoder Unavailable") {
+                            _activeAudioDecoder.value = "SW Decoder Unavailable"
+                        }
                     } else {
                         _audioDecoderError.value = null
-                        _activeAudioDecoder.value = "Unavailable"
+                        if (_activeAudioDecoder.value != "Unavailable") {
+                            _activeAudioDecoder.value = "Unavailable"
+                        }
                     }
                 } else {
                     _audioDecoderError.value = null
-                    _activeAudioDecoder.value = if (!hasAudioTracks) "No Audio Track" else ""
+                    val fallback = if (!hasAudioTracks) "No Audio Track" else ""
+                    if (_activeAudioDecoder.value != fallback) {
+                        _activeAudioDecoder.value = fallback
+                    }
                 }
                 return
             }
@@ -1083,8 +1149,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             }
 
             _audioDecoderError.value = null
-            _activeAudioDecoder.value = activeDesc
-            Log.d("MPVPlayerEngine", "Active audio decoder updated: $activeDesc (codec=$codecName)")
+            if (_activeAudioDecoder.value != activeDesc) {
+                _activeAudioDecoder.value = activeDesc
+                Log.d("MPVPlayerEngine", "Active audio decoder updated: $activeDesc (codec=$codecName)")
+            }
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Error querying audio decoder info", e)
         }
@@ -1326,6 +1394,15 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             val scaleX = if (screenAr > vidAr) screenAr / vidAr else 1.0
             val scaleY = if (vidAr > screenAr) vidAr / screenAr else 1.0
 
+            if (lastScaleX == scaleX && lastScaleY == scaleY &&
+                lastAmbientStyleInternal == ambientStyleInternal &&
+                ambientShaderFile?.exists() == true) {
+                return
+            }
+            lastScaleX = scaleX
+            lastScaleY = scaleY
+            lastAmbientStyleInternal = ambientStyleInternal
+
             MPVLib.setPropertyDouble("video-scale-x", scaleX)
             MPVLib.setPropertyDouble("video-scale-y", scaleY)
 
@@ -1388,18 +1465,22 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
             ambientShaderFile?.delete()
             ambientShaderFile = null
             lastCompiledShaderCode = null
+            lastScaleX = 1.0
+            lastScaleY = 1.0
+            lastAmbientStyleInternal = null
             Log.d("MPVPlayerEngine", "Cleared ambient mode GLSL shaders successfully")
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Failed to clear ambient shader", e)
         }
     }
 
-
-
     override fun release() {
         Log.d("MPVPlayerEngine", "Releasing MPVPlayerEngine resources")
-        activeInstance = null
+        if (activeInstance === this) {
+            activeInstance = null
+        }
         try {
+            clearAmbientShader()
             // Instantly stop playback, force hardware decoder release and detach surface
             MPVLib.command("stop")
             MPVLib.setOptionString("hwdec", "no")
@@ -1423,43 +1504,72 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     override fun eventProperty(property: String, value: Long) {
         when (property) {
             "video-params/w" -> {
-                _videoWidth.value = value
-                if (isAmbientEnabledInternal) updateAmbientStretch()
+                if (_videoWidth.value != value) {
+                    _videoWidth.value = value
+                    if (isAmbientEnabledInternal) updateAmbientStretch()
+                }
             }
             "video-params/h" -> {
-                _videoHeight.value = value
-                if (isAmbientEnabledInternal) updateAmbientStretch()
+                if (_videoHeight.value != value) {
+                    _videoHeight.value = value
+                    if (isAmbientEnabledInternal) updateAmbientStretch()
+                }
             }
-            "osd-width", "osd-height" -> {
-                if (isAmbientEnabledInternal) updateAmbientStretch()
+            "osd-width" -> {
+                if (lastOsdWidth != value) {
+                    lastOsdWidth = value
+                    if (isAmbientEnabledInternal) updateAmbientStretch()
+                }
             }
-            "video-params/rotate" -> _videoRotation.value = value
-            "cache-speed" -> _networkSpeedBytesPerSec.value = value
-            "frame-drop-count" -> _frameDropCount.value = value
-            "decoder-frame-drop-count" -> _decoderFrameDropCount.value = value
+            "osd-height" -> {
+                if (lastOsdHeight != value) {
+                    lastOsdHeight = value
+                    if (isAmbientEnabledInternal) updateAmbientStretch()
+                }
+            }
+            "video-params/rotate" -> {
+                if (_videoRotation.value != value) {
+                    _videoRotation.value = value
+                }
+            }
+            "cache-speed" -> {
+                if (_networkSpeedBytesPerSec.value != value) {
+                    _networkSpeedBytesPerSec.value = value
+                }
+            }
+            "frame-drop-count" -> {
+                if (_frameDropCount.value != value) {
+                    _frameDropCount.value = value
+                }
+            }
+            "decoder-frame-drop-count" -> {
+                if (_decoderFrameDropCount.value != value) {
+                    _decoderFrameDropCount.value = value
+                }
+            }
             "aid" -> {
-                updateTracks()
-                updateActiveAudioDecoderInfo()
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastTracksUpdateTimeMs >= 150L) {
+                    updateTracks()
+                    updateActiveAudioDecoderInfo()
+                }
             }
         }
     }
 
     override fun eventProperty(property: String, value: Boolean) {
         if (property == "pause") {
-            Log.d("MPVPlayerEngine", "Property Changed: pause = $value")
             _isPlaying.value = !value
-            val isEof = try {
-                MPVLib.getPropertyBoolean("eof-reached") ?: false
-            } catch (e: Exception) {
-                false
-            }
-            _playbackState.value = if (isEof) {
+            val targetState = if (isEofReached) {
                 PlayerState.Ended
             } else {
                 if (value) PlayerState.Paused else PlayerState.Playing
             }
+            if (_playbackState.value != targetState) {
+                _playbackState.value = targetState
+            }
         } else if (property == "eof-reached") {
-            Log.d("MPVPlayerEngine", "Property Changed: eof-reached = $value")
+            isEofReached = value
             if (value) {
                 _playbackState.value = PlayerState.Ended
                 _isPlaying.value = false
@@ -1469,30 +1579,85 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
 
     override fun eventProperty(property: String, value: String) {
         val safeVal: String? = value
-        if (property == "sub-text") {
-            _currentSubtitleText.value = safeVal ?: ""
-        } else if (property == "media-title") {
-            _mediaTitle.value = safeVal ?: ""
-            evaluateHdrType()
-        } else if (property == "hwdec-current") {
-            _hwdecCurrent.value = safeVal ?: "no"
-            Log.d("MPVPlayerEngine", "Active hardware decoder changed: $safeVal")
-        } else if (property == "audio-codec-name" || property == "audio-codec") {
-            updateActiveAudioDecoderInfo()
-        } else if (property == "video-params/gamma" || property == "video-params/colormatrix" ||
-            property == "video-params/primaries" || property == "video-params/pixelformat") {
-            evaluateHdrType()
+        when (property) {
+            "sub-text" -> {
+                val str = safeVal ?: ""
+                if (_currentSubtitleText.value != str) {
+                    _currentSubtitleText.value = str
+                }
+            }
+            "media-title" -> {
+                val str = safeVal ?: ""
+                if (_mediaTitle.value != str) {
+                    _mediaTitle.value = str
+                    evaluateHdrType()
+                }
+            }
+            "hwdec-current" -> {
+                val newVal = safeVal ?: "no"
+                if (_hwdecCurrent.value != newVal) {
+                    _hwdecCurrent.value = newVal
+                    Log.d("MPVPlayerEngine", "Active hardware decoder changed: $newVal")
+                }
+            }
+            "audio-codec-name" -> {
+                val name = (safeVal ?: "").lowercase()
+                if (cachedAudioCodecName != name) {
+                    cachedAudioCodecName = name
+                    updateActiveAudioDecoderInfo()
+                }
+            }
+            "audio-codec" -> {
+                val desc = safeVal ?: ""
+                if (cachedAudioCodecDesc != desc) {
+                    cachedAudioCodecDesc = desc
+                    updateActiveAudioDecoderInfo()
+                }
+            }
+            "video-params/gamma" -> {
+                val g = safeVal?.lowercase()
+                if (cachedGamma != g) {
+                    cachedGamma = g
+                    evaluateHdrType()
+                }
+            }
+            "video-params/colormatrix" -> {
+                val cm = safeVal?.lowercase()
+                if (cachedColormatrix != cm) {
+                    cachedColormatrix = cm
+                    evaluateHdrType()
+                }
+            }
+            "video-params/primaries" -> {
+                val p = safeVal?.lowercase()
+                if (cachedPrimaries != p) {
+                    cachedPrimaries = p
+                    evaluateHdrType()
+                }
+            }
+            "video-params/pixelformat" -> {
+                val pf = safeVal?.lowercase()
+                if (cachedPixelFormat != pf) {
+                    cachedPixelFormat = pf
+                    evaluateHdrType()
+                }
+            }
         }
     }
 
     override fun eventProperty(property: String, value: Double) {
         when (property) {
             "time-pos" -> {
+                if (value > 0.0) {
+                    PerfTracer.markFirstVideoFrameRendered("time_pos")
+                }
                 val now = android.os.SystemClock.uptimeMillis()
                 val targetMs = (value * 1000).toLong()
                 if (isScrubbingOrSeeking || !_isPlaying.value || (now - lastTimePosDispatchMs >= 200L)) {
                     lastTimePosDispatchMs = now
-                    _currentPosition.value = targetMs
+                    if (_currentPosition.value != targetMs) {
+                        _currentPosition.value = targetMs
+                    }
                 }
             }
             "duration" -> {
@@ -1502,7 +1667,9 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 }
             }
             "demux-cache-duration" -> {
-                _bufferDurationSeconds.value = value
+                if (_bufferDurationSeconds.value != value) {
+                    _bufferDurationSeconds.value = value
+                }
             }
             "demuxer-cache-duration" -> {
                 val newBuf = _currentPosition.value + (value * 1000).toLong()
@@ -1511,7 +1678,10 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 }
             }
             "video-params/sig-peak" -> {
-                evaluateHdrType()
+                if (cachedSigPeak != value) {
+                    cachedSigPeak = value
+                    evaluateHdrType()
+                }
             }
         }
     }
@@ -1521,13 +1691,13 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     override fun event(eventId: Int, node: MPVNode) {
-        Log.d("MPVPlayerEngine", "Event received from MPV: $eventId")
         when (eventId) {
             MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
                 Log.d("MPVPlayerEngine", "[TIMING] MPV_EVENT_START_FILE at ${System.currentTimeMillis() - loadStartTimeMs}ms from loadVideo")
                 _playbackState.value = PlayerState.Loading
             }
             MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                PerfTracer.markMpvFileLoaded()
                 val elapsed = System.currentTimeMillis() - loadStartTimeMs
                 Log.d("MPVPlayerEngine", "[TIMING] MPV_EVENT_FILE_LOADED: Media ready and playing in ${elapsed}ms for $currentLoadingUri")
                 _playbackState.value = PlayerState.Playing
@@ -1541,10 +1711,17 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 val settings = settingsRepo.playbackSettingsFlow.value
                 setAmbientMode(settings.isAmbientModeEnabled, settings.ambientBlurStyle)
             }
-            16, 21 -> {
-                Log.d("MPVPlayerEngine", "Tracks changed/restart event received ($eventId)")
-                updateTracks()
-                updateActiveAudioDecoderInfo()
+            MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                PerfTracer.markFirstVideoFrameRendered("playback_restart")
+                // Do not re-query track lists during seek / playback restart.
+            }
+            16 -> { // MPV_EVENT_TRACKS_CHANGED
+                Log.d("MPVPlayerEngine", "Tracks changed event received ($eventId)")
+                val now = android.os.SystemClock.uptimeMillis()
+                if (now - lastTracksUpdateTimeMs >= 150L) {
+                    updateTracks()
+                    updateActiveAudioDecoderInfo()
+                }
             }
             MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
                 _playbackState.value = PlayerState.Ended
@@ -1610,14 +1787,22 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
     }
 
     private fun copyRequiredAssets(context: Context) {
+        if (assetsCopied) return
+        val subfontFile = File(context.filesDir, "subfont.ttf")
+        val cacertFile = File(context.filesDir, "cacert.pem")
+        if (subfontFile.exists() && subfontFile.length() > 0L &&
+            cacertFile.exists() && cacertFile.length() > 0L) {
+            assetsCopied = true
+            return
+        }
+
         try {
             `is`.xyz.mpv.Utils.copyAssets(context)
         } catch (e: Exception) {
             Log.e("MPVPlayerEngine", "Utils.copyAssets failed, falling back to manual copy", e)
         }
 
-        listOf("subfont.ttf", "cacert.pem").forEach { fileName ->
-            val destFile = File(context.filesDir, fileName)
+        listOf(subfontFile to "subfont.ttf", cacertFile to "cacert.pem").forEach { (destFile, fileName) ->
             if (!destFile.exists() || destFile.length() == 0L) {
                 try {
                     context.assets.open(fileName).use { input ->
@@ -1631,13 +1816,14 @@ class MPVPlayerEngine(private val context: Context) : PlayerEngine, MPVLib.Event
                 }
             }
         }
+        assetsCopied = true
     }
 
     private fun evaluateHdrType() {
-        val gamma = runCatching { MPVLib.getPropertyString("video-params/gamma")?.lowercase() }.getOrNull()
-        val colormatrix = runCatching { MPVLib.getPropertyString("video-params/colormatrix")?.lowercase() }.getOrNull()
-        val primaries = runCatching { MPVLib.getPropertyString("video-params/primaries")?.lowercase() }.getOrNull()
-        val sigPeak = runCatching { MPVLib.getPropertyDouble("video-params/sig-peak") ?: 0.0 }.getOrDefault(0.0)
+        val gamma = cachedGamma
+        val colormatrix = cachedColormatrix
+        val primaries = cachedPrimaries
+        val sigPeak = cachedSigPeak
         val codec = runCatching { MPVLib.getPropertyString("video-codec")?.lowercase() }.getOrNull()
         val format = runCatching { MPVLib.getPropertyString("video-format")?.lowercase() }.getOrNull()
         val titleAndUri = ((_mediaTitle.value.ifBlank { "" }) + " " + (currentLoadingUri ?: "")).lowercase()

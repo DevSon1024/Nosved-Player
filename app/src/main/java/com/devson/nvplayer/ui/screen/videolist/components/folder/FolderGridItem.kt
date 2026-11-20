@@ -49,10 +49,18 @@ import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.isPathHidden
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.common.shapes.DefaultFolderShape
 import com.devson.nvplayer.ui.common.shapes.FolderShape
 import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
 import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
+
+private val SingleColumnFolderCardShape = RoundedCornerShape(18.dp)
+private val TwoColumnFolderCardShape = RoundedCornerShape(14.dp)
+private val FolderOverlayScrim = Brush.verticalGradient(
+    0.40f to Color.Transparent,
+    1.0f  to Color.Black.copy(alpha = 0.72f)
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -103,9 +111,9 @@ fun FolderGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 8.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(SingleColumnFolderCardShape)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-            shape     = RoundedCornerShape(18.dp),
+            shape     = SingleColumnFolderCardShape,
             colors    = CardDefaults.cardColors(containerColor = bgColor),
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
             border    = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
@@ -200,9 +208,9 @@ fun FolderGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.88f)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(TwoColumnFolderCardShape)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-            shape     = RoundedCornerShape(14.dp),
+            shape     = TwoColumnFolderCardShape,
             colors    = CardDefaults.cardColors(containerColor = bgColor),
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
             border    = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
@@ -305,9 +313,9 @@ fun FolderGridItem(
         Card(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(FolderShape())
+                .clip(DefaultFolderShape)
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-            shape     = FolderShape(),
+            shape     = DefaultFolderShape,
             colors    = CardDefaults.cardColors(containerColor = Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             border    = null
@@ -326,13 +334,8 @@ fun FolderGridItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(FolderShape())
-                        .background(
-                            Brush.verticalGradient(
-                                0.40f to Color.Transparent,
-                                1.0f  to Color.Black.copy(alpha = 0.72f)
-                            )
-                        )
+                        .clip(DefaultFolderShape)
+                        .background(FolderOverlayScrim)
                 )
 
                 // Selected or Recently played highlight conforming to FolderShape
@@ -340,17 +343,17 @@ fun FolderGridItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(FolderShape())
+                            .clip(DefaultFolderShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.30f))
-                            .border(1.5.dp, MaterialTheme.colorScheme.primary, FolderShape())
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary, DefaultFolderShape)
                     )
                 } else if (isRecentlyPlayed) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(FolderShape())
+                            .clip(DefaultFolderShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), FolderShape())
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), DefaultFolderShape)
                     )
                 }
 

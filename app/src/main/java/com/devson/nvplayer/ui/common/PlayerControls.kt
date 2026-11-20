@@ -225,9 +225,6 @@ fun PlayerControls(
     val posProvider: () -> Long = currentPositionProvider ?: { currentPosition }
     val bufProvider: () -> Long = bufferedPositionProvider ?: { bufferedPosition }
     val safeDuration = duration.coerceAtLeast(1L).toFloat()
-    var lastSeekTime by remember { mutableLongStateOf(0L) }
-    var draggingJob by remember { mutableStateOf<Job?>(null) }
-    val scope = rememberCoroutineScope()
     val sizeSpec = remember(controlIconSize) { getControlSizeSpec(controlIconSize) }
 
     Box(
@@ -443,27 +440,6 @@ fun PlayerControls(
             }
         }
 
-        var scrubPosition by remember { mutableLongStateOf(-1L) }
-        var trackedPosition by remember { mutableLongStateOf(posProvider()) }
-        LaunchedEffect(Unit) {
-            while (true) {
-                trackedPosition = posProvider()
-                delay(200L)
-            }
-        }
-        var isRemainingToggled by remember { mutableStateOf(false) }
-        val effectiveShowRemaining = if (isRemainingToggled) !showRemainingTime else showRemainingTime
-
-        val displayPosition = if (isDragging && scrubPosition >= 0L) scrubPosition else trackedPosition
-        val hasHours = duration >= 3600_000L
-        val elapsedText = formatTime(displayPosition, forceHours = hasHours)
-        val remainingMs = (duration - displayPosition).coerceAtLeast(0L)
-        val durationText = if (effectiveShowRemaining) {
-            "-${formatTime(remainingMs, forceHours = hasHours)}"
-        } else {
-            formatTime(duration, forceHours = hasHours)
-        }
-
         if (isPortrait) {
             // 2. CENTER PANEL (Playback Transport Dock in Center if not bottom layout)
             if (!isBottomLayoutEnabled) {
@@ -499,108 +475,19 @@ fun PlayerControls(
                     .navigationBarsPadding()
                     .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
             ) {
-                // Balanced Timestamp Row Above Seekbar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
-                        .padding(bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Left Pill: currentPosition / totalDuration
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(GlassSurface)
-                            .border(1.dp, GlassBorder, RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "${formatTime(displayPosition)} / ${formatTime(duration)}",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    // Right Pill: remaining time and/or current playback speed
-                    val remainingTimeText = "-${formatTime((duration - displayPosition).coerceAtLeast(0L))}"
-                    val speedText = if (playbackSpeed != 1.0f) "${playbackSpeed}x" else "1.0x"
-                    val rightPillText = if (showRemainingTime) {
-                        "$speedText • $remainingTimeText"
-                    } else {
-                        speedText
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(GlassSurface)
-                            .border(1.dp, GlassBorder, RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = rightPillText,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // Material 3 Expressive Gapped Slider
-                CustomSeekbar(
-                    duration = safeDuration,
-                    onSeek = { targetPos, isFinished ->
-                        if (isFinished) {
-                            scrubPosition = -1L
-                            onSeek(targetPos.toLong(), true)
-                            draggingJob = scope.launch {
-                                delay(800)
-                                onDraggingChanged(false)
-                            }
-                        } else {
-                            scrubPosition = targetPos.toLong()
-                            draggingJob?.cancel()
-                            val now = System.currentTimeMillis()
-                            if (now - lastSeekTime > 120L) {
-                                lastSeekTime = now
-                                onSeek(targetPos.toLong(), false)
-                            }
-                        }
-                    },
-                    onDraggingChanged = { isDraggingNow ->
-                        if (!isDraggingNow) {
-                            scrubPosition = -1L
-                        }
-                        onDraggingChanged(isDraggingNow)
-                    },
-                    seekbarStyle = seekBarStyle,
-                    isPaused = !isPlaying,
-                    positionProvider = {
-                        if (isDragging && scrubPosition >= 0L) {
-                            scrubPosition.toFloat()
-                        } else {
-                            posProvider().toFloat()
-                        }
-                    },
-                    bufferedDurationProvider = {
-                        if (isNetworkStream) {
-                            val cPos = posProvider()
-                            val bPos = bufProvider()
-                            if (bPos > cPos) (bPos - cPos).toFloat() else 0f
-                        } else 0f
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
+                PortraitTimelineBar(
+                    duration = duration,
+                    safeDuration = safeDuration,
+                    posProvider = posProvider,
+                    bufProvider = bufProvider,
+                    isNetworkStream = isNetworkStream,
+                    isPlaying = isPlaying,
+                    playbackSpeed = playbackSpeed,
+                    showRemainingTime = showRemainingTime,
+                    seekBarStyle = seekBarStyle,
+                    isDragging = isDragging,
+                    onDraggingChanged = onDraggingChanged,
+                    onSeek = onSeek
                 )
 
                 Spacer(modifier = Modifier.height(sizeSpec.timelineToControlsSpacing))
@@ -710,89 +597,19 @@ fun PlayerControls(
                 }
 
                 // 2. Single Horizontal Timeline Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = elapsedText,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    CustomSeekbar(
-                        duration = safeDuration,
-                        onSeek = { targetPos, isFinished ->
-                            if (isFinished) {
-                                scrubPosition = -1L
-                                onSeek(targetPos.toLong(), true)
-                                draggingJob = scope.launch {
-                                    delay(800)
-                                    onDraggingChanged(false)
-                                }
-                            } else {
-                                scrubPosition = targetPos.toLong()
-                                draggingJob?.cancel()
-                                val now = System.currentTimeMillis()
-                                if (now - lastSeekTime > 120L) {
-                                    lastSeekTime = now
-                                    onSeek(targetPos.toLong(), false)
-                                }
-                            }
-                        },
-                        onDraggingChanged = { isDraggingNow ->
-                            if (!isDraggingNow) {
-                                scrubPosition = -1L
-                            }
-                            onDraggingChanged(isDraggingNow)
-                        },
-                        seekbarStyle = seekBarStyle,
-                        isPaused = !isPlaying,
-                        positionProvider = {
-                            if (isDragging && scrubPosition >= 0L) {
-                                scrubPosition.toFloat()
-                            } else {
-                                posProvider().toFloat()
-                            }
-                        },
-                        bufferedDurationProvider = {
-                            if (isNetworkStream) {
-                                val cPos = posProvider()
-                                val bPos = bufProvider()
-                                if (bPos > cPos) (bPos - cPos).toFloat() else 0f
-                            } else 0f
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Text(
-                        text = durationText,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            isRemainingToggled = !isRemainingToggled
-                        }
-                    )
-                }
+                LandscapeTimelineBar(
+                    duration = duration,
+                    safeDuration = safeDuration,
+                    posProvider = posProvider,
+                    bufProvider = bufProvider,
+                    isNetworkStream = isNetworkStream,
+                    isPlaying = isPlaying,
+                    showRemainingTime = showRemainingTime,
+                    seekBarStyle = seekBarStyle,
+                    isDragging = isDragging,
+                    onDraggingChanged = onDraggingChanged,
+                    onSeek = onSeek
+                )
 
                 Spacer(modifier = Modifier.height(if (isCompactLandscape) (sizeSpec.timelineToControlsSpacing - 2.dp).coerceAtLeast(4.dp) else sizeSpec.timelineToControlsSpacing))
 
@@ -921,6 +738,269 @@ fun PlayerControls(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PortraitTimelineBar(
+    duration: Long,
+    safeDuration: Float,
+    posProvider: () -> Long,
+    bufProvider: () -> Long,
+    isNetworkStream: Boolean,
+    isPlaying: Boolean,
+    playbackSpeed: Float,
+    showRemainingTime: Boolean,
+    seekBarStyle: String,
+    isDragging: Boolean,
+    onDraggingChanged: (Boolean) -> Unit,
+    onSeek: (Long, Boolean) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var scrubPosition by remember { mutableLongStateOf(-1L) }
+    var trackedPosition by remember { mutableLongStateOf(posProvider()) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
+    var draggingJob by remember { mutableStateOf<Job?>(null) }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                trackedPosition = posProvider()
+                delay(200L)
+            }
+        } else {
+            trackedPosition = posProvider()
+        }
+    }
+
+    val displayPosition = if (isDragging && scrubPosition >= 0L) scrubPosition else trackedPosition
+    val remainingMs = (duration - displayPosition).coerceAtLeast(0L)
+    val remainingTimeText = "-${formatTime(remainingMs)}"
+    val speedText = if (playbackSpeed != 1.0f) "${playbackSpeed}x" else "1.0x"
+    val rightPillText = if (showRemainingTime) {
+        "$speedText • $remainingTimeText"
+    } else {
+        speedText
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+            .padding(bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(GlassSurface)
+                .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "${formatTime(displayPosition)} / ${formatTime(duration)}",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(GlassSurface)
+                .border(1.dp, GlassBorder, RoundedCornerShape(50))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = rightPillText,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(2.dp))
+
+    CustomSeekbar(
+        duration = safeDuration,
+        onSeek = { targetPos, isFinished ->
+            if (isFinished) {
+                scrubPosition = -1L
+                onSeek(targetPos.toLong(), true)
+                draggingJob = scope.launch {
+                    delay(800)
+                    onDraggingChanged(false)
+                }
+            } else {
+                scrubPosition = targetPos.toLong()
+                draggingJob?.cancel()
+                val now = System.currentTimeMillis()
+                if (now - lastSeekTime > 120L) {
+                    lastSeekTime = now
+                    onSeek(targetPos.toLong(), false)
+                }
+            }
+        },
+        onDraggingChanged = { isDraggingNow ->
+            if (!isDraggingNow) {
+                scrubPosition = -1L
+            }
+            onDraggingChanged(isDraggingNow)
+        },
+        seekbarStyle = seekBarStyle,
+        isPaused = !isPlaying,
+        positionProvider = {
+            if (isDragging && scrubPosition >= 0L) {
+                scrubPosition.toFloat()
+            } else {
+                posProvider().toFloat()
+            }
+        },
+        bufferedDurationProvider = {
+            if (isNetworkStream) {
+                val cPos = posProvider()
+                val bPos = bufProvider()
+                if (bPos > cPos) (bPos - cPos).toFloat() else 0f
+            } else 0f
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+    )
+}
+
+@Composable
+private fun LandscapeTimelineBar(
+    duration: Long,
+    safeDuration: Float,
+    posProvider: () -> Long,
+    bufProvider: () -> Long,
+    isNetworkStream: Boolean,
+    isPlaying: Boolean,
+    showRemainingTime: Boolean,
+    seekBarStyle: String,
+    isDragging: Boolean,
+    onDraggingChanged: (Boolean) -> Unit,
+    onSeek: (Long, Boolean) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var scrubPosition by remember { mutableLongStateOf(-1L) }
+    var trackedPosition by remember { mutableLongStateOf(posProvider()) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
+    var draggingJob by remember { mutableStateOf<Job?>(null) }
+    var isRemainingToggled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                trackedPosition = posProvider()
+                delay(200L)
+            }
+        } else {
+            trackedPosition = posProvider()
+        }
+    }
+
+    val effectiveShowRemaining = if (isRemainingToggled) !showRemainingTime else showRemainingTime
+    val displayPosition = if (isDragging && scrubPosition >= 0L) scrubPosition else trackedPosition
+    val hasHours = duration >= 3600_000L
+    val elapsedText = formatTime(displayPosition, forceHours = hasHours)
+    val remainingMs = (duration - displayPosition).coerceAtLeast(0L)
+    val durationText = if (effectiveShowRemaining) {
+        "-${formatTime(remainingMs, forceHours = hasHours)}"
+    } else {
+        formatTime(duration, forceHours = hasHours)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = elapsedText,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        CustomSeekbar(
+            duration = safeDuration,
+            onSeek = { targetPos, isFinished ->
+                if (isFinished) {
+                    scrubPosition = -1L
+                    onSeek(targetPos.toLong(), true)
+                    draggingJob = scope.launch {
+                        delay(800)
+                        onDraggingChanged(false)
+                    }
+                } else {
+                    scrubPosition = targetPos.toLong()
+                    draggingJob?.cancel()
+                    val now = System.currentTimeMillis()
+                    if (now - lastSeekTime > 120L) {
+                        lastSeekTime = now
+                        onSeek(targetPos.toLong(), false)
+                    }
+                }
+            },
+            onDraggingChanged = { isDraggingNow ->
+                if (!isDraggingNow) {
+                    scrubPosition = -1L
+                }
+                onDraggingChanged(isDraggingNow)
+            },
+            seekbarStyle = seekBarStyle,
+            isPaused = !isPlaying,
+            positionProvider = {
+                if (isDragging && scrubPosition >= 0L) {
+                    scrubPosition.toFloat()
+                } else {
+                    posProvider().toFloat()
+                }
+            },
+            bufferedDurationProvider = {
+                if (isNetworkStream) {
+                    val cPos = posProvider()
+                    val bPos = bufProvider()
+                    if (bPos > cPos) (bPos - cPos).toFloat() else 0f
+                } else 0f
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = durationText,
+            color = Color.White.copy(alpha = 0.9f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                isRemainingToggled = !isRemainingToggled
+            }
+        )
     }
 }
 

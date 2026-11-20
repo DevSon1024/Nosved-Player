@@ -44,6 +44,14 @@ import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.ui.screen.videolist.components.common.SubtitleBadge
 import com.devson.nvplayer.ui.screen.videolist.components.common.getSubtitleTokens
 
+private val DurationPillShape = RoundedCornerShape(5.dp)
+private val ThumbnailPlayScrim = Brush.radialGradient(
+    colors = listOf(
+        Color.Black.copy(alpha = 0.35f),
+        Color.Transparent
+    )
+)
+
 /**
  * A branded Material Design 3 placeholder displayed while video thumbnails load.
  * Uses surfaceContainerHighest with a subtle centered vector watermark icon.
@@ -76,8 +84,7 @@ fun VideoThumbnail(
     showPlayIcon: Boolean = true
 ) {
     val context = LocalContext.current
-    var isLoaded by remember(uri) { mutableStateOf(false) }
-    val imageRequest = remember(uri) {
+    val imageRequest = remember(context, uri) {
         ImageRequest.Builder(context)
             .data(uri)
             .size(320, 180)
@@ -90,30 +97,20 @@ fun VideoThumbnail(
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
-        if (!isLoaded) {
-            BrandedThumbnailPlaceholder()
-        }
+        BrandedThumbnailPlaceholder()
 
         AsyncImage(
             model = imageRequest,
             contentDescription = "Video Thumbnail",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-            onSuccess = { isLoaded = true }
+            modifier = Modifier.fillMaxSize()
         )
         if (showPlayIcon) {
             // Gradient scrim so icon is legible over any thumbnail color
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Transparent
-                            )
-                        )
-                    ),
+                    .background(ThumbnailPlayScrim),
                 contentAlignment = Alignment.Center
             ) {
                 // Frosted-glass pill button
@@ -192,7 +189,7 @@ fun DurationPill(
         modifier = modifier
             .background(
                 color = Color.Black.copy(alpha = 0.72f),
-                shape = RoundedCornerShape(5.dp)
+                shape = DurationPillShape
             )
             .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {

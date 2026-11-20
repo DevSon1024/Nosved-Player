@@ -31,6 +31,9 @@ import com.devson.nvplayer.ui.screen.videolist.components.common.WatchProgressBa
 import com.devson.nvplayer.ui.screen.videolist.components.common.WatchStateBadge
 import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 
+private val CinemaCardShape = RoundedCornerShape(18.dp)
+private val GridCardShape = RoundedCornerShape(14.dp)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoGridItem(
@@ -78,7 +81,7 @@ fun VideoGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 10.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(CinemaCardShape)
                 .combinedClickable(
                     onClick    = { onClick(video) },
                     onLongClick = {
@@ -86,7 +89,7 @@ fun VideoGridItem(
                         onLongClick(video)
                     }
                 ),
-            shape     = RoundedCornerShape(18.dp),
+            shape     = CinemaCardShape,
             colors    = CardDefaults.cardColors(containerColor = bgColor),
             elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
             border    = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
@@ -162,7 +165,7 @@ fun VideoGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(if (isDense) 1f else 0.82f)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(GridCardShape)
             .combinedClickable(
                 onClick    = { onClick(video) },
                 onLongClick = {
@@ -170,7 +173,7 @@ fun VideoGridItem(
                     onLongClick(video)
                 }
             ),
-        shape     = RoundedCornerShape(14.dp),
+        shape     = GridCardShape,
         colors    = CardDefaults.cardColors(containerColor = bgColor),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 0.dp else 1.dp),
         border    = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)

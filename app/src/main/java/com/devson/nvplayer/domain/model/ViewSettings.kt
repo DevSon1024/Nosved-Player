@@ -1,9 +1,12 @@
 package com.devson.nvplayer.domain.model
 
+import androidx.compose.runtime.Immutable
+
 enum class DefaultScreen {
     HOME, FOLDERS, HISTORY, VIDEO_LIST, LIBRARY, VAULT, SETTINGS
 }
 
+@Immutable
 data class ViewSettings(
     val showQuickFab: Boolean = true,
     val selectByThumbnail: Boolean = false,

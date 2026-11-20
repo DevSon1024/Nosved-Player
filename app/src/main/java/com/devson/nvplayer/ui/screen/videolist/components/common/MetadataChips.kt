@@ -25,7 +25,11 @@ import com.devson.nvplayer.util.formatResolutionCompact
 import com.devson.nvplayer.util.formatSize
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import java.util.Locale
+
+private val MetadataChipShape = RoundedCornerShape(5.dp)
 
 enum class MetaChipType {
     DEFAULT,
@@ -34,6 +38,7 @@ enum class MetaChipType {
     EXTERNAL_SUBTITLE
 }
 
+@Immutable
 data class MetaToken(
     val text: String,
     val type: MetaChipType = MetaChipType.DEFAULT
@@ -77,38 +82,59 @@ fun VideoMetadataChips(
     lastPositionMs: Long = 0L,
     isGrid: Boolean = false
 ) {
-    val standardTokens = buildList {
-        if (settings.showLength && !settings.displayLengthOverThumbnail && video.duration > 0L)
-            add(MetaToken(formatDuration(video.duration), MetaChipType.PRIMARY))
-        if (settings.showResolution && !video.resolution.isNullOrBlank()) {
-            val compactRes = formatResolutionCompact(video.resolution)
-            if (!compactRes.isNullOrBlank()) {
-                add(MetaToken(compactRes))
+    val standardTokens = remember(
+        video.duration,
+        video.resolution,
+        video.frameRate,
+        video.title,
+        video.uri,
+        video.size,
+        video.dateAdded,
+        settings.showLength,
+        settings.displayLengthOverThumbnail,
+        settings.showResolution,
+        settings.showFrameRate,
+        settings.showFileExtension,
+        settings.showSize,
+        settings.showDate
+    ) {
+        buildList {
+            if (settings.showLength && !settings.displayLengthOverThumbnail && video.duration > 0L)
+                add(MetaToken(formatDuration(video.duration), MetaChipType.PRIMARY))
+            if (settings.showResolution && !video.resolution.isNullOrBlank()) {
+                val compactRes = formatResolutionCompact(video.resolution)
+                if (!compactRes.isNullOrBlank()) {
+                    add(MetaToken(compactRes))
+                }
             }
-        }
-        if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f) {
-            val formattedFps = if (video.frameRate % 1f == 0f) {
-                "${video.frameRate.toInt()} fps"
-            } else {
-                String.format(Locale.US, "%.2f fps", video.frameRate)
+            if (settings.showFrameRate && video.frameRate != null && video.frameRate > 0f) {
+                val formattedFps = if (video.frameRate % 1f == 0f) {
+                    "${video.frameRate.toInt()} fps"
+                } else {
+                    String.format(Locale.US, "%.2f fps", video.frameRate)
+                }
+                add(MetaToken(formattedFps))
             }
-            add(MetaToken(formattedFps))
+            if (settings.showFileExtension)
+                add(MetaToken(video.title.substringAfterLast('.', video.uri.substringAfterLast('.', "")).uppercase()))
+            if (settings.showSize)
+                add(MetaToken(formatSize(video.size)))
+            if (settings.showDate && video.dateAdded > 0)
+                add(MetaToken(formatDate(video.dateAdded)))
+        }.filter { it.text.isNotBlank() }
+    }
+
+    val subtitleTokens = remember(video.embeddedSubtitles, video.externalSubtitles) {
+        getSubtitleTokens(video)
+    }
+
+    val visibleTokens = remember(standardTokens, subtitleTokens, isGrid) {
+        if (isGrid) {
+            standardTokens.take(2)
+        } else {
+            val maxStandard = if (subtitleTokens.isNotEmpty()) 3 else 4
+            subtitleTokens.take(2) + standardTokens.take(maxStandard)
         }
-        if (settings.showFileExtension)
-            add(MetaToken(video.title.substringAfterLast('.', video.uri.substringAfterLast('.', "")).uppercase()))
-        if (settings.showSize)
-            add(MetaToken(formatSize(video.size)))
-        if (settings.showDate && video.dateAdded > 0)
-            add(MetaToken(formatDate(video.dateAdded)))
-    }.filter { it.text.isNotBlank() }
-
-    val subtitleTokens = getSubtitleTokens(video)
-
-    val visibleTokens = if (isGrid) {
-        standardTokens.take(2)
-    } else {
-        val maxStandard = if (subtitleTokens.isNotEmpty()) 3 else 4
-        subtitleTokens.take(2) + standardTokens.take(maxStandard)
     }
 
     if (visibleTokens.isEmpty()) return
@@ -138,7 +164,7 @@ fun SubtitleBadge(
         modifier = modifier
             .background(
                 color = bgColor,
-                shape = RoundedCornerShape(5.dp)
+                shape = MetadataChipShape
             )
             .padding(horizontal = 5.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
@@ -183,7 +209,7 @@ fun MetadataChip(token: MetaToken, isGrid: Boolean = false) {
 
     Box(
         modifier = Modifier
-            .background(bgColor, RoundedCornerShape(5.dp))
+            .background(bgColor, MetadataChipShape)
             .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {
         Text(

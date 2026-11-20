@@ -17,6 +17,7 @@ import com.devson.nvplayer.domain.model.ViewMode
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
 import com.devson.nvplayer.util.getAvailableStorageVolumes
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.SearchUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,10 +82,17 @@ class VideoListViewModel(
     val viewSettings: StateFlow<ViewSettings> = viewSettingsRepo.viewSettingsFlow
 
     // Storage selection state
-    private val _availableStorages = MutableStateFlow<List<StorageVolumeInfo>>(emptyList())
+    private val defaultInternalStorage = StorageVolumeInfo(
+        id = "internal",
+        name = "Internal Storage",
+        rootPath = android.os.Environment.getExternalStorageDirectory().absolutePath,
+        isInternal = true
+    )
+
+    private val _availableStorages = MutableStateFlow<List<StorageVolumeInfo>>(listOf(defaultInternalStorage))
     val availableStorages: StateFlow<List<StorageVolumeInfo>> = _availableStorages.asStateFlow()
 
-    private val _selectedStorage = MutableStateFlow<StorageVolumeInfo?>(null)
+    private val _selectedStorage = MutableStateFlow<StorageVolumeInfo?>(defaultInternalStorage)
     val selectedStorage: StateFlow<StorageVolumeInfo?> = _selectedStorage.asStateFlow()
 
     private val _currentExplorerPath = MutableStateFlow<String>(
@@ -240,16 +248,24 @@ class VideoListViewModel(
     }.flowOn(Dispatchers.Default)
      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private var observerDebounceJob: kotlinx.coroutines.Job? = null
     private val contentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
             super.onChange(selfChange, uri)
-            loadVideos(forceRefresh = false)
+            observerDebounceJob?.cancel()
+            observerDebounceJob = viewModelScope.launch(Dispatchers.IO) {
+                kotlinx.coroutines.delay(500L)
+                repository.invalidateCache()
+                loadVideos(forceRefresh = true)
+            }
         }
     }
 
     init {
-        // Initialize storages; root path will be set before first video load
-        refreshStorages(repository.context)
+        // Initialize storages asynchronously off the main thread
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshStorages(repository.context)
+        }
 
         viewModelScope.launch {
             combine(_currentExplorerPath, videosFlat) { currentPath, flatVideos ->
@@ -286,6 +302,7 @@ class VideoListViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        observerDebounceJob?.cancel()
         hiddenDiscoveryJob?.cancel()
         try {
             repository.context.contentResolver.unregisterContentObserver(contentObserver)
@@ -341,6 +358,9 @@ class VideoListViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) {
             val isInitial = _rawVideosFlat.value.isEmpty()
+            if (isInitial) {
+                PerfTracer.markLibraryLoadStart()
+            }
             if (forceRefresh) {
                 _isRefreshing.value = true
                 repository.resetThumbnailJobs()
@@ -354,7 +374,7 @@ class VideoListViewModel(
             }
             _loadingProgress.value = 0f
             try {
-                val videoItems = repository.getAllVideos()
+                val videoItems = repository.getAllVideos(forceRefresh)
                 val metadataDao = repository.videoMetadataDao
                 val cachedMap = try {
                     metadataDao.getAllMetadataSync().associateBy { it.uri }.toMutableMap()
@@ -362,103 +382,135 @@ class VideoListViewModel(
                     mutableMapOf()
                 }
 
-                // Group by parent folder absolute path
-                val groupedByPath = videoItems.groupBy { item ->
-                    val lastSlash = item.path.lastIndexOf('/')
-                    if (lastSlash > 0) item.path.substring(0, lastSlash) else item.folderName
-                }
-
-                val mappedVideos = mutableMapOf<VideoFolder, List<Video>>()
-                val uncachedVideos = mutableListOf<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
+                val mappedVideos = LinkedHashMap<VideoFolder, MutableList<Video>>()
+                val flatList = ArrayList<Video>(videoItems.size)
+                val uncachedVideos = ArrayList<Triple<com.devson.nvplayer.data.model.VideoItem, Long, Long>>()
+                val fastCacheToInsert = ArrayList<CachedVideoMetadata>()
+                val folderCache = HashMap<String, VideoFolder>()
 
                 val activeStorage = _selectedStorage.value
                 val activeCleanRoot = activeStorage?.rootPath?.trimEnd('/')
-                for ((parentPath, items) in groupedByPath) {
-                    val cleanParent = parentPath.trimEnd('/')
-                    val folderName = if (activeCleanRoot != null && cleanParent == activeCleanRoot) {
-                        activeStorage?.name ?: cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
-                    } else {
-                        cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
-                    }
-                    val videos = items.map { item ->
-                        val uriStr = item.uri.toString()
-                        val cached = cachedMap[uriStr]
-                        val finalSize: Long
-                        val finalDateModified: Long
-                        val finalDuration: Long
-                        val finalFps: Float?
-                        val finalEmbeddedSubs: List<String>
-                        val externalSubs: List<String>
 
-                        val finalWidth: Int
-                        val finalHeight: Int
-
-                        if (cached != null) {
-                            finalSize = if (item.size > 0) item.size else cached.size
-                            finalDateModified = if (item.dateModified > 0) item.dateModified * 1000 else cached.dateModified
-                            finalDuration = if (item.duration > 0) item.duration else cached.duration
-                            finalWidth = if (item.width > 0) item.width else cached.width
-                            finalHeight = if (item.height > 0) item.height else cached.height
-                            finalFps = if (cached.frameRate != null && cached.frameRate > 0f) cached.frameRate else null
-                            finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
-                            externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
-
-                            // Re-probe if duration, dimensions, or framerate are missing
-                            if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0 || finalFps == null) {
-                                uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
-                            }
+                for (item in videoItems) {
+                    val lastSlash = item.path.lastIndexOf('/')
+                    val parentPath = if (lastSlash > 0) item.path.substring(0, lastSlash) else item.folderName
+                    val folder = folderCache.getOrPut(parentPath) {
+                        val cleanParent = parentPath.trimEnd('/')
+                        val folderName = if (activeCleanRoot != null && cleanParent == activeCleanRoot) {
+                            activeStorage?.name ?: cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
                         } else {
-                            finalSize = item.size
-                            finalDateModified = item.dateModified * 1000
-                            finalDuration = item.duration
-                            finalWidth = item.width
-                            finalHeight = item.height
-                            finalFps = null
-                            finalEmbeddedSubs = emptyList()
-                            externalSubs = emptyList()
+                            cleanParent.substringAfterLast('/').ifEmpty { cleanParent }
+                        }
+                        VideoFolder(id = parentPath, name = folderName)
+                    }
+
+                    val uriStr = item.uri.toString()
+                    val cached = cachedMap[uriStr]
+                    val finalSize: Long
+                    val finalDateModified: Long
+                    val finalDuration: Long
+                    val finalFps: Float?
+                    val finalEmbeddedSubs: List<String>
+                    val externalSubs: List<String>
+                    val finalWidth: Int
+                    val finalHeight: Int
+
+                    if (cached != null) {
+                        finalSize = if (item.size > 0) item.size else cached.size
+                        finalDateModified = if (item.dateModified > 0) item.dateModified * 1000 else cached.dateModified
+                        finalDuration = if (item.duration > 0) item.duration else cached.duration
+                        finalWidth = if (item.width > 0) item.width else cached.width
+                        finalHeight = if (item.height > 0) item.height else cached.height
+                        finalFps = if (cached.frameRate != null && cached.frameRate > 0f) cached.frameRate else null
+                        finalEmbeddedSubs = cached.embeddedSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                        externalSubs = cached.externalSubtitles?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+
+                        // Only re-probe if critical metadata (duration/dimensions) is missing
+                        if (finalDuration <= 0L || finalWidth <= 0 || finalHeight <= 0) {
                             uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
                         }
+                    } else {
+                        finalSize = item.size
+                        finalDateModified = item.dateModified * 1000
+                        finalDuration = item.duration
+                        finalWidth = item.width
+                        finalHeight = item.height
+                        finalFps = null
+                        finalEmbeddedSubs = emptyList()
+                        externalSubs = emptyList()
+                        if (finalDuration > 0L && finalWidth > 0 && finalHeight > 0) {
+                            fastCacheToInsert.add(
+                                CachedVideoMetadata(
+                                    uri = uriStr,
+                                    size = finalSize,
+                                    dateModified = finalDateModified,
+                                    duration = finalDuration,
+                                    externalSubtitleUri = null,
+                                    frameRate = -1f,
+                                    embeddedSubtitles = "",
+                                    externalSubtitles = "",
+                                    width = finalWidth,
+                                    height = finalHeight
+                                )
+                            )
+                        } else {
+                            uncachedVideos.add(Triple(item, finalDuration, finalDateModified))
+                        }
+                    }
 
-                        Video(
-                            uri = uriStr,
-                            title = item.title,
-                            duration = finalDuration,
-                            folderName = item.folderName,
-                            path = item.path,
-                            size = finalSize,
-                            width = finalWidth,
-                            height = finalHeight,
-                            dateAdded = finalDateModified,
-                            dateModified = finalDateModified,
-                            playedTime = null,
-                            lastPlayedAt = null,
-                            resolution = if (finalWidth > 0 && finalHeight > 0) "${finalWidth}x${finalHeight}" else "",
-                            frameRate = finalFps,
-                            thumbnailUri = item.thumbnailUri?.toString(),
-                            embeddedSubtitles = finalEmbeddedSubs,
-                            externalSubtitles = externalSubs
-                        )
-                    }
-                    if (videos.isNotEmpty()) {
-                        mappedVideos[VideoFolder(id = parentPath, name = folderName)] = videos
-                    }
+                    val video = Video(
+                        uri = uriStr,
+                        title = item.title,
+                        duration = finalDuration,
+                        folderName = item.folderName,
+                        path = item.path,
+                        size = finalSize,
+                        width = finalWidth,
+                        height = finalHeight,
+                        dateAdded = finalDateModified,
+                        dateModified = finalDateModified,
+                        playedTime = null,
+                        lastPlayedAt = null,
+                        resolution = if (finalWidth > 0 && finalHeight > 0) "${finalWidth}x${finalHeight}" else "",
+                        frameRate = finalFps,
+                        thumbnailUri = item.thumbnailUri?.toString(),
+                        embeddedSubtitles = finalEmbeddedSubs,
+                        externalSubtitles = externalSubs
+                    )
+
+                    mappedVideos.getOrPut(folder) { mutableListOf() }.add(video)
+                    flatList.add(video)
                 }
 
                 _loadingProgress.value = 1f
-                _rawVideosByFolder.value = mappedVideos.toMap()
-                _rawVideosFlat.value = mappedVideos.values.flatten()
+                _rawVideosByFolder.value = mappedVideos
+                _rawVideosFlat.value = flatList
+                if (isInitial) {
+                    PerfTracer.markLibraryLoadEnd(flatList.size, mappedVideos.size)
+                }
                 _isLoading.value = false
                 _isRefreshing.value = false
 
-                // Background asynchronous metadata enhancement for uncached videos
+                if (fastCacheToInsert.isNotEmpty()) {
+                    launch(Dispatchers.IO) {
+                        try {
+                            metadataDao.insertAll(fastCacheToInsert)
+                        } catch (e: Exception) {
+                            android.util.Log.e("VideoListViewModel", "Fast cache insert error", e)
+                        }
+                    }
+                }
+
+                // Background asynchronous metadata enhancement for truly uncached/corrupted videos
                 if (uncachedVideos.isNotEmpty()) {
                     launch(Dispatchers.IO) {
                         try {
-                            val dispatcher = Dispatchers.IO.limitedParallelism(4)
+                            val dispatcher = Dispatchers.IO.limitedParallelism(2)
+                            val subtitleDirCache = HashMap<String, List<java.io.File>>()
                             val updatedItems = uncachedVideos.map { (item, duration, dateMod) ->
                                 async(dispatcher) {
                                     val uriStr = item.uri.toString()
-                                    val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path)
+                                    val externalSubs = VideoMetadataExtractor.findExternalSubtitles(item.path, subtitleDirCache)
                                     val details = try {
                                         withTimeoutOrNull(2500L) {
                                             VideoMetadataExtractor.extractDetails(repository.context, item.path, item.uri, duration)
@@ -547,11 +599,6 @@ class VideoListViewModel(
             try {
                 val blacklisted = playbackSettingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
                 val metadataDao = repository.videoMetadataDao
-                val cachedMap = try {
-                    metadataDao.getAllMetadataSync().associateBy { it.uri }.toMutableMap()
-                } catch (_: Exception) {
-                    mutableMapOf()
-                }
 
                 repository.scanHiddenVideos(blacklisted) { batch ->
                     if (batch.isEmpty()) return@scanHiddenVideos
@@ -573,9 +620,16 @@ class VideoListViewModel(
                     }
                     metadataDao.insertAll(metadataToInsert)
 
+                    val batchUris = newItems.map { it.uri.toString() }
+                    val cachedBatch = try {
+                        metadataDao.getMetadataForUris(batchUris).associateBy { it.uri }
+                    } catch (_: Exception) {
+                        emptyMap()
+                    }
+
                     val newVideos = newItems.map { item ->
                         val uriStr = item.uri.toString()
-                        val cached = cachedMap[uriStr]
+                        val cached = cachedBatch[uriStr]
                         Video(
                             uri = uriStr,
                             title = item.title,

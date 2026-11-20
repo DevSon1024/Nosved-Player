@@ -17,9 +17,18 @@ import com.devson.nvplayer.util.MediaStoreThumbnailFetcher
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.domain.thumbnail.CoilVideoThumbnailDecoder
 import com.devson.nvplayer.domain.thumbnail.toThumbnailStrategy
+import com.devson.nvplayer.util.PerfTracer
 import okio.Path.Companion.toOkioPath
 
 class NosvedApplication : Application(), SingletonImageLoader.Factory {
+
+    override fun onCreate() {
+        PerfTracer.markAppInitStart()
+        PerfTracer.traceSection("NosvedApplication.onCreate") {
+            super.onCreate()
+        }
+        PerfTracer.markAppInitEnd()
+    }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val cacheDir = cacheDir.resolve("video_thumbnails_cache")
@@ -32,6 +41,11 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
         return ImageLoader.Builder(context)
             .coroutineContext(thumbnailDispatcher)
             .components {
+                val isSystemThumbPreferred = {
+                    val mode = viewSettingsRepo.viewSettingsFlow.value.thumbnailMode
+                    mode == com.devson.nvplayer.domain.model.ThumbnailMode.SMART ||
+                        mode == com.devson.nvplayer.domain.model.ThumbnailMode.FIRST_FRAME
+                }
                 add(
                     CoilVideoThumbnailDecoder.Factory(
                         thumbnailStrategy = {
@@ -40,8 +54,8 @@ class NosvedApplication : Application(), SingletonImageLoader.Factory {
                         }
                     )
                 )
-                add(MediaStoreThumbnailFetcher.Factory())
-                add(MediaStoreThumbnailFetcher.StringFactory())
+                add(MediaStoreThumbnailFetcher.Factory(isSystemThumbPreferred))
+                add(MediaStoreThumbnailFetcher.StringFactory(isSystemThumbPreferred))
                 add(VideoFrameDecoder.Factory())
             }
             .memoryCache {

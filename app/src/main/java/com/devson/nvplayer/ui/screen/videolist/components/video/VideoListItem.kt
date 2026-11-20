@@ -34,6 +34,9 @@ import com.devson.nvplayer.ui.screen.videolist.components.common.WatchProgressBa
 import com.devson.nvplayer.ui.screen.videolist.components.common.WatchStateBadge
 import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
 
+private val ItemCardShape = RoundedCornerShape(20.dp)
+private val ThumbnailCardShape = RoundedCornerShape(10.dp)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoListItem(
@@ -73,7 +76,7 @@ fun VideoListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(ItemCardShape)
             .combinedClickable(
                 onClick    = { onClick(video) },
                 onLongClick = {
@@ -81,7 +84,7 @@ fun VideoListItem(
                     onLongClick(video)
                 }
             ),
-        shape     = RoundedCornerShape(20.dp),
+        shape     = ItemCardShape,
         colors    = CardDefaults.cardColors(containerColor = bgColor),
         elevation = CardDefaults.cardElevation(
             defaultElevation  = if (isSelected) 0.dp else 0.5.dp,
@@ -105,10 +108,10 @@ fun VideoListItem(
             Card(
                 modifier = Modifier
                     .size(width = 100.dp, height = 60.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(ThumbnailCardShape)
                     .then(if (settings.selectByThumbnail) Modifier.clickable { onLongClick(video) } else Modifier)
                     .then(if (watchState is VideoWatchState.Completed) Modifier.alpha(0.6f) else Modifier),
-                shape = RoundedCornerShape(10.dp),
+                shape = ThumbnailCardShape,
                 colors = CardDefaults.cardColors(
                     containerColor = if (watchState is VideoWatchState.InProgress)
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
@@ -120,7 +123,7 @@ fun VideoListItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(ThumbnailCardShape)
             ) {
                 if (settings.showThumbnail) {
                     VideoThumbnail(

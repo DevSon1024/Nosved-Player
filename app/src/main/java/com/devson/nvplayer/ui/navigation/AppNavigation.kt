@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import com.devson.nvplayer.domain.model.DefaultScreen
 import com.devson.nvplayer.data.repository.OrientationMode
 import com.devson.nvplayer.data.repository.PlaybackSettings
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.findActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -106,6 +107,12 @@ fun AppNavigation(
     shortcutDestination: String? = null,
     onShortcutHandled: () -> Unit = {}
 ) {
+    PerfTracer.markFirstScreenComposition()
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.withFrameNanos {
+            PerfTracer.markFirstScreenDisplayed()
+        }
+    }
     val navController = rememberNavController()
 
     // 1. Create a safe back navigation helper to prevent popping the start destination
@@ -148,7 +155,8 @@ fun AppNavigation(
     val showBottomBar = currentRoute in topLevelRoutes && !isSelectionActive
     val playbackSettings by settingsViewModel.playbackSettings.collectAsStateWithLifecycle()
 
-    val onNavigateToPlayer: (Video, List<Video>) -> Unit = { video, queue ->
+    fun navigateToPlayer(video: Video, queue: List<Video>, initialPositionMs: Long = 0L) {
+        PerfTracer.markVideoClick(video.uri)
         val isLandscape = when (playbackSettings.orientationMode) {
             OrientationMode.LANDSCAPE, OrientationMode.AUTO -> true
             OrientationMode.PORTRAIT -> false
@@ -174,11 +182,17 @@ fun AppNavigation(
             uri = Uri.parse(video.uri),
             playlistUris = queue.map { Uri.parse(it.uri) },
             initialWidth = video.width,
-            initialHeight = video.height
+            initialHeight = video.height,
+            initialPositionMs = initialPositionMs
         )
+        PerfTracer.markPlayerNavigationStart(video.uri)
         navController.navigate("player") {
             launchSingleTop = true
         }
+    }
+
+    val onNavigateToPlayer: (Video, List<Video>) -> Unit = { video, queue ->
+        navigateToPlayer(video, queue, 0L)
     }
 
     val onNavigateToPlayerStream: (Uri, List<Video>) -> Unit = { uri, queue ->
@@ -204,6 +218,7 @@ fun AppNavigation(
             uri = uri,
             playlistUris = queue.map { Uri.parse(it.uri) }
         )
+        PerfTracer.markPlayerNavigationStart(uri.toString())
         navController.navigate("player") {
             launchSingleTop = true
         }
@@ -416,6 +431,7 @@ fun AppNavigation(
         composable("video_list") {
             VideoListScreen(
                 onVideoSelected = { video, playlist, lastPositionMs ->
+                    PerfTracer.markVideoClick("video_list")
                     val flatVideos = videoListViewModel.videosFlat.value
                     val queueVideos = getLogicalQueue(
                         video = video,
@@ -425,7 +441,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onNavigateToSettings = {
                     navigateToTopLevel("settings")
@@ -485,7 +501,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onBack = safePopBackStack,
                 onNavigateToStreak = {
@@ -806,6 +822,7 @@ fun AppNavigation(
             LibraryHomeScreen(
                 viewModel = libraryViewModel,
                 onMediaClick = { item ->
+                    PerfTracer.markVideoClick("library_home")
                     val allCandidateVideos = videoListViewModel.rawVideosFlat.value.ifEmpty { videoListViewModel.videosFlat.value }
                     val currentVideo = allCandidateVideos.find {
                         it.uri == item.videoUri || (item.id.isNotBlank() && it.uri == item.id) ||
@@ -968,7 +985,7 @@ fun AppNavigation(
                         sortField = videoListViewModel.viewSettings.value.sortField,
                         sortDirection = videoListViewModel.viewSettings.value.sortDirection
                     )
-                    onNavigateToPlayer(video, queueVideos)
+                    navigateToPlayer(video, queueVideos, lastPositionMs)
                 },
                 onBack = safePopBackStack
             )
@@ -998,15 +1015,13 @@ fun AppNavigation(
             val hasNext by playerVm.hasNext.collectAsStateWithLifecycle()
             val hasPrevious by playerVm.hasPrevious.collectAsStateWithLifecycle()
             val isHwSupported by playerVm.isHwSupported.collectAsStateWithLifecycle()
+            val engineMediaTitle by playerVm.mediaTitle.collectAsStateWithLifecycle()
 
-            val currentSubtitleText by playerVm.currentSubtitleText.collectAsStateWithLifecycle()
             val subtitleTracks by playerVm.subtitleTracks.collectAsStateWithLifecycle()
             val audioTracks by playerVm.audioTracks.collectAsStateWithLifecycle()
             val audioBoosterEnabled by playerVm.audioBoosterEnabled.collectAsStateWithLifecycle()
             val audioBoostVolume by playerVm.audioBoostVolume.collectAsStateWithLifecycle()
             val chapters by playerVm.chapters.collectAsStateWithLifecycle()
-            val networkSpeedBytesPerSec by playerVm.networkSpeedBytesPerSec.collectAsStateWithLifecycle()
-            val bufferDurationSeconds by playerVm.bufferDurationSeconds.collectAsStateWithLifecycle()
             val isNetworkStream by playerVm.isNetworkStream.collectAsStateWithLifecycle()
             val hdrType by playerVm.hdrType.collectAsStateWithLifecycle()
 
@@ -1081,8 +1096,9 @@ fun AppNavigation(
             PlayerScreen(
                 isDynamicSpeedActive = isDynamicSpeedActive,
                 onSetDynamicSpeedActive = { playerVm.setDynamicSpeedActive(it) },
-                networkSpeedBytesPerSec = networkSpeedBytesPerSec,
-                bufferDurationSeconds = bufferDurationSeconds,
+                networkSpeedBpsProvider = { playerVm.networkSpeedBytesPerSec.value },
+                bufferDurationSecProvider = { playerVm.bufferDurationSeconds.value },
+                engineMediaTitle = engineMediaTitle,
                 isNetworkStream = isNetworkStream,
                 currentPositionProvider = { playerVm.currentPosition.value },
                 bufferedPositionProvider = { playerVm.bufferedPosition.value },
@@ -1121,7 +1137,6 @@ fun AppNavigation(
                 hasPrevious = hasPrevious,
                 onNextClick = { playerVm.playNext() },
                 onPrevClick = { playerVm.playPrevious() },
-                currentSubtitleText = currentSubtitleText,
                 subtitleTracks = subtitleTracks,
                 audioTracks = audioTracks,
                 audioBoosterEnabled = audioBoosterEnabled,
@@ -1180,7 +1195,8 @@ private fun getLogicalQueue(
     sortField: SortField,
     sortDirection: SortDirection
 ): List<Video> {
-    return if (video.folderName.isNotEmpty()) {
+    PerfTracer.markQueueConstructionStart()
+    val result = if (video.folderName.isNotEmpty()) {
         if (currentViewMode == ViewMode.FILES) {
             flatVideos.applySort(sortField, sortDirection)
         } else {
@@ -1189,4 +1205,6 @@ private fun getLogicalQueue(
     } else {
         playlist
     }
+    PerfTracer.markQueueConstructionEnd(result.size)
+    return result
 }

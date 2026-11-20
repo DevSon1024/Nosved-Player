@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
@@ -38,6 +39,8 @@ import android.content.IntentFilter
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,6 +48,7 @@ import android.net.Uri
 import com.devson.nvplayer.data.repository.PlaybackSettingsRepository
 import com.devson.nvplayer.data.repository.ViewSettingsRepository
 import com.devson.nvplayer.player.service.MediaPlaybackService
+import com.devson.nvplayer.util.PerfTracer
 import com.devson.nvplayer.util.StreamUrlValidator
 
 class MainActivity : FragmentActivity() {
@@ -238,11 +242,15 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        PerfTracer.markMainActivityCreateStart()
+        PerfTracer.traceSection("MainActivity.onCreate") {
+            super.onCreate(savedInstanceState)
+            enableEdgeToEdge()
 
         handleShortcutIntent(intent)
-        com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            com.devson.nvplayer.util.AppShortcutHelper.syncShortcuts(applicationContext)
+        }
 
         val uri = handleIntent(intent)
         deepLinkUri.value = uri
@@ -264,31 +272,35 @@ class MainActivity : FragmentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
-        // Listen for playback and navigation state changes to update PiP actions dynamically
+        // Listen for playback and navigation state changes to update PiP actions dynamically only when in PiP mode
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(
-                    playerViewModel.isPlaying,
-                    playerViewModel.hasNext,
-                    playerViewModel.hasPrevious
-                ) { _, _, _ -> }.collect {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode) {
-                        updatePipActions()
+                snapshotFlow { _isInPipMode.value }
+                    .collectLatest { inPip ->
+                        if (inPip && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && playerViewModelLazy.isInitialized()) {
+                            combine(
+                                playerViewModel.isPlaying,
+                                playerViewModel.hasNext,
+                                playerViewModel.hasPrevious
+                            ) { _, _, _ -> }.collect {
+                                updatePipActions()
+                            }
+                        }
                     }
-                }
             }
         }
 
 
 
         checkAndRequestPermissions()
+        optimizeDisplayRefreshRate()
 
         setContent {
-            val isDark by settingsViewModel.isDarkTheme.collectAsState()
-            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
-            val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
-            val isNavBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
-            val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsState()
+            val isDark by settingsViewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+            val selectedPalette by settingsViewModel.selectedPalette.collectAsStateWithLifecycle()
+            val isNavBarTransparent by settingsViewModel.isNavBarTransparent.collectAsStateWithLifecycle()
+            val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsStateWithLifecycle()
 
             NosvedPlayerTheme(
                 forceDark = isDark,
@@ -318,6 +330,8 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        }
+        PerfTracer.markMainActivityCreateEnd()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -335,6 +349,24 @@ class MainActivity : FragmentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    private fun optimizeDisplayRefreshRate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display
+            } else {
+                @Suppress("DEPRECATION")
+                windowManager.defaultDisplay
+            }
+            val modes = display?.supportedModes ?: return
+            val maxMode = modes.maxByOrNull { it.refreshRate }
+            if (maxMode != null && maxMode.refreshRate > 60f) {
+                val params = window.attributes
+                params.preferredDisplayModeId = maxMode.modeId
+                window.attributes = params
             }
         }
     }

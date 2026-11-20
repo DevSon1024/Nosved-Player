@@ -11,6 +11,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.coroutines.resume
 
 class VideoRepository(
@@ -26,6 +37,24 @@ class VideoRepository(
     @Volatile
     private var hasSyncedWatchHistoryOnce = false
     private val isScanningHidden = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private val scanMutex = Mutex()
+    private var inFlightScan: Deferred<List<VideoItem>>? = null
+    private val _cachedVideos = MutableStateFlow<List<VideoItem>?>(null)
+    val cachedVideos: StateFlow<List<VideoItem>?> = _cachedVideos.asStateFlow()
+
+    @Volatile
+    private var cachedUris: Set<String>? = null
+    @Volatile
+    private var cachedFolders: List<FolderItem>? = null
+
+    private val repoScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    fun invalidateCache() {
+        _cachedVideos.value = null
+        cachedUris = null
+        cachedFolders = null
+    }
 
     suspend fun scanCommonDirectories() = withContext(Dispatchers.IO) {
         val pathsToScan = mutableListOf<String>()
@@ -405,68 +434,151 @@ class VideoRepository(
         }
     }
 
-    suspend fun getAllVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
-        val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
-        val mediaStoreVideos = mediaStoreHelper.getAllVideos(blacklisted)
-        val allVideos = mediaStoreVideos.toMutableList()
-        val existingPaths = mediaStoreVideos.map { it.path }.toHashSet()
+    suspend fun getVisibleVideoUris(): Set<String> = withContext(Dispatchers.IO) {
+        cachedUris?.let { return@withContext it }
+        val videos = getAllVideos(forceRefresh = false)
+        cachedUris ?: videos.map { it.uri.toString() }.toHashSet().also { cachedUris = it }
+    }
 
-        // Also scan external/removable storage volumes (e.g., USB OTG, SD cards)
-        // which are not indexed by Android MediaStore.
-        val volumes = getAvailableStorageVolumes(context)
-        for (volume in volumes) {
-            if (!volume.isInternal) {
-                val volumeVideos = scanVolumeForVideos(volume.rootPath, blacklisted, includeHidden = true)
-                for (v in volumeVideos) {
-                    if (existingPaths.add(v.path)) {
-                        allVideos.add(v)
-                    }
+    private fun deriveFoldersFromVideos(videos: List<VideoItem>): List<FolderItem> {
+        val foldersMap = LinkedHashMap<String, MutableList<VideoItem>>()
+        for (video in videos) {
+            val lastSlash = video.path.lastIndexOf('/')
+            val parentPath = if (lastSlash > 0) video.path.substring(0, lastSlash) else video.folderName
+            foldersMap.getOrPut(parentPath) { mutableListOf() }.add(video)
+        }
+        return foldersMap.map { (parentPath, vids) ->
+            val folderName = parentPath.substringAfterLast('/').ifEmpty { parentPath }
+            FolderItem(
+                name = folderName,
+                path = parentPath,
+                videoCount = vids.size,
+                thumbnailUri = vids.firstOrNull()?.thumbnailUri
+            )
+        }.sortedBy { it.name }
+    }
+
+    suspend fun getAllVideos(forceRefresh: Boolean = false): List<VideoItem> = withContext(Dispatchers.IO) {
+        if (!forceRefresh) {
+            _cachedVideos.value?.let { return@withContext it }
+        }
+
+        val scanToAwait: Deferred<List<VideoItem>> = scanMutex.withLock {
+            if (!forceRefresh) {
+                _cachedVideos.value?.let { return@withLock CompletableDeferred(it) }
+            }
+            inFlightScan?.let { existing ->
+                if (!forceRefresh) {
+                    return@withLock existing
                 }
             }
-        }
 
-        // Restore previously discovered & cached hidden videos from videoMetadataDao
-        val allMetadata = try {
-            videoMetadataDao.getAllMetadataSync()
-        } catch (_: Exception) {
-            emptyList()
-        }
-        for (meta in allMetadata) {
-            val uriObj = runCatching { Uri.parse(meta.uri) }.getOrNull() ?: continue
-            val path = uriObj.path
-            if (!path.isNullOrBlank() && (meta.uri.startsWith("file://") || meta.uri.startsWith("/"))) {
-                if (!existingPaths.contains(path)) {
-                    val file = File(path)
-                    if (file.exists() && file.isFile && file.length() > 0L && isVideoFile(file)) {
-                        val pathWithSlash = if (file.parentFile != null && file.parentFile!!.absolutePath.endsWith("/")) file.parentFile!!.absolutePath else "${file.parentFile?.absolutePath}/"
-                        val isBlacklisted = blacklisted.any { pathWithSlash.startsWith(it) }
-                        if (!isBlacklisted) {
-                            existingPaths.add(path)
-                            val parentName = file.parentFile?.name.orEmpty().ifEmpty { "Hidden" }
-                            allVideos.add(
-                                VideoItem(
-                                    uri = uriObj,
-                                    title = file.name,
-                                    duration = meta.duration,
-                                    folderName = parentName,
-                                    path = path,
-                                    thumbnailUri = uriObj,
-                                    size = if (meta.size > 0L) meta.size else file.length(),
-                                    width = meta.width,
-                                    height = meta.height,
-                                    dateModified = if (meta.dateModified > 0L) meta.dateModified / 1000L else file.lastModified() / 1000L
-                                )
-                            )
+            val deferred = repoScope.async {
+                try {
+                    performFullScan()
+                } finally {
+                    scanMutex.withLock {
+                        if (inFlightScan == this) {
+                            inFlightScan = null
                         }
                     }
                 }
             }
+            inFlightScan = deferred
+            deferred
         }
 
+        scanToAwait.await()
+    }
+
+    private suspend fun performFullScan(): List<VideoItem> = withContext(Dispatchers.IO) {
+        val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
+        val mediaStoreVideos = mediaStoreHelper.getAllVideos(blacklisted)
+        val allVideos = ArrayList<VideoItem>(mediaStoreVideos.size + 16)
+        allVideos.addAll(mediaStoreVideos)
+        val existingPaths = HashSet<String>(mediaStoreVideos.size + 16)
+        for (v in mediaStoreVideos) {
+            existingPaths.add(v.path)
+        }
+
+        // Also scan external/removable storage volumes (e.g., USB OTG, SD cards)
+        // which are not indexed by Android MediaStore.
+        try {
+            val volumes = getAvailableStorageVolumes(context)
+            for (volume in volumes) {
+                if (!volume.isInternal) {
+                    val volumeVideos = scanVolumeForVideos(volume.rootPath, blacklisted, includeHidden = true)
+                    for (v in volumeVideos) {
+                        if (existingPaths.add(v.path)) {
+                            allVideos.add(v)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VideoRepository", "Error scanning removable volumes", e)
+        }
+
+        // Restore previously discovered & cached hidden videos from videoMetadataDao
+        // Fast targeted query: only retrieve rows where uri starts with file:// or /
+        try {
+            val fileMetadata = videoMetadataDao.getCachedFileUriMetadata()
+            for (meta in fileMetadata) {
+                val uriObj = runCatching { Uri.parse(meta.uri) }.getOrNull() ?: continue
+                val path = uriObj.path
+                if (!path.isNullOrBlank() && (meta.uri.startsWith("file://") || meta.uri.startsWith("/"))) {
+                    if (!existingPaths.contains(path)) {
+                        val file = File(path)
+                        if (file.exists() && file.isFile && file.length() > 0L && isVideoFile(file)) {
+                            val parent = file.parentFile
+                            val pathWithSlash = if (parent != null && parent.absolutePath.endsWith("/")) parent.absolutePath else "${parent?.absolutePath}/"
+                            val isBlacklisted = blacklisted.any { pathWithSlash.startsWith(it) }
+                            if (!isBlacklisted) {
+                                existingPaths.add(path)
+                                val parentName = parent?.name.orEmpty().ifEmpty { "Hidden" }
+                                allVideos.add(
+                                    VideoItem(
+                                        uri = uriObj,
+                                        title = file.name,
+                                        duration = meta.duration,
+                                        folderName = parentName,
+                                        path = path,
+                                        thumbnailUri = uriObj,
+                                        size = if (meta.size > 0L) meta.size else file.length(),
+                                        width = meta.width,
+                                        height = meta.height,
+                                        dateModified = if (meta.dateModified > 0L) meta.dateModified / 1000L else file.lastModified() / 1000L
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VideoRepository", "Error restoring cached hidden videos", e)
+        }
+
+        // Defer watch history file status synchronization asynchronously so scanning isn't blocked
         if (!hasSyncedWatchHistoryOnce) {
             hasSyncedWatchHistoryOnce = true
-            watchHistoryRepository.syncWatchHistoryFileStatus(allVideos)
+            repoScope.launch {
+                try {
+                    watchHistoryRepository.syncWatchHistoryFileStatus(allVideos)
+                } catch (e: Exception) {
+                    android.util.Log.e("VideoRepository", "Error syncing watch history file status", e)
+                }
+            }
         }
+
+        val uris = HashSet<String>(allVideos.size)
+        for (v in allVideos) {
+            uris.add(v.uri.toString())
+        }
+        cachedUris = uris
+        cachedFolders = deriveFoldersFromVideos(allVideos)
+        _cachedVideos.value = allVideos
+
         allVideos
     }
 
@@ -475,9 +587,12 @@ class VideoRepository(
         watchHistoryRepository.syncWatchHistoryFileStatus(videos)
     }
 
-    suspend fun getFolders(): List<FolderItem> = withContext(Dispatchers.IO) {
-        val blacklisted = settingsRepo.playbackSettingsFlow.value.blacklistedFolders.toList()
-        mediaStoreHelper.getFolders(blacklisted)
+    suspend fun getFolders(forceRefresh: Boolean = false): List<FolderItem> = withContext(Dispatchers.IO) {
+        if (!forceRefresh) {
+            cachedFolders?.let { return@withContext it }
+        }
+        val videos = getAllVideos(forceRefresh)
+        cachedFolders ?: deriveFoldersFromVideos(videos).also { cachedFolders = it }
     }
 
     suspend fun getVideosByFolder(folderName: String): List<VideoItem> = withContext(Dispatchers.IO) {

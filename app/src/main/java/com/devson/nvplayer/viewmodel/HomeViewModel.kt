@@ -51,6 +51,7 @@ class HomeViewModel(
 
     init {
         loadWatchHistory(forceVerify = true)
+        loadStorageInfo()
     }
 
     fun loadStorageInfo() {
@@ -83,7 +84,6 @@ class HomeViewModel(
         watchHistoryJob = viewModelScope.launch(Dispatchers.IO) {
             val metadataDao = AppDatabase.getDatabase(context).videoMetadataDao()
             dao.getAllHistoryFlow().collect { entities ->
-                val allCached = metadataDao.getAllMetadataSync().associateBy { it.uri }
                 val (vaultEntities, nonVaultEntities) = entities.partition { entity ->
                     entity.folderName.equals("Vault", ignoreCase = true) ||
                     entity.uri.contains(".vault_secure_media") ||
@@ -100,6 +100,13 @@ class HomeViewModel(
                     }
                 }
 
+                val allCached = if (nonVaultEntities.isNotEmpty()) {
+                    val uris = nonVaultEntities.map { it.uri }
+                    metadataDao.getMetadataForUris(uris).associateBy { it.uri }
+                } else {
+                    emptyMap()
+                }
+
                 val historyList = nonVaultEntities.map { entity ->
                     val cached = allCached[entity.uri]
                     WatchHistory(
@@ -112,8 +119,7 @@ class HomeViewModel(
                     )
                 }
                 if (forceVerify) {
-                    val visibleVideos = repository.getAllVideos()
-                    val visibleUris = visibleVideos.map { it.uri.toString() }.toSet()
+                    val visibleUris = repository.getVisibleVideoUris()
                     _history.value = historyList.filter { item ->
                         visibleUris.contains(item.uri) || 
                         item.uri.startsWith("http") || 
@@ -124,7 +130,6 @@ class HomeViewModel(
                 } else {
                     _history.value = historyList
                 }
-                loadStorageInfo()
             }
         }
     }

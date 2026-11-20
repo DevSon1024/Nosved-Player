@@ -59,62 +59,66 @@ class MediaStoreHelper(private val context: Context) {
         val selection = if (selectionParts.isNotEmpty()) selectionParts.joinToString(" AND ") else null
         val selectionArgs = if (selectionArgsList.isNotEmpty()) selectionArgsList.toTypedArray() else null
 
-        context.contentResolver.query(
-            collection,
-            projection,
-            selection,
-            selectionArgs,
-            sortOrder
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
-            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
-            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
-            val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
+        try {
+            context.contentResolver.query(
+                collection,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+                val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+                val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+                val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
 
-            while (cursor.moveToNext()) {
-                val mimeType = if (mimeTypeColumn != -1) cursor.getString(mimeTypeColumn) else null
-                if (mimeType != null && !mimeType.startsWith("video/")) {
-                    continue
-                }
+                while (cursor.moveToNext()) {
+                    val mimeType = if (mimeTypeColumn != -1) cursor.getString(mimeTypeColumn) else null
+                    if (mimeType != null && !mimeType.startsWith("video/")) {
+                        continue
+                    }
 
-                val data = cursor.getString(dataColumn) ?: ""
-                // Guard against TypeScript source files named .ts
-                if (data.endsWith(".ts", ignoreCase = true) && !isValidMpegTs(data)) {
-                    continue
-                }
+                    val data = cursor.getString(dataColumn) ?: ""
+                    // Guard against TypeScript source files named .ts
+                    if (data.endsWith(".ts", ignoreCase = true) && !isValidMpegTs(data)) {
+                        continue
+                    }
 
-                val id = cursor.getLong(idColumn)
-                val title = cursor.getString(nameColumn) ?: "Unknown"
-                val duration = cursor.getLong(durationColumn)
-                val size = cursor.getLong(sizeColumn)
-                val width = cursor.getInt(widthColumn)
-                val height = cursor.getInt(heightColumn)
-                val dateModified = cursor.getLong(dateModifiedColumn)
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(nameColumn) ?: "Unknown"
+                    val duration = cursor.getLong(durationColumn)
+                    val size = cursor.getLong(sizeColumn)
+                    val width = cursor.getInt(widthColumn)
+                    val height = cursor.getInt(heightColumn)
+                    val dateModified = cursor.getLong(dateModifiedColumn)
 
-                val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-                val resolvedFolderName = File(data).parentFile?.name ?: "Unknown"
-                val thumbnailUri = thumbnailsMap[id] ?: contentUri
+                    val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+                    val resolvedFolderName = File(data).parentFile?.name ?: "Unknown"
+                    val thumbnailUri = thumbnailsMap[id] ?: contentUri
 
-                videos.add(
-                    VideoItem(
-                        uri = contentUri,
-                        title = title,
-                        duration = duration,
-                        folderName = resolvedFolderName,
-                        path = data,
-                        thumbnailUri = thumbnailUri,
-                        size = size,
-                        width = width,
-                        height = height,
-                        dateModified = dateModified
+                    videos.add(
+                        VideoItem(
+                            uri = contentUri,
+                            title = title,
+                            duration = duration,
+                            folderName = resolvedFolderName,
+                            path = data,
+                            thumbnailUri = thumbnailUri,
+                            size = size,
+                            width = width,
+                            height = height,
+                            dateModified = dateModified
+                        )
                     )
-                )
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaStoreHelper", "Failed to query MediaStore videos", e)
         }
         videos
     }
@@ -184,60 +188,64 @@ class MediaStoreHelper(private val context: Context) {
             putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${MediaStore.Video.Media.DATE_ADDED} DESC")
         }
 
-        context.contentResolver.query(
-            collection,
-            projection,
-            queryArgs,
-            null
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
-            val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
-            val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
-            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
-            val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
+        try {
+            context.contentResolver.query(
+                collection,
+                projection,
+                queryArgs,
+                null
+            )?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+                val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+                val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+                val mimeTypeColumn = cursor.getColumnIndex(MediaStore.Video.Media.MIME_TYPE)
 
-            while (cursor.moveToNext()) {
-                val mimeType = if (mimeTypeColumn != -1) cursor.getString(mimeTypeColumn) else null
-                if (mimeType != null && !mimeType.startsWith("video/")) {
-                    continue
-                }
+                while (cursor.moveToNext()) {
+                    val mimeType = if (mimeTypeColumn != -1) cursor.getString(mimeTypeColumn) else null
+                    if (mimeType != null && !mimeType.startsWith("video/")) {
+                        continue
+                    }
 
-                val data = cursor.getString(dataColumn) ?: ""
-                if (data.endsWith(".ts", ignoreCase = true) && !isValidMpegTs(data)) {
-                    continue
-                }
+                    val data = cursor.getString(dataColumn) ?: ""
+                    if (data.endsWith(".ts", ignoreCase = true) && !isValidMpegTs(data)) {
+                        continue
+                    }
 
-                val id = cursor.getLong(idColumn)
-                val title = cursor.getString(nameColumn) ?: "Unknown"
-                val duration = cursor.getLong(durationColumn)
-                val size = cursor.getLong(sizeColumn)
-                val width = cursor.getInt(widthColumn)
-                val height = cursor.getInt(heightColumn)
-                val dateModified = cursor.getLong(dateModifiedColumn)
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(nameColumn) ?: "Unknown"
+                    val duration = cursor.getLong(durationColumn)
+                    val size = cursor.getLong(sizeColumn)
+                    val width = cursor.getInt(widthColumn)
+                    val height = cursor.getInt(heightColumn)
+                    val dateModified = cursor.getLong(dateModifiedColumn)
 
-                val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-                val folderName = File(data).parentFile?.name ?: "Unknown"
-                val thumbnailUri = thumbnailsMap[id] ?: contentUri
+                    val contentUri: Uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
+                    val folderName = File(data).parentFile?.name ?: "Unknown"
+                    val thumbnailUri = thumbnailsMap[id] ?: contentUri
 
-                videos.add(
-                    VideoItem(
-                        uri = contentUri,
-                        title = title,
-                        duration = duration,
-                        folderName = folderName,
-                        path = data,
-                        thumbnailUri = thumbnailUri,
-                        size = size,
-                        width = width,
-                        height = height,
-                        dateModified = dateModified
+                    videos.add(
+                        VideoItem(
+                            uri = contentUri,
+                            title = title,
+                            duration = duration,
+                            folderName = folderName,
+                            path = data,
+                            thumbnailUri = thumbnailUri,
+                            size = size,
+                            width = width,
+                            height = height,
+                            dateModified = dateModified
+                        )
                     )
-                )
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("MediaStoreHelper", "Failed to query trashed videos", e)
         }
         videos
     }
