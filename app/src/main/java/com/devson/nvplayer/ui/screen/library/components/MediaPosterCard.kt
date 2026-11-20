@@ -24,6 +24,12 @@ import coil3.request.crossfade
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.data.model.LibraryMediaType
 
+private val PosterCardShape = RoundedCornerShape(14.dp)
+private val PosterBadgeShape = RoundedCornerShape(6.dp)
+private val BottomScrimBrush = Brush.verticalGradient(
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))
+)
+
 @Composable
 fun MediaPosterCard(
     item: LibraryMediaItem,
@@ -50,8 +56,8 @@ fun MediaPosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .shadow(2.dp, RoundedCornerShape(14.dp)),
-            shape = RoundedCornerShape(14.dp),
+                .shadow(2.dp, PosterCardShape),
+            shape = PosterCardShape,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -75,7 +81,7 @@ fun MediaPosterCard(
                     }
                     Surface(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                        shape = RoundedCornerShape(6.dp)
+                        shape = PosterBadgeShape
                     ) {
                         Text(
                             text = badgeText,
@@ -95,11 +101,7 @@ fun MediaPosterCard(
                         .fillMaxWidth()
                         .height(36.dp)
                         .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))
-                            )
-                        )
+                        .background(BottomScrimBrush)
                 )
             }
         }

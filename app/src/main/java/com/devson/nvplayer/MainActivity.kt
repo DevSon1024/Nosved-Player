@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModelProvider
 import com.devson.nvplayer.data.media.MediaStoreHelper
 import com.devson.nvplayer.data.repository.VideoRepository
@@ -292,13 +293,14 @@ class MainActivity : FragmentActivity() {
 
 
         checkAndRequestPermissions()
+        optimizeDisplayRefreshRate()
 
         setContent {
-            val isDark by settingsViewModel.isDarkTheme.collectAsState()
-            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
-            val selectedPalette by settingsViewModel.selectedPalette.collectAsState()
-            val isNavBarTransparent by settingsViewModel.isNavBarTransparent.collectAsState()
-            val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsState()
+            val isDark by settingsViewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
+            val selectedPalette by settingsViewModel.selectedPalette.collectAsStateWithLifecycle()
+            val isNavBarTransparent by settingsViewModel.isNavBarTransparent.collectAsStateWithLifecycle()
+            val isAmoledTheme by settingsViewModel.isAmoledTheme.collectAsStateWithLifecycle()
 
             NosvedPlayerTheme(
                 forceDark = isDark,
@@ -347,6 +349,24 @@ class MainActivity : FragmentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    private fun optimizeDisplayRefreshRate() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display
+            } else {
+                @Suppress("DEPRECATION")
+                windowManager.defaultDisplay
+            }
+            val modes = display?.supportedModes ?: return
+            val maxMode = modes.maxByOrNull { it.refreshRate }
+            if (maxMode != null && maxMode.refreshRate > 60f) {
+                val params = window.attributes
+                params.preferredDisplayModeId = maxMode.modeId
+                window.attributes = params
             }
         }
     }

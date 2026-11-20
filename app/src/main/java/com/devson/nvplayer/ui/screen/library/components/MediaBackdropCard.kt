@@ -33,6 +33,13 @@ import coil3.request.crossfade
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.util.formatDuration
 
+private val BackdropCardShape = RoundedCornerShape(14.dp)
+private val BackdropBadgeShape = RoundedCornerShape(6.dp)
+private val MenuShape = RoundedCornerShape(16.dp)
+private val BackdropPlayScrim = Brush.radialGradient(
+    colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MediaBackdropCard(
@@ -44,7 +51,6 @@ fun MediaBackdropCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
-    val cardShape = RoundedCornerShape(14.dp)
 
     val imageRequest = remember(item.backdropUri ?: item.videoUri) {
         ImageRequest.Builder(context)
@@ -68,7 +74,7 @@ fun MediaBackdropCard(
     Column(
         modifier = modifier
             .width(220.dp)
-            .clip(cardShape)
+            .clip(BackdropCardShape)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = if (onRemoveClick != null) {
@@ -84,15 +90,15 @@ fun MediaBackdropCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .shadow(4.dp, cardShape)
-                    .clip(cardShape),
-                shape = cardShape,
+                    .shadow(4.dp, BackdropCardShape)
+                    .clip(BackdropCardShape),
+                shape = BackdropCardShape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(cardShape)
+                        .clip(BackdropCardShape)
                 ) {
                     AsyncImage(
                         model = imageRequest,
@@ -100,18 +106,14 @@ fun MediaBackdropCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(cardShape)
+                            .clip(BackdropCardShape)
                     )
 
                     // Play Button Scrim & Icon
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
-                                )
-                            ),
+                            .background(BackdropPlayScrim),
                         contentAlignment = Alignment.Center
                     ) {
                         Surface(
@@ -133,7 +135,7 @@ fun MediaBackdropCard(
                     // High-contrast duration badge safely positioned away from card edge
                     val durationText = if (remainingMs > 0) "${formatDuration(remainingMs)} left" else formatDuration(item.durationMs)
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = BackdropBadgeShape,
                         color = Color.Black.copy(alpha = 0.75f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -158,7 +160,7 @@ fun MediaBackdropCard(
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .align(Alignment.BottomCenter)
-                                .clip(cardShape),
+                                .clip(BackdropCardShape),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = Color.White.copy(alpha = 0.3f)
                         )
@@ -170,7 +172,7 @@ fun MediaBackdropCard(
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MenuShape,
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
                     DropdownMenuItem(

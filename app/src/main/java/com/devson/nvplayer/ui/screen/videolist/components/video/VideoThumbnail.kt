@@ -44,6 +44,14 @@ import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.ui.screen.videolist.components.common.SubtitleBadge
 import com.devson.nvplayer.ui.screen.videolist.components.common.getSubtitleTokens
 
+private val DurationPillShape = RoundedCornerShape(5.dp)
+private val ThumbnailPlayScrim = Brush.radialGradient(
+    colors = listOf(
+        Color.Black.copy(alpha = 0.35f),
+        Color.Transparent
+    )
+)
+
 /**
  * A branded Material Design 3 placeholder displayed while video thumbnails load.
  * Uses surfaceContainerHighest with a subtle centered vector watermark icon.
@@ -102,14 +110,7 @@ fun VideoThumbnail(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Transparent
-                            )
-                        )
-                    ),
+                    .background(ThumbnailPlayScrim),
                 contentAlignment = Alignment.Center
             ) {
                 // Frosted-glass pill button
@@ -188,7 +189,7 @@ fun DurationPill(
         modifier = modifier
             .background(
                 color = Color.Black.copy(alpha = 0.72f),
-                shape = RoundedCornerShape(5.dp)
+                shape = DurationPillShape
             )
             .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {

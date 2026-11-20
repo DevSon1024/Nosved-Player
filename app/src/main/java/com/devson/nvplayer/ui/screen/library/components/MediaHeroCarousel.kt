@@ -31,6 +31,16 @@ import coil3.request.crossfade
 import com.devson.nvplayer.data.model.LibraryMediaItem
 import com.devson.nvplayer.data.model.LibraryMediaType
 
+private val HeroCardShape = RoundedCornerShape(20.dp)
+private val HeroGradientScrim = Brush.verticalGradient(
+    colors = listOf(
+        Color.Transparent,
+        Color.Black.copy(alpha = 0.35f),
+        Color.Black.copy(alpha = 0.90f)
+    ),
+    startY = 50f
+)
+
 @Composable
 fun MediaHeroCarousel(
     items: List<LibraryMediaItem>,
@@ -66,10 +76,10 @@ fun MediaHeroCarousel(
             Card(
                 modifier = Modifier
                     .fillMaxSize()
-                    .shadow(8.dp, RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
+                    .shadow(8.dp, HeroCardShape)
+                    .clip(HeroCardShape)
                     .clickable { onItemClick(item) },
-                shape = RoundedCornerShape(20.dp),
+                shape = HeroCardShape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -85,16 +95,7 @@ fun MediaHeroCarousel(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.35f),
-                                        Color.Black.copy(alpha = 0.90f)
-                                    ),
-                                    startY = 50f
-                                )
-                            )
+                            .background(HeroGradientScrim)
                     )
 
                     // Content details inside hero

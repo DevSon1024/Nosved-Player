@@ -56,6 +56,7 @@ import com.devson.nvplayer.domain.model.VideoFolder
 import com.devson.nvplayer.domain.model.isPathHidden
 import com.devson.nvplayer.domain.model.ViewSettings
 import com.devson.nvplayer.domain.model.WatchHistory
+import com.devson.nvplayer.ui.common.shapes.DefaultFolderShape
 import com.devson.nvplayer.ui.common.shapes.FolderShape
 import com.devson.nvplayer.ui.screen.videolist.components.common.VideoWatchState
 import com.devson.nvplayer.ui.screen.videolist.components.common.getWatchState
@@ -63,6 +64,17 @@ import com.devson.nvplayer.ui.screen.videolist.components.video.VideoThumbnail
 import com.devson.nvplayer.ui.screens.videolist.components.selection.SelectionCheckmarkOverlay
 import com.devson.nvplayer.util.formatDate
 import com.devson.nvplayer.util.formatSize
+
+private val FolderListItemCardShape = RoundedCornerShape(20.dp)
+private val NewBadgeShape = RoundedCornerShape(20.dp)
+private val HiddenFolderScrim = Brush.verticalGradient(
+    0.0f to Color.Black.copy(alpha = 0.35f),
+    1.0f to Color.Black.copy(alpha = 0.55f)
+)
+private val NormalFolderScrim = Brush.verticalGradient(
+    0.55f to Color.Transparent,
+    1.0f  to Color.Black.copy(alpha = 0.28f)
+)
 
 @Composable
 fun NewCountBadge(
@@ -78,7 +90,7 @@ fun NewCountBadge(
     }
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = NewBadgeShape,
         color = MaterialTheme.colorScheme.primary,
         shadowElevation = 2.dp,
         border = BorderStroke(1.5.dp, borderColor)
@@ -108,11 +120,10 @@ fun FolderMediaPreview(
     hiddenIconSize: Dp = 18.dp
 ) {
     val bgColor = MaterialTheme.colorScheme.secondaryContainer
-    val folderShape = remember { FolderShape() }
 
     Box(
         modifier = modifier
-            .clip(folderShape)
+            .clip(DefaultFolderShape)
             .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
@@ -129,19 +140,7 @@ fun FolderMediaPreview(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (isHidden) {
-                            Brush.verticalGradient(
-                                0.0f to Color.Black.copy(alpha = 0.35f),
-                                1.0f to Color.Black.copy(alpha = 0.55f)
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                0.55f to Color.Transparent,
-                                1.0f  to Color.Black.copy(alpha = 0.28f)
-                            )
-                        }
-                    )
+                    .background(if (isHidden) HiddenFolderScrim else NormalFolderScrim)
             )
         } else {
             // No thumbnail - show a tinted icon
@@ -221,9 +220,9 @@ fun FolderListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(FolderListItemCardShape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape     = RoundedCornerShape(20.dp),
+        shape     = FolderListItemCardShape,
         colors    = CardDefaults.cardColors(containerColor = bgColor),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isSelected) 0.dp else 0.5.dp
@@ -238,7 +237,6 @@ fun FolderListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Folder thumbnail
-                val folderShape = remember { FolderShape() }
                 Box(
                     modifier = Modifier.size(width = 72.dp, height = 54.dp)
                 ) {
@@ -248,7 +246,7 @@ fun FolderListItem(
                         settings = settings,
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (settings.selectByThumbnail) Modifier.clip(folderShape).clickable { onLongClick() } else Modifier),
+                            .then(if (settings.selectByThumbnail) Modifier.clip(DefaultFolderShape).clickable { onLongClick() } else Modifier),
                         isHidden = isHidden
                     )
                     if (newCount > 0) {
