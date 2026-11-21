@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.Label
@@ -34,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -115,7 +118,7 @@ fun VideoSelectionBottomBar(
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(
                 1.dp,
@@ -198,16 +201,18 @@ fun VideoSelectionBottomBar(
                     )
                     DropdownMenu(
                         expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false }
+                        onDismissRequest = { showMoreMenu = false },
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f)
                     ) {
                         if (selectedVideos.size == 1 && onExtractSubtitles != null) {
                             DropdownMenuItem(
-                                text = { Text("Subtitle Extraction") },
+                                text = { Text("Subtitle Extraction", color = MaterialTheme.colorScheme.onSurface) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Subtitles,
                                         contentDescription = "Subtitle Extraction",
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 },
                                 onClick = {
@@ -217,12 +222,12 @@ fun VideoSelectionBottomBar(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text("Copy") },
+                            text = { Text("Copy", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Filled.ContentCopy,
                                     contentDescription = "Copy",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             onClick = {
@@ -232,12 +237,12 @@ fun VideoSelectionBottomBar(
                         )
                         if (onAddToVault != null) {
                             DropdownMenuItem(
-                                text = { Text(if (selectedVideos.size > 1) "Add all to Vault (${selectedVideos.size})" else "Add to Vault") },
+                                text = { Text(if (selectedVideos.size > 1) "Add all to Vault (${selectedVideos.size})" else "Add to Vault", color = MaterialTheme.colorScheme.onSurface) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Lock,
                                         contentDescription = "Add to Vault",
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 },
                                 onClick = {
@@ -278,21 +283,24 @@ private fun ActionColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clip(CircleShape)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true)
+            ) { onClick() }
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
     }

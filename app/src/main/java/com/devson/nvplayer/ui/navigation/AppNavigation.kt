@@ -88,6 +88,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import com.devson.nvplayer.ui.screen.settings.ControlLayoutEditorScreen
@@ -251,18 +252,15 @@ fun AppNavigation(
                 videoListViewModel.selectFolder(null)
                 videoListViewModel.setSelectionActive(false)
             }
-            if (targetRoute == "settings") {
-                navController.popBackStack("settings", inclusive = false)
-            }
             navController.navigate(targetRoute) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     saveState = true
                 }
                 launchSingleTop = true
-                restoreState = (targetRoute != "settings")
+                restoreState = true
             }
         }
-    }
+    }`
 
     BackHandler(enabled = currentRoute in topLevelRoutes && currentRoute != startDestination) {
         navigateToTopLevel(startDestination)
@@ -334,8 +332,8 @@ fun AppNavigation(
                 }
                 slideIntoContainer(
                     towards = towards,
-                    animationSpec = tween(400, easing = EaseOutCubic)
-                ) + fadeIn(animationSpec = tween(300))
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(150, easing = LinearEasing))
             }
         },
         exitTransition = {
@@ -357,8 +355,8 @@ fun AppNavigation(
                 }
                 slideOutOfContainer(
                     towards = towards,
-                    animationSpec = tween(400, easing = EaseInCubic)
-                ) + fadeOut(animationSpec = tween(300))
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(130, easing = LinearEasing))
             }
         },
         popEnterTransition = {
@@ -380,8 +378,8 @@ fun AppNavigation(
                 }
                 slideIntoContainer(
                     towards = towards,
-                    animationSpec = tween(400, easing = EaseOutCubic)
-                ) + fadeIn(animationSpec = tween(300))
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(150, easing = LinearEasing))
             }
         },
         popExitTransition = {
@@ -403,8 +401,8 @@ fun AppNavigation(
                 }
                 slideOutOfContainer(
                     towards = towards,
-                    animationSpec = tween(400, easing = EaseInCubic)
-                ) + fadeOut(animationSpec = tween(300))
+                    animationSpec = tween(180, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(130, easing = LinearEasing))
             }
         }
     ) {
@@ -1207,4 +1205,4 @@ private fun getLogicalQueue(
     }
     PerfTracer.markQueueConstructionEnd(result.size)
     return result
-}
+}

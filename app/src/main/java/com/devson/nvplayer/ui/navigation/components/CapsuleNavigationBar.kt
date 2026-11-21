@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -43,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
+@Immutable
 data class NavigationTabItem(
     val route: String,
     val title: String,
@@ -119,7 +122,8 @@ fun CapsuleNavigationBar(
     }
     var movingForward by remember { mutableStateOf(true) }
 
-    LaunchedEffect(activeIndex) {
+    // Keep target index in sync with external navigation (e.g. back press or deep link)
+    LaunchedEffect(currentRoute) {
         if (activeIndex >= 0 && activeIndex != targetIndex) {
             movingForward = activeIndex > targetIndex
             targetIndex = activeIndex
@@ -138,18 +142,18 @@ fun CapsuleNavigationBar(
     val leftTargetPx = tabWidthPx * targetIndex
     val rightTargetPx = tabWidthPx * (targetIndex + 1)
 
-    // Liquid fluid springs: leading edge stretches rapidly with organic overshoot,
-    // while trailing edge flows behind with viscosity and snaps into destination.
+    // Ultra-snappy liquid fluid springs harmonized with the 180ms page slide animation:
+    // leading edge stretches instantaneously to destination tab, while trailing edge follows closely behind.
     val leadingSpring = remember {
         spring<Float>(
-            dampingRatio = 0.72f,
-            stiffness = 500f
+            dampingRatio = 0.76f,
+            stiffness = 1600f
         )
     }
     val trailingSpring = remember {
         spring<Float>(
             dampingRatio = 0.82f,
-            stiffness = 300f
+            stiffness = 1100f
         )
     }
 
@@ -230,21 +234,25 @@ fun CapsuleNavigationBar(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items.forEach { item ->
-                            val isSelected = currentRoute == item.route
+                        items.forEachIndexed { index, item ->
+                            val isSelected = (index == targetIndex)
                             CapsuleNavItem(
                                 item = item,
                                 isSelected = isSelected,
                                 onClick = {
                                     val now = System.currentTimeMillis()
-                                    if (now - lastClickTime > 200L) {
+                                    if (index == targetIndex) {
+                                        if (now - lastClickTime > 150L) {
+                                            lastClickTime = now
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            onTabReselect?.invoke(item.route)
+                                        }
+                                    } else {
                                         lastClickTime = now
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        if (isSelected) {
-                                            onTabReselect?.invoke(item.route)
-                                        } else {
-                                            onNavigate(item.route)
-                                        }
+                                        movingForward = index > targetIndex
+                                        targetIndex = index
+                                        onNavigate(item.route)
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -304,13 +312,19 @@ private fun CapsuleNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val selectionFraction by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.80f, stiffness = 1400f),
+        label = "nav_item_selection"
+    )
+
     val iconColor by animateColorAsState(
         targetValue = if (isSelected) {
             MaterialTheme.colorScheme.onSecondaryContainer
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = 0.80f, stiffness = 1400f),
         label = "nav_icon_color"
     )
 
@@ -320,15 +334,11 @@ private fun CapsuleNavItem(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = 0.80f, stiffness = 1400f),
         label = "nav_text_color"
     )
 
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
-        label = "nav_scale"
-    )
+    val scale = 1f + (0.04f * selectionFraction)
 
     Box(
         modifier = modifier
@@ -346,17 +356,46 @@ private fun CapsuleNavItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                contentDescription = item.title,
-                tint = iconColor,
-                modifier = Modifier.size(22.dp)
-            )
+            Box(
+                modifier = Modifier.size(22.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Outlined unselected icon
+                if (selectionFraction < 0.99f) {
+                    Icon(
+                        imageVector = item.unselectedIcon,
+                        contentDescription = item.title,
+                        tint = iconColor,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = 1f - selectionFraction
+                                scaleX = 1f - (0.08f * selectionFraction)
+                                scaleY = 1f - (0.08f * selectionFraction)
+                            }
+                    )
+                }
+                // Filled selected icon
+                if (selectionFraction > 0.01f) {
+                    Icon(
+                        imageVector = item.selectedIcon,
+                        contentDescription = item.title,
+                        tint = iconColor,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = selectionFraction
+                                scaleX = 0.92f + (0.08f * selectionFraction)
+                                scaleY = 0.92f + (0.08f * selectionFraction)
+                            }
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.title,
                 fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (selectionFraction >= 0.5f) FontWeight.Bold else FontWeight.Medium,
                 color = textColor,
                 maxLines = 1
             )
